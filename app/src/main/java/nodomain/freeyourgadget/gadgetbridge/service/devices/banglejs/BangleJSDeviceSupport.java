@@ -36,6 +36,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
@@ -65,6 +66,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -133,6 +136,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEQueue;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
+import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 import nodomain.freeyourgadget.gadgetbridge.util.EmojiConverter;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
@@ -1348,6 +1352,29 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             o.put("dur", musicSpec.duration);
             o.put("c", musicSpec.trackCount);
             o.put("n", musicSpec.trackNr);
+
+            /*Bitmap bmp = musicSpec.albumArt;
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            bmp.compress(Bitmap.CompressFormat.PNG, 2, stream);
+            byte[] byteArray = stream.toByteArray();
+            bmp.recycle();
+            o.put("img", byteArray);*/
+
+            //byte[] fileContent = getContext().getResources().openRawResource(R.drawable.gadgetbridge_img);
+
+            /*ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            Bitmap bitmap = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.gadgetbridge_img);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream);
+            byte[] imageBytes = byteArrayOutputStream.toByteArray();
+            String encodedString = Base64.encodeToString(imageBytes, Base64.NO_WRAP);
+            o.put("img", encodedString);*/
+
+            //byte[] fileContent = {33, 34, 35, 36, 37};
+            //byte[] tempBytes = {43, 35, 33, 42};
+
+            //String imgString = "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";
+            //o.put("img", imgString);
+
             uartTxJSON("onSetMusicInfo", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -1448,6 +1475,17 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             o.put("t", "find");
             o.put("n", start);
             uartTxJSON("onFindDevice", o);
+        } catch (JSONException e) {
+            LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    @Override
+    public void onReset(int flags) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("t", "reboot");
+            uartTxJSON("onReset", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
         }

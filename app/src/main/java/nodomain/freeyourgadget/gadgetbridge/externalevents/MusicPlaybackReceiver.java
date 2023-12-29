@@ -22,10 +22,21 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.content.ContentUris;
+import android.os.ParcelFileDescriptor;
+import java.io.FileDescriptor;
+
+import android.view.View;
+import android.widget.ImageView;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 
@@ -98,10 +109,15 @@ public class MusicPlaybackReceiver extends BroadcastReceiver {
             }
         }
 
+        // set albumArt
+        long songId = intent.getLongExtra("id", -1);
+        musicSpec.albumArt = getAlbumart(context, songId);
+
         if (!lastMusicSpec.equals(musicSpec)) {
             lastMusicSpec = musicSpec;
             LOG.info("Update Music Info: " + musicSpec.artist + " / " + musicSpec.album + " / " + musicSpec.track);
             GBApplication.deviceService().onSetMusicInfo(musicSpec);
+
         } else {
             LOG.info("Got metadata changed intent, but nothing changed, ignoring.");
         }
@@ -114,4 +130,28 @@ public class MusicPlaybackReceiver extends BroadcastReceiver {
             LOG.info("Got state changed intent, but not enough has changed, ignoring.");
         }
     }
+
+    public static Bitmap getAlbumart(Context context,Long album_id){
+        Bitmap bm = null;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        try{
+            final Uri sArtworkUri = Uri.parse("content://media/external/audio/albumart");
+            Uri uri = ContentUris.withAppendedId(sArtworkUri, album_id);
+            ParcelFileDescriptor pfd = context.getContentResolver().openFileDescriptor(uri, "r");
+            if (pfd != null){
+                FileDescriptor fd = pfd.getFileDescriptor();
+                bm = BitmapFactory.decodeFileDescriptor(fd, null, options);
+                pfd = null;
+                fd = null;
+            }
+        } catch(Error ee){}
+        catch (Exception e) {}
+        return bm;
+    }
+
+    /*protected void setImage(Context context, long songId){
+        //set the image
+        ImageView img= (ImageView) ImageView.findViewById(R.id.AlbumArtImageView);
+        img.setImageBitmap(getAlbumart(context, songId));
+    }*/
 }

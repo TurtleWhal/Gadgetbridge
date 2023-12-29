@@ -112,8 +112,16 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="2dp"
-                grid:layout_gravity="fill_horizontal"
-                android:text="Heart Rate Test" />
+                android:text="Heart Rate Test"
+                grid:layout_gravity="fill_horizontal" />
+
+            <ImageView
+                android:id="@+id/AlbumArtImageView"
+                android:layout_width="194dp"
+                android:layout_height="55dp"
+                android:src="@drawable/ic_beep"
+                grid:srcCompat="@drawable/ic_beep"
+                tools:srcCompat="@drawable/ic_beep" />
 
             <Button
                 android:id="@+id/rebootButton"

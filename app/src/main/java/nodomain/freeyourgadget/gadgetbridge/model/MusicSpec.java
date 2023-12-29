@@ -18,6 +18,10 @@
 package nodomain.freeyourgadget.gadgetbridge.model;
 
 import java.util.Objects;
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
+
+import androidx.annotation.DrawableRes;
 
 public class MusicSpec {
     public static final int MUSIC_UNKNOWN = -1;
@@ -35,6 +39,7 @@ public class MusicSpec {
     public int duration = MUSIC_UNKNOWN;
     public int trackCount = MUSIC_UNKNOWN;
     public int trackNr = MUSIC_UNKNOWN;
+    public Bitmap albumArt;
 
     public MusicSpec() {
 
@@ -47,6 +52,8 @@ public class MusicSpec {
         this.track = old.track;
         this.album = old.album;
         this.artist = old.artist;
+        this.albumArt = old.albumArt;
+
     }
 
     @Override
