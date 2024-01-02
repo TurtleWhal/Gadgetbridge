@@ -617,7 +617,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
     private void handleNotificationControl(JSONObject json) throws JSONException {
         GBDeviceEventNotificationControl deviceEvtNotificationControl = new GBDeviceEventNotificationControl();
         // .title appears unused
-        deviceEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.valueOf(json.getString("n").toUpperCase());
+        deviceEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.valueOf(json.getString("n").replace("\0", "").toUpperCase());
         if (json.has("id"))
             deviceEvtNotificationControl.handle = json.getInt("id");
         if (json.has("tel"))
