@@ -1,5 +1,5 @@
-/*  Copyright (C) 2015-2020 abettenburg, Andreas Shimokawa, Carsten Pfeiffer,
-    Daniele Gobbetti, Lem Dulfo
+/*  Copyright (C) 2020-2024 Andreas Shimokawa, Arjan Schrijver, Daniel Dakhno,
+    José Rebelo, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -14,8 +14,10 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities;
+
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.*;
 
 import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
@@ -69,6 +71,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -86,7 +89,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryJsonSummary;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.SwipeEvents;
@@ -182,9 +184,9 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
                     makeSummaryHeader(newItem);
                     makeSummaryContent(newItem);
                     activitySummariesChartFragment.setDateAndGetData(getGBDevice(currentItem.getDevice()), currentItem.getStartTime().getTime() / 1000, currentItem.getEndTime().getTime() / 1000);
-                    if (get_gpx_file() != null) {
+                    if (getTrackFile() != null) {
                         showCanvas();
-                        activitySummariesGpsFragment.set_data(get_gpx_file());
+                        activitySummariesGpsFragment.set_data(getTrackFile());
                     } else {
                         hideCanvas();
                     }
@@ -204,9 +206,9 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
                     makeSummaryHeader(newItem);
                     makeSummaryContent(newItem);
                     activitySummariesChartFragment.setDateAndGetData(getGBDevice(currentItem.getDevice()), currentItem.getStartTime().getTime() / 1000, currentItem.getEndTime().getTime() / 1000);
-                    if (get_gpx_file() != null) {
+                    if (getTrackFile() != null) {
                         showCanvas();
-                        activitySummariesGpsFragment.set_data(get_gpx_file());
+                        activitySummariesGpsFragment.set_data(getTrackFile());
                     } else {
                         hideCanvas();
                     }
@@ -225,9 +227,9 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
             makeSummaryHeader(currentItem);
             makeSummaryContent(currentItem);
             activitySummariesChartFragment.setDateAndGetData(getGBDevice(currentItem.getDevice()), currentItem.getStartTime().getTime() / 1000, currentItem.getEndTime().getTime() / 1000);
-            if (get_gpx_file() != null) {
+            if (getTrackFile() != null) {
                 showCanvas();
-                activitySummariesGpsFragment.set_data(get_gpx_file());
+                activitySummariesGpsFragment.set_data(getTrackFile());
             } else {
                 hideCanvas();
             }
@@ -318,9 +320,9 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
                                     public void onClick(DialogInterface dialog, int which) {
                                         currentItem.setGpxTrack(selectedGpxFile);
                                         currentItem.update();
-                                        if (get_gpx_file() != null) {
+                                        if (getTrackFile() != null) {
                                             showCanvas();
-                                            activitySummariesGpsFragment.set_data(get_gpx_file());
+                                            activitySummariesGpsFragment.set_data(getTrackFile());
                                         } else {
                                             hideCanvas();
                                         }
@@ -464,13 +466,13 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
                         if (!show_raw_data) {
                             //special casing here + imperial units handling
                             switch (unit) {
-                                case "cm":
+                                case UNIT_CM:
                                     if (units.equals(UNIT_IMPERIAL)) {
                                         value = value * 0.0328084;
                                         unit = "ft";
                                     }
                                     break;
-                                case "meters_second":
+                                case UNIT_METERS_PER_SECOND:
                                     if (units.equals(UNIT_IMPERIAL)) {
                                         value = value * 2.236936D;
                                         unit = "mi_h";
@@ -479,7 +481,7 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
                                         unit = "km_h";
                                     }
                                     break;
-                                case "seconds_m":
+                                case UNIT_SECONDS_PER_M:
                                     if (units.equals(UNIT_IMPERIAL)) {
                                         value = value * (1609.344 / 60D);
                                         unit = "minutes_mi";
@@ -488,7 +490,7 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
                                         unit = "minutes_km";
                                     }
                                     break;
-                                case "seconds_km":
+                                case UNIT_SECONDS_PER_KM:
                                     if (units.equals(UNIT_IMPERIAL)) {
                                         value = value / 60D * 1.609344;
                                         unit = "minutes_mi";
@@ -497,7 +499,7 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
                                         unit = "minutes_km";
                                     }
                                     break;
-                                case "meters":
+                                case UNIT_METERS:
                                     if (units.equals(UNIT_IMPERIAL)) {
                                         value = value * 3.28084D;
                                         unit = "ft";
@@ -517,6 +519,14 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
 
                         if (unit.equals("seconds") && !show_raw_data) { //rather then plain seconds, show formatted duration
                             value_field.setText(DateTimeUtils.formatDurationHoursMinutes((long) value, TimeUnit.SECONDS));
+                        } else if (unit.equals("minutes_km") || unit.equals("minutes_mi")) {
+                            // Format pace
+                            value_field.setText(String.format(
+                                    Locale.getDefault(),
+                                    "%d:%02d %s",
+                                    (int) Math.floor(value), (int) Math.round(60 * (value - (int) Math.floor(value))),
+                                    getStringResourceByName(unit)
+                            ));
                         } else {
                             value_field.setText(String.format("%s %s", df.format(value), getStringResourceByName(unit)));
                         }
@@ -702,10 +712,19 @@ public class ActivitySummaryDetail extends AbstractGBActivity {
         gpsView.setLayoutParams(params);
     }
 
-    private File get_gpx_file() {
+    private File getTrackFile() {
         final String gpxTrack = currentItem.getGpxTrack();
         if (gpxTrack != null) {
             File file = new File(gpxTrack);
+            if (file.exists()) {
+                return file;
+            } else {
+                return null;
+            }
+        }
+        final String rawDetails = currentItem.getRawDetailsPath();
+        if (rawDetails != null && rawDetails.endsWith(".fit")) {
+            File file = new File(rawDetails);
             if (file.exists()) {
                 return file;
             } else {

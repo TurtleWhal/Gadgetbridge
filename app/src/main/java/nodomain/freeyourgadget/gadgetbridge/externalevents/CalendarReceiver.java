@@ -1,5 +1,5 @@
-/*  Copyright (C) 2017-2020 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Daniel Hauck
+/*  Copyright (C) 2017-2024 Andreas Shimokawa, Carsten Pfeiffer, Daniele
+    Gobbetti, Daniel Hauck, Gabriele Monaco, José Rebelo, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.externalevents;
 
 
@@ -26,6 +26,7 @@ import android.widget.Toast;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.GregorianCalendar;
@@ -188,6 +189,7 @@ public class CalendarReceiver extends BroadcastReceiver {
                 calendarEventSpec.id = i;
                 calendarEventSpec.title = calendarEvent.getTitle();
                 calendarEventSpec.allDay = calendarEvent.isAllDay();
+                calendarEventSpec.reminders = new ArrayList<>(calendarEvent.getRemindersAbsoluteTs());
                 calendarEventSpec.timestamp = calendarEvent.getBeginSeconds();
                 calendarEventSpec.durationInSeconds = calendarEvent.getDurationSeconds(); //FIXME: leads to problems right now
                 if (calendarEvent.isAllDay()) {

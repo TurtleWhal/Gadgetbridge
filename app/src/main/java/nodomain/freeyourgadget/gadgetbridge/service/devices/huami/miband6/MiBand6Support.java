@@ -1,4 +1,4 @@
-/*  Copyright (C) 2019-2021 Andreas Shimokawa, Manuel Ruß, odavo32nof
+/*  Copyright (C) 2021-2024 Andreas Shimokawa, jhey, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.miband6;
 
 import android.content.Context;
@@ -30,8 +30,8 @@ import nodomain.freeyourgadget.gadgetbridge.devices.huami.miband6.MiBand6FWHelpe
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.miband5.MiBand5Support;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.UpdateFirmwareOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.UpdateFirmwareOperation2020;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.update.UpdateFirmwareOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.update.UpdateFirmwareOperation2020;
 
 public class MiBand6Support extends MiBand5Support {
     private static final Logger LOG = LoggerFactory.getLogger(MiBand6Support.class);

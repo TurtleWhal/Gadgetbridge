@@ -1,4 +1,5 @@
-/*  Copyright (C) 2019-2021 Andreas Shimokawa, Sophanimus
+/*  Copyright (C) 2019-2024 Andreas Shimokawa, Damien Gaignon, Daniel Dakhno,
+    José Rebelo, Petr Vaněk, Sophanimus
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 
 package nodomain.freeyourgadget.gadgetbridge.devices.jyou;
 
@@ -183,13 +184,7 @@ public class BFH16DeviceCoordinator extends AbstractBLEDeviceCoordinator
     }
 
     @Override
-    public boolean supportsScreenshots() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsSmartWakeup(GBDevice device)
-    {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 

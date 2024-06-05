@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="nodomain.freeyourgadget.gadgetbridge">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!--
         Comment in for testing Pebble Emulator
@@ -35,6 +34,9 @@
 
     <!-- Schedule exact alarms (eg. for DST changes) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- Take wake locks (e.g. for time sync) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Read loyalty cards from Catima -->
     <uses-permission android:name="me.hackerchick.catima.READ_CARDS"/>
@@ -72,6 +74,8 @@
     <!-- Used for starting activities from the background with intents -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <uses-permission android:name="android.permission.CAMERA"/>
+
     <!--
     SDK 30 & Android 11 - Used for getting app name from notifications, and for starting
     services from other packages via intents, when targeting Android API level 30 or later
@@ -97,6 +101,9 @@
     <uses-feature
         android:name="android.software.companion_device_setup"
         android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
 
     <application
         android:name=".GBApplication"
@@ -108,6 +115,24 @@
         android:requestLegacyExternalStorage="true"
         android:theme="@style/GadgetbridgeTheme"
         tools:replace="android:label">
+        <receiver
+            android:name=".externalevents.sleepasandroid.SleepAsAndroidReceiver"
+            android:enabled="true"
+            android:exported="true" >
+            <intent-filter>
+                <action android:name="com.urbandroid.sleep.watch.START_TRACKING" />
+                <action android:name="com.urbandroid.sleep.watch.STOP_TRACKING" />
+                <action android:name="com.urbandroid.sleep.watch.SET_PAUSE" />
+                <action android:name="com.urbandroid.sleep.watch.SET_SUSPENDED" />
+                <action android:name="com.urbandroid.sleep.watch.SET_BATCH_SIZE" />
+                <action android:name="com.urbandroid.sleep.watch.START_ALARM" />
+                <action android:name="com.urbandroid.sleep.watch.STOP_ALARM" />
+                <action android:name="com.urbandroid.sleep.watch.UPDATE_ALARM" />
+                <action android:name="com.urbandroid.sleep.watch.SHOW_NOTIFICATION" />
+                <action android:name="com.urbandroid.sleep.watch.HINT" />
+                <action android:name="com.urbandroid.sleep.watch.CHECK_CONNECTED" />
+            </intent-filter>
+        </receiver>
         <activity
             android:name=".activities.ControlCenterv2"
             android:label="@string/title_activity_controlcenter"
@@ -126,6 +151,14 @@
             android:name=".activities.SettingsActivity"
             android:label="@string/title_activity_settings"
             android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.DashboardPreferencesActivity"
+            android:label="@string/dashboard_settings"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.SleepAsAndroidPreferencesActivity"
+            android:label="@string/sleepasandroid_settings"
+            android:parentActivityName=".activities.SettingsActivity" />
         <activity
             android:name=".activities.AboutUserPreferencesActivity"
             android:label="@string/activity_prefs_about_you"
@@ -149,10 +182,6 @@
         <activity
             android:name=".devices.pebble.PebbleSettingsActivity"
             android:label="@string/pref_title_pebble_settings"
-            android:parentActivityName=".activities.SettingsActivity" />
-        <activity
-            android:name=".devices.hplus.HPlusSettingsActivity"
-            android:label="@string/preferences_hplus_settings"
             android:parentActivityName=".activities.SettingsActivity" />
         <activity
             android:name=".devices.zetime.ZeTimePreferenceActivity"
@@ -431,6 +460,12 @@
         <service
             android:name=".devices.pinetime.PineTimeDFUService"
             android:label="PineTime Nordic DFU service" />
+
+        <service
+            android:name=".service.btle.BLEScanService"
+            android:enabled="true"
+            android:exported="false">
+        </service>
 
         <receiver
             android:name=".externalevents.GenericWeatherReceiver"
@@ -734,15 +769,15 @@
         </activity>
 
         <activity
-            android:name=".devices.qhybrid.ConfigActivity"
+            android:name=".devices.qhybrid.QHybridConfigActivity"
             android:label="@string/qhybrid_title_watchface"
             android:exported="true"
-            android:parentActivityName=".activities.ControlCenterv2" />
+            android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
         <activity
             android:name=".devices.qhybrid.QHybridAppChoserActivity"
             android:label="@string/qhybrid_title_apps"
             android:exported="true"
-            android:parentActivityName=".devices.qhybrid.ConfigActivity" />
+            android:parentActivityName=".devices.qhybrid.QHybridConfigActivity" />
         <activity
             android:name=".devices.qhybrid.HRConfigActivity"
             android:label="@string/qhybrid_title_watchface"
@@ -810,7 +845,7 @@
             android:label="@string/gpx_receiver_activity_title"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="stateHidden"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
@@ -840,6 +875,16 @@
             android:name=".externalevents.opentracks.OpenTracksController"
             android:label="OpenTracks controller and intent receiver"
             android:exported="true"/>
+
+        <activity
+            android:name=".activities.dashboard.DashboardCalendarActivity"
+            android:label="@string/menuitem_calendar"
+            android:parentActivityName=".activities.ControlCenterv2" />
+
+        <activity
+            android:name=".activities.CameraActivity"
+            android:launchMode="singleInstance"
+            android:exported="false" />
     </application>
 
 </manifest>

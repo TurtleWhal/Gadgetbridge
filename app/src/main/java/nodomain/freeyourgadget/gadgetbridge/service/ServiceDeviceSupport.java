@@ -1,6 +1,6 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniel
-    Dakhno, Daniele Gobbetti, José Rebelo, Julien Pivotto, Kasha, Sebastian
-    Kranz, Steffen Liebergeld
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Daniel Dakhno, José Rebelo, Julien Pivotto, Kasha, Sebastian Kranz,
+    Steffen Liebergeld
 
     This file is part of Gadgetbridge.
 
@@ -15,23 +15,24 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service;
 
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.location.Location;
 import android.net.Uri;
+import android.os.Bundle;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
@@ -97,6 +98,16 @@ public class ServiceDeviceSupport implements DeviceSupport {
     @Override
     public boolean getAutoReconnect() {
         return delegate.getAutoReconnect();
+    }
+
+    @Override
+    public void setScanReconnect(boolean enable) {
+        delegate.setScanReconnect(enable);
+    }
+
+    @Override
+    public boolean getScanReconnect(){
+        return delegate.getScanReconnect();
     }
 
     @Override
@@ -464,11 +475,11 @@ public class ServiceDeviceSupport implements DeviceSupport {
     }
 
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
-        if (checkBusy("send weather event")) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+        if (checkBusy("send weather events")) {
             return;
         }
-        delegate.onSendWeather(weatherSpec);
+        delegate.onSendWeather(weatherSpecs);
     }
 
     @Override
@@ -501,5 +512,21 @@ public class ServiceDeviceSupport implements DeviceSupport {
             return;
         }
         delegate.onSetGpsLocation(location);
+    }
+
+    @Override
+    public void onSleepAsAndroidAction(String action, Bundle extras) {
+        if (checkBusy("sleep as android")) {
+            return;
+        }
+        delegate.onSleepAsAndroidAction(action, extras);
+    }
+
+    @Override
+    public void onCameraStatusChange(GBDeviceEventCameraRemote.Event event, String filename) {
+        if (checkBusy("camera status")) {
+            return;
+        }
+        delegate.onCameraStatusChange(event, filename);
     }
 }

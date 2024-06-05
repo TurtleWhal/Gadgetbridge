@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 Andreas Shimokawa, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi;
 
 
@@ -42,10 +42,7 @@ public class XiaomiCharacteristic {
 
     public static final byte[] PAYLOAD_ACK = new byte[]{0, 0, 3, 0};
 
-    // max chunk size, including headers
-    public static final int MAX_WRITE_SIZE = 242;
-
-    private final XiaomiSupport mSupport;
+    private final XiaomiBleSupport mSupport;
 
     private final BluetoothGattCharacteristic bluetoothGattCharacteristic;
     private final UUID characteristicUUID;
@@ -54,7 +51,11 @@ public class XiaomiCharacteristic {
     private final XiaomiAuthService authService;
     private boolean isEncrypted;
     public boolean incrementNonce = true;
-    private short encryptedIndex = 0;
+    private int encryptedIndex = 0;
+
+    // max chunk size, including headers
+    private int maxWriteSize = 244; // MTU of 247 - 3 bytes for the ATT overhead (based on lowest MTU observed after increasing MTU to 512)
+    private int maxWriteSizeForCurrentMessage;
 
     // Chunking
     private int numChunks = 0;
@@ -68,11 +69,9 @@ public class XiaomiCharacteristic {
     private boolean sendingChunked = false;
     private Payload currentPayload = null;
 
-    private Handler handler = null;
+    private XiaomiChannelHandler channelHandler = null;
 
-    private SendCallback callback;
-
-    public XiaomiCharacteristic(final XiaomiSupport support,
+    public XiaomiCharacteristic(final XiaomiBleSupport support,
                                 final BluetoothGattCharacteristic bluetoothGattCharacteristic,
                                 @Nullable final XiaomiAuthService authService) {
         this.mSupport = support;
@@ -86,12 +85,8 @@ public class XiaomiCharacteristic {
         return characteristicUUID;
     }
 
-    public void setHandler(final Handler handler) {
-        this.handler = handler;
-    }
-
-    public void setCallback(final SendCallback callback) {
-        this.callback = callback;
+    public void setChannelHandler(final XiaomiChannelHandler handler) {
+        this.channelHandler = handler;
     }
 
     public void setEncrypted(final boolean encrypted) {
@@ -115,9 +110,27 @@ public class XiaomiCharacteristic {
 
     /**
      * Write bytes to this characteristic, encrypting and splitting it into chunks if necessary.
+     * Callback will be notified when a (n)ack has been received by the remote device.
+     */
+    public void write(final String taskName, final byte[] value, final SendCallback callback) {
+        write(null, new Payload(taskName, value, callback));
+    }
+
+    /**
+     * Write bytes to this characteristic, encrypting and splitting it into chunks if necessary.
      */
     public void write(final String taskName, final byte[] value) {
-        write(null, new Payload(taskName, value));
+        write(taskName, value, null);
+    }
+
+    /**
+     * Write bytes to this characteristic, encrypting and splitting it into chunks if necessary. Uses
+     * the provided builder if we need to schedule something, otherwise it will be queued as other
+     * commands. The callback will be notified when a (n)ack has been received from the remote
+     * device in response to the payload being sent.
+     */
+    public void write(final TransactionBuilder builder, final byte[] value, final SendCallback callback) {
+        write(builder, new Payload(builder.getTaskName(), value, callback));
     }
 
     /**
@@ -125,7 +138,7 @@ public class XiaomiCharacteristic {
      * the provided if we need to schedule something, otherwise it will be queued as other commands.
      */
     public void write(final TransactionBuilder builder, final byte[] value) {
-        write(builder, new Payload(builder.getTaskName(), value));
+        write(builder, value, null);
     }
 
     private void write(final TransactionBuilder builder, final Payload payload) {
@@ -133,18 +146,18 @@ public class XiaomiCharacteristic {
         sendNext(builder);
     }
 
-    public void onCharacteristicChanged(final byte[] value) {
-        if (Arrays.equals(value, PAYLOAD_ACK)) {
-            LOG.debug("Got ack");
-            currentPayload = null;
-            waitingAck = false;
-            if (callback != null) {
-                callback.onSend(payloadQueue.size());
-            }
-            sendNext(null);
-            return;
-        }
+    private void sendChunk(final TransactionBuilder builder, final int index, final int chunkPayloadSize) {
+        final byte[] payload = currentPayload.getBytesToSend();
+        final int startIndex = index * chunkPayloadSize;
+        final int endIndex = Math.min((index + 1) * chunkPayloadSize, payload.length);
+        LOG.debug("Sending chunk {} from {} to {} for {}", index, startIndex, endIndex, currentPayload.getTaskName());
+        final byte[] chunkToSend = new byte[2 + endIndex - startIndex];
+        BLETypeConversions.writeUint16(chunkToSend, 0, index + 1);
+        System.arraycopy(payload, startIndex, chunkToSend, 2, endIndex - startIndex);
+        builder.write(bluetoothGattCharacteristic, chunkToSend);
+    }
 
+    public void onCharacteristicChanged(final byte[] value) {
         final ByteBuffer buf = ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN);
 
         final int chunk = buf.getShort();
@@ -162,11 +175,15 @@ public class XiaomiCharacteristic {
             if (chunk == numChunks) {
                 sendChunkEndAck();
 
-                if (isEncrypted) {
-                    // chunks are always encrypted if an auth service is available
-                    handler.handle(authService.decrypt(chunkBuffer.toByteArray()));
+                if (channelHandler != null) {
+                    if (isEncrypted) {
+                        // chunks are always encrypted if an auth service is available
+                        channelHandler.handle(authService.decrypt(chunkBuffer.toByteArray()));
+                    } else {
+                        channelHandler.handle(chunkBuffer.toByteArray());
+                    }
                 } else {
-                    handler.handle(chunkBuffer.toByteArray());
+                    LOG.warn("Channel handler for char {} is null!", characteristicUUID);
                 }
 
                 currentChunk = 0;
@@ -194,45 +211,79 @@ public class XiaomiCharacteristic {
                 case 1:
                     // Chunked ack
                     final byte subtype = buf.get();
+
+                    final byte[] remaining = new byte[buf.remaining()];
+                    if (buf.hasRemaining()) {
+                        buf.get(remaining);
+                        LOG.debug("Operation CHUNK_ACK of type {} has additional payload: {}",
+                                subtype, GB.hexdump(remaining));
+                    }
+
                     switch (subtype) {
-                        case 0:
+                        case 0: {
                             LOG.debug("Got chunked ack end");
+                            if (currentPayload != null && currentPayload.getCallback() != null) {
+                                currentPayload.getCallback().onSend();
+                            }
                             currentPayload = null;
                             sendingChunked = false;
-                            if (callback != null) {
-                                callback.onSend(payloadQueue.size());
-                            }
                             sendNext(null);
                             return;
-                        case 1:
+                        }
+                        case 1: {
                             LOG.debug("Got chunked ack start");
                             final TransactionBuilder builder = mSupport.createTransactionBuilder("send chunks for " + currentPayload.getTaskName());
                             final byte[] payload = currentPayload.getBytesToSend();
-                            for (int i = 0; i * MAX_WRITE_SIZE < payload.length; i++) {
-                                final int startIndex = i * MAX_WRITE_SIZE;
-                                final int endIndex = Math.min((i + 1) * MAX_WRITE_SIZE, payload.length);
-                                LOG.debug("Sending chunk {} from {} to {} for {}", i, startIndex, endIndex, currentPayload.getTaskName());
-                                final byte[] chunkToSend = new byte[2 + endIndex - startIndex];
-                                BLETypeConversions.writeUint16(chunkToSend, 0, i + 1);
-                                System.arraycopy(payload, startIndex, chunkToSend, 2, endIndex - startIndex);
-                                builder.write(bluetoothGattCharacteristic, chunkToSend);
+                            final int chunkPayloadSize = maxWriteSizeForCurrentMessage - 2;
+
+                            for (int i = 0; i * chunkPayloadSize < payload.length; i++) {
+                                sendChunk(builder, i, chunkPayloadSize);
                             }
 
                             builder.queue(mSupport.getQueue());
                             return;
-                        case 2:
+                        }
+                        case 2: {
                             LOG.warn("Got chunked nack for {}", currentPayload.getTaskName());
+                            if (currentPayload != null && currentPayload.getCallback() != null) {
+                                currentPayload.getCallback().onNack();
+                            }
                             currentPayload = null;
                             sendingChunked = false;
-                            if (callback != null) {
-                                callback.onSend(payloadQueue.size());
-                            }
                             sendNext(null);
                             return;
+                        }
+                        case 5: {
+                            short[] invalidChunks = new short[remaining.length / 2];
+                            if (remaining.length > 0) {
+                                ByteBuffer remainingBuffer = ByteBuffer.wrap(remaining).order(ByteOrder.LITTLE_ENDIAN);
+                                for (int i = 0; i < remaining.length / 2; i++) {
+                                    invalidChunks[i] = remainingBuffer.getShort();
+                                }
+
+                                LOG.info("Got chunk request, requested chunks: {}", Arrays.toString(invalidChunks));
+                                final TransactionBuilder builder = mSupport.createTransactionBuilder("resend chunks for " + currentPayload.getTaskName());
+
+                                for (short chunkIndex : invalidChunks) {
+                                    // chunk indices start at 1
+                                    sendChunk(builder, chunkIndex - 1, maxWriteSizeForCurrentMessage - 2);
+                                }
+                            } else {
+                                LOG.warn("Got chunk request, no chunk indices requested");
+
+                                if (maxWriteSize != maxWriteSizeForCurrentMessage) {
+                                    LOG.info("MTU changed while sending message, prepending message to queue and resending");
+                                    ((LinkedList<Payload>) payloadQueue).addFirst(currentPayload);
+                                    currentPayload = null;
+                                    sendingChunked = false;
+                                    sendNext(null);
+                                    return;
+                                }
+                            }
+                        }
                     }
 
                     LOG.warn("Unknown chunked ack subtype {} for {}", subtype, currentPayload.getTaskName());
-
                     return;
                 case 2:
                     // Single command
@@ -249,13 +300,37 @@ public class XiaomiCharacteristic {
                         buf.get(plainValue);
                     }
 
-                    handler.handle(plainValue);
+                    if (channelHandler != null)
+                        channelHandler.handle(plainValue);
+                    else
+                        LOG.warn("Channel handler for char {} is null!", characteristicUUID);
 
                     return;
                 case 3:
                     // ack
-                    LOG.debug("Got ack");
+                    final byte result = buf.get();
+
+                    if (result == 0) {
+                        LOG.debug("Got ack for {}", currentPayload.getTaskName());
+
+                        if (currentPayload != null && currentPayload.getCallback() != null) {
+                            currentPayload.getCallback().onSend();
+                        }
+                    } else {
+                        LOG.warn("Got single cmd NACK ({}) for {}", result, currentPayload.getTaskName());
+
+                        if (currentPayload != null && currentPayload.getCallback() != null) {
+                            currentPayload.getCallback().onNack();
+                        }
+                    }
+
+                    currentPayload = null;
+                    waitingAck = false;
+                    sendNext(null);
+                    return;
             }
+
+            LOG.warn("Unhandled command type {}", type);
         }
     }
 
@@ -279,12 +354,15 @@ public class XiaomiCharacteristic {
             currentPayload.setBytesToSend(authService.encrypt(currentPayload.getBytesToSend(), incrementNonce ? encryptedIndex : 0));
         }
 
+        // before checking whether message should be chunked, read the maximum message size for this transaction
+        maxWriteSizeForCurrentMessage = maxWriteSize;
+
         if (shouldWriteChunked(currentPayload.getBytesToSend())) {
             if (encrypt && incrementNonce) {
                 // Prepend encrypted index for the nonce
                 currentPayload.setBytesToSend(
                         ByteBuffer.allocate(2 + currentPayload.getBytesToSend().length).order(ByteOrder.LITTLE_ENDIAN)
-                                .putShort(encryptedIndex++)
+                                .putShort((short) encryptedIndex++)
                                 .put(currentPayload.getBytesToSend())
                                 .array()
                 );
@@ -298,7 +376,7 @@ public class XiaomiCharacteristic {
             buf.putShort((short) 0);
             buf.put((byte) 0);
             buf.put((byte) (encrypt ? 1 : 0));
-            buf.putShort((short) Math.ceil(currentPayload.getBytesToSend().length / (float) MAX_WRITE_SIZE));
+            buf.putShort((short) Math.ceil(currentPayload.getBytesToSend().length / (float) (maxWriteSizeForCurrentMessage - 2)));
 
             final TransactionBuilder builder = b == null ? mSupport.createTransactionBuilder("send chunked start for " + currentPayload.getTaskName()) : b;
             builder.write(bluetoothGattCharacteristic, buf.array());
@@ -317,7 +395,7 @@ public class XiaomiCharacteristic {
             buf.put((byte) (encrypt ? 1 : 2));
             if (encrypt) {
                 if (incrementNonce) {
-                    buf.putShort(encryptedIndex++);
+                    buf.putShort((short) encryptedIndex++);
                 } else {
                     buf.putShort((short) 0);
                 }
@@ -341,7 +419,7 @@ public class XiaomiCharacteristic {
         }
 
         // payload + 6 bytes at the start with the encryption stuff
-        return payload.length + 6 > MAX_WRITE_SIZE;
+        return payload.length + 6 > maxWriteSizeForCurrentMessage;
     }
 
     private void sendAck() {
@@ -362,8 +440,9 @@ public class XiaomiCharacteristic {
         builder.queue(mSupport.getQueue());
     }
 
-    public interface Handler {
-        void handle(final byte[] payload);
+    public void setMtu(final int newMtu) {
+        // subtract ATT packet header size
+        maxWriteSize = newMtu - 3;
     }
 
     private static class Payload {
@@ -372,10 +451,16 @@ public class XiaomiCharacteristic {
 
         // Bytes that will actually be sent (might be encrypted)
         private byte[] bytesToSend;
+        private final SendCallback callback;
 
-        public Payload(final String taskName, final byte[] bytes) {
+        public Payload(final String taskName, final byte[] bytes, final SendCallback callback) {
             this.taskName = taskName;
             this.bytes = bytes;
+            this.callback = callback;
+        }
+
+        public Payload(final String taskName, final byte[] bytes) {
+            this(taskName, bytes, null);
         }
 
         public String getTaskName() {
@@ -389,9 +474,11 @@ public class XiaomiCharacteristic {
         public byte[] getBytesToSend() {
             return bytesToSend != null ? bytesToSend : bytes;
         }
+        public SendCallback getCallback() { return this.callback; }
     }
 
     public interface SendCallback {
-        void onSend(int remaining);
+        void onSend();
+        void onNack();
     }
 }

@@ -1,4 +1,5 @@
-/*  Copyright (C) 2019-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniel Dakhno
+/*  Copyright (C) 2019-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Daniel Dakhno, Hasan Ammar, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil;
 
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.ITEM_STEP_GOAL;
@@ -553,20 +554,26 @@ public class FossilWatchAdapter extends WatchAdapter {
                     provider.addGBActivitySamples(samples);
 
                     queueWrite(new FileDeleteRequest(getHandle()));
-                    if (BuildConfig.DEBUG)
-                        GB.toast("synced activity data", Toast.LENGTH_SHORT, GB.INFO);
+                    GB.updateTransferNotification(null, "", false, 100, getContext());
+                    GB.signalActivityDataFinish();
+                    LOG.debug("Synchronized activity data");
                 } catch (Exception ex) {
                     GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                    LOG.error("Error saving steps data: ", ex);
                     GB.updateTransferNotification(null, "Data transfer failed", false, 0, getContext());
                 }
+                getDeviceSupport().getDevice().unsetBusyTask();
                 getDeviceSupport().getDevice().sendDeviceUpdateIntent(getContext());
             }
 
             @Override
             public void handleFileLookupError(FILE_LOOKUP_ERROR error) {
-                if(error == FILE_LOOKUP_ERROR.FILE_EMPTY && BuildConfig.DEBUG){
-                    GB.toast("activity file empty", Toast.LENGTH_SHORT, GB.INFO);
+                if(error == FILE_LOOKUP_ERROR.FILE_EMPTY){
+                    LOG.debug("No activity data to sync");
                 }
+                getDeviceSupport().getDevice().unsetBusyTask();
+                GB.updateTransferNotification(null, "", false, 100, getContext());
+                getDeviceSupport().getDevice().sendDeviceUpdateIntent(getContext());
             }
         });
     }

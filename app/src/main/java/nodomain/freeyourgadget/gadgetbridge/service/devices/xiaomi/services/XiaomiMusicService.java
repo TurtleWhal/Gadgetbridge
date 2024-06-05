@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo, Yoran Vulker
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services;
 
 import android.content.Context;
@@ -85,13 +85,18 @@ public class XiaomiMusicService extends AbstractXiaomiService {
                     case BUTTON_NEXT:
                         deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.NEXT;
                         break;
-                    case BUTTON_VOLUME:
-                        if (music.getMediaKey().getVolume() > 0) {
+                    case BUTTON_VOLUME: {
+                        final int requestedVolume = music.getMediaKey().getVolume();
+                        final int currentVolume = MediaManager.getPhoneVolume(getSupport().getContext());
+
+                        if (requestedVolume > currentVolume) {
                             deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.VOLUMEUP;
                         } else {
                             deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.VOLUMEDOWN;
                         }
+
                         break;
+                    }
                     default:
                         LOG.warn("Unexpected media button key {}", music.getMediaKey().getKey());
                         return;

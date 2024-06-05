@@ -1,3 +1,20 @@
+/*  Copyright (C) 2021-2024 Aidan Crane, Andreas Shimokawa, Daniel Dakhno,
+    Daniele Gobbetti, jhey, José Rebelo, Petr Vaněk
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.huami.miband6;
 
 import android.content.Context;
@@ -19,8 +36,6 @@ import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
-import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.miband6.MiBand6Support;
 
@@ -112,6 +127,15 @@ public class MiBand6Coordinator extends HuamiCoordinator {
                 R.xml.devicesettings_overwrite_settings_on_connection,
                 R.xml.devicesettings_huami2021_fetch_operation_time_unit,
                 R.xml.devicesettings_transliteration
+        };
+    }
+
+    @Override
+    public int[] getSupportedDeviceSpecificAuthenticationSettings() {
+        return new int[]{
+                R.xml.devicesettings_pairingkey,
+                R.xml.devicesettings_miband6_new_protocol,
+                R.xml.devicesettings_miband6_new_auth_protocol_explanation,
         };
     }
 

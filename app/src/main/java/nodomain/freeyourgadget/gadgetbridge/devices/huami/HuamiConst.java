@@ -1,5 +1,6 @@
-/*  Copyright (C) 2017-2021 Andreas Shimokawa, Carsten Pfeiffer, Nephiel,
-    odavo32nof, Petr Vaněk, Zhong Jianxin
+/*  Copyright (C) 2018-2024 Andreas Shimokawa, Damien Gaignon, jhey, José
+    Rebelo, Maxime Reyrolle, Nephiel, odavo32nof, Petr Vaněk, Raghd Hamzeh,
+    sedy89, Stefan Bora, thermatk, xaos, Yoran Vulker, Zhong Jianxin
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.huami;
 
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
@@ -60,6 +61,7 @@ public class HuamiConst {
     public static final String AMAZFIT_NEO_NAME = "Amazfit Neo";
     public static final String AMAZFIT_X = "Amazfit X";
     public static final String AMAZFIT_BIP5_NAME = "Amazfit Bip 5";
+    public static final String AMAZFIT_BIP5_UNITY_NAME = "Amazfit Bip 5 Unity";
     public static final String AMAZFIT_GTS3_NAME = "Amazfit GTS 3";
     public static final String AMAZFIT_GTS4_NAME = "Amazfit GTS 4";
     public static final String AMAZFIT_GTS4_MINI_NAME = "Amazfit GTS 4 Mini";

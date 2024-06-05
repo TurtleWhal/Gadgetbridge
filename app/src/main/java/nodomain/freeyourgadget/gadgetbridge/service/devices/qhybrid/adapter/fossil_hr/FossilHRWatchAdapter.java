@@ -1,4 +1,6 @@
-/*  Copyright (C) 2019-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniel Dakhno, Arjan Schrijver
+/*  Copyright (C) 2019-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Daniel Dakhno, Enrico Brambilla, Hasan Ammar, José Rebelo, Morten
+    Rieger Hannemose, mvn23, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil_hr;
 
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.configuration.ConfigurationPutRequest.FitnessConfigItem;
@@ -84,7 +86,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
-import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
@@ -1248,12 +1249,15 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
                                 writeFile(String.valueOf(System.currentTimeMillis()), fileData);
                             }
                             queueWrite(new FileDeleteRequest(fileHandle));
-                            if (BuildConfig.DEBUG)
-                                GB.toast(getContext().getString(R.string.fossil_hr_synced_activity_data), Toast.LENGTH_SHORT, GB.INFO);
+                            GB.updateTransferNotification(null, "", false, 100, getContext());
+                            GB.signalActivityDataFinish();
+                            LOG.debug("Synchronized activity data");
                         } catch (Exception ex) {
                             GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                            LOG.error("Error saving steps data: ", ex);
                             GB.updateTransferNotification(null, "Data transfer failed", false, 0, getContext());
                         }
+                        getDeviceSupport().getDevice().unsetBusyTask();
                         getDeviceSupport().getDevice().sendDeviceUpdateIntent(getContext());
                     }
                 });
@@ -1262,11 +1266,12 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
             @Override
             public void handleFileLookupError(FILE_LOOKUP_ERROR error) {
                 if (error == FILE_LOOKUP_ERROR.FILE_EMPTY) {
-                    if (BuildConfig.DEBUG)
-                        GB.toast("activity file empty yet", Toast.LENGTH_LONG, GB.ERROR);
+                    LOG.debug("No activity data to sync");
                 } else {
                     throw new RuntimeException("strange lookup stuff");
                 }
+                getDeviceSupport().getDevice().unsetBusyTask();
+                GB.updateTransferNotification(null, "", false, 100, getContext());
                 getDeviceSupport().getDevice().sendDeviceUpdateIntent(getContext());
             }
         });

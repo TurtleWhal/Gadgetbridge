@@ -1,6 +1,5 @@
-/*  Copyright (C) 2016-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Jean-François Greffier, ksiwczynski, mamucho, mkusnierz, Vadim
-    Kaushan
+/*  Copyright (C) 2019-2024 Andreas Shimokawa, Damien Gaignon, Daniel Dakhno,
+    José Rebelo, mamucho, mkusnierz, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.lenovo.watchxplus;
 
 import android.app.Activity;
@@ -132,18 +131,13 @@ public class WatchXPlusDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots() {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 
     @Override
     public int getAlarmSlotCount(GBDevice device) {
         return 3;
-    }
-
-    @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
-        return false;
     }
 
     @Override

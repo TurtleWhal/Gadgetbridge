@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.widgets;
 
 import android.app.Activity;
@@ -174,6 +174,7 @@ public class WidgetScreenDetailsActivity extends AbstractGBActivity {
 
         switch (widgetScreen.getLayout()) {
             case TOP_1_BOT_2:
+            case TOP_2X2_BOT_2:
                 updateWidget(cardWidgetTopLeft, labelWidgetTopLeft, -1);
                 updateWidget(cardWidgetTopRight, labelWidgetTopRight, -1);
                 updateWidget(cardWidgetCenter, labelWidgetCenter, 0);
@@ -181,6 +182,7 @@ public class WidgetScreenDetailsActivity extends AbstractGBActivity {
                 updateWidget(cardWidgetBotRight, labelWidgetBotRight, 2);
                 break;
             case TOP_2_BOT_1:
+            case TOP_2_BOT_2X2:
                 updateWidget(cardWidgetTopLeft, labelWidgetTopLeft, 0);
                 updateWidget(cardWidgetTopRight, labelWidgetTopRight, 1);
                 updateWidget(cardWidgetCenter, labelWidgetCenter, 2);
@@ -194,7 +196,9 @@ public class WidgetScreenDetailsActivity extends AbstractGBActivity {
                 updateWidget(cardWidgetBotLeft, labelWidgetBotLeft, 2);
                 updateWidget(cardWidgetBotRight, labelWidgetBotRight, 3);
                 break;
-            case SINGLE:
+            case ONE_BY_TWO_SINGLE:
+            case TWO_BY_TWO_SINGLE:
+            case TWO_BY_THREE_SINGLE:
                 updateWidget(cardWidgetTopLeft, labelWidgetTopLeft, -1);
                 updateWidget(cardWidgetTopRight, labelWidgetTopRight, -1);
                 updateWidget(cardWidgetCenter, labelWidgetCenter, 0);
@@ -202,9 +206,11 @@ public class WidgetScreenDetailsActivity extends AbstractGBActivity {
                 updateWidget(cardWidgetBotRight, labelWidgetBotRight, -1);
                 break;
             case TWO:
-                updateWidget(cardWidgetTopLeft, labelWidgetTopLeft, 0);
-                updateWidget(cardWidgetTopRight, labelWidgetTopRight, 1);
-                updateWidget(cardWidgetCenter, labelWidgetCenter, -1);
+            case TOP_1_BOT_2X2:
+            case TOP_2X2_BOT_1:
+                updateWidget(cardWidgetTopLeft, labelWidgetTopLeft, -1);
+                updateWidget(cardWidgetTopRight, labelWidgetTopRight, 0);
+                updateWidget(cardWidgetCenter, labelWidgetCenter, 1);
                 updateWidget(cardWidgetBotLeft, labelWidgetBotLeft, -1);
                 updateWidget(cardWidgetBotRight, labelWidgetBotRight, -1);
                 break;

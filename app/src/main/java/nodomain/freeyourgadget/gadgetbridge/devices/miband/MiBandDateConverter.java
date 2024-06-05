@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, Daniele
     Gobbetti, Szymon Tomasz Stefanek
 
     This file is part of Gadgetbridge.
@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.miband;
 
 import java.util.Calendar;
@@ -58,8 +58,8 @@ public class MiBandDateConverter {
                     value[offset + 5]);
 
             int offsetInHours = MiBandCoordinator.getDeviceTimeOffsetHours(deviceAddress);
-	        if(offsetInHours != 0)
-		        timestamp.add(Calendar.HOUR_OF_DAY,-offsetInHours);
+            if (offsetInHours != 0)
+                timestamp.add(Calendar.HOUR_OF_DAY, -offsetInHours);
 
             return timestamp;
         }
@@ -83,8 +83,8 @@ public class MiBandDateConverter {
 	    // shift to -8, so at 6am the device thinks it's still 10pm
 	    // of the day before.
         int offsetInHours = MiBandCoordinator.getDeviceTimeOffsetHours(deviceAddress);
-	    if(offsetInHours != 0)
-			timestamp.add(Calendar.HOUR_OF_DAY,offsetInHours);
+        if (offsetInHours != 0)
+            timestamp.add(Calendar.HOUR_OF_DAY, offsetInHours);
 
         return new byte[]{
                 (byte) (timestamp.get(Calendar.YEAR) - 2000),

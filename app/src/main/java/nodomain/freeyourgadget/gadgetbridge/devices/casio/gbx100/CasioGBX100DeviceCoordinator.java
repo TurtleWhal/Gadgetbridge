@@ -1,7 +1,5 @@
-/*  Copyright (C) 2016-2023 Andreas Böhler, Andreas Shimokawa, Carsten
-    Pfeiffer, Daniele Gobbetti, José Rebelo, Johannes Krude
-
-    based on code from BlueWatcher, https://github.com/masterjc/bluewatcher
+/*  Copyright (C) 2020-2024 Andreas Böhler, Damien Gaignon, Daniel Dakhno,
+    foxstidious, Johannes Krude, José Rebelo, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -16,7 +14,8 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+/*  Based on code from BlueWatcher, https://github.com/masterjc/bluewatcher */
 package nodomain.freeyourgadget.gadgetbridge.devices.casio.gbx100;
 
 import android.app.Activity;
@@ -99,6 +98,11 @@ public class CasioGBX100DeviceCoordinator extends CasioDeviceCoordinator {
     }
 
     @Override
+    public boolean supportsAlarmSnoozing() {
+        return true;
+    }
+
+    @Override
     public boolean supportsFindDevice() {
         return false;
     }
@@ -129,18 +133,13 @@ public class CasioGBX100DeviceCoordinator extends CasioDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots() {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 
     @Override
     public int getAlarmSlotCount(GBDevice device) {
         return 4;
-    }
-
-    @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
-        return false;
     }
 
     @Override

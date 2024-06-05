@@ -1,4 +1,4 @@
-/*  Copyright (C) 2021 Arjan Schrijver, Daniel Dakhno
+/*  Copyright (C) 2021-2024 Arjan Schrijver
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.qhybrid;
 
 import android.content.Context;
@@ -146,7 +146,7 @@ public class FossilAppWriter {
         for (String filename : stringsMap.keySet()) {
             output.write((byte)filename.length() + 1);
             output.write(StringUtils.terminateNull(filename).getBytes(StandardCharsets.UTF_8));
-            output.write(shortToLEBytes((short)(stringsMap.get(filename).length() + 1)));
+            output.write(shortToLEBytes((short)(stringsMap.get(filename).getBytes(StandardCharsets.UTF_8).length + 1)));
             output.write(StringUtils.terminateNull(stringsMap.get(filename)).getBytes(StandardCharsets.UTF_8));
         }
         return output.toByteArray();

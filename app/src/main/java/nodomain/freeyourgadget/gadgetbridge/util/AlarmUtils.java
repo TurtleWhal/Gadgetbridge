@@ -1,5 +1,5 @@
-/*  Copyright (C) 2019-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Dmitry Markin, Taavi Eomäe
+/*  Copyright (C) 2019-2024 Andreas Shimokawa, Carsten Pfeiffer, Daniele
+    Gobbetti, Dmitry Markin, Petr Vaněk, Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
 import androidx.annotation.NonNull;
@@ -51,7 +51,8 @@ public class AlarmUtils {
      * @return
      */
     public static nodomain.freeyourgadget.gadgetbridge.model.Alarm createSingleShot(int index, boolean smartWakeup, boolean snooze, Calendar calendar) {
-        return new Alarm(-1, -1, index, true, smartWakeup, snooze, Alarm.ALARM_ONCE, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), false, GBApplication.getContext().getString(R.string.quick_alarm), GBApplication.getContext().getString(R.string.quick_alarm_description));
+        // TODO: add interval setting?
+        return new Alarm(-1, -1, index, true, smartWakeup, null, snooze, Alarm.ALARM_ONCE, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), false, GBApplication.getContext().getString(R.string.quick_alarm), GBApplication.getContext().getString(R.string.quick_alarm_description));
     }
 
     /**
@@ -130,7 +131,7 @@ public class AlarmUtils {
         int hour = Integer.parseInt(tokens[4]);
         int minute = Integer.parseInt(tokens[5]);
 
-        return new Alarm(device.getId(), user.getId(), index, enabled, smartWakeup, false, repetition, hour, minute, false, null, null);
+        return new Alarm(device.getId(), user.getId(), index, enabled, smartWakeup, null, false, repetition, hour, minute, false, null, null);
     }
 
     private static Comparator<Alarm> createComparator() {

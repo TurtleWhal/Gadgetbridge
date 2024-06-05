@@ -1,4 +1,5 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2021-2024 Damien Gaignon, Daniel Dakhno, José Rebelo,
+    Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones;
 
 import android.app.Activity;
@@ -58,6 +59,11 @@ public abstract class SonyHeadphonesCoordinator extends AbstractBLClassicDeviceC
     }
 
     @Override
+    public boolean suggestUnbindBeforePair() {
+        return false;
+    }
+
+    @Override
     protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
     }
 
@@ -88,18 +94,13 @@ public abstract class SonyHeadphonesCoordinator extends AbstractBLClassicDeviceC
     }
 
     @Override
-    public boolean supportsScreenshots() {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 
     @Override
     public int getAlarmSlotCount(GBDevice device) {
         return 0;
-    }
-
-    @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
-        return false;
     }
 
     @Override
@@ -180,15 +181,19 @@ public abstract class SonyHeadphonesCoordinator extends AbstractBLClassicDeviceC
                 settings.add(R.xml.devicesettings_sony_headphones_ambient_sound_control);
             }
 
-            if (supports(SonyHeadphonesCapabilities.SpeakToChatConfig)) {
-                settings.add(R.xml.devicesettings_sony_headphones_speak_to_chat_with_settings);
-            } else if (supports(SonyHeadphonesCapabilities.SpeakToChatEnabled)) {
-                settings.add(R.xml.devicesettings_sony_headphones_speak_to_chat_simple);
-            }
-
             if (supports(SonyHeadphonesCapabilities.AncOptimizer)) {
                 settings.add(R.xml.devicesettings_sony_headphones_anc_optimizer);
             }
+        }
+
+        if (supports(SonyHeadphonesCapabilities.AdaptiveVolumeControl)) {
+            settings.add(R.xml.devicesettings_sony_headphones_adaptive_volume_control);
+        }
+
+        if (supports(SonyHeadphonesCapabilities.SpeakToChatConfig)) {
+            settings.add(R.xml.devicesettings_sony_headphones_speak_to_chat_with_settings);
+        } else if (supports(SonyHeadphonesCapabilities.SpeakToChatEnabled)) {
+            settings.add(R.xml.devicesettings_sony_headphones_speak_to_chat_simple);
         }
 
         addSettingsUnderHeader(settings, R.xml.devicesettings_header_other, new LinkedHashMap<SonyHeadphonesCapabilities, Integer>() {{
@@ -202,6 +207,7 @@ public abstract class SonyHeadphonesCoordinator extends AbstractBLClassicDeviceC
         }});
 
         addSettingsUnderHeader(settings, R.xml.devicesettings_header_system, new LinkedHashMap<SonyHeadphonesCapabilities, Integer>() {{
+            put(SonyHeadphonesCapabilities.WideAreaTap, R.xml.devicesettings_sony_headphones_wide_area_tap);
             put(SonyHeadphonesCapabilities.ButtonModesLeftRight, R.xml.devicesettings_sony_headphones_button_modes_left_right);
             put(SonyHeadphonesCapabilities.AmbientSoundControlButtonMode, R.xml.devicesettings_sony_headphones_ambient_sound_control_button_modes);
             put(SonyHeadphonesCapabilities.QuickAccess, R.xml.devicesettings_sony_headphones_quick_access);
@@ -211,6 +217,9 @@ public abstract class SonyHeadphonesCoordinator extends AbstractBLClassicDeviceC
             put(SonyHeadphonesCapabilities.AutomaticPowerOffByTime, R.xml.devicesettings_automatic_power_off_by_time);
             put(SonyHeadphonesCapabilities.VoiceNotifications, R.xml.devicesettings_sony_headphones_notifications_voice_guide);
         }});
+
+        settings.add(R.xml.devicesettings_header_developer);
+        settings.add(R.xml.devicesettings_sony_headphones_protocol_version);
 
         settings.add(R.xml.devicesettings_sony_headphones_device_info);
 

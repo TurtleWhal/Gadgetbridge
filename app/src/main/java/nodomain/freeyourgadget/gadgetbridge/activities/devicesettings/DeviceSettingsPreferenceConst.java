@@ -1,4 +1,8 @@
-/*  Copyright (C) 2019-2020 Andreas Shimokawa
+/*  Copyright (C) 2019-2024 115ek, akasaka / Genjitsu Labs, Alicia Hormann,
+    Andreas Böhler, Andreas Shimokawa, Arjan Schrijver, Damien Gaignon, Daniel
+    Dakhno, Daniele Gobbetti, Davis Mosenkovs, foxstidious, Gordon Williams,
+    José Rebelo, Lukas, LukasEdl, mamucho, narektor, NekoBox, opavlov, Petr
+    Vaněk, Yoran Vulker, Yukai Li
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +17,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.devicesettings;
 
 public class DeviceSettingsPreferenceConst {
@@ -173,6 +177,7 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_HEARTRATE_MEASUREMENT_INTERVAL = "heartrate_measurement_interval";
     public static final String PREF_HEARTRATE_ACTIVITY_MONITORING = "heartrate_activity_monitoring";
     public static final String PREF_HEARTRATE_ALERT_ENABLED = "heartrate_alert_enabled";
+    public static final String PREF_HEARTRATE_ALERT_ACTIVE_HIGH_THRESHOLD = "heartrate_alert_active_high_threshold";
     public static final String PREF_HEARTRATE_ALERT_HIGH_THRESHOLD = "heartrate_alert_threshold";
     public static final String PREF_HEARTRATE_ALERT_LOW_THRESHOLD = "heartrate_alert_low_threshold";
     public static final String PREF_HEARTRATE_STRESS_MONITORING = "heartrate_stress_monitoring";
@@ -197,10 +202,19 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_DO_NOT_DISTURB_START = "do_not_disturb_start";
     public static final String PREF_DO_NOT_DISTURB_END = "do_not_disturb_end";
     public static final String PREF_DO_NOT_DISTURB_LIFT_WRIST = "do_not_disturb_lift_wrist";
+    public static final String PREF_DO_NOT_DISTURB_NOT_WEAR = "do_not_disturb_not_wear";
     public static final String PREF_DO_NOT_DISTURB_OFF = "off";
     public static final String PREF_DO_NOT_DISTURB_AUTOMATIC = "automatic";
     public static final String PREF_DO_NOT_DISTURB_ALWAYS = "always";
     public static final String PREF_DO_NOT_DISTURB_SCHEDULED = "scheduled";
+    public static final String PREF_DO_NOT_DISTURB_MO = "pref_do_not_disturb_mo";
+    public static final String PREF_DO_NOT_DISTURB_TU = "pref_do_not_disturb_tu";
+    public static final String PREF_DO_NOT_DISTURB_WE = "pref_do_not_disturb_we";
+    public static final String PREF_DO_NOT_DISTURB_TH = "pref_do_not_disturb_th";
+    public static final String PREF_DO_NOT_DISTURB_FR = "pref_do_not_disturb_fr";
+    public static final String PREF_DO_NOT_DISTURB_SA = "pref_do_not_disturb_sa";
+    public static final String PREF_DO_NOT_DISTURB_SU = "pref_do_not_disturb_su";
+
     public static final String PREF_CAMERA_REMOTE = "camera_remote";
 
     public static final String PREF_WORKOUT_START_ON_PHONE = "workout_start_on_phone";
@@ -217,6 +231,7 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_AGPS_EXPIRY_REMINDER_TIME = "pref_agps_expiry_reminder_time";
     public static final String PREF_AGPS_UPDATE_TIME = "pref_agps_update_time";
     public static final String PREF_AGPS_EXPIRE_TIME = "pref_agps_expire_time";
+    public static final String PREF_AGPS_STATUS = "pref_agps_status";
 
     public static final String PREF_FIND_PHONE = "prefs_find_phone";
     public static final String PREF_FIND_PHONE_DURATION = "prefs_find_phone_duration";
@@ -235,6 +250,7 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_CASIO_ALERT_SMS = "casio_alert_sms";
     public static final String PREF_AUTOREMOVE_MESSAGE = "autoremove_message";
     public static final String PREF_SEND_APP_NOTIFICATIONS = "send_app_notifications";
+    public static final String PREF_NOTIFICATION_WAKE_ON_OPEN = "notification_wake_on_open";
     public static final String PREF_AUTOREMOVE_NOTIFICATIONS = "autoremove_notifications";
     public static final String PREF_SCREEN_ON_ON_NOTIFICATIONS = "screen_on_on_notifications";
     public static final String PREF_WORKOUT_KEEP_SCREEN_ON = "workout_keep_screen_on";
@@ -249,6 +265,9 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_ANTILOST_ENABLED = "pref_antilost_enabled";
     public static final String PREF_HYDRATION_SWITCH = "pref_hydration_switch";
     public static final String PREF_HYDRATION_PERIOD = "pref_hydration_period";
+    public static final String PREF_HYDRATION_DND = "pref_hydration_dnd";
+    public static final String PREF_HYDRATION_DND_START = "pref_hydration_dnd_start";
+    public static final String PREF_HYDRATION_DND_END = "pref_hydration_dnd_end";
     public static final String PREF_AMPM_ENABLED = "pref_ampm_enabled";
 
     public static final String PREF_SONYSWR12_LOW_VIBRATION = "vibration_preference";
@@ -322,7 +341,28 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREFS_GALAXY_BUDS_SEAMLESS_CONNECTION="prefs_galaxy_buds_seamless_connection";
 
     public static final String PREF_SONY_AUDIO_CODEC = "pref_sony_audio_codec";
+    public static final String PREF_SONY_PROTOCOL_VERSION = "pref_protocol_version";
+    public static final String PREF_SONY_ACTUAL_PROTOCOL_VERSION = "pref_actual_protocol_version";
     public static final String PREF_SONY_AMBIENT_SOUND_CONTROL = "pref_sony_ambient_sound_control";
+    public static final String PREF_SOUNDCORE_AMBIENT_SOUND_CONTROL = "pref_soundcore_ambient_sound_control";
+    public static final String PREF_SOUNDCORE_ADAPTIVE_NOISE_CANCELLING = "pref_adaptive_noise_cancelling";
+    public static final String PREF_SOUNDCORE_WIND_NOISE_REDUCTION= "pref_soundcore_wind_noise_reduction";
+    public static final String PREF_SOUNDCORE_TRANSPARENCY_VOCAL_MODE = "pref_soundcore_transparency_vocal_mode";
+    public static final String PREF_SOUNDCORE_WEARING_DETECTION = "pref_soundcore_wearing_detection";
+    public static final String PREF_SOUNDCORE_WEARING_TONE = "pref_soundcore_wearing_tone";
+    public static final String PREF_SOUNDCORE_TOUCH_TONE = "pref_soundcore_touch_tone";
+    public static final String PREF_SOUNDCORE_CONTROL_SINGLE_TAP_DISABLED = "pref_soundcore_control_single_tap_disabled";
+    public static final String PREF_SOUNDCORE_CONTROL_DOUBLE_TAP_DISABLED = "pref_soundcore_control_double_tap_disabled";
+    public static final String PREF_SOUNDCORE_CONTROL_TRIPLE_TAP_DISABLED = "pref_soundcore_control_triple_tap_disabled";
+    public static final String PREF_SOUNDCORE_CONTROL_LONG_PRESS_DISABLED = "pref_soundcore_control_long_press_disabled";
+    public static final String PREF_SOUNDCORE_CONTROL_SINGLE_TAP_ACTION_LEFT = "pref_soundcore_control_single_tap_action_left";
+    public static final String PREF_SOUNDCORE_CONTROL_DOUBLE_TAP_ACTION_LEFT = "pref_soundcore_control_double_tap_action_left";
+    public static final String PREF_SOUNDCORE_CONTROL_TRIPLE_TAP_ACTION_LEFT = "pref_soundcore_control_triple_tap_action_left";
+    public static final String PREF_SOUNDCORE_CONTROL_LONG_PRESS_ACTION_LEFT = "pref_soundcore_control_long_press_action_left";
+    public static final String PREF_SOUNDCORE_CONTROL_SINGLE_TAP_ACTION_RIGHT = "pref_soundcore_control_single_tap_action_right";
+    public static final String PREF_SOUNDCORE_CONTROL_DOUBLE_TAP_ACTION_RIGHT = "pref_soundcore_control_double_tap_action_right";
+    public static final String PREF_SOUNDCORE_CONTROL_TRIPLE_TAP_ACTION_RIGHT = "pref_soundcore_control_triple_tap_action_right";
+    public static final String PREF_SOUNDCORE_CONTROL_LONG_PRESS_ACTION_RIGHT = "pref_soundcore_control_long_press_action_right";
     public static final String PREF_SONY_AMBIENT_SOUND_CONTROL_BUTTON_MODE = "pref_sony_ambient_sound_control_button_mode";
     public static final String PREF_SONY_FOCUS_VOICE = "pref_sony_focus_voice";
     public static final String PREF_SONY_AMBIENT_SOUND_LEVEL = "pref_sony_ambient_sound_level";
@@ -354,6 +394,8 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_SONY_SPEAK_TO_CHAT_FOCUS_ON_VOICE = "pref_sony_speak_to_chat_focus_on_voice";
     public static final String PREF_SONY_SPEAK_TO_CHAT_TIMEOUT = "pref_sony_speak_to_chat_timeout";
     public static final String PREF_SONY_CONNECT_TWO_DEVICES = "pref_sony_connect_two_devices";
+    public static final String PREF_SONY_ADAPTIVE_VOLUME_CONTROL = "pref_adaptive_volume_control";
+    public static final String PREF_SONY_WIDE_AREA_TAP = "pref_wide_area_tap";
 
     public static final String PREF_QC35_NOISE_CANCELLING_LEVEL = "qc35_noise_cancelling_level";
 
@@ -387,6 +429,21 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_VOICE_SERVICE_LANGUAGE = "voice_service_language";
 
     public static final String PREF_TEMPERATURE_SCALE_CF = "temperature_scale_cf";
+
+    public static final String PREF_FAKE_ANDROID_ID = "fake_android_id";
+
+    public static final String PREF_HEARTRATE_AUTOMATIC_ENABLE = "heartrate_automatic_enable";
+    public static final String PREF_SPO_AUTOMATIC_ENABLE = "spo_automatic_enable";
+
+    public static final String PREF_FORCE_OPTIONS = "pref_force_options";
+    public static final String PREF_FORCE_ENABLE_SMART_ALARM = "pref_force_enable_smart_alarm";
+    public static final String PREF_FORCE_ENABLE_WEAR_LOCATION = "pref_force_enable_wear_location";
+    public static final String PREF_FORCE_DND_SUPPORT = "pref_force_dnd_support";
+    public static final String PREF_FORCE_ENABLE_HEARTRATE_SUPPORT = "pref_force_enable_heartrate_support";
+    public static final String PREF_FORCE_ENABLE_SPO2_SUPPORT = "pref_force_enable_spo2_support";
+    public static final String PREF_IGNORE_WAKEUP_STATUS_START = "pref_force_ignore_wakeup_status_start";
+    public static final String PREF_IGNORE_WAKEUP_STATUS_END = "pref_force_ignore_wakeup_status_end";
+
     public static final String PREF_FEMOMETER_MEASUREMENT_MODE = "femometer_measurement_mode";
 
     public static final String PREF_PREFIX_NOTIFICATION_WITH_APP = "pref_prefix_notification_with_app";
@@ -399,4 +456,15 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_DEVICE_ACTION_START_NON_WEAR_BROADCAST = "prefs_events_forwarding_startnonwear_broadcast";
     public static final String PREF_CLAP_HANDS_TO_WAKEUP_DEVICE = "pref_key_clap_hands_to_wakeup_device";
     public static final String PREF_POWER_SAVING = "pref_key_power_saving";
+    public static final String PREF_FORCE_CONNECTION_TYPE = "pref_force_connection_type";
+
+    public static final String PREF_AUTO_REPLY_INCOMING_CALL = "pref_auto_reply_phonecall";
+    public static final String PREF_AUTO_REPLY_INCOMING_CALL_DELAY = "pref_auto_reply_phonecall_delay";
+    public static final String PREF_SPEAK_NOTIFICATIONS_ALOUD = "pref_speak_notifications_aloud";
+    public static final String PREF_SPEAK_NOTIFICATIONS_FOCUS_EXCLUSIVE = "pref_speak_notifications_focus_exclusive";
+
+    public static final String PREF_CYCLING_SENSOR_PERSISTENCE_INTERVAL = "pref_cycling_persistence_interval";
+    public static final String PREF_CYCLING_SENSOR_WHEEL_DIAMETER = "pref_cycling_wheel_diameter";
+
+    public static final String PREF_GARMIN_DEFAULT_REPLY_SUFFIX = "pref_key_garmin_default_reply_suffix";
 }

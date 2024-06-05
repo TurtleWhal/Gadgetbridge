@@ -1,4 +1,4 @@
-/*  Copyright (C) 2017-2020 Carsten Pfeiffer
+/*  Copyright (C) 2017-2024 Carsten Pfeiffer, José Rebelo, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
 
 import java.math.BigDecimal;
@@ -25,12 +25,18 @@ public class GPSCoordinate {
     private final double longitude;
     private final double altitude;
 
+    public static final double UNKNOWN_ALTITUDE = -20000d;
+
     public static final int GPS_DECIMAL_DEGREES_SCALE = 6; // precise to 111.132mm at equator: https://en.wikipedia.org/wiki/Decimal_degrees
 
     public GPSCoordinate(double longitude, double latitude, double altitude) {
         this.longitude = longitude;
         this.latitude = latitude;
         this.altitude = altitude;
+    }
+
+    public GPSCoordinate(double longitude, double latitude) {
+        this(longitude, latitude, UNKNOWN_ALTITUDE);
     }
 
     public double getLatitude() {

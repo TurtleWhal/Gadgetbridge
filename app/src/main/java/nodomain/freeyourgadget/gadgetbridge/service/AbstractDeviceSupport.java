@@ -1,6 +1,7 @@
-/*  Copyright (C) 2015-2023 Andreas Böhler, Andreas Shimokawa, Carsten
-    Pfeiffer, Daniele Gobbetti, José Rebelo, Pauli Salmenrinne, Sebastian Kranz,
-    Taavi Eomäe, Yoran Vulker
+/*  Copyright (C) 2015-2024 Alicia Hormann, Andreas Böhler, Andreas Shimokawa,
+    Arjan Schrijver, Carsten Pfeiffer, Daniele Gobbetti, Davis Mosenkovs,
+    Dmitriy Bogdanov, foxstidious, Ganblejs, José Rebelo, Pauli Salmenrinne,
+    Petr Vaněk, Taavi Eomäe, Yoran Vulker
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +16,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service;
 
 import android.app.Notification;
@@ -31,6 +32,7 @@ import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.telephony.SmsManager;
 import android.text.TextUtils;
 
@@ -56,6 +58,7 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.CameraActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.FindPhoneActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AbstractAppManagerFragment;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
@@ -67,6 +70,7 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppInfo;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventBatteryInfo;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCallControl;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventDisplayMessage;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventFindPhone;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventFmFrequency;
@@ -126,7 +130,7 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
     protected GBDevice gbDevice;
     private BluetoothAdapter btAdapter;
     private Context context;
-    private boolean autoReconnect;
+    private boolean autoReconnect, scanReconnect;
 
 
 
@@ -171,6 +175,16 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
     }
 
     @Override
+    public void setScanReconnect(boolean scanReconnect) {
+        this.scanReconnect = scanReconnect;
+    }
+
+    @Override
+    public boolean getScanReconnect(){
+        return this.scanReconnect;
+    }
+
+    @Override
     public boolean getImplicitCallbackModify() {
         return true;
     }
@@ -195,6 +209,8 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
             handleGBDeviceEvent((GBDeviceEventMusicControl) deviceEvent);
         } else if (deviceEvent instanceof GBDeviceEventCallControl) {
             handleGBDeviceEvent((GBDeviceEventCallControl) deviceEvent);
+        } else if (deviceEvent instanceof GBDeviceEventCameraRemote) {
+            handleGBDeviceEvent((GBDeviceEventCameraRemote) deviceEvent);
         } else if (deviceEvent instanceof GBDeviceEventVersionInfo) {
             handleGBDeviceEvent((GBDeviceEventVersionInfo) deviceEvent);
         } else if (deviceEvent instanceof GBDeviceEventAppInfo) {
@@ -324,6 +340,13 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
         callIntent.putExtra("event", callEvent.event.ordinal());
         callIntent.setPackage(context.getPackageName());
         context.sendBroadcast(callIntent);
+    }
+
+    protected void handleGBDeviceEvent(GBDeviceEventCameraRemote cameraRemoteEvent) {
+        Intent cameraIntent = new Intent(getContext(), CameraActivity.class);
+        cameraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        cameraIntent.putExtra(CameraActivity.intentExtraEvent, GBDeviceEventCameraRemote.eventToInt(cameraRemoteEvent.event));
+        getContext().startActivity(cameraIntent);
     }
 
     protected void handleGBDeviceEvent(GBDeviceEventVersionInfo infoEvent) {
@@ -733,7 +756,7 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
         LocalBroadcastManager.getInstance(context).sendBroadcast(messageIntent);
     }
 
-    protected Prefs getDevicePrefs() {
+    public Prefs getDevicePrefs() {
         return new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
     }
 
@@ -1145,11 +1168,13 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
 
     /**
      * If the device can receive weather information, this method can be
-     * overridden and implemented by the device support class.
-     * @param weatherSpec weather information
+     * overridden and implemented by the device support class. It's guaranteed
+     * that there is always at least one weatherSpec, with the first being the
+     * primary weather (not necessarily current location).
+     * @param weatherSpecs weather information
      */
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
 
     }
 
@@ -1168,4 +1193,12 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
     public void onSetNavigationInfo(NavigationInfoSpec navigationInfoSpec) {
 
     }
+
+    @Override
+    public void onSleepAsAndroidAction(String action, Bundle extras) {
+        
+    }
+
+    @Override
+    public void onCameraStatusChange(GBDeviceEventCameraRemote.Event event, String filename) {}
 }

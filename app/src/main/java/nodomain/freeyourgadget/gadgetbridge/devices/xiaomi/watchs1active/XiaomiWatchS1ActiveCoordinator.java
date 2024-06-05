@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 Yoran Vulker
+/*  Copyright (C) 2023-2024 José Rebelo, Yoran Vulker
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.watchs1active;
 
 import android.content.Context;
@@ -45,6 +45,16 @@ public class XiaomiWatchS1ActiveCoordinator extends XiaomiCoordinator {
         return true;
     }
 
+    @Override
+    public ConnectionType getConnectionType() {
+        return ConnectionType.BOTH;
+    }
+
+    @Override
+    public boolean supportsFindDevice() {
+        return false;
+    }
+
     @Nullable
     @Override
     public InstallHandler findInstallHandler(Uri uri, Context context) {
@@ -61,10 +71,5 @@ public class XiaomiWatchS1ActiveCoordinator extends XiaomiCoordinator {
     @Override
     public int getDisabledIconResource() {
         return R.drawable.ic_device_miwatch_disabled;
-    }
-
-    @Override
-    public boolean supportsMultipleWeatherLocations() {
-        return true;
     }
 }

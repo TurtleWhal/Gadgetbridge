@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 Arjan Schrijver
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
 import android.content.Context;
@@ -103,5 +103,13 @@ public class GBChangeLog extends ChangeLog {
         }
 
         return builder.create();
+    }
+
+    public static GBChangeLog createChangeLog(Context context) {
+        String css = GBChangeLog.DEFAULT_CSS;
+        css += "body { "
+                + "color: " + AndroidUtils.getTextColorHex(context) + "; "
+                + "}";
+        return new GBChangeLog(context, css);
     }
 }

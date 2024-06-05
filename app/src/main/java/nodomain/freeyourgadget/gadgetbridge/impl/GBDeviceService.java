@@ -1,7 +1,8 @@
-/*  Copyright (C) 2015-2021 Alberto, Andreas Böhler, Andreas Shimokawa,
-    Carsten Pfeiffer, criogenic, Daniel Dakhno, Daniele Gobbetti, Frank Slezak,
-    ivanovlev, José Rebelo, Julien Pivotto, Kasha, Roi Greenberg, Sebastian
-    Kranz, Steffen Liebergeld
+/*  Copyright (C) 2015-2024 Alberto, Andreas Böhler, Andreas Shimokawa,
+    Arjan Schrijver, Carsten Pfeiffer, criogenic, Daniel Dakhno, Daniele Gobbetti,
+    Davis Mosenkovs, Frank Slezak, Gabriele Monaco, Gordon Williams, ivanovlev,
+    José Rebelo, Julien Pivotto, Kasha, mvn23, Petr Vaněk, Roi Greenberg,
+    Sebastian Kranz, Steffen Liebergeld
 
     This file is part of Gadgetbridge.
 
@@ -16,7 +17,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.impl;
 
 import android.app.Service;
@@ -25,7 +26,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.location.Location;
 import android.net.Uri;
-import android.os.Parcelable;
+import android.os.Bundle;
 import android.provider.ContactsContract;
 
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
@@ -123,12 +125,6 @@ public class GBDeviceService implements DeviceService {
 
     protected void stopService(Intent intent) {
         mContext.stopService(intent);
-    }
-
-    @Override
-    public void start() {
-        Intent intent = createIntent().setAction(ACTION_START);
-        invokeService(intent);
     }
 
     @Override
@@ -456,6 +452,7 @@ public class GBDeviceService implements DeviceService {
                 .putExtra(EXTRA_CALENDAREVENT_TIMESTAMP, calendarEventSpec.timestamp)
                 .putExtra(EXTRA_CALENDAREVENT_DURATION, calendarEventSpec.durationInSeconds)
                 .putExtra(EXTRA_CALENDAREVENT_ALLDAY, calendarEventSpec.allDay)
+                .putExtra(EXTRA_CALENDAREVENT_REMINDERS, calendarEventSpec.reminders)
                 .putExtra(EXTRA_CALENDAREVENT_TITLE, calendarEventSpec.title)
                 .putExtra(EXTRA_CALENDAREVENT_DESCRIPTION, calendarEventSpec.description)
                 .putExtra(EXTRA_CALENDAREVENT_CALNAME, calendarEventSpec.calName)
@@ -493,9 +490,9 @@ public class GBDeviceService implements DeviceService {
     }
 
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
         Intent intent = createIntent().setAction(ACTION_SEND_WEATHER)
-                .putExtra(EXTRA_WEATHER, (Parcelable) weatherSpec);
+                .putExtra(EXTRA_WEATHER, weatherSpecs);
         invokeService(intent);
     }
 
@@ -550,6 +547,25 @@ public class GBDeviceService implements DeviceService {
     public void onSetGpsLocation(Location location) {
         Intent intent = createIntent().setAction(ACTION_SET_GPS_LOCATION);
         intent.putExtra(EXTRA_GPS_LOCATION, location);
+        invokeService(intent);
+    }
+
+    @Override
+    public void onSleepAsAndroidAction(String action, Bundle extras) {
+        Intent intent = createIntent().setAction(ACTION_SLEEP_AS_ANDROID);
+        intent.putExtra(EXTRA_SLEEP_AS_ANDROID_ACTION, action);
+        if (extras != null) {
+            intent.putExtras(extras);
+        }
+        invokeService(intent);
+    }
+
+    @Override
+    public void onCameraStatusChange(GBDeviceEventCameraRemote.Event event, String filename) {
+        Intent intent = createIntent().setAction(ACTION_CAMERA_STATUS_CHANGE);
+        intent.putExtra(EXTRA_CAMERA_EVENT, GBDeviceEventCameraRemote.eventToInt(event));
+        if (event == GBDeviceEventCameraRemote.Event.TAKE_PICTURE)
+            intent.putExtra(EXTRA_CAMERA_FILENAME, filename);
         invokeService(intent);
     }
 }

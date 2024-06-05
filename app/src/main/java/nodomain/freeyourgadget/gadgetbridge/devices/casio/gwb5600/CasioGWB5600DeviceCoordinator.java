@@ -1,6 +1,4 @@
-/*  Copyright (C) 2023 Johannes Krude
-
-    based on code from BlueWatcher, https://github.com/masterjc/bluewatcher
+/*  Copyright (C) 2023-2024 Daniel Dakhno, Johannes Krude, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +13,8 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+/*  Based on code from BlueWatcher, https://github.com/masterjc/bluewatcher */
 package nodomain.freeyourgadget.gadgetbridge.devices.casio.gwb5600;
 
 import android.app.Activity;
@@ -112,12 +111,7 @@ public class CasioGWB5600DeviceCoordinator extends CasioDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 

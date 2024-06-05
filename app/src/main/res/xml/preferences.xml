@@ -19,12 +19,11 @@
             android:title="@string/pref_title_general_autoconnectonbluetooth"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:enabled="false"
-            android:key="general_autocreconnect"
+            android:defaultValue="true"
+            android:key="general_reconnectonlytoconnected"
             android:layout="@layout/preference_checkbox"
-            android:summary="setting has been moved to device specific settings"
-            android:title="@string/pref_title_general_autoreconnect"
+            android:title="@string/pref_title_general_reconnectonlytoconnected"
+            android:summary="@string/pref_summary_general_reconnectonlytoconnected"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:defaultValue="true"
@@ -33,6 +32,14 @@
             android:summaryOff="@string/pref_display_add_device_fab_off"
             android:summaryOn="@string/pref_display_add_device_fab_on"
             android:title="@string/pref_display_add_device_fab"
+            app:iconSpaceReserved="false" />
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="display_bottom_navigation_bar"
+            android:layout="@layout/preference_checkbox"
+            android:summaryOff="@string/pref_summary_bottom_navigation_bar_off"
+            android:summaryOn="@string/pref_summary_bottom_navigation_bar_on"
+            android:title="@string/pref_title_bottom_navigation_bar"
             app:iconSpaceReserved="false" />
 
         <SwitchPreferenceCompat
@@ -49,6 +56,16 @@
             android:key="audio_player"
             android:summary="%s"
             android:title="@string/pref_title_audio_player"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_category_dashboard"
+            android:title="@string/bottom_nav_dashboard"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_category_sleepasandroid"
+            android:title="@string/sleepasandroid_settings"
             app:iconSpaceReserved="false" />
 
         <PreferenceScreen
@@ -254,11 +271,6 @@
         app:iconSpaceReserved="false">
 
         <Preference
-            android:icon="@drawable/ic_device_pebble"
-            android:key="pref_key_qhybrid"
-            android:title="@string/preferences_qhybrid_settings" />
-
-        <Preference
             android:icon="@drawable/ic_device_miband"
             android:key="pref_key_miband"
             android:title="@string/preferences_miband_1_2_settings" />
@@ -267,11 +279,6 @@
             android:icon="@drawable/ic_device_pebble"
             android:key="pref_key_pebble"
             android:title="@string/pref_title_pebble_settings">
-        </Preference>
-        <Preference
-            android:icon="@drawable/ic_device_hplus"
-            android:key="pref_key_hplus"
-            android:title="@string/preferences_hplus_settings">
         </Preference>
         <Preference
             android:icon="@drawable/ic_device_zetime"
@@ -374,30 +381,42 @@
 
             <SwitchPreferenceCompat
                 android:key="prefs_key_allow_bluetooth_intent_api"
+                android:layout="@layout/preference_checkbox"
                 android:summary="@string/activity_prefs_summary_allow_bluetooth_intent_api"
                 android:title="@string/activity_prefs_allow_bluetooth_intent_api"
                 app:iconSpaceReserved="false" />
 
             <SwitchPreferenceCompat
                 android:key="intent_api_allow_activity_sync"
+                android:layout="@layout/preference_checkbox"
                 android:summary="@string/intent_api_allow_activity_sync_summary"
                 android:title="@string/intent_api_allow_activity_sync_title"
                 app:iconSpaceReserved="false" />
 
             <SwitchPreferenceCompat
+                android:key="intent_api_broadcast_activity_sync"
+                android:layout="@layout/preference_checkbox"
+                android:summary="@string/intent_api_broadcast_activity_sync_summary"
+                android:title="@string/intent_api_broadcast_activity_sync_title"
+                app:iconSpaceReserved="false" />
+
+            <SwitchPreferenceCompat
                 android:key="intent_api_allow_trigger_export"
+                android:layout="@layout/preference_checkbox"
                 android:summary="@string/intent_api_allow_trigger_export_summary"
                 android:title="@string/intent_api_allow_trigger_export_title"
                 app:iconSpaceReserved="false" />
 
             <SwitchPreferenceCompat
                 android:key="intent_api_broadcast_export"
+                android:layout="@layout/preference_checkbox"
                 android:summary="@string/intent_api_broadcast_export_summary"
                 android:title="@string/intent_api_broadcast_export_title"
                 app:iconSpaceReserved="false" />
 
             <SwitchPreferenceCompat
                 android:key="intent_api_allow_debug_commands"
+                android:layout="@layout/preference_checkbox"
                 android:summary="@string/intent_api_allow_debug_commands_summary"
                 android:title="@string/intent_api_allow_debug_commands_title"
                 app:iconSpaceReserved="false" />

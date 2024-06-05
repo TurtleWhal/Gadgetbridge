@@ -1,4 +1,4 @@
-/*  Copyright (C) 2016-2020 Petr Vaněk
+/*  Copyright (C) 2021-2024 Arjan Schrijver, Damien Gaignon, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 
 package nodomain.freeyourgadget.gadgetbridge.service.devices.fitpro;
 
@@ -550,7 +550,8 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+        WeatherSpec weatherSpec = weatherSpecs.get(0);
         LOG.debug("FitPro send weather");
         short todayMax = (short) (weatherSpec.todayMaxTemp - 273);
         short todayMin = (short) (weatherSpec.todayMinTemp - 273);

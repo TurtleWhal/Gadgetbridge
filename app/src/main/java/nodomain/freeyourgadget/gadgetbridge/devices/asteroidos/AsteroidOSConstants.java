@@ -1,3 +1,19 @@
+/*  Copyright (C) 2022-2024 Noodlez
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.asteroidos;
 
 import java.util.UUID;
@@ -7,17 +23,17 @@ import java.util.UUID;
  */
 public class AsteroidOSConstants {
     /**
-     * A list of all the supported devices and their codenames
+     * A list of all the known supported codenames
      */
-    public static final String[] SUPPORTED_DEVICE_CODENAMES = {
-            "bass", "sturgeon", "catfish", "catfish_ext",
-            "catshark", "lenok", "smelt", "carp",
-            "sparrow", "wren", "anthias", "beluga",
-            "dory", "firefish", "harmony", "inharmony",
-            "narwhal", "ray", "sawfish", "sawshark",
-            "skipjack", "tunny", "mooneye", "swift",
-            "minnow", "sprat", "tetra", "pike", "hoki",
-            "koi", "ayu"
+    public static final String[] KNOWN_DEVICE_CODENAMES = {
+        "bass", "sturgeon", "catfish", "catfish_ext",
+        "catshark", "lenok", "smelt", "carp",
+        "sparrow", "wren", "anthias", "beluga",
+        "dory", "firefish", "harmony", "inharmony",
+        "narwhal", "ray", "sawfish", "sawshark",
+        "skipjack", "tunny", "mooneye", "swift",
+        "minnow", "sprat", "tetra", "pike", "hoki",
+        "koi", "ayu"
     };
 
     /**
@@ -50,11 +66,11 @@ public class AsteroidOSConstants {
     /**
      * Screenshot request characteristic
      */
-    public static final UUID SCREENSHOT_REQUEST         = UUID.fromString("00006001-0000-0000-0000-00A57E401D05");
+    public static final UUID SCREENSHOT_REQUEST_CHAR     = UUID.fromString("00006001-0000-0000-0000-00A57E401D05");
     /**
      * Screenshot content characteristic
      */
-    public static final UUID SCREENSHOT_CONTENT         = UUID.fromString("00006002-0000-0000-0000-00A57E401D05");
+    public static final UUID SCREENSHOT_CONTENT_CHAR         = UUID.fromString("00006002-0000-0000-0000-00A57E401D05");
 
     /**
      * Media service

@@ -1,4 +1,7 @@
-/*  Copyright (C) 2019-2021 Andreas Shimokawa, Gordon Williams
+/*  Copyright (C) 2019-2024 Albert, Andreas Shimokawa, Arjan Schrijver, Damien
+    Gaignon, Gabriele Monaco, Ganblejs, gfwilliams, glemco, Gordon Williams,
+    halemmerich, illis, José Rebelo, Lukas, LukasEdl, Marc Nause, Martin Boonk,
+    rarder44, Richard de Boer, Simon Sievert
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +16,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.banglejs;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_ALLOW_HIGH_MTU;
@@ -24,6 +27,7 @@ import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.Dev
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_GPS_USE_NETWORK_ONLY;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_INTENTS;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_INTERNET_ACCESS;
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_NOTIFICATION_WAKE_ON_OPEN;
 import static nodomain.freeyourgadget.gadgetbridge.database.DBHelper.getUser;
 import static nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants.PREF_BANGLEJS_ACTIVITY_FULL_SYNC_START;
 import static nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants.PREF_BANGLEJS_ACTIVITY_FULL_SYNC_STATUS;
@@ -36,7 +40,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
@@ -47,6 +50,7 @@ import android.os.Build;
 import android.util.Base64;
 import android.widget.Toast;
 
+import androidx.core.text.HtmlCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.android.volley.AuthFailureError;
@@ -66,8 +70,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -97,6 +99,8 @@ import io.wax911.emojify.EmojiUtils;
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.WakeActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.BarcodeFormat;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
@@ -108,6 +112,7 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventMusicContr
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventNotificationControl;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventScreenshot;
 import nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants;
 import nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.BangleJSActivitySample;
@@ -115,8 +120,8 @@ import nodomain.freeyourgadget.gadgetbridge.entities.CalendarSyncState;
 import nodomain.freeyourgadget.gadgetbridge.entities.CalendarSyncStateDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.CalendarReceiver;
-import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationManager;
-import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.LocationProviderType;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationProviderType;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
@@ -136,7 +141,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEQueue;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
-import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 import nodomain.freeyourgadget.gadgetbridge.util.EmojiConverter;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
@@ -211,7 +215,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
         if (!gpsUpdateSetup)
             return;
         LOG.info("Stop location updates");
-        GBLocationManager.stop(getContext(), this);
+        GBLocationService.stop(getContext(), getDevice());
         gpsUpdateSetup = false;
     }
 
@@ -336,6 +340,9 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
         Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
         allowHighMTU = devicePrefs.getBoolean(PREF_ALLOW_HIGH_MTU, true);
 
+        if (allowHighMTU && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            builder.requestMtu(131);
+        }
         // No need to clear active line with Ctrl-C now - firmwares in 2023 auto-clear on connect
 
         Prefs prefs = GBApplication.getPrefs();
@@ -380,11 +387,13 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             /* Convert a string, escaping chars we can't send over out UART connection */
             String s = (String)v;
             StringBuilder json = new StringBuilder("\"");
+            boolean hasUnicode = false;
             //String rawString = "";
             for (int i=0;i<s.length();i++) {
-                int ch = (int)s.charAt(i); // 0..255
-                int nextCh = (int)(i+1<s.length() ? s.charAt(i+1) : 0); // 0..255
+                int ch = (int)s.charAt(i); // unicode, so 0..65535 (usually)
+                int nextCh = (int)(i+1<s.length() ? s.charAt(i+1) : 0); // 0..65535
                 //rawString = rawString+ch+",";
+                if (ch>255) hasUnicode = true;
                 if (ch<8) {
                     // if the next character is a digit, it'd be interpreted
                     // as a 2 digit octal character, so we can't use `\0` to escape it
@@ -405,7 +414,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
                 else json.append(s.charAt(i));
             }
             // if it was less characters to send base64, do that!
-            if (json.length() > 5+(s.length()*4/3)) {
+            if (!hasUnicode && (json.length() > 5+(s.length()*4/3))) {
                 byte[] bytes = s.getBytes(StandardCharsets.ISO_8859_1);
                 return "atob(\""+Base64.encodeToString(bytes, Base64.DEFAULT).replaceAll("\n","")+"\")";
             }
@@ -501,10 +510,14 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
                 } else
                     LOG.warn("UART RX JSON parsed but doesn't contain 't' - ignoring");
             } catch (JSONException e) {
-                LOG.info("UART RX JSON parse failure: "+ e.getLocalizedMessage());
+                LOG.error("UART RX JSON parse failure: "+ e.getLocalizedMessage());
                 GB.toast(getContext(), "Malformed JSON from Bangle.js: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
             }
-
+        } else if (line.startsWith("data:image/bmp;base64,")) {
+            LOG.debug("Got screenshot bmp");
+            final byte[] screenshotBytes = Base64.decode(line.substring(21), Base64.DEFAULT);
+            final GBDeviceEventScreenshot gbDeviceEventScreenshot = new GBDeviceEventScreenshot(screenshotBytes);
+            evaluateGBDeviceEvent(gbDeviceEventScreenshot);
         } else {
             LOG.info("UART RX line started with "+(int)line.charAt(0)+" - ignoring");
         }
@@ -558,6 +571,14 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             case "act":
                 handleActivity(json);
                 break;
+            case "actTrksList": {
+                JSONObject requestTrackObj = BangleJSActivityTrack.handleActTrksList(json, getDevice(), getContext());
+                if (requestTrackObj!=null) uartTxJSON("requestActivityTrackLog", requestTrackObj);
+            } break;
+            case "actTrk": {
+                JSONObject requestTrackObj = BangleJSActivityTrack.handleActTrk(json, getDevice(), getContext());
+                if (requestTrackObj!=null) uartTxJSON("requestActivityTrackLog", requestTrackObj);
+            } break;
             case "http":
                 handleHttp(json);
                 break;
@@ -566,6 +587,9 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
                 break;
             case "intent":
                 handleIntent(json);
+                break;
+            case "file":
+                handleFile(json);
                 break;
             case "gps_power": {
                 boolean status = json.getBoolean("status");
@@ -615,9 +639,21 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
      * Handle "notify" packet, used to send notification control from device to GB
      */
     private void handleNotificationControl(JSONObject json) throws JSONException {
+
+        String response = json.getString("n").toUpperCase();
+        LOG.debug("Notification response: " + response);
+
+        // Wake the Android device if the setting is toggled on by user.
+        // Doesn't work if run after the notification handling below for some reason (which
+        // I'd rather do since the screen would only be opened once the content was ready).
+        Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
+        if (devicePrefs.getBoolean(PREF_NOTIFICATION_WAKE_ON_OPEN, false) && response.equals("OPEN")) {
+            WakeActivity.start(getContext());
+        }
+
         GBDeviceEventNotificationControl deviceEvtNotificationControl = new GBDeviceEventNotificationControl();
         // .title appears unused
-        deviceEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.valueOf(json.getString("n").replace("\0", "").toUpperCase());
+        deviceEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.valueOf(response);
         if (json.has("id"))
             deviceEvtNotificationControl.handle = json.getInt("id");
         if (json.has("tel"))
@@ -841,10 +877,11 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
      * Handle "force_calendar_sync" packet
      */
     private void handleCalendarSync(JSONObject json) throws JSONException {
-        //if(!GBApplication.getPrefs().getBoolean("enable_calendar_sync", false)) return;
+        if(!GBApplication.getPrefs().getBoolean("enable_calendar_sync", false)) return;
         //pretty much like the updateEvents in CalendarReceiver, but would need a lot of libraries here
         JSONArray ids = json.getJSONArray("ids");
         ArrayList<Long> idsList = new ArrayList<>(ids.length());
+        ArrayList<Long> idsDeletedList = new ArrayList<>(ids.length());
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             DaoSession session = dbHandler.getDaoSession();
             Long deviceId = DBHelper.getDevice(gbDevice, session).getId();
@@ -861,6 +898,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
                         qb.and(CalendarSyncStateDao.Properties.DeviceId.eq(deviceId),
                                 CalendarSyncStateDao.Properties.CalendarEntryId.eq(id))).build().unique();
                 if(calendarSyncState == null) {
+                    idsDeletedList.add(id);
                     onDeleteCalendarEvent((byte)0, id);
                     LOG.info("event id="+ id +" is on device id="+ deviceId +", removing it there");
                 } else {
@@ -868,6 +906,9 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
                     idsList.add(id);
                 }
             }
+            // Now issue the command to delete from the Bangle
+            if (idsDeletedList.size() > 0)
+                deleteCalendarEvents(idsDeletedList);
 
             //remove all elements not in ids from database (we don't have them)
             for(CalendarSyncState calendarSyncState : states) {
@@ -971,6 +1012,37 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
         return intent;
     }
 
+    private void handleFile(JSONObject json) throws JSONException {
+
+        File dir;
+        try {
+            dir = new File(FileUtils.getExternalFilesDir() + "/" + FileUtils.makeValidFileName(getDevice().getName()));
+            if (!dir.isDirectory()) {
+                if (!dir.mkdir()) {
+                    throw new IOException("Cannot create device specific directory for " + getDevice().getName());
+                }
+            }
+        } catch (IOException e) {
+            LOG.error("Could not get directory to write to with error: " + e);
+            return;
+        }
+        String filename = json.getString("n");
+        String filenameThatCantEscapeDir = filename.replaceAll("/","");
+
+        LOG.debug("Compare filename and filenameThatCantEscapeDir:\n" + filename + "\n" + filenameThatCantEscapeDir);
+        File outputFile = new File(dir, filenameThatCantEscapeDir);
+        String mode = "append";
+        if (json.getString("m").equals("w")) {
+            mode = "write";
+        }
+        try {
+            FileUtils.copyStringToFile(json.getString("c"), outputFile, mode);
+            LOG.info("Writing to "+outputFile);
+        } catch (IOException e) {
+            LOG.warn("Could not write to " + outputFile + "with error: " + e);
+        }
+    }
+
     @Override
     public void onSendConfiguration(final String config) {
         switch (config) {
@@ -1023,7 +1095,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             receivedLine += packetStr;
             while (receivedLine.contains("\n")) {
                 int p = receivedLine.indexOf("\n");
-                String line =  receivedLine.substring(0,p-1);
+                String line = receivedLine.substring(0,(p>0) ? (p-1) : 0);
                 receivedLine = receivedLine.substring(p+1);
                 handleUartRxLine(line);
             }
@@ -1073,14 +1145,14 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             LOG.info("Using combined GPS and NETWORK based location: " + onlyUseNetworkGPS);
             if (!onlyUseNetworkGPS) {
                 try {
-                    GBLocationManager.start(getContext(), this, LocationProviderType.GPS, intervalLength);
+                    GBLocationService.start(getContext(), getDevice(), GBLocationProviderType.GPS, intervalLength);
                 } catch (IllegalArgumentException e) {
                     LOG.warn("GPS provider could not be started", e);
                 }
             }
 
             try {
-                GBLocationManager.start(getContext(), this, LocationProviderType.NETWORK, intervalLength);
+                GBLocationService.start(getContext(), getDevice(), GBLocationProviderType.NETWORK, intervalLength);
             } catch (IllegalArgumentException e) {
                 LOG.warn("NETWORK provider could not be started", e);
             }
@@ -1164,6 +1236,21 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
         return renderUnicodeWordPartAsImage(word);
     }
 
+    /* is the given character code an emoji? Note that `char` is only 0..65535, so many emoji will
+      actually be made of 2 surrogate chars. To work around this, we just assume that anything with a surrogate
+      is an emoji, which will be true in most cases */
+    public boolean isCharCodeEmoji(char ch) {
+        if (ch>=0x2190 && ch<=0x21FF) return true;
+        if (ch>=0x2600 && ch<=0x26FF) return true;
+        if (ch>=0x2700 && ch<=0x27BF) return true;
+        if (ch>=0x3000 && ch<=0x303F) return true;
+        if (ch>=0xD800 && ch<=0xDFFF) return true; // high/low surrogate
+        if (ch>=0xFE00 && ch<=0xFE0F) return true; // variation selector 1 (2 is U+E0100 so is in a surrogate)
+        //if (ch>=0x1F300 && ch<=0x1F64F) return true; // needs a surrogate
+        //if (ch>=0x1F680 && ch<=0x1F6FF) return true; // needs a surrogate
+        return false;
+    }
+
     public String renderUnicodeAsImage(String txt) {
         // FIXME: it looks like we could implement this as customStringFilter now so it happens automatically
         if (txt==null) return null;
@@ -1178,6 +1265,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
         String word = "";
         StringBuilder result = new StringBuilder();
         boolean needsTranslate = false;
+        boolean wordIsAllEmoji = true;
         for (int i=0;i<txt.length();i++) {
             char ch = txt.charAt(i);
             // Special cases where we can just use a built-in character...
@@ -1189,6 +1277,32 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             else if (ch =='】') ch=']';
             else if (ch=='‘' || ch=='’' || ch=='‛' || ch=='′' || ch=='ʹ') ch='\'';
             else if (ch=='“' || ch=='”' || ch =='„' || ch=='‟' || ch=='″') ch='"';
+            else if (ch == 0xFEFF) continue; // nonbreaking space - ignore
+            boolean isCharEmoji = isCharCodeEmoji(ch);
+            if (isCharEmoji) {
+                if (!wordIsAllEmoji) {
+                    // if the word is all emoji we are fine, just fall through.
+                    // but here we have characters already and we want to translate those
+                    // separately, so we can have a color emoji on its own.
+                    if (needsTranslate) { // convert word
+                        LOG.info("renderUnicodeAsImage converting " + word);
+                        result.append(renderUnicodeWordAsImage(word));
+                    } else { // or just copy across
+                        result.append(word);
+                    }
+                    word = "";
+                    wordIsAllEmoji = true;
+                }
+                needsTranslate = true;
+            } else {
+                if (!word.isEmpty() && wordIsAllEmoji) {
+                    // this isn't am emoji, but it follows one - render that separately!
+                    result.append(renderUnicodeWordAsImage(word));
+                    word = "";
+                    needsTranslate = false;
+                }
+                wordIsAllEmoji = ch>=0xFE00;
+            }
             // chars which break words up
             if (" -_/:.,?!'\"&*()[]".indexOf(ch)>=0) {
                 // word split
@@ -1200,6 +1314,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
                 }
                 word = "";
                 needsTranslate = false;
+                wordIsAllEmoji = true;
             } else {
                 // TODO: better check?
                 if (ch>255) needsTranslate = true;
@@ -1224,11 +1339,19 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
+        if (!getDevicePrefs().getBoolean(DeviceSettingsPreferenceConst.PREF_SEND_APP_NOTIFICATIONS, true)) {
+            LOG.debug("App notifications disabled - ignoring");
+            return;
+        }
+
+        boolean canReply = false;
         if (notificationSpec.attachedActions!=null)
             for (int i=0;i<notificationSpec.attachedActions.size();i++) {
                 NotificationSpec.Action action = notificationSpec.attachedActions.get(i);
-                if (action.type==NotificationSpec.Action.TYPE_WEARABLE_REPLY)
-                    mNotificationReplyAction.add(notificationSpec.getId(), ((long) notificationSpec.getId() << 4) + i + 1);
+                if (action.type==NotificationSpec.Action.TYPE_WEARABLE_REPLY) {
+                    mNotificationReplyAction.add(notificationSpec.getId(), action.handle);
+                    canReply = true;
+                }
             }
         // sourceName isn't set for SMS messages
         String src = notificationSpec.sourceName;
@@ -1245,6 +1368,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             o.put("body", renderUnicodeAsImage(cropToLength(notificationSpec.body, 400)));
             o.put("sender", renderUnicodeAsImage(cropToLength(notificationSpec.sender,40)));
             o.put("tel", notificationSpec.phoneNumber);
+            if (canReply) o.put("reply", true);
             uartTxJSON("onNotification", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -1352,29 +1476,6 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             o.put("dur", musicSpec.duration);
             o.put("c", musicSpec.trackCount);
             o.put("n", musicSpec.trackNr);
-
-            /*Bitmap bmp = musicSpec.albumArt;
-            ByteArrayOutputStream stream = new ByteArrayOutputStream();
-            bmp.compress(Bitmap.CompressFormat.PNG, 2, stream);
-            byte[] byteArray = stream.toByteArray();
-            bmp.recycle();
-            o.put("img", byteArray);*/
-
-            //byte[] fileContent = getContext().getResources().openRawResource(R.drawable.gadgetbridge_img);
-
-            /*ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            Bitmap bitmap = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.gadgetbridge_img);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream);
-            byte[] imageBytes = byteArrayOutputStream.toByteArray();
-            String encodedString = Base64.encodeToString(imageBytes, Base64.NO_WRAP);
-            o.put("img", encodedString);*/
-
-            //byte[] fileContent = {33, 34, 35, 36, 37};
-            //byte[] tempBytes = {43, 35, 33, 42};
-
-            //String imgString = "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";
-            //o.put("img", imgString);
-
             uartTxJSON("onSetMusicInfo", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -1407,7 +1508,11 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             fetchActivityData(getLastSuccessfulSyncTime());
         }
 
-        if ((dataTypes & RecordedDataTypes.TYPE_DEBUGLOGS) != 0)  {
+        if ((dataTypes & RecordedDataTypes.TYPE_GPS_TRACKS) !=0) {
+            JSONObject requestTracksListObj = BangleJSActivityTrack.compileTracksListRequest(getDevice(), getContext());
+            uartTxJSON("requestActivityTracksList", requestTracksListObj);
+        }
+        if ((dataTypes & RecordedDataTypes.TYPE_DEBUGLOGS) !=0) {
             File dir;
             try {
                 dir = FileUtils.getExternalFilesDir();
@@ -1416,7 +1521,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             }
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US);
             String filename = "banglejs_debug_" + dateFormat.format(new Date()) + ".log";
-            File outputFile = new File(dir, filename );
+            File outputFile = new File(dir, filename);
             LOG.warn("Writing log to "+outputFile.toString());
             try {
                 BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile));
@@ -1481,17 +1586,6 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
-        try {
-            JSONObject o = new JSONObject();
-            o.put("t", "reboot");
-            uartTxJSON("onReset", o);
-        } catch (JSONException e) {
-            LOG.info("JSONException: " + e.getLocalizedMessage());
-        }
-    }
-
-    @Override
     public void onSetConstantVibration(int integer) {
         try {
             JSONObject o = new JSONObject();
@@ -1500,6 +1594,17 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             uartTxJSON("onSetConstantVibration", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    @Override
+    public void onScreenshotReq() {
+        try {
+            final TransactionBuilder builder = performInitialized("screenshot");
+            uartTx(builder, "\u0010g.dump()\n");
+            builder.queue(getQueue());
+        } catch (final IOException e) {
+            GB.toast(getContext(), "Failed to get screenshot: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
         }
     }
 
@@ -1565,6 +1670,19 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public void onAddCalendarEvent(CalendarEventSpec calendarEventSpec) {
+        if(!GBApplication.getPrefs().getBoolean("enable_calendar_sync", false)) return;
+        String description = calendarEventSpec.description;
+        if (description != null) {
+            // remove any HTML formatting
+            if (description.startsWith("<html"))
+                description = androidx.core.text.HtmlCompat.fromHtml(description, HtmlCompat.FROM_HTML_MODE_LEGACY).toString();
+            // Replace "-::~:~::~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~::~:~::-" lines from Google meet
+            description = ("\n"+description+"\n").replaceAll("\n-[:~-]*\n","");
+            // Replace ____________________ from MicrosoftTeams
+            description = description.replaceAll("__________+", "");
+            // replace double newlines and trim beginning and end
+            description = description.replaceAll("\n\\s*\n","\n").trim();
+        }
         try {
             JSONObject o = new JSONObject();
             o.put("t", "calendar");
@@ -1573,7 +1691,7 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
             o.put("timestamp", calendarEventSpec.timestamp);
             o.put("durationInSeconds", calendarEventSpec.durationInSeconds);
             o.put("title", renderUnicodeAsImage(cropToLength(calendarEventSpec.title,40)));
-            o.put("description", renderUnicodeAsImage(cropToLength(calendarEventSpec.description,200)));
+            o.put("description", renderUnicodeAsImage(cropToLength(description,200)));
             o.put("location", renderUnicodeAsImage(cropToLength(calendarEventSpec.location,40)));
             o.put("calName", cropToLength(calendarEventSpec.calName,20));
             o.put("color", calendarEventSpec.color);
@@ -1586,6 +1704,8 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public void onDeleteCalendarEvent(byte type, long id) {
+        // FIXME: CalenderReceiver will call this directly - can we somehow batch up delete calls and use deleteCalendarEvents?
+        if(!GBApplication.getPrefs().getBoolean("enable_calendar_sync", false)) return;
         try {
             JSONObject o = new JSONObject();
             o.put("t", "calendar-");
@@ -1596,8 +1716,29 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
         }
     }
 
+    /* Called when we need to get rid of multiple calendar events */
+    public void deleteCalendarEvents(ArrayList<Long> ids) {
+        if(!GBApplication.getPrefs().getBoolean("enable_calendar_sync", false)) return;
+        if (ids.size() > 0)
+            try {
+                JSONObject o = new JSONObject();
+                o.put("t", "calendar-");
+                if (ids.size() == 1) {
+                    o.put("id", ids.get(0));
+                } else {
+                    JSONArray a = new JSONArray();
+                    for (long id : ids) a.put(id);
+                    o.put("id", a);
+                }
+                uartTxJSON("onDeleteCalendarEvent", o);
+            } catch (JSONException e) {
+                LOG.info("JSONException: " + e.getLocalizedMessage());
+            }
+    }
+
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+        WeatherSpec weatherSpec = weatherSpecs.get(0);
         try {
             JSONObject o = new JSONObject();
             o.put("t", "weather");

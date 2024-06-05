@@ -1,5 +1,5 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Taavi Eomäe
+/*  Copyright (C) 2016-2024 Andreas Böhler, Andreas Shimokawa, Carsten
+    Pfeiffer, Daniele Gobbetti, José Rebelo, Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.pebble;
 
 import static nodomain.freeyourgadget.gadgetbridge.util.BondingUtil.STATE_DEVICE_CANDIDATE;
@@ -143,7 +143,7 @@ public class PebblePairingActivity extends AbstractGBActivity implements Bonding
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             DaoSession session = dbHandler.getDaoSession();
             DeviceDao deviceDao = session.getDeviceDao();
-            Query<Device> query = deviceDao.queryBuilder().where(DeviceDao.Properties.Type.eq(1), DeviceDao.Properties.Identifier.like("%" + expectedSuffix)).build();
+            Query<Device> query = deviceDao.queryBuilder().where(DeviceDao.Properties.TypeName.eq("PEBBLE"), DeviceDao.Properties.Identifier.like("%" + expectedSuffix)).build();
 
             List<Device> devices = query.list();
             if (devices.size() == 0) {

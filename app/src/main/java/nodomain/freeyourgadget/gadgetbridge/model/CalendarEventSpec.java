@@ -1,4 +1,5 @@
-/*  Copyright (C) 2016-2020 Andreas Shimokawa, Daniele Gobbetti
+/*  Copyright (C) 2016-2024 Andreas Shimokawa, Daniele Gobbetti, Gabriele
+    Monaco
 
     This file is part of Gadgetbridge.
 
@@ -13,8 +14,10 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
+
+import java.util.ArrayList;
 
 public class CalendarEventSpec {
     public static final byte TYPE_UNKNOWN = 0;
@@ -31,4 +34,5 @@ public class CalendarEventSpec {
     public String calName;
     public int color;
     public boolean allDay;
+    public ArrayList<Long> reminders; // unix epoch millis
 }

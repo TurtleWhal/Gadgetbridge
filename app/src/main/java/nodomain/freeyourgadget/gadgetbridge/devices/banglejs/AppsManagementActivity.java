@@ -1,3 +1,19 @@
+/*  Copyright (C) 2022-2024 Andreas Shimokawa, Daniel Dakhno, Gordon Williams
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.banglejs;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_INTERNET_ACCESS;
@@ -155,6 +171,13 @@ public class AppsManagementActivity extends AbstractGBActivity {
             LOG.info("WebView RX: " + data);
             bangleTxData(data);
         }
+
+        /// Called from the WebView to download a file
+        @JavascriptInterface
+        public void saveFile(String filename, String mimetype, String b64) {
+            LOG.info("WebView save file: {}", filename);
+            showSaveFileDialog(filename, mimetype, Base64.decode(b64, Base64.DEFAULT));
+        }
      }
 
     // Called when data received from Bangle.js - push data to the WebView
@@ -180,7 +203,7 @@ public class AppsManagementActivity extends AbstractGBActivity {
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
-    public void showSaveFileDialog(String fileName, String mimeType, byte data[]) {
+    public void showSaveFileDialog(String fileName, String mimeType, byte[] data) {
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         if (mimeType!=null) intent.setType(mimeType);
@@ -299,6 +322,10 @@ public class AppsManagementActivity extends AbstractGBActivity {
             fileChooserCallback = null;
         }
         if (requestCode == CREATE_FILE) { // showSaveFileDialog
+            if (resultCode == Activity.RESULT_CANCELED || intent == null || intent.getData() == null) {
+                return;
+            }
+
             OutputStream os = null;
             try {
                 os = getContentResolver().openOutputStream(intent.getData());

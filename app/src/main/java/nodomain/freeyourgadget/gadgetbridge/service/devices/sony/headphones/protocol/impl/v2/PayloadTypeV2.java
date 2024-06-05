@@ -1,4 +1,4 @@
-/*  Copyright (C) 2022 José Rebelo
+/*  Copyright (C) 2022-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones.protocol.impl.v2;
 
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones.protocol.MessageType;
@@ -32,6 +32,11 @@ public enum PayloadTypeV2 {
     AUTOMATIC_POWER_OFF_RET(MessageType.COMMAND_1, 0x27),
     AUTOMATIC_POWER_OFF_SET(MessageType.COMMAND_1, 0x28),
     AUTOMATIC_POWER_OFF_NOTIFY(MessageType.COMMAND_1, 0x29),
+
+    AMBIENT_SOUND_CONTROL_BUTTON_MODE_GET(MessageType.COMMAND_1, 0xfa),
+    AMBIENT_SOUND_CONTROL_BUTTON_MODE_RET(MessageType.COMMAND_1, 0xfb),
+    AMBIENT_SOUND_CONTROL_BUTTON_MODE_SET(MessageType.COMMAND_1, 0xfc),
+    AMBIENT_SOUND_CONTROL_BUTTON_MODE_NOTIFY(MessageType.COMMAND_1, 0xfd),
 
     UNKNOWN(MessageType.UNKNOWN, 0xff);
 

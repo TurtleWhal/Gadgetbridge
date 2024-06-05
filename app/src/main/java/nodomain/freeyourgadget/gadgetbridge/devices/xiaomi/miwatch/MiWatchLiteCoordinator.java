@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 Andreas Shimokawa
+/*  Copyright (C) 2023-2024 Andreas Shimokawa, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.miwatch;
 
 import android.content.Context;
@@ -27,6 +27,7 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.XiaomiCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.XiaomiInstallHandler;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class MiWatchLiteCoordinator extends XiaomiCoordinator {
     @Override
@@ -72,7 +73,7 @@ public class MiWatchLiteCoordinator extends XiaomiCoordinator {
     }
 
     @Override
-    public boolean supportsSpo2() {
+    public boolean supportsSpo2(GBDevice device) {
         return false;
     }
 

@@ -1,5 +1,4 @@
-/*  Copyright (C) 2015-2023 Andreas Shimokawa, Carsten Pfeiffer, Lem Dulfo,
-    vanous, José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -14,16 +13,19 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.discovery;
 
 import android.os.Bundle;
+import android.widget.Toast;
 
 import androidx.preference.PreferenceFragmentCompat;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractPreferenceFragment;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractSettingsActivityV2;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class DiscoveryPairingPreferenceActivity extends AbstractSettingsActivityV2 {
     @Override
@@ -39,8 +41,14 @@ public class DiscoveryPairingPreferenceActivity extends AbstractSettingsActivity
     public static class DiscoveryPairingPreferenceFragment extends AbstractPreferenceFragment {
         static final String FRAGMENT_TAG = "DISCOVERY_PAIRING_PREFERENCES_FRAGMENT";
 
+        @Override
         public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
             setPreferencesFromResource(R.xml.discovery_pairing_preferences, rootKey);
+
+            findPreference("prefs_general_key_auto_reconnect_scan").setOnPreferenceChangeListener((preference, newValue) -> {
+                GB.toast(GBApplication.getContext().getString(R.string.prompt_restart_gadgetbridge), Toast.LENGTH_LONG, GB.INFO);
+                return true;
+            });
         }
     }
 }

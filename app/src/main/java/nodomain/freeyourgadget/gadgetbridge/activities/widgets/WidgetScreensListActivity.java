@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.widgets;
 
 import android.annotation.SuppressLint;
@@ -159,9 +159,9 @@ public class WidgetScreensListActivity extends AbstractGBActivity {
     public void deleteWidgetScreen(final WidgetScreen widgetScreen) {
         if (mGBWidgetScreenListAdapter.getItemCount() - 1 < widgetManager.getMinScreens()) {
             // Under minimum slots
-            new MaterialAlertDialogBuilder(this.getBaseContext())
+            new MaterialAlertDialogBuilder(this)
                     .setTitle(R.string.widget_screen_delete_confirm_title)
-                    .setMessage(getBaseContext().getString(R.string.widget_screen_min_screens, String.format(Locale.getDefault(), "%d", widgetManager.getMinScreens())))
+                    .setMessage(this.getString(R.string.widget_screen_min_screens, String.format(Locale.getDefault(), "%d", widgetManager.getMinScreens())))
                     .setIcon(R.drawable.ic_warning)
                     .setPositiveButton(android.R.string.ok, (dialog, whichButton) -> {
                     })

@@ -1,6 +1,8 @@
-/*  Copyright (C) 2015-2020 Andreas Shimokawa, Carsten Pfeiffer, Daniel
-    Dakhno, Daniele Gobbetti, Frank Slezak, ivanovlev, JohnnySun, José Rebelo,
-    Julien Pivotto, Kasha, Sebastian Kranz, Steffen Liebergeld, vanous
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Daniel Dakhno, Daniele Gobbetti, Davis Mosenkovs, Frank Slezak,
+    Gabriele Monaco, Gordon Williams, ivanovlev, JohnnySun, José Rebelo, Julien
+    Pivotto, Kasha, mvn23, Petr Vaněk, Sebastian Kranz, Steffen Liebergeld,
+    Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +17,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
 
 import nodomain.freeyourgadget.gadgetbridge.devices.EventHandler;
@@ -28,7 +30,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.DeviceCommunicationService;
 public interface DeviceService extends EventHandler {
     String PREFIX = "nodomain.freeyourgadget.gadgetbridge.devices";
 
-    String ACTION_START = PREFIX + ".action.start";
     String ACTION_CONNECT = PREFIX + ".action.connect";
     String ACTION_NOTIFICATION = PREFIX + ".action.notification";
     String ACTION_DELETE_NOTIFICATION = PREFIX + ".action.delete_notification";
@@ -78,6 +79,10 @@ public interface DeviceService extends EventHandler {
     String ACTION_SET_GPS_LOCATION = PREFIX + ".action.set_gps_location";
     String ACTION_SET_LED_COLOR = PREFIX + ".action.set_led_color";
     String ACTION_POWER_OFF = PREFIX + ".action.power_off";
+    String ACTION_CAMERA_STATUS_CHANGE = PREFIX + ".action.camera_status_change";
+
+    String ACTION_SLEEP_AS_ANDROID = ".action.sleep_as_android";
+    String EXTRA_SLEEP_AS_ANDROID_ACTION = "sleepasandroid_action";
     String EXTRA_NOTIFICATION_BODY = "notification_body";
     String EXTRA_NOTIFICATION_FLAGS = "notification_flags";
     String EXTRA_NOTIFICATION_ID = "notification_id";
@@ -140,6 +145,8 @@ public interface DeviceService extends EventHandler {
     String EXTRA_LED_COLOR = "led_color";
     String EXTRA_GPS_LOCATION = "gps_location";
     String EXTRA_RESET_FLAGS = "reset_flags";
+    String EXTRA_CAMERA_EVENT = "event";
+    String EXTRA_CAMERA_FILENAME = "filename";
 
     /**
      * Use EXTRA_REALTIME_SAMPLE instead
@@ -158,13 +165,12 @@ public interface DeviceService extends EventHandler {
     String EXTRA_CALENDAREVENT_TIMESTAMP = "calendarevent_timestamp";
     String EXTRA_CALENDAREVENT_DURATION = "calendarevent_duration";
     String EXTRA_CALENDAREVENT_ALLDAY = "calendarevent_allday";
+    String EXTRA_CALENDAREVENT_REMINDERS = "calendarevent_reminders";
     String EXTRA_CALENDAREVENT_TITLE = "calendarevent_title";
     String EXTRA_CALENDAREVENT_DESCRIPTION = "calendarevent_description";
     String EXTRA_CALENDAREVENT_LOCATION = "calendarevent_location";
     String EXTRA_CALENDAREVENT_CALNAME = "calendarevent_calname";
     String EXTRA_CALENDAREVENT_COLOR = "calendarevent_color";
-
-    void start();
 
     void connect();
 

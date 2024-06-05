@@ -1,5 +1,6 @@
-/*  Copyright (C) 2016-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Felix Konstantin Maurer, Marc Nause, Petr Vaněk, Taavi Eomäe
+/*  Copyright (C) 2016-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Daniel Dakhno, Daniele Gobbetti, Felix Konstantin Maurer, José
+    Rebelo, Marc Nause, Petr Vaněk, Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
 import android.annotation.SuppressLint;
@@ -31,6 +32,7 @@ import android.net.Uri;
 import android.os.Environment;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
+import android.os.PowerManager;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.text.TextUtils;
@@ -335,5 +337,17 @@ public class AndroidUtils {
             throw new ClassNotFoundException("App " + packageName + " cannot be found");
         }
         GBApplication.getContext().startActivity(launchIntent);
+    }
+
+    public static PowerManager.WakeLock acquirePartialWakeLock(Context context, String tag, long timeout) {
+        try {
+            PowerManager powermanager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            PowerManager.WakeLock wl = powermanager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Gadgetbridge:" + tag);
+            wl.acquire(timeout);
+            return wl;
+        } catch (final Exception e) {
+            LOG.error("Failed to take partial wake lock {}: ", tag, e);
+            return null;
+        }
     }
 }

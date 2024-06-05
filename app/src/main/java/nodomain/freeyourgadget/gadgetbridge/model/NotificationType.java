@@ -1,6 +1,6 @@
-/*  Copyright (C) 2015-2020 Andreas Shimokawa, AnthonyDiGirolamo, Carsten
-    Pfeiffer, Daniele Gobbetti, Frank Slezak, Julien Pivotto, Kaz Wolfe, Kevin
-    Richter, Lukas Veneziano
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, AnthonyDiGirolamo, Carsten
+    Pfeiffer, Daniele Gobbetti, Davis Mosenkovs, Frank Slezak, José Rebelo,
+    Kaz Wolfe, Kevin Richter, Lukas Veneziano, Maxim Baz, musover
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
 
 import java.util.Arrays;
@@ -73,7 +73,8 @@ public enum NotificationType {
     WECHAT(PebbleIconID.NOTIFICATION_WECHAT, PebbleColor.KellyGreen),
     WHATSAPP(PebbleIconID.NOTIFICATION_WHATSAPP, PebbleColor.IslamicGreen),
     YAHOO_MAIL(PebbleIconID.NOTIFICATION_YAHOO_MAIL, PebbleColor.Indigo),
-    COL_REMINDER(PebbleIconID.NOTIFICATION_REMINDER, PebbleColor.IslamicGreen);
+    COL_REMINDER(PebbleIconID.NOTIFICATION_REMINDER, PebbleColor.IslamicGreen),
+    DELTACHAT(PebbleIconID.NOTIFICATION_HIPCHAT, PebbleColor.BlueMoon);
 
     // Note: if you add any more constants, update all clients as well
 
@@ -99,6 +100,8 @@ public enum NotificationType {
             case GENERIC_EMAIL:
             case GENERIC_NAVIGATION:
             case GENERIC_SMS:
+            case GENERIC_PHONE:
+            case GENERIC_CALENDAR:
             case GENERIC_ALARM_CLOCK:
                 return getFixedValue();
             case FACEBOOK:
@@ -128,6 +131,7 @@ public enum NotificationType {
             case LINE:
             case VIBER:
             case DISCORD:
+            case DELTACHAT:
                 return "generic_chat";
             case GMAIL:
             case GOOGLE_INBOX:

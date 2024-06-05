@@ -1,4 +1,5 @@
-/*  Copyright (C) 2021 Daniel Dakhno
+/*  Copyright (C) 2021-2024 Damien Gaignon, Daniel Dakhno, José Rebelo,
+    Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.vesc;
 
 import android.app.Activity;
@@ -115,18 +116,13 @@ public class VescCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots() {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 
     @Override
     public int getAlarmSlotCount(GBDevice device) {
         return 0;
-    }
-
-    @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
-        return false;
     }
 
     @Override

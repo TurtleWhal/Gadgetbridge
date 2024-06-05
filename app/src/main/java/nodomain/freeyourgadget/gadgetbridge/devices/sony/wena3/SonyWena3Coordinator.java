@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 akasaka / Genjitsu Labs
+/*  Copyright (C) 2023-2024 akasaka / Genjitsu Labs, Daniel Dakhno
 
     This file is part of Gadgetbridge.
 
@@ -13,8 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
-
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.sony.wena3;
 
 import android.app.Activity;
@@ -173,7 +172,7 @@ public class SonyWena3Coordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsSpo2() {
+    public boolean supportsSpo2(GBDevice device) {
         return false;
     }
 
@@ -204,7 +203,7 @@ public class SonyWena3Coordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots() {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 
@@ -214,7 +213,7 @@ public class SonyWena3Coordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
+    public boolean supportsSmartWakeup(GBDevice device, int position) {
         return true;
     }
 

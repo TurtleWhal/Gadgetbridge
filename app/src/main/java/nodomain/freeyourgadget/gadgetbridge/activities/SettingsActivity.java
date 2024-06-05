@@ -1,6 +1,7 @@
-/*  Copyright (C) 2015-2023 0nse, Andreas Shimokawa, Carsten Pfeiffer,
-    Daniel Dakhno, Daniele Gobbetti, Felix Konstantin Maurer, José Rebelo,
-    Martin, Normano64, Pavel Elagin, Sebastian Kranz, vanous
+/*  Copyright (C) 2015-2024 0nse, Andreas Shimokawa, Anemograph, Arjan
+    Schrijver, Carsten Pfeiffer, Daniel Dakhno, Daniele Gobbetti, Felix Konstantin
+    Maurer, José Rebelo, Martin, Normano64, Pavel Elagin, Petr Vaněk, Sebastian
+    Kranz, Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +16,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities;
 
 import android.Manifest;
@@ -65,11 +66,10 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.charts.ChartsPreferencesActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.discovery.DiscoveryPairingPreferenceActivity;
 import nodomain.freeyourgadget.gadgetbridge.database.PeriodicExporter;
-import nodomain.freeyourgadget.gadgetbridge.devices.hplus.HPlusSettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandPreferencesActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleSettingsActivity;
-import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.ConfigActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.zetime.ZeTimePreferenceActivity;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.TimeChangeReceiver;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
@@ -137,27 +137,10 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                 });
             }
 
-            pref = findPreference("pref_key_qhybrid");
-            if (pref != null) {
-                pref.setOnPreferenceClickListener(preference -> {
-                    startActivity(new Intent(requireContext(), ConfigActivity.class));
-                    return true;
-                });
-            }
-
             pref = findPreference("pref_key_pebble");
             if (pref != null) {
                 pref.setOnPreferenceClickListener(preference -> {
                     Intent enableIntent = new Intent(requireContext(), PebbleSettingsActivity.class);
-                    startActivity(enableIntent);
-                    return true;
-                });
-            }
-
-            pref = findPreference("pref_key_hplus");
-            if (pref != null) {
-                pref.setOnPreferenceClickListener(preference -> {
-                    Intent enableIntent = new Intent(requireContext(), HPlusSettingsActivity.class);
                     startActivity(enableIntent);
                     return true;
                 });
@@ -168,6 +151,17 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                 pref.setOnPreferenceClickListener(preference -> {
                     Intent enableIntent = new Intent(requireContext(), ZeTimePreferenceActivity.class);
                     startActivity(enableIntent);
+                    return true;
+                });
+            }
+
+            pref = findPreference("datetime_synconconnect");
+            if (pref != null) {
+                pref.setOnPreferenceChangeListener((preference, newVal) -> {
+                    if (Boolean.TRUE.equals(newVal)) {
+                        TimeChangeReceiver.scheduleNextDstChangeOrPeriodicSync(requireContext());
+                        GBApplication.deviceService().onSetTime();
+                    }
                     return true;
                 });
             }
@@ -223,6 +217,21 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                                 GB.ERROR,
                                 ex);
                     }
+                    return true;
+                });
+            }
+
+            pref = findPreference("display_add_device_fab");
+            if (pref != null) {
+                pref.setOnPreferenceChangeListener((preference, newValue) -> {
+                    sendThemeChangeIntent();
+                    return true;
+                });
+            }
+            pref = findPreference("display_bottom_navigation_bar");
+            if (pref != null) {
+                pref.setOnPreferenceChangeListener((preference, newVal) -> {
+                    sendThemeChangeIntent();
                     return true;
                 });
             }
@@ -382,6 +391,24 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                 audioPlayer.setEntries(newEntries);
                 audioPlayer.setEntryValues(newValues);
                 audioPlayer.setDefaultValue(newValues[0]);
+            }
+
+            pref = findPreference("pref_category_dashboard");
+            if (pref != null) {
+                pref.setOnPreferenceClickListener(preference -> {
+                    Intent enableIntent = new Intent(requireContext(), DashboardPreferencesActivity.class);
+                    startActivity(enableIntent);
+                    return true;
+                });
+            }
+
+            pref = findPreference("pref_category_sleepasandroid");
+            if (pref != null) {
+                pref.setOnPreferenceClickListener(preference -> {
+                    Intent enableIntent = new Intent(requireContext(), SleepAsAndroidPreferencesActivity.class);
+                    startActivity(enableIntent);
+                    return true;
+                });
             }
 
             final Preference theme = findPreference("pref_key_theme");

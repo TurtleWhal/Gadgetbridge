@@ -1,5 +1,6 @@
-/*  Copyright (C) 2015-2021 0nse, Andreas Shimokawa, Carsten Pfeiffer,
-    Julien Pivotto, Maxim Baz, Sebastian Kranz, Steffen Liebergeld
+/*  Copyright (C) 2018-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, chklump, Damien Gaignon, José Rebelo, Maxim Baz, Petr Vaněk,
+    Sebastian Kranz
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.zetime;
 
 import android.bluetooth.BluetoothGatt;
@@ -596,7 +597,8 @@ public class ZeTimeDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+        WeatherSpec weatherSpec = weatherSpecs.get(0);
         byte[] weather = new byte[weatherSpec.location.getBytes(StandardCharsets.UTF_8).length + 26]; // 26 bytes for weatherdata and overhead
         weather[0] = ZeTimeConstants.CMD_PREAMBLE;
         weather[1] = ZeTimeConstants.CMD_PUSH_WEATHER_DATA;

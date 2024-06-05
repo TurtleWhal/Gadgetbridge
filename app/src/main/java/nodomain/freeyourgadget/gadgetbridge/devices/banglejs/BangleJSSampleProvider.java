@@ -1,4 +1,4 @@
-/*  Copyright (C) 2018-2021 Daniele Gobbetti, Gordon Williams, Vadim Kaushan
+/*  Copyright (C) 2020-2024 Gordon Williams, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.banglejs;
 
 import androidx.annotation.NonNull;
@@ -82,7 +82,7 @@ public class BangleJSSampleProvider extends AbstractSampleProvider<BangleJSActiv
 
     @Override
     public float normalizeIntensity(int rawIntensity) {
-        return rawIntensity / 256.0f;
+        return rawIntensity / 2048.0f;
     }
 
     @Override

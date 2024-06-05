@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2020 Andreas Shimokawa, Daniele Gobbetti
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Daniele Gobbetti
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.externalevents;
 
 import android.content.BroadcastReceiver;
@@ -22,6 +22,9 @@ import android.content.Intent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collections;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
@@ -53,8 +56,9 @@ public class WeatherNotificationReceiver extends BroadcastReceiver {
             WeatherSpec weatherSpec = parcelableWeather2.weatherSpec;
             LOG.info("weather in " + weatherSpec.location + " is " + weatherSpec.currentCondition + " (" + (weatherSpec.currentTemp - 273) + "°C)");
 
-            Weather.getInstance().setWeatherSpec(weatherSpec);
-            GBApplication.deviceService().onSendWeather(weatherSpec);
+            ArrayList<WeatherSpec> weatherSpecs = new ArrayList<>(Collections.singletonList(weatherSpec));
+            Weather.getInstance().setWeatherSpec(weatherSpecs);
+            GBApplication.deviceService().onSendWeather(weatherSpecs);
         }
     }
 }

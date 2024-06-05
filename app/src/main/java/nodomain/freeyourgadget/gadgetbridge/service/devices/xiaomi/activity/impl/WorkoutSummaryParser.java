@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo, Yoran Vulker
 
     This file is part of Gadgetbridge.
 
@@ -13,20 +13,66 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.impl;
+
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.ACTIVE_SECONDS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.CADENCE_AVG;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.CALORIES_BURNT;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.DISTANCE_METERS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.HR_AVG;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.HR_MAX;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.HR_MIN;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.HR_ZONE_AEROBIC;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.HR_ZONE_ANAEROBIC;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.HR_ZONE_EXTREME;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.HR_ZONE_FAT_BURN;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.HR_ZONE_WARM_UP;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.LANE_LENGTH;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.LAPS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.LAP_PACE_AVERAGE;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.PACE_MAX;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.PACE_MIN;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.RECOVERY_TIME;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.SPEED_MAX;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.STEPS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.STROKES;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.STROKE_RATE_AVG;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.SWIM_STYLE;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.SWOLF_AVG;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.SWOLF_INDEX;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.TIME_END;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.TIME_START;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.TRAINING_EFFECT_AEROBIC;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.TRAINING_EFFECT_ANAEROBIC;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_BPM;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_CM;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_HOURS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KCAL;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KMPH;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_LAPS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_METERS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_NONE;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_M;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SPM;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_STEPS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_STROKES;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_STROKES_PER_MINUTE;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_UNIX_EPOCH_SECONDS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.WORKOUT_LOAD;
+import static nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.impl.XiaomiSimpleActivityParser.XIAOMI_WORKOUT_TYPE;
 
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
+
 import org.apache.commons.lang3.ArrayUtils;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Date;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
@@ -50,6 +96,8 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
         BaseActivitySummary summary = new BaseActivitySummary();
 
         summary.setStartTime(fileId.getTimestamp()); // due to a bug this has to be set
+        summary.setEndTime(fileId.getTimestamp()); // due to a bug this has to be set
+        summary.setActivityKind(ActivityKind.TYPE_UNKNOWN);
         summary.setRawSummaryData(ArrayUtils.addAll(fileId.toBytes(), bytes));
 
         try {
@@ -62,6 +110,7 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
 
         // parseBinaryData may return null in case the version is not supported
         if (summary == null) {
+            LOG.warn("summary is null - should never happen {}", fileId);
             return false;
         }
 
@@ -93,53 +142,118 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
 
         final XiaomiActivityFileId fileId = XiaomiActivityFileId.from(buf);
 
+        XiaomiSimpleActivityParser parser = null;
+
         switch (fileId.getSubtype()) {
             case SPORTS_OUTDOOR_WALKING_V1:
-                return parseOutdoorWalkingV1(summary, fileId, buf);
+                summary.setActivityKind(ActivityKind.TYPE_WALKING);
+                parser = getOutdoorWalkingV1Parser(fileId);
+                break;
             case SPORTS_OUTDOOR_RUNNING:
-                return parseOutdoorRunning(summary, fileId, buf);
+                summary.setActivityKind(ActivityKind.TYPE_RUNNING);
+                // TODO
+                break;
+            case SPORTS_INDOOR_CYCLING:
+                summary.setActivityKind(ActivityKind.TYPE_INDOOR_CYCLING);
+                parser = getIndoorCyclingParser(fileId);
+                break;
             case SPORTS_FREESTYLE:
-                return parseFreestyle(summary, fileId, buf);
+                summary.setActivityKind(ActivityKind.TYPE_STRENGTH_TRAINING);
+                // TODO
+                break;
+            case SPORTS_POOL_SWIMMING:
+                summary.setActivityKind(ActivityKind.TYPE_SWIMMING);
+                parser = getPoolSwimmingParser(fileId);
+                break;
             case SPORTS_ELLIPTICAL:
-                return parseElliptical(summary, fileId, buf);
+                summary.setActivityKind(ActivityKind.TYPE_ELLIPTICAL_TRAINER);
+                // TODO
+                break;
             case SPORTS_OUTDOOR_WALKING_V2:
-                return parseOutdoorWalkingV2(summary, fileId, buf);
+                parser = getOutdoorWalkingV2Parser(fileId);
+                break;
             case SPORTS_OUTDOOR_CYCLING:
-                return parseOutdoorCycling(summary, fileId, buf);
+                parser = getOutdoorCyclingParser(fileId);
+                break;
+            default:
+                LOG.warn("No workout summary parser for {}", fileId.getSubtypeCode());
+                break;
         }
 
-        LOG.warn("Unable to parse {}", fileId.getSubtype());
-
-        return null;
-    }
-
-    private BaseActivitySummary parseOutdoorRunning(final BaseActivitySummary summary, final XiaomiActivityFileId fileId, final ByteBuffer buf) {
-        summary.setActivityKind(ActivityKind.TYPE_RUNNING);
-
-        // TODO
+        if (parser != null) {
+            parser.parse(summary, buf);
+        }
 
         return summary;
     }
 
-    private BaseActivitySummary parseFreestyle(final BaseActivitySummary summary, final XiaomiActivityFileId fileId, final ByteBuffer buf) {
-        summary.setActivityKind(ActivityKind.TYPE_STRENGTH_TRAINING);
+    @Nullable
+    private XiaomiSimpleActivityParser getIndoorCyclingParser(final XiaomiActivityFileId fileId) {
+        final int version = fileId.getVersion();
+        final int headerSize;
+        switch (version) {
+            case 8:
+                headerSize = 7;
+                break;
+            default:
+                LOG.warn("Unable to parse workout summary version {}", fileId.getVersion());
+                return null;
+        }
 
-        // TODO
+        final XiaomiSimpleActivityParser.Builder builder = new XiaomiSimpleActivityParser.Builder();
+        builder.setHeaderSize(headerSize);
+        builder.addInt(TIME_START, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(TIME_END, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(ACTIVE_SECONDS, UNIT_SECONDS);
+        builder.addUnknown(4);
+        builder.addShort(CALORIES_BURNT, UNIT_KCAL);
+        builder.addUnknown(4);
+        builder.addByte(HR_AVG, UNIT_BPM);
+        builder.addByte(HR_MAX, UNIT_BPM);
+        builder.addByte(HR_MIN, UNIT_BPM);
+        builder.addFloat(TRAINING_EFFECT_AEROBIC, UNIT_NONE);
+        builder.addUnknown(1);
+        builder.addUnknown(1);
+        builder.addShort(RECOVERY_TIME, UNIT_HOURS);
+        builder.addInt(HR_ZONE_EXTREME, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_ANAEROBIC, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_AEROBIC, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_FAT_BURN, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_WARM_UP, UNIT_SECONDS);
+        builder.addUnknown(2);
+        builder.addUnknown(4);
+        builder.addFloat(TRAINING_EFFECT_ANAEROBIC, UNIT_NONE);
+        // FIXME identify field lengths to align with the header
+        builder.addUnknown(3);
+        builder.addInt("configuredTimeGoal", UNIT_SECONDS);
+        builder.addShort("configuredCaloriesGoal", UNIT_KCAL);
+        builder.addShort("maximumCaloriesGoal", UNIT_KCAL);  // TODO: mhm?
+        builder.addUnknown(28);
+        builder.addShort(WORKOUT_LOAD, UNIT_NONE); // training load
+        builder.addUnknown(24);
+        builder.addByte("configuredSets", UNIT_NONE);
+        builder.addUnknown(13);
+        builder.addInt("startTime2", UNIT_SECONDS);
+        builder.addInt("endTime2", UNIT_SECONDS);
+        builder.addInt("goal", UNIT_NONE); // TODO match against goalType
+        builder.addInt("duration2", UNIT_SECONDS);
+        builder.addInt("intervalTime", UNIT_SECONDS);
+        builder.addUnknown(56);
+        builder.addInt("hrZoneExtreme2", UNIT_SECONDS);
+        builder.addInt("hrZoneAnaerobic2", UNIT_SECONDS);
+        builder.addInt("hrZoneAerobic2", UNIT_SECONDS);
+        builder.addInt("hrZoneFatBurn2", UNIT_SECONDS);
+        builder.addInt("hrZoneWarmUp2", UNIT_SECONDS);
+        builder.addUnknown(16);
+        builder.addShort("vitality_gain", UNIT_NONE);
+        builder.addShort("training_load2", UNIT_NONE);
+        builder.addShort("recovery_time2", UNIT_HOURS);
 
-        return summary;
+        return builder.build();
     }
 
-    private BaseActivitySummary parseElliptical(final BaseActivitySummary summary, final XiaomiActivityFileId fileId, final ByteBuffer buf) {
-        summary.setActivityKind(ActivityKind.TYPE_ELLIPTICAL_TRAINER);
-
-        // TODO
-
-        return summary;
-    }
-
-    private BaseActivitySummary parseOutdoorWalkingV1(final BaseActivitySummary summary, final XiaomiActivityFileId fileId, final ByteBuffer buf) {
-        final JSONObject summaryData = new JSONObject();
-
+    @Nullable
+    private XiaomiSimpleActivityParser getOutdoorWalkingV1Parser(final XiaomiActivityFileId fileId) {
         final int version = fileId.getVersion();
         final int headerSize;
         switch (version) {
@@ -151,54 +265,39 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
                 return null;
         }
 
-        final byte[] header = new byte[headerSize];
-        buf.get(header);
+        final XiaomiSimpleActivityParser.Builder builder = new XiaomiSimpleActivityParser.Builder();
+        builder.setHeaderSize(headerSize);
+        builder.addInt(TIME_START, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(TIME_END, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(ACTIVE_SECONDS, UNIT_SECONDS);
+        builder.addInt(DISTANCE_METERS, UNIT_METERS);
+        builder.addInt(CALORIES_BURNT, UNIT_KCAL);
+        builder.addInt(PACE_MAX, UNIT_SECONDS_PER_M);
+        builder.addInt(PACE_MIN, UNIT_SECONDS_PER_M);
+        builder.addUnknown(4);
+        builder.addInt(STEPS, UNIT_STEPS);
+        builder.addUnknown(2); // pace?
+        builder.addByte(HR_AVG, UNIT_BPM);
+        builder.addByte(HR_MAX, UNIT_BPM);
+        builder.addByte(HR_MIN, UNIT_BPM);
+        // FIXME identify field lengths to align with the header
+        builder.addUnknown(20);
+        builder.addFloat("recoveryValue", "recoveryValue");
+        builder.addUnknown(9);
+        builder.addByte(RECOVERY_TIME, UNIT_SECONDS);
+        builder.addUnknown(2);
+        builder.addInt(HR_ZONE_EXTREME, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_ANAEROBIC, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_AEROBIC, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_FAT_BURN, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_WARM_UP, UNIT_SECONDS);
+        builder.addInt("configured_time_goal", UNIT_SECONDS);
 
-        summary.setActivityKind(ActivityKind.TYPE_WALKING);
-
-        final int startTime = buf.getInt();
-        final int endTime = buf.getInt();
-
-        // We don't set the start time, since we need it to match the fileId for the WorkoutGpsParser
-        // to find it. They also seem to match.
-        //summary.setStartTime(new Date(startTime * 1000L));
-        summary.setEndTime(new Date(endTime * 1000L));
-
-        final int duration = buf.getInt();
-        addSummaryData(summaryData, "activeSeconds", duration, "seconds");
-
-        final int distance = buf.getInt();
-        addSummaryData(summaryData, "distanceMeters", distance, "meters");
-
-        final int calories = buf.getShort();
-        addSummaryData(summaryData, "caloriesBurnt", calories, "calories_unit");
-
-
-        final int maxPace = buf.getInt();
-        addSummaryData(summaryData, "maxPace", maxPace, "seconds_m");
-        final int minPace = buf.getInt();
-        addSummaryData(summaryData, "minPace", minPace, "seconds_m");
-        final int unknown1 = buf.getInt(); // ?
-        final int steps = buf.getInt();
-        addSummaryData(summaryData, "steps", steps, "steps_unit");
-        final int unknown6 = buf.getShort(); // pace?
-
-        final int averageHR = buf.get() & 0xff;
-        final int maxHR = buf.get() & 0xff;
-        final int minHR = buf.get() & 0xff;
-
-        addSummaryData(summaryData, "averageHR", averageHR, "bpm");
-        addSummaryData(summaryData, "maxHR", maxHR, "bpm");
-        addSummaryData(summaryData, "minHR", minHR, "bpm");
-
-        summary.setSummaryData(summaryData.toString());
-
-        return summary;
+        return builder.build();
     }
 
-    private BaseActivitySummary parseOutdoorWalkingV2(final BaseActivitySummary summary, final XiaomiActivityFileId fileId, final ByteBuffer buf) {
-        final JSONObject summaryData = new JSONObject();
-
+    @Nullable
+    private XiaomiSimpleActivityParser getOutdoorWalkingV2Parser(final XiaomiActivityFileId fileId) {
         final int version = fileId.getVersion();
         final int headerSize;
         switch (version) {
@@ -210,62 +309,49 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
                 return null;
         }
 
-        final byte[] header = new byte[headerSize];
-        buf.get(header);
+        final XiaomiSimpleActivityParser.Builder builder = new XiaomiSimpleActivityParser.Builder();
+        builder.setHeaderSize(headerSize);
+        builder.addShort(XIAOMI_WORKOUT_TYPE, XIAOMI_WORKOUT_TYPE);
+        builder.addInt(TIME_START, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(TIME_END, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(ACTIVE_SECONDS, UNIT_SECONDS);
+        builder.addUnknown(4);
+        builder.addInt(DISTANCE_METERS, UNIT_METERS);
+        builder.addUnknown(2);
+        builder.addShort(CALORIES_BURNT, UNIT_KCAL);
+        builder.addUnknown(12);
+        builder.addInt(STEPS, UNIT_STEPS);
+        builder.addUnknown(2);
+        builder.addByte(HR_AVG, UNIT_BPM);
+        builder.addByte(HR_MAX, UNIT_BPM);
+        builder.addByte(HR_MIN, UNIT_BPM);
+        builder.addUnknown(20);
+        builder.addFloat("recoveryValue", "?");
+        builder.addUnknown(9);
+        builder.addByte(RECOVERY_TIME, UNIT_HOURS);
+        builder.addUnknown(2);
+        builder.addInt(HR_ZONE_EXTREME, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_ANAEROBIC, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_AEROBIC, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_FAT_BURN, UNIT_SECONDS);
+        builder.addInt(HR_ZONE_WARM_UP, UNIT_SECONDS);
+        builder.addInt("configuredTimeGoal", UNIT_SECONDS);
+        builder.addShort("configuredCaloriesGoal", UNIT_KCAL);
+        builder.addInt("configuredDistanceGoal", UNIT_METERS);
+        builder.addUnknown(11);
+        builder.addShort(WORKOUT_LOAD, UNIT_NONE); // training load
+        builder.addUnknown(24);
+        builder.addByte("averageHR2", UNIT_BPM);
+        builder.addByte("maxHR2", UNIT_BPM);
+        builder.addByte("minHR2", UNIT_BPM);
+        builder.addUnknown(2);
+        builder.addByte(CADENCE_AVG, UNIT_SPM);
 
-        final short workoutType = buf.getShort();
-
-        switch (workoutType) {
-            case 2:
-                summary.setActivityKind(ActivityKind.TYPE_WALKING);
-                break;
-            default:
-                summary.setActivityKind(ActivityKind.TYPE_UNKNOWN);
-        }
-
-        final int startTime = buf.getInt();
-        final int endTime = buf.getInt();
-
-        // We don't set the start time, since we need it to match the fileId for the WorkoutGpsParser
-        // to find it. They also seem to match.
-        //summary.setStartTime(new Date(startTime * 1000L));
-        summary.setEndTime(new Date(endTime * 1000L));
-
-        final int duration = buf.getInt();
-        addSummaryData(summaryData, "activeSeconds", duration, "seconds");
-
-        final int unknown1 = buf.getInt();
-        final int distance = buf.getInt();
-        addSummaryData(summaryData, "distanceMeters", distance, "meters");
-
-        final int unknown2 = buf.getShort();
-
-        final int calories = buf.getShort();
-        addSummaryData(summaryData, "caloriesBurnt", calories, "calories_unit");
-
-        final int unknown3 = buf.getInt(); // pace?
-        final int unknown4 = buf.getInt(); // pace?
-        final int unknown5 = buf.getInt(); // pace?
-        final int steps = buf.getInt();
-        addSummaryData(summaryData, "steps", steps, "steps_unit");
-        final int unknown6 = buf.getShort(); // pace?
-
-        final int averageHR = buf.get() & 0xff;
-        final int maxHR = buf.get() & 0xff;
-        final int minHR = buf.get() & 0xff;
-
-        addSummaryData(summaryData, "averageHR", averageHR, "bpm");
-        addSummaryData(summaryData, "maxHR", maxHR, "bpm");
-        addSummaryData(summaryData, "minHR", minHR, "bpm");
-
-        summary.setSummaryData(summaryData.toString());
-
-        return summary;
+        return builder.build();
     }
 
-    private BaseActivitySummary parseOutdoorCycling(final BaseActivitySummary summary, final XiaomiActivityFileId fileId, final ByteBuffer buf) {
-        final JSONObject summaryData = new JSONObject();
-
+    @Nullable
+    private XiaomiSimpleActivityParser getOutdoorCyclingParser(final XiaomiActivityFileId fileId) {
         final int version = fileId.getVersion();
         final int headerSize;
         switch (version) {
@@ -277,76 +363,82 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
                 return null;
         }
 
-        final byte[] header = new byte[headerSize];
-        buf.get(header);
+        final XiaomiSimpleActivityParser.Builder builder = new XiaomiSimpleActivityParser.Builder();
+        builder.setHeaderSize(headerSize);
+        builder.addShort(XIAOMI_WORKOUT_TYPE, XIAOMI_WORKOUT_TYPE);
+        builder.addInt(TIME_START, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(TIME_END, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(ACTIVE_SECONDS, UNIT_SECONDS);
+        builder.addUnknown(4);
+        builder.addInt(DISTANCE_METERS, UNIT_METERS);
+        builder.addUnknown(2);
+        builder.addShort(CALORIES_BURNT, UNIT_KCAL);
+        builder.addUnknown(4);
+        builder.addUnknown(4);
+        builder.addFloat(SPEED_MAX, UNIT_KMPH);
+        builder.addByte(HR_AVG, UNIT_BPM);
+        builder.addByte(HR_MAX, UNIT_BPM);
+        builder.addByte(HR_MIN, UNIT_BPM);
 
-        final short workoutType = buf.getShort();
+        return builder.build();
+    }
 
-        switch (workoutType) {
+    @Nullable
+    private XiaomiSimpleActivityParser getPoolSwimmingParser(final XiaomiActivityFileId fileId){
+        final int version = fileId.getVersion();
+        final int headerSize;
+        switch (version) {
             case 6:
-                summary.setActivityKind(ActivityKind.TYPE_CYCLING);
+                headerSize = 4;
                 break;
             default:
-                summary.setActivityKind(ActivityKind.TYPE_UNKNOWN);
+                LOG.warn("Unable to parse workout summary version {}", fileId.getVersion());
+                return null;
         }
 
-        final int startTime = buf.getInt();
-        final int endTime = buf.getInt();
+        final XiaomiSimpleActivityParser.Builder builder = new XiaomiSimpleActivityParser.Builder();
+        builder.setHeaderSize(headerSize);
+        builder.addInt(TIME_START, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(TIME_END, UNIT_UNIX_EPOCH_SECONDS);
+        builder.addInt(ACTIVE_SECONDS, UNIT_SECONDS);
+        builder.addInt(DISTANCE_METERS, UNIT_METERS);
+        builder.addShort(CALORIES_BURNT, UNIT_KCAL);
+        builder.addUnknown(11);
+        builder.addShort(STROKES, UNIT_STROKES);
+        builder.addByte(SWIM_STYLE, UNIT_NONE);
+        builder.addUnknown(1);
+        builder.addShort(LAPS, UNIT_LAPS);
+        builder.addShort(SWOLF_AVG, UNIT_NONE);
+        builder.addUnknown(9);
+        // builder.addInt("activeSec2", UNIT_SECONDS);
+        builder.addInt("configuredTimeGoal", UNIT_SECONDS);
+        builder.addShort("configuredCaloriesGoal", UNIT_KCAL);
+        builder.addInt("configuredLaneLength", UNIT_CM);
+        builder.addUnknown(4);
+        builder.addByte("configuredLengthsGoal", UNIT_NONE);
+        builder.addUnknown(14);
+        builder.addByte("vitality_gain", UNIT_NONE);
+        builder.addUnknown(60);
+        // builder.addInt("startingTime2", UNIT_UNIX_EPOCH_SECONDS);
+        // builder.addInt("endTime2", UNIT_UNIX_EPOCH_SECONDS);
+        // builder.addUnknown(4);
+        // builder.addInt("activeSec3", UNIT_SECONDS);
+        // builder.addInt("activeSec4", UNIT_SECONDS);
+        // builder.addUnknown(8);
+        // builder.addInt("caloriesBurnt2", UNIT_KCAL);
+        // builder.addInt("distanceMeter2", UNIT_METERS);
+        // builder.addUnknown(4);
+        builder.addInt(LAP_PACE_AVERAGE, UNIT_SECONDS);
+        builder.addInt(PACE_MAX, UNIT_SECONDS); // not confirmed
+        builder.addUnknown(4);
+        builder.addInt(STROKE_RATE_AVG, UNIT_STROKES_PER_MINUTE);
+        builder.addUnknown(14);
+        // builder.addInt("laps2", UNIT_LAPS);
+        // builder.addShort("avgSWOLF2", UNIT_NONE);
+        builder.addShort("minSWOLF", UNIT_NONE); // not confirmed
+        builder.addShort("maxSWOLF", UNIT_NONE); // not confirmed
+        // builder.addInt("totalStrokes2", UNIT_STROKES);
 
-        // We don't set the start time, since we need it to match the fileId for the WorkoutGpsParser
-        // to find it. They also seem to match.
-        //summary.setStartTime(new Date(startTime * 1000L));
-        summary.setEndTime(new Date(endTime * 1000L));
-
-        final int duration = buf.getInt();
-        addSummaryData(summaryData, "activeSeconds", duration, "seconds");
-
-        final int unknown1 = buf.getInt();
-        final int distance = buf.getInt();
-        addSummaryData(summaryData, "distanceMeters", distance, "meters");
-
-        final int unknown2 = buf.getShort();
-
-        final int calories = buf.getShort();
-        addSummaryData(summaryData, "caloriesBurnt", calories, "calories_unit");
-
-        final int unknown3 = buf.getInt();
-        final int unknown4 = buf.getInt();
-        final float maxSpeed = buf.getFloat();
-
-        final float avgHr = buf.get() & 0xff;
-        final float maxHr = buf.get() & 0xff;
-        final float minHr = buf.get() & 0xff;
-        addSummaryData(summaryData, "averageHR", avgHr, "bpm");
-        addSummaryData(summaryData, "maxHR", maxHr, "bpm");
-        addSummaryData(summaryData, "minHR", minHr, "bpm");
-
-        summary.setSummaryData(summaryData.toString());
-
-        return summary;
-    }
-
-    protected void addSummaryData(final JSONObject summaryData, final String key, final float value, final String unit) {
-        if (value > 0) {
-            try {
-                final JSONObject innerData = new JSONObject();
-                innerData.put("value", value);
-                innerData.put("unit", unit);
-                summaryData.put(key, innerData);
-            } catch (final JSONException ignore) {
-            }
-        }
-    }
-
-    protected void addSummaryData(final JSONObject summaryData, final String key, final String value) {
-        if (key != null && !key.equals("") && value != null && !value.equals("")) {
-            try {
-                final JSONObject innerData = new JSONObject();
-                innerData.put("value", value);
-                innerData.put("unit", "string");
-                summaryData.put(key, innerData);
-            } catch (final JSONException ignore) {
-            }
-        }
+        return builder.build();
     }
 }

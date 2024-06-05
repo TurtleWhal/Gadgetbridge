@@ -1,4 +1,5 @@
-/*  Copyright (C) 2023 José Rebelo, Yoran Vulker
+/*  Copyright (C) 2023-2024 Andreas Shimokawa, José Rebelo, LuK1337,
+    Yoran Vulker
 
     This file is part of Gadgetbridge.
 
@@ -13,9 +14,11 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -52,8 +56,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
 import nodomain.freeyourgadget.gadgetbridge.model.SleepState;
 import nodomain.freeyourgadget.gadgetbridge.model.WearingState;
 import nodomain.freeyourgadget.gadgetbridge.proto.xiaomi.XiaomiProto;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetProgressAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiPreferences;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.CheckSums;
@@ -69,6 +71,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
     // We persist the settings code when receiving the display items,
     // so we can enforce it when sending them
     private static final String PREF_SETTINGS_DISPLAY_ITEM_CODE = "xiaomi_settings_display_item_code";
+    private static final int BATTERY_STATE_REQUEST_INTERVAL = (int) TimeUnit.MINUTES.toMillis(15);
 
     public static final int COMMAND_TYPE = 2;
 
@@ -100,6 +103,12 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
 
     // Not null if we're installing a firmware
     private XiaomiFWHelper fwHelper = null;
+    private Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable batteryStateRequestRunnable = () -> {
+        getSupport().sendCommand("get device status", COMMAND_TYPE, CMD_DEVICE_STATE_GET);
+        getSupport().sendCommand("get battery state", COMMAND_TYPE, CMD_BATTERY);
+    };
+
     private WearingState currentWearingState = WearingState.UNKNOWN;
     private BatteryState currentBatteryState = BatteryState.UNKNOWN;
     private SleepState currentSleepDetectionState = SleepState.UNKNOWN;
@@ -122,6 +131,8 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
         getSupport().sendCommand("get widgets", COMMAND_TYPE, CMD_WIDGET_SCREENS_GET);
         getSupport().sendCommand("get widget parts", COMMAND_TYPE, CMD_WIDGET_PARTS_GET);
         getSupport().sendCommand("get workout types", COMMAND_TYPE, CMD_WORKOUT_TYPES_GET);
+
+        rearmBatteryStateRequestTimer();
     }
 
     @Override
@@ -142,8 +153,8 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
 
                 LOG.debug("Firmware install status 0, uploading");
                 setDeviceBusy();
-                getSupport().getDataUploader().setCallback(this);
-                getSupport().getDataUploader().requestUpload(XiaomiDataUploadService.TYPE_FIRMWARE, fwHelper.getBytes());
+                getSupport().getDataUploadService().setCallback(this);
+                getSupport().getDataUploadService().requestUpload(XiaomiDataUploadService.TYPE_FIRMWARE, fwHelper.getBytes());
                 return;
             case CMD_PASSWORD_GET:
                 handlePassword(cmd.getSystem().getPassword());
@@ -314,9 +325,9 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
         gbDeviceEventVersionInfo.fwVersion = deviceInfo.getFirmware();
         //gbDeviceEventVersionInfo.fwVersion2 = "N/A";
         gbDeviceEventVersionInfo.hwVersion = deviceInfo.getModel();
-        final GBDeviceEventUpdateDeviceInfo gbDeviceEventUpdateDeviceInfo = new GBDeviceEventUpdateDeviceInfo("SERIAL: ", deviceInfo.getSerialNumber());
-
         getSupport().evaluateGBDeviceEvent(gbDeviceEventVersionInfo);
+
+        final GBDeviceEventUpdateDeviceInfo gbDeviceEventUpdateDeviceInfo = new GBDeviceEventUpdateDeviceInfo("SERIAL: ", deviceInfo.getSerialNumber());
         getSupport().evaluateGBDeviceEvent(gbDeviceEventUpdateDeviceInfo);
     }
 
@@ -325,6 +336,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
             case 1:
                 return BatteryState.BATTERY_CHARGING;
             case 2:
+            case 3:
                 return BatteryState.BATTERY_NORMAL;
         }
 
@@ -351,6 +363,9 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
 
         batteryInfo.state = currentBatteryState;
         getSupport().evaluateGBDeviceEvent(batteryInfo);
+
+        // reset battery level request timer
+        rearmBatteryStateRequestTimer();
     }
 
     private void setPassword() {
@@ -779,6 +794,9 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
         }
 
         // TODO: handle activity state
+
+        // reset battery level refresh timer
+        rearmBatteryStateRequestTimer();
     }
 
     public void handleDeviceState(XiaomiProto.DeviceState deviceState) {
@@ -936,32 +954,38 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
     public void onUploadFinish(final boolean success) {
         LOG.debug("Firmware upload finished: {}", success);
 
-        getSupport().getDataUploader().setCallback(null);
+        if (getSupport().getConnectionSpecificSupport() != null) {
+            getSupport().getConnectionSpecificSupport().runOnQueue("firmware upload finish", () -> {
+                getSupport().getDataUploadService().setCallback(null);
 
-        final String notificationMessage = success ?
-                getSupport().getContext().getString(R.string.updatefirmwareoperation_update_complete) :
-                getSupport().getContext().getString(R.string.updatefirmwareoperation_write_failed);
+                final int notificationMessage = success ?
+                        R.string.updatefirmwareoperation_update_complete :
+                        R.string.updatefirmwareoperation_write_failed;
 
-        GB.updateInstallNotification(notificationMessage, false, 100, getSupport().getContext());
+                onUploadProgress(notificationMessage, 100, false);
+                unsetDeviceBusy();
 
-        unsetDeviceBusy();
-
-        fwHelper = null;
+                fwHelper = null;
+            });
+        }
     }
 
     @Override
     public void onUploadProgress(final int progressPercent) {
-        try {
-            final TransactionBuilder builder = getSupport().createTransactionBuilder("send data upload progress");
-            builder.add(new SetProgressAction(
-                    getSupport().getContext().getString(R.string.updatefirmwareoperation_update_in_progress),
-                    true,
-                    progressPercent,
-                    getSupport().getContext()
-            ));
-            builder.queue(getSupport().getQueue());
-        } catch (final Exception e) {
-            LOG.error("Failed to update progress notification", e);
-        }
+        onUploadProgress(R.string.updatefirmwareoperation_update_in_progress, progressPercent, true);
+    }
+
+    public void onUploadProgress(final int stringResource, final int progressPercent, final boolean ongoing) {
+        getSupport().getConnectionSpecificSupport().onUploadProgress(stringResource, progressPercent, ongoing);
+    }
+
+    private void rearmBatteryStateRequestTimer() {
+        this.handler.removeCallbacks(this.batteryStateRequestRunnable);
+        this.handler.postDelayed(this.batteryStateRequestRunnable, BATTERY_STATE_REQUEST_INTERVAL);
+    }
+
+    @Override
+    public void onDisconnect() {
+        this.handler.removeCallbacks(this.batteryStateRequestRunnable);
     }
 }

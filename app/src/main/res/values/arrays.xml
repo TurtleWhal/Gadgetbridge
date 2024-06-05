@@ -297,6 +297,11 @@
         <item>@string/mi2_dnd_automatic</item>
         <item>@string/mi2_dnd_scheduled</item>
     </string-array>
+    <string-array name="do_not_disturb_allday">
+        <item>@string/mi2_dnd_off</item>
+        <item>@string/dnd_all_day</item>
+        <item>@string/mi2_dnd_scheduled</item>
+    </string-array>
     <string-array name="mi2_do_not_disturb_values">
         <item>@string/p_off</item>
         <item>@string/p_automatic</item>
@@ -645,6 +650,7 @@
         <item>@string/menuitem_breathing</item>
         <item>@string/menuitem_flashlight</item>
         <item>@string/menuitem_alipay</item>
+        <item>@string/menuitem_nfc</item>
     </string-array>
 
     <string-array name="pref_miband6_shortcuts_values">
@@ -671,6 +677,7 @@
         <item>@string/p_menuitem_breathing</item>
         <item>@string/p_menuitem_flashlight</item>
         <item>@string/p_menuitem_alipay</item>
+        <item>@string/p_menuitem_nfc</item>
     </string-array>
 
     <string-array name="pref_miband6_shortcuts_default">
@@ -1027,6 +1034,7 @@
         <item>@string/menuitem_findphone</item>
         <item>@string/menuitem_eject_water</item>
         <item>@string/menuitem_headphone</item>
+        <item>@string/menuitem_buzzer_intensity</item>
     </string-array>
 
     <string-array name="pref_huami2021_control_center_values">
@@ -1046,6 +1054,7 @@
         <item>findphone</item>
         <item>eject_water</item>
         <item>headphone</item>
+        <item>buzzer_intensity</item>
     </string-array>
 
     <string-array name="pref_miband5_workout_activity_types">
@@ -1192,6 +1201,237 @@
         <item>street_dance</item>
         <item>zumba</item>
         <item>indoor_ice_skating</item>
+    </string-array>
+
+    <string-array name="pref_workout_activity_types">
+        <item>@string/activity_type_indoor_running</item>
+        <item>@string/activity_type_outdoor_running</item>
+        <item>@string/activity_type_outdoor_walking</item>
+        <item>@string/activity_type_indoor_walking</item>
+        <item>@string/activity_type_outdoor_cycling</item>
+        <item>@string/activity_type_indoor_cycling</item>
+        <item>@string/activity_type_mountain_hike</item>
+        <item>@string/activity_type_hiking</item>
+        <item>@string/activity_type_cross_trainer</item>
+        <item>@string/activity_type_free_training</item>
+        <item>@string/activity_type_strength_training</item>
+        <item>@string/activity_type_yoga</item>
+        <item>@string/activity_type_boxing</item>
+        <item>@string/activity_type_rower</item>
+        <item>@string/activity_type_dynamic_cycle</item>
+        <item>@string/activity_type_stair_stepper</item>
+        <item>@string/activity_type_treadmill</item>
+        <item>@string/activity_type_hiit</item>
+        <item>@string/activity_type_fitness_exercises</item>
+        <item>@string/activity_type_jump_roping</item>
+        <item>@string/activity_type_pilates</item>
+        <item>@string/activity_type_crossfit</item>
+        <item>@string/activity_type_functional_training</item>
+        <item>@string/activity_type_physical_training</item>
+        <item>@string/activity_type_taekwondo</item>
+        <item>@string/activity_type_cross_country_running</item>
+        <item>@string/activity_type_karate</item>
+        <item>@string/activity_type_fencing</item>
+        <item>@string/activity_type_core_training</item>
+        <item>@string/activity_type_kendo</item>
+        <item>@string/activity_type_horizontal_bar</item>
+        <item>@string/activity_type_parallel_bar</item>
+        <item>@string/activity_type_cooldown</item>
+        <item>@string/activity_type_cross_training</item>
+        <item>@string/activity_type_sit_ups</item>
+        <item>@string/activity_type_fitness_gaming</item>
+        <item>@string/activity_type_aerobic_exercise</item>
+        <item>@string/activity_type_rolling</item>
+        <item>@string/activity_type_flexibility</item>
+        <item>@string/activity_type_gymnastics</item>
+        <item>@string/activity_type_track_and_field</item>
+        <item>@string/activity_type_push_ups</item>
+        <item>@string/activity_type_battle_rope</item>
+        <item>@string/activity_type_smith_machine</item>
+        <item>@string/activity_type_pull_ups</item>
+        <item>@string/activity_type_plank</item>
+        <item>@string/activity_type_javelin</item>
+        <item>@string/activity_type_long_jump</item>
+        <item>@string/activity_type_high_jump</item>
+        <item>@string/activity_type_trampoline</item>
+        <item>@string/activity_type_dumbbell</item>
+        <item>@string/activity_type_belly_dance</item>
+        <item>@string/activity_type_jazz_dance</item>
+        <item>@string/activity_type_latin_dance</item>
+        <item>@string/activity_type_ballet</item>
+        <item>@string/activity_type_street_dance</item>
+        <item>@string/activity_type_zumba</item>
+        <item>@string/activity_type_other_dance</item>
+        <item>@string/activity_type_roller_skating</item>
+        <item>@string/activity_type_martial_arts</item>
+        <item>@string/activity_type_tai_chi</item>
+        <item>@string/activity_type_hula_hooping</item>
+        <item>@string/activity_type_disc_sports</item>
+        <item>@string/activity_type_darts</item>
+        <item>@string/activity_type_archery</item>
+        <item>@string/activity_type_horse_riding</item>
+        <item>@string/activity_type_kite_flying</item>
+        <item>@string/activity_type_swing</item>
+        <item>@string/activity_type_stairs</item>
+        <item>@string/activity_type_fishing</item>
+        <item>@string/activity_type_hand_cycling</item>
+        <item>@string/activity_type_mind_and_body</item>
+        <item>@string/activity_type_wrestling</item>
+        <item>@string/activity_type_kabaddi</item>
+        <item>@string/activity_type_karting</item>
+        <item>@string/activity_type_badminton</item>
+        <item>@string/activity_type_table_tennis</item>
+        <item>@string/activity_type_tennis</item>
+        <item>@string/activity_type_billiards</item>
+        <item>@string/activity_type_bowling</item>
+        <item>@string/activity_type_volleyball</item>
+        <item>@string/activity_type_shuttlecock</item>
+        <item>@string/activity_type_handball</item>
+        <item>@string/activity_type_baseball</item>
+        <item>@string/activity_type_softball</item>
+        <item>@string/activity_type_cricket</item>
+        <item>@string/activity_type_rugby</item>
+        <item>@string/activity_type_hockey</item>
+        <item>@string/activity_type_squash</item>
+        <item>@string/activity_type_dodgeball</item>
+        <item>@string/activity_type_soccer</item>
+        <item>@string/activity_type_basketball</item>
+        <item>@string/activity_type_australian_football</item>
+        <item>@string/activity_type_golf</item>
+        <item>@string/activity_type_pickleball</item>
+        <item>@string/activity_type_lacross</item>
+        <item>@string/activity_type_shot</item>
+        <item>@string/activity_type_sailing</item>
+        <item>@string/activity_type_surfing</item>
+        <item>@string/activity_type_jet_skiing</item>
+        <item>@string/activity_type_skating</item>
+        <item>@string/activity_type_ice_hockey</item>
+        <item>@string/activity_type_curling</item>
+        <item>@string/activity_type_snowboarding</item>
+        <item>@string/activity_type_cross_country_skiing</item>
+        <item>@string/activity_type_snow_sports</item>
+        <item>@string/activity_type_skiing</item>
+        <item>@string/activity_type_skateboarding</item>
+        <item>@string/activity_type_rock_climbing</item>
+        <item>@string/activity_type_hunting</item>
+    </string-array>
+
+    <string-array name="pref_workout_activity_types_values">
+        <item>indoor_running</item>
+        <item>outdoor_running</item>
+        <item>outdoor_walking</item>
+        <item>indoor_walking</item>
+        <item>outdoor_cycling</item>
+        <item>indoor_cycling</item>
+        <item>mountain_hike</item>
+        <item>hiking</item>
+        <item>cross_trainer</item>
+        <item>free_training</item>
+        <item>strength_training</item>
+        <item>yoga</item>
+        <item>boxing</item>
+        <item>rower</item>
+        <item>dynamic_cycle</item>
+        <item>stair_stepper</item>
+        <item>treadmill</item>
+        <item>hiit</item>
+        <item>fitness_exercises</item>
+        <item>jump_roping</item>
+        <item>pilates</item>
+        <item>crossfit</item>
+        <item>functional_training</item>
+        <item>physical_training</item>
+        <item>taekwondo</item>
+        <item>cross_country_running</item>
+        <item>karate</item>
+        <item>fencing</item>
+        <item>core_training</item>
+        <item>kendo</item>
+        <item>horizontal_bar</item>
+        <item>parallel_bar</item>
+        <item>cooldown</item>
+        <item>cross_training</item>
+        <item>sit_ups</item>
+        <item>fitness_gaming</item>
+        <item>aerobic_exercise</item>
+        <item>rolling</item>
+        <item>flexibility</item>
+        <item>gymnastics</item>
+        <item>track_and_field</item>
+        <item>push_ups</item>
+        <item>battle_rope</item>
+        <item>smith_machine</item>
+        <item>pull_ups</item>
+        <item>plank</item>
+        <item>javelin</item>
+        <item>long_jump</item>
+        <item>high_jump</item>
+        <item>trampoline</item>
+        <item>dumbbell</item>
+        <item>belly_dance</item>
+        <item>jazz_dance</item>
+        <item>latin_dance</item>
+        <item>ballet</item>
+        <item>street_dance</item>
+        <item>zumba</item>
+        <item>other_dance</item>
+        <item>roller_skating</item>
+        <item>martial_arts</item>
+        <item>tai_chi</item>
+        <item>hula_hooping</item>
+        <item>disc_sports</item>
+        <item>darts</item>
+        <item>archery</item>
+        <item>horse_riding</item>
+        <item>kite_flying</item>
+        <item>swing</item>
+        <item>stairs</item>
+        <item>fishing</item>
+        <item>hand_cycling</item>
+        <item>mind_and_body</item>
+        <item>wrestling</item>
+        <item>kabaddi</item>
+        <item>karting</item>
+        <item>badminton</item>
+        <item>table_tennis</item>
+        <item>tennis</item>
+        <item>billiards</item>
+        <item>bowling</item>
+        <item>volleyball</item>
+        <item>shuttlecock</item>
+        <item>handball</item>
+        <item>baseball</item>
+        <item>softball</item>
+        <item>cricket</item>
+        <item>rugby</item>
+        <item>hockey</item>
+        <item>squash</item>
+        <item>dodgeball</item>
+        <item>soccer</item>
+        <item>basketball</item>
+        <item>australian_football</item>
+        <item>golf</item>
+        <item>pickleball</item>
+        <item>lacross</item>
+        <item>shot</item>
+        <item>sailing</item>
+        <item>surfing</item>
+        <item>jet_skiing</item>
+        <item>skating</item>
+        <item>ice_hockey</item>
+        <item>curling</item>
+        <item>snowboarding</item>
+        <item>cross_country_skiing</item>
+        <item>snow_sports</item>
+        <item>skiing</item>
+        <item>skateboarding</item>
+        <item>rock_climbing</item>
+        <item>hunting</item>
+    </string-array>
+
+    <string-array name="pref_workout_activity_types_default">
+        <item>indoor_run</item>
+        <item>outdoor_run</item>
     </string-array>
 
     <string-array name="pref_withings_steel_activity_types">
@@ -2382,6 +2622,26 @@
         <item>150</item>
     </string-array>
 
+    <string-array name="prefs_miband_heartrate_high_active_alert_threshold_with_off">
+        <item name="0">@string/off</item>
+        <item name="155">@string/heartrate_bpm_155</item>
+        <item name="165">@string/heartrate_bpm_165</item>
+        <item name="175">@string/heartrate_bpm_175</item>
+        <item name="185">@string/heartrate_bpm_185</item>
+        <item name="195">@string/heartrate_bpm_195</item>
+        <item name="205">@string/heartrate_bpm_205</item>
+    </string-array>
+
+    <string-array name="prefs_miband_heartrate_high_active_alert_threshold_with_off_values">
+        <item>0</item>
+        <item>155</item>
+        <item>165</item>
+        <item>175</item>
+        <item>185</item>
+        <item>195</item>
+        <item>205</item>
+    </string-array>
+
     <string-array name="prefs_miband_heartrate_low_alert_threshold">
         <item name="0">@string/off</item>
         <item name="40">@string/heartrate_bpm_40</item>
@@ -2728,14 +2988,15 @@
     <string-array name="pref_charts_tabs_items">
         <item>@string/activity_sleepchart_activity_and_sleep</item>
         <item>@string/charts_activity_list</item>
-        <item>@string/weeksleepchart_sleep_a_week</item>
-        <item>@string/weeksleepchart_sleep_a_month</item>
-        <item>@string/weekstepschart_steps_a_month</item>
+        <item>@string/sleepchart_your_sleep</item>
+        <item>@string/weeksleepchart_sleep_a_week_or_month</item>
+        <item>@string/weekstepschart_steps_a_week_or_month</item>
         <item>@string/menuitem_stress</item>
         <item>@string/menuitem_pai</item>
         <item>@string/stats_title</item>
         <item>@string/liveactivity_live_activity</item>
         <item>@string/pref_header_spo2</item>
+        <item>@string/menuitem_temperature</item>
     </string-array>
 
     <string-array name="pref_charts_tabs_values">
@@ -2749,9 +3010,11 @@
         <item>@string/p_speed_zones</item>
         <item>@string/p_live_stats</item>
         <item>@string/p_spo2</item>
+        <item>@string/p_temperature</item>
     </string-array>
 
     <string-array name="pref_charts_tabs_items_default">
+        <item>@string/p_cycling</item>
         <item>@string/p_activity</item>
         <item>@string/p_activity_list</item>
         <item>@string/p_sleep</item>
@@ -2762,6 +3025,7 @@
         <item>@string/p_speed_zones</item>
         <item>@string/p_live_stats</item>
         <item>@string/p_spo2</item>
+        <item>@string/p_temperature</item>
     </string-array>
 
 
@@ -2820,8 +3084,15 @@
         <item>2</item>
         <item>3</item>
     </string-array>
-    
-    <string-array name="nothing_ear1_audio_mode">
+
+    <string-array name="nothing_ear1_audio_mode_names">
+        <item>@string/prefs_active_noise_cancelling</item>
+        <item>@string/prefs_active_noise_cancelling_light</item>
+        <item>@string/prefs_active_noise_cancelling_transparency</item>
+        <item>@string/off</item>
+    </string-array>
+
+    <string-array name="nothing_ear1_audio_mode_values">
         <item>anc</item>
         <item>anc-light</item>
         <item>transparency</item>
@@ -3005,6 +3276,18 @@
         <item>ambient_sound</item>
     </string-array>
 
+    <string-array name="sony_protocol_version_names">
+        <item>@string/automatic</item>
+        <item>@string/sony_protocol_v1</item>
+        <item>@string/sony_protocol_v2</item>
+    </string-array>
+
+    <string-array name="sony_protocol_version_values">
+        <item>auto</item>
+        <item>v1</item>
+        <item>v2</item>
+    </string-array>
+
     <string-array name="sony_sound_position_names">
         <item>@string/sony_sound_position_off</item>
         <item>@string/sony_sound_position_front</item>
@@ -3159,6 +3442,27 @@
         <item>as_off</item>
     </string-array>
 
+    <string-array name="soundcore_button_function_names">
+        <item>@string/pref_media_volumedown</item>
+        <item>@string/pref_media_volumeup</item>
+        <item>@string/pref_media_next</item>
+        <item>@string/pref_media_previous</item>
+        <item>@string/pref_media_playpause</item>
+        <item>@string/pref_title_touch_voice_assistant</item>
+        <item>@string/sony_button_mode_ambient_sound_control</item>
+    </string-array>
+
+    <string-array name="soundcore_button_function_values">
+        <item>VOLUME_DOWN</item>
+        <item>VOLUME_UP</item>
+        <item>MEDIA_NEXT</item>
+        <item>MEDIA_PREV</item>
+        <item>PLAYPAUSE</item>
+        <item>VOICE_ASSISTANT</item>
+        <item>AMBIENT_SOUND_CONTROL</item>
+    </string-array>
+
+
     <string-array name="fitness_tracking_apps_package_names">
         <item>de.dennisguse.opentracks</item>
         <item>de.dennisguse.opentracks.playStore</item>
@@ -3177,6 +3481,16 @@
         <item>net.osmand.plus</item>
         <item>net.osmand</item>
         <item>net.osmand.dev</item>
+    </string-array>
+
+    <string-array name="workmode">
+        <item>@string/automatic</item>
+        <item>@string/manual</item>
+    </string-array>
+
+    <string-array name="workmode_values">
+        <item>auto</item>
+        <item>manual</item>
     </string-array>
 
     <string-array name="pref_transliteration_languages">
@@ -3200,9 +3514,11 @@
         <item>@string/polish</item>
         <item>@string/russian</item>
         <item>@string/scandinavian</item>
+        <item>@string/serbian</item>
         <item>@string/turkish</item>
         <item>@string/ukranian</item>
         <item>@string/hungarian</item>
+        <item>@string/armenian</item>
     </string-array>
 
     <string-array name="pref_transliteration_languages_values">
@@ -3226,9 +3542,11 @@
         <item>polish</item>
         <item>russian</item>
         <item>scandinavian</item>
+        <item>serbian</item>
         <item>turkish</item>
         <item>ukranian</item>
         <item>hungarian</item>
+        <item>armenian</item>
     </string-array>
 
     <string-array name="pref_transliteration_languages_default">
@@ -3543,4 +3861,32 @@
         <item>ignore</item>
     </string-array>
 
+    <string-array name="pref_force_connection_type">
+        <item>@string/pref_force_connection_type_auto</item>
+        <item>@string/pref_force_connection_type_ble</item>
+        <item>@string/pref_force_connection_type_bt_classic</item>
+    </string-array>
+    <string-array name="pref_force_connection_type_values">
+        <item>@string/pref_force_connection_type_auto_value</item>
+        <item>@string/pref_force_connection_type_ble_value</item>
+        <item>@string/pref_force_connection_type_bt_classic_value</item>
+    </string-array>
+
+    <string-array name="pref_dashboard_widgets_order">
+        <item>@string/pref_dashboard_widget_today_title</item>
+        <item>@string/pref_dashboard_widget_goals_chart_title</item>
+        <item>@string/steps</item>
+        <item>@string/distance</item>
+        <item>@string/active_time</item>
+        <item>@string/menuitem_sleep</item>
+    </string-array>
+
+    <string-array name="pref_dashboard_widgets_order_values">
+        <item>today</item>
+        <item>goals</item>
+        <item>steps</item>
+        <item>distance</item>
+        <item>activetime</item>
+        <item>sleep</item>
+    </string-array>
 </resources>

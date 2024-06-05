@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 akasaka / Genjitsu Labs
+/*  Copyright (C) 2023-2024 akasaka / Genjitsu Labs
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.sony.wena3;
 
 import android.bluetooth.BluetoothDevice;
@@ -599,7 +599,8 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+        WeatherSpec weatherSpec = weatherSpecs.get(0);
         if(weatherSpec.forecasts.size() < 4) return;
 
         ArrayList<WeatherDay> days = new ArrayList<>();

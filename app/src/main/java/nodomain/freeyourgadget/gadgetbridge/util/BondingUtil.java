@@ -1,4 +1,5 @@
-/*  Copyright (C) 2020-2021 Andreas Böhler, Taavi Eomäe
+/*  Copyright (C) 2020-2024 Andreas Böhler, Arjan Schrijver, Daniel Dakhno,
+    José Rebelo, Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
 import static androidx.core.app.ActivityCompat.startIntentSenderForResult;
@@ -99,7 +100,7 @@ public class BondingUtil {
                             case BluetoothDevice.BOND_BONDED: {
                                 LOG.info("Bonded with " + device.getAddress());
                                 //noinspection StatementWithEmptyBody
-                                if (isLePebble(device) || !bondingInterface.getAttemptToConnect()) {
+                                if (isLePebble(device) || isPebble2(device) || !bondingInterface.getAttemptToConnect()) {
                                     // Do not initiate connection to LE Pebble and some others!
                                 } else {
                                     attemptToFirstConnect(bondingInterface.getCurrentTarget().getDevice());
@@ -293,6 +294,15 @@ public class BondingUtil {
     }
 
     /**
+     * Checks if device is Pebble 2
+     */
+    public static boolean isPebble2(BluetoothDevice device) {
+        return device.getType() == BluetoothDevice.DEVICE_TYPE_LE &&
+                device.getName().startsWith("Pebble ") &&
+                !device.getName().startsWith("Pebble Time LE ");
+    }
+
+    /**
      * Uses the CompanionDeviceManager bonding method
      */
     @RequiresApi(Build.VERSION_CODES.O)
@@ -355,35 +365,53 @@ public class BondingUtil {
     /**
      * Use this function to initiate bonding to a GBDeviceCandidate
      */
-    public static void tryBondThenComplete(BondingInterface bondingInterface, BluetoothDevice device, String macAddress) {
+    public static void tryBondThenComplete(final BondingInterface bondingInterface, final BluetoothDevice device, final String macAddress) {
         bondingInterface.registerBroadcastReceivers();
 
-        int bondState = device.getBondState();
-        if (bondState == BluetoothDevice.BOND_BONDED) {
-            GB.toast(bondingInterface.getContext().getString(R.string.pairing_already_bonded, device.getName(), device.getAddress()), Toast.LENGTH_SHORT, GB.INFO);
-            //noinspection StatementWithEmptyBody
-            if (GBApplication.getPrefs().getBoolean("enable_companiondevice_pairing", true) &&
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // If CompanionDeviceManager is enabled, skip connection and go bond
-                // TODO: It would theoretically be nice to check if it's already been granted,
-                //  but re-bond works
-            } else {
-                attemptToFirstConnect(bondingInterface.getCurrentTarget().getDevice());
-                return;
-            }
-        } else if (bondState == BluetoothDevice.BOND_BONDING) {
+        final int bondState = device.getBondState();
+
+        if (bondState == BluetoothDevice.BOND_BONDING) {
             GB.toast(bondingInterface.getContext(), bondingInterface.getContext().getString(R.string.pairing_in_progress, device.getName(), device.getAddress()), Toast.LENGTH_LONG, GB.INFO);
             return;
         }
 
+        if (bondState == BluetoothDevice.BOND_BONDED) {
+            GB.toast(bondingInterface.getContext().getString(R.string.pairing_already_bonded, device.getName(), device.getAddress()), Toast.LENGTH_SHORT, GB.INFO);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !isPebble2(device)) {
+                // If CompanionDeviceManager is available, skip connection and go bond
+                // TODO: It would theoretically be nice to check if it's already been granted,
+                //  but re-bond works
+                askCompanionPairing(bondingInterface, device, macAddress);
+            } else {
+                attemptToFirstConnect(bondingInterface.getCurrentTarget().getDevice());
+            }
+            return;
+        }
+
         GB.toast(bondingInterface.getContext(), bondingInterface.getContext().getString(R.string.pairing_creating_bond_with, device.getName(), device.getAddress()), Toast.LENGTH_LONG, GB.INFO);
-        toast(bondingInterface.getContext(), bondingInterface.getContext().getString(R.string.discovery_attempting_to_pair, macAddress), Toast.LENGTH_SHORT, GB.INFO);
-        if (GBApplication.getPrefs().getBoolean("enable_companiondevice_pairing", true) &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            companionDeviceManagerBond(bondingInterface, device, macAddress);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !isPebble2(device)) {
+            askCompanionPairing(bondingInterface, device, macAddress);
+        } else if (isPebble2(device)) {
+            // TODO: start companionDevicePairing after connecting to Pebble 2 but before writing to pairing trigger
+            attemptToFirstConnect(device);
         } else {
             bluetoothBond(bondingInterface, device);
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private static void askCompanionPairing(BondingInterface bondingInterface, BluetoothDevice device, String macAddress) {
+        new MaterialAlertDialogBuilder(bondingInterface.getContext())
+                .setTitle(R.string.companion_pairing_request_title)
+                .setMessage(R.string.companion_pairing_request_description)
+                .setPositiveButton(R.string.yes, (dialog, whichButton) -> {
+                    companionDeviceManagerBond(bondingInterface, device, macAddress);
+                })
+                .setNegativeButton(R.string.no, (dialog, whichButton) -> {
+                    bluetoothBond(bondingInterface, device);
+                })
+                .show();
     }
 
     /**

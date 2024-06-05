@@ -1,6 +1,7 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniel Dakhno,
-    Daniele Gobbetti, Felix Konstantin Maurer, Pauli Salmenrinne, Taavi Eomäe,
-    Uwe Hermann, Yar
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, Daniel Dakhno,
+    Daniele Gobbetti, Davis Mosenkovs, Dmitriy Bogdanov, Felix Konstantin Maurer,
+    Ganblejs, José Rebelo, Pauli Salmenrinne, Petr Vaněk, Roberto P. Rubio,
+    Taavi Eomäe, Uwe Hermann, Yar
 
     This file is part of Gadgetbridge.
 
@@ -15,8 +16,11 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
+
+import static nodomain.freeyourgadget.gadgetbridge.GBApplication.isRunningOreoOrLater;
+import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_RECORDED_DATA_TYPES;
 
 import android.app.Activity;
 import android.app.Notification;
@@ -27,12 +31,10 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Html;
 import android.text.SpannableString;
-import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -47,8 +49,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.util.Collections;
 import java.util.List;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -62,12 +63,12 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceCommunicationService;
 
-import static nodomain.freeyourgadget.gadgetbridge.GBApplication.isRunningOreoOrLater;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_RECORDED_DATA_TYPES;
-
 public class GB {
+    public static final String ACTION_ACTIVITY_SYNC = "nodomain.freeyourgadget.gadgetbridge.action.ACTIVITY_SYNC_FINISH";
 
     public static final String NOTIFICATION_CHANNEL_ID = "gadgetbridge";
+    public static final String NOTIFICATION_CHANNEL_ID_CONNECTION_STATUS = "gadgetbridge connection status";
+    public static final String NOTIFICATION_CHANNEL_ID_SCAN_SERVICE = "gadgetbridge_scan_service";
     public static final String NOTIFICATION_CHANNEL_HIGH_PRIORITY_ID = "gadgetbridge_high_priority";
     public static final String NOTIFICATION_CHANNEL_ID_TRANSFER = "gadgetbridge transfer";
     public static final String NOTIFICATION_CHANNEL_ID_LOW_BATTERY = "low_battery";
@@ -80,6 +81,7 @@ public class GB {
     public static final int NOTIFICATION_ID_EXPORT_FAILED = 5;
     public static final int NOTIFICATION_ID_PHONE_FIND = 6;
     public static final int NOTIFICATION_ID_GPS = 7;
+    public static final int NOTIFICATION_ID_SCAN = 8;
     public static final int NOTIFICATION_ID_ERROR = 42;
 
     private static final Logger LOG = LoggerFactory.getLogger(GB.class);
@@ -114,6 +116,18 @@ public class GB {
                     context.getString(R.string.notification_channel_name),
                     NotificationManager.IMPORTANCE_LOW);
             notificationManager.createNotificationChannel(channelGeneral);
+
+            NotificationChannel channelConnwectionStatus = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID_CONNECTION_STATUS,
+                    context.getString(R.string.notification_channel_connection_status_name),
+                    NotificationManager.IMPORTANCE_LOW);
+            notificationManager.createNotificationChannel(channelConnwectionStatus);
+
+            NotificationChannel channelScanService = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID_SCAN_SERVICE,
+                    context.getString(R.string.notification_channel_scan_service_name),
+                    NotificationManager.IMPORTANCE_LOW);
+            notificationManager.createNotificationChannel(channelScanService);
 
             NotificationChannel channelHighPriority = new NotificationChannel(
                     NOTIFICATION_CHANNEL_HIGH_PRIORITY_ID,
@@ -154,7 +168,7 @@ public class GB {
     }
 
     public static Notification createNotification(List<GBDevice> devices, Context context) {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_CONNECTION_STATUS);
         if(devices.size() == 0){
             builder.setContentTitle(context.getString(R.string.info_no_devices_connected))
                     .setSmallIcon(R.drawable.ic_notification_disconnected)
@@ -258,7 +272,7 @@ public class GB {
     }
 
     public static Notification createNotification(String text, Context context) {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_CONNECTION_STATUS);
         builder.setTicker(text)
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_notification_disconnected)
@@ -270,7 +284,9 @@ public class GB {
             builder.setColor(context.getResources().getColor(R.color.accent));
         }
 
-        if (GBApplication.getPrefs().getString("last_device_address", null) != null) {
+        // A small bug: When "Reconnect only to connected devices" is disabled, the intent will be added even when there are no devices in GB
+        // Not sure whether it is worth the complexity to fix this
+        if (!GBApplication.getPrefs().getBoolean(GBPrefs.RECONNECT_ONLY_TO_CONNECTED, true) || !GBApplication.getPrefs().getStringSet(GBPrefs.LAST_DEVICE_ADDRESSES, Collections.emptySet()).isEmpty()) {
             Intent deviceCommunicationServiceIntent = new Intent(context, DeviceCommunicationService.class);
             deviceCommunicationServiceIntent.setAction(DeviceService.ACTION_CONNECT);
             PendingIntent reconnectPendingIntent = PendingIntentUtils.getService(context, 2, deviceCommunicationServiceIntent, PendingIntent.FLAG_ONE_SHOT, false);
@@ -293,7 +309,11 @@ public class GB {
     public static void notify(int id, @NonNull Notification notification, Context context) {
         createNotificationChannels(context);
 
-        NotificationManagerCompat.from(context).notify(id, notification);
+        try {
+            NotificationManagerCompat.from(context).notify(id, notification);
+        } catch (SecurityException e) {
+            toast(context.getString(R.string.warning_missing_notification_permission), Toast.LENGTH_SHORT, WARN);
+        }
     }
 
     public static void removeNotification(int id, Context context) {
@@ -481,27 +501,6 @@ public class GB {
         }
     }
 
-    public static void createGpsNotification(Context context, int numDevices) {
-        Intent notificationIntent = new Intent(context, ControlCenterv2.class);
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 0, notificationIntent, 0, false);
-
-        NotificationCompat.Builder nb = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_GPS)
-                .setTicker(context.getString(R.string.notification_gps_title))
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setContentTitle(context.getString(R.string.notification_gps_title))
-                .setContentText(context.getString(R.string.notification_gps_text, numDevices))
-                .setContentIntent(pendingIntent)
-                .setSmallIcon(R.drawable.ic_gps_location)
-                .setOngoing(true);
-
-        notify(NOTIFICATION_ID_GPS, nb.build(), context);
-    }
-
-    public static void removeGpsNotification(Context context) {
-        removeNotification(NOTIFICATION_ID_GPS, context);
-    }
-
     private static Notification createInstallNotification(String text, boolean ongoing,
                                                           int percentage, Context context) {
         Intent notificationIntent = new Intent(context, ControlCenterv2.class);
@@ -600,8 +599,17 @@ public class GB {
     }
 
     public static void signalActivityDataFinish() {
-        Intent intent = new Intent(GBApplication.ACTION_NEW_DATA);
+        final Intent intent = new Intent(GBApplication.ACTION_NEW_DATA);
         LocalBroadcastManager.getInstance(GBApplication.getContext()).sendBroadcast(intent);
+
+        if (!GBApplication.getPrefs().getBoolean("intent_api_broadcast_activity_sync", false)) {
+            return;
+        }
+
+        LOG.info("Broadcasting activity sync finish");
+
+        final Intent activitySyncFinishIntent = new Intent(ACTION_ACTIVITY_SYNC);
+        GBApplication.getContext().sendBroadcast(activitySyncFinishIntent);
     }
 
     public static boolean checkPermission(final Context context, final String permission) {

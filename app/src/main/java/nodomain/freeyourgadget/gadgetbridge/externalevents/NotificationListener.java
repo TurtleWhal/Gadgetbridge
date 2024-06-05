@@ -1,7 +1,10 @@
-/*  Copyright (C) 2015-2020 abettenburg, Andreas Shimokawa, AndrewBedscastle,
-    Carsten Pfeiffer, Daniel Dakhno, Daniele Gobbetti, Frank Slezak, Hasan Ammar,
-    José Rebelo, Julien Pivotto, Kevin Richter, Matthieu Baerts, Normano64,
-    Steffen Liebergeld, Taavi Eomäe, veecue, Zhong Jianxin
+/*  Copyright (C) 2015-2024 abettenburg, Andreas Böhler, Andreas Shimokawa,
+    AndrewBedscastle, Arjan Schrijver, Carsten Pfeiffer, Daniel Dakhno, Daniele
+    Gobbetti, Davis Mosenkovs, Dmitriy Bogdanov, Dmitry Markin, Frank Slezak,
+    gnufella, Gordon Williams, Hasan Ammar, José Rebelo, Julien Pivotto,
+    Kevin Richter, mamucho, Matthieu Baerts, mvn23, Normano64, Petr Kadlec,
+    Petr Vaněk, Steffen Liebergeld, Taavi Eomäe, theghostofheathledger, t-m-w,
+    veecue, Zhong Jianxin
 
     This file is part of Gadgetbridge.
 
@@ -16,7 +19,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.externalevents;
 
 import android.app.ActivityManager;
@@ -218,6 +221,8 @@ public class NotificationListener extends NotificationListenerService {
                         } catch (PendingIntent.CanceledException e) {
                             LOG.warn("replyToLastNotification error: " + e.getLocalizedMessage());
                         }
+                    } else {
+                        LOG.warn("Received ACTION_REPLY but cannot find the corresponding wearableAction");
                     }
                     break;
             }
@@ -243,17 +248,6 @@ public class NotificationListener extends NotificationListenerService {
         notificationStack.clear();
         notificationsActive.clear();
         super.onDestroy();
-    }
-
-    public String getAppName(String pkg) {
-        // determinate Source App Name ("Label")
-        PackageManager pm = getPackageManager();
-        try {
-            return (String) pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0));
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 
     @Override
@@ -347,7 +341,7 @@ public class NotificationListener extends NotificationListenerService {
         notificationSpec.when = notification.when;
 
         // determinate Source App Name ("Label")
-        String name = getAppName(source);
+        String name = NotificationUtils.getApplicationLabel(this, source);
         if (name != null) {
             notificationSpec.sourceName = name;
         }
@@ -430,9 +424,9 @@ public class NotificationListener extends NotificationListenerService {
                 } else {
                     wearableAction.type = NotificationSpec.Action.TYPE_WEARABLE_SIMPLE;
                 }
-
                 notificationSpec.attachedActions.add(wearableAction);
-                mActionLookup.add((notificationSpec.getId() << 4) + notificationSpec.attachedActions.size(), act);
+                wearableAction.handle = (notificationSpec.getId() << 4) + notificationSpec.attachedActions.size();
+                mActionLookup.add((int)wearableAction.handle, act);
                 LOG.info("Found wearable action: {} - {}  {}", notificationSpec.attachedActions.size(), act.getTitle(), sbn.getTag());
             }
         }
@@ -541,7 +535,7 @@ public class NotificationListener extends NotificationListenerService {
 
         // figure out sender
         String number;
-        String appName = getAppName(app);
+        String appName = NotificationUtils.getApplicationLabel(this, app);
         if (noti.extras.containsKey(Notification.EXTRA_PEOPLE)) {
             number = noti.extras.getString(Notification.EXTRA_PEOPLE);
         } else if (noti.extras.containsKey(Notification.EXTRA_TITLE)) {
@@ -697,15 +691,17 @@ public class NotificationListener extends NotificationListenerService {
             };
             mHandler.postDelayed(mSetMusicInfoRunnable, 100);
 
-            if (mSetMusicStateRunnable != null) {
-                mHandler.removeCallbacks(mSetMusicStateRunnable);
-            }
-            mSetMusicStateRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    GBApplication.deviceService().onSetMusicState(stateSpec);
+            if (stateSpec != null) {
+                if (mSetMusicStateRunnable != null) {
+                    mHandler.removeCallbacks(mSetMusicStateRunnable);
                 }
-            };
+                mSetMusicStateRunnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        GBApplication.deviceService().onSetMusicState(stateSpec);
+                    }
+                };
+            }
             mHandler.postDelayed(mSetMusicStateRunnable, 100);
 
             return true;

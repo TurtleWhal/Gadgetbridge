@@ -1,4 +1,4 @@
-/*  Copyright (C) 2021 Frank Ertl
+/*  Copyright (C) 2023-2024 Ascense, Daniel Dakhno, Frank Ertl, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.withingssteelhr;
 
 import android.app.Activity;
@@ -111,7 +111,7 @@ public class WithingsSteelHRDeviceCoordinator extends AbstractDeviceCoordinator 
     }
 
     @Override
-    public boolean supportsScreenshots() {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 
@@ -121,12 +121,17 @@ public class WithingsSteelHRDeviceCoordinator extends AbstractDeviceCoordinator 
     }
 
     @Override
+    public boolean supportsAlarmTitle(GBDevice device) {
+        return true;
+    }
+
+    @Override
     public boolean supportsAlarmDescription(GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
+    public boolean supportsSmartWakeup(GBDevice device, int position) {
         return true;
     }
 

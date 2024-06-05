@@ -1,4 +1,4 @@
-/*  Copyright (C) 2022 Damien Gaignon
+/*  Copyright (C) 2022-2024 Damien Gaignon
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.btbr;
 
 import org.slf4j.Logger;
@@ -24,11 +24,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.Logging;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
-import nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.CheckInitializedAction;
 
 /**
  * Abstract base class for devices connected through a serial protocol, like RFCOMM BT or TCP socket.
@@ -58,6 +59,12 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
             mQueue = new BtBRQueue(getBluetoothAdapter(), getDevice(), getContext(), this, getSupportedService(), getBufferSize());
         }
         return mQueue.connect();
+    }
+
+    public void disconnect() {
+        if (mQueue != null) {
+            mQueue.disconnect();
+        }
     }
 
     /**
@@ -137,8 +144,23 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
     }
 
     public void onConnectionEstablished() {
-       initializeDevice(createTransactionBuilder("Initializing device")).queue(getQueue());
+        try {
+            initializeDevice(createTransactionBuilder("Initializing device")).queue(getQueue());
+        } catch (final Exception ex) {
+            final GBDevice device = getDevice();
+
+            if (device != null) {
+                logger.error("Exception raised while initializing device {} (address {}), disconnecting", device.getName(), device.getAddress(), ex);
+                device.setState(GBDevice.State.WAITING_FOR_RECONNECT);
+                device.sendDeviceUpdateIntent(getContext());
+            } else {
+                logger.error("Exception raised while initializing unknown device", ex);
+            }
+        }
     }
+
+    @Override
+    public void onFindPhone(boolean start) {}
 
     @Override
     public void onSetFmFrequency(float frequency) {}

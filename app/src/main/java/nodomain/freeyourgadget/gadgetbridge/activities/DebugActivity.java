@@ -1,6 +1,7 @@
-/*  Copyright (C) 2015-2020 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Frank Slezak, ivanovlev, Kasha, Lem Dulfo, Pavel Elagin, Steffen
-    Liebergeld, vanous
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Daniel Dakhno, Daniele Gobbetti, Dmitriy Bogdanov, Frank Slezak,
+    Ganblejs, ivanovlev, José Rebelo, Kamalei Zestri, Kasha, Lem Dulfo, Pavel
+    Elagin, Petr Vaněk, Steffen Liebergeld, Tim
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +16,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities;
 
 import static android.content.Intent.EXTRA_SUBJECT;
@@ -101,11 +102,12 @@ import nodomain.freeyourgadget.gadgetbridge.adapter.SpinnerWithIconAdapter;
 import nodomain.freeyourgadget.gadgetbridge.adapter.SpinnerWithIconItem;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceManager;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
-import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationManager;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.opentracks.OpenTracksContentObserver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.opentracks.OpenTracksController;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -121,7 +123,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
-import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.PendingIntentUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
@@ -219,6 +220,12 @@ public class DebugActivity extends AbstractGBActivity {
                     NotificationSpec.Action replyAction = new NotificationSpec.Action();
                     replyAction.title = "Reply";
                     replyAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_REPLY_PHONENR;
+                    notificationSpec.attachedActions.add(replyAction);
+                } else if (notificationSpec.type == NotificationType.CONVERSATIONS) {
+                    // REPLY action
+                    NotificationSpec.Action replyAction = new NotificationSpec.Action();
+                    replyAction.title = "Reply";
+                    replyAction.type = NotificationSpec.Action.TYPE_WEARABLE_REPLY;
                     notificationSpec.attachedActions.add(replyAction);
                 }
 
@@ -374,10 +381,11 @@ public class DebugActivity extends AbstractGBActivity {
                         weatherSpec.forecasts.add(gbForecast);
                     }
 
-                    Weather.getInstance().setWeatherSpec(weatherSpec);
+                    Weather.getInstance().setWeatherSpec(new ArrayList<>(Collections.singletonList(weatherSpec)));
                 }
 
-                GBApplication.deviceService().onSendWeather(Weather.getInstance().getWeatherSpec());
+                final ArrayList<WeatherSpec> specs = new ArrayList<>(Weather.getInstance().getWeatherSpecs());
+                GBApplication.deviceService().onSendWeather(specs);
             }
         });
 
@@ -385,18 +393,27 @@ public class DebugActivity extends AbstractGBActivity {
         showCachedWeatherButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
-                final String weatherInfo = getWeatherInfo();
+                final List<WeatherSpec> weatherSpecs = Weather.getInstance().getWeatherSpecs();
+
+                if (weatherSpecs == null || weatherSpecs.isEmpty()) {
+                    displayWeatherInfo(null);
+                    return;
+                } else if (weatherSpecs.size() == 1) {
+                    displayWeatherInfo(weatherSpecs.get(0));
+                    return;
+                }
+
+                final String[] weatherLocations = new String[weatherSpecs.size()];
+
+                for (int i = 0; i < weatherSpecs.size(); i++) {
+                    weatherLocations[i] = weatherSpecs.get(i).location;
+                }
 
                 new MaterialAlertDialogBuilder(DebugActivity.this)
                         .setCancelable(true)
-                        .setTitle("Cached Weather Data")
-                        .setMessage(weatherInfo)
-                        .setPositiveButton(R.string.ok, (dialog, which) -> {
-                        })
-                        .setNeutralButton(android.R.string.copy, (dialog, which) -> {
-                            final ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                            ClipData clip = ClipData.newPlainText("Weather Info", weatherInfo);
-                            clipboard.setPrimaryClip(clip);
+                        .setTitle("Choose Location")
+                        .setItems(weatherLocations, (dialog, which) -> displayWeatherInfo(weatherSpecs.get(which)))
+                        .setNegativeButton("Cancel", (dialog, which) -> {
                         })
                         .show();
             }
@@ -649,7 +666,7 @@ public class DebugActivity extends AbstractGBActivity {
         stopPhoneGpsLocationListener.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                GBLocationManager.stopAll(getBaseContext());
+                GBLocationService.stop(DebugActivity.this, null);
             }
         });
 
@@ -740,6 +757,18 @@ public class DebugActivity extends AbstractGBActivity {
                     }
                 };
                 handler.postDelayed(runnable, delay);
+            }
+        });
+
+        Button cameraOpenButton = findViewById(R.id.cameraOpen);
+        cameraOpenButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                Intent cameraIntent = new Intent(getApplicationContext(), CameraActivity.class);
+                cameraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                cameraIntent.putExtra(CameraActivity.intentExtraEvent, GBDeviceEventCameraRemote.eventToInt(GBDeviceEventCameraRemote.Event.OPEN_CAMERA));
+                getApplicationContext().startActivity(cameraIntent);
             }
         });
     }
@@ -918,6 +947,11 @@ public class DebugActivity extends AbstractGBActivity {
     private void shareLog() {
         String fileName = GBApplication.getLogPath();
         if (fileName != null && fileName.length() > 0) {
+            // Flush the logs, so that we ensure latest lines are also there
+            GBApplication.getLogging().setImmediateFlush(true);
+            LOG.debug("Flushing logs before sharing");
+            GBApplication.getLogging().setImmediateFlush(false);
+
             File logFile = new File(fileName);
             if (!logFile.exists()) {
                 GB.toast("File does not exist", Toast.LENGTH_LONG, GB.INFO);
@@ -1005,10 +1039,15 @@ public class DebugActivity extends AbstractGBActivity {
             return;
         }
         DeviceType deviceType = DeviceType.values()[(int) deviceKey];
+        String deviceName = deviceType.name();
+        int deviceNameResource = deviceType.getDeviceCoordinator().getDeviceNameResource();
+        if(deviceNameResource != 0){
+            deviceName = context.getString(deviceNameResource);
+        }
         try (
             DBHandler db = GBApplication.acquireDB()) {
             DaoSession daoSession = db.getDaoSession();
-            GBDevice gbDevice = new GBDevice(deviceMac, deviceType.name(), "", null, deviceType);
+            GBDevice gbDevice = new GBDevice(deviceMac, deviceName, "", null, deviceType);
             gbDevice.setFirmwareVersion("N/A");
             gbDevice.setFirmwareVersion2("N/A");
 
@@ -1018,7 +1057,7 @@ public class DebugActivity extends AbstractGBActivity {
             Device device = DBHelper.getDevice(gbDevice, daoSession); //the addition happens here
             Intent refreshIntent = new Intent(DeviceManager.ACTION_REFRESH_DEVICELIST);
             LocalBroadcastManager.getInstance(context).sendBroadcast(refreshIntent);
-            GB.toast(context, "Added test device: " + deviceType.name(), Toast.LENGTH_SHORT, GB.INFO);
+            GB.toast(context, "Added test device: " + deviceName, Toast.LENGTH_SHORT, GB.INFO);
 
         } catch (
                 Exception e) {
@@ -1040,14 +1079,30 @@ public class DebugActivity extends AbstractGBActivity {
         return TextUtils.join(separator, mac).toUpperCase(Locale.ROOT);
     }
 
-    private String getWeatherInfo() {
+    private void displayWeatherInfo(final WeatherSpec weatherSpec) {
+        final String weatherInfo = getWeatherInfo(weatherSpec);
+
+        new MaterialAlertDialogBuilder(DebugActivity.this)
+                .setCancelable(true)
+                .setTitle("Cached Weather Data")
+                .setMessage(weatherInfo)
+                .setPositiveButton(R.string.ok, (dialog, which) -> {
+                })
+                .setNeutralButton(android.R.string.copy, (dialog, which) -> {
+                    final ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData clip = ClipData.newPlainText("Weather Info", weatherInfo);
+                    clipboard.setPrimaryClip(clip);
+                })
+                .show();
+    }
+
+    private String getWeatherInfo(final WeatherSpec weatherSpec) {
         final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.ROOT);
 
         final StringBuilder builder = new StringBuilder();
-        WeatherSpec weatherSpec = Weather.getInstance().getWeatherSpec();
 
         if (weatherSpec == null)
-            return "Weather cache is empty...";
+            return "Weather cache is empty.";
 
         builder.append("Location: ").append(weatherSpec.location).append("\n");
         builder.append("Timestamp: ").append(weatherSpec.timestamp).append("\n");
@@ -1153,7 +1208,10 @@ public class DebugActivity extends AbstractGBActivity {
         for (DeviceType deviceType : DeviceType.values()) {
             DeviceCoordinator coordinator = deviceType.getDeviceCoordinator();
             int icon = coordinator.getDefaultIconResource();
-            String name = app.getString(coordinator.getDeviceNameResource()) + " (" + coordinator.getManufacturer() + ")";
+            String name = app.getString(coordinator.getDeviceNameResource());
+            if (!name.startsWith(coordinator.getManufacturer())) {
+                name += " (" + coordinator.getManufacturer() + ")";
+            }
             long deviceId = deviceType.ordinal();
             newMap.put(name, new Pair(deviceId, icon));
         }

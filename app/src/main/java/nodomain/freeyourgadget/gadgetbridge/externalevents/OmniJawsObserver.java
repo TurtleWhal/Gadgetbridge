@@ -1,4 +1,4 @@
-/*  Copyright (C) 2017-2020 Carsten Pfeiffer, Daniele Gobbetti
+/*  Copyright (C) 2017-2024 Carsten Pfeiffer, Daniele Gobbetti, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.externalevents;
 
 import android.content.Context;
@@ -29,6 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
@@ -136,8 +138,9 @@ public class OmniJawsObserver extends ContentObserver {
                     }
                 }
 
-                Weather.getInstance().setWeatherSpec(weatherSpec);
-                GBApplication.deviceService().onSendWeather(weatherSpec);
+                ArrayList<WeatherSpec> weatherSpecs = new ArrayList<>(Collections.singletonList(weatherSpec));
+                Weather.getInstance().setWeatherSpec(weatherSpecs);
+                GBApplication.deviceService().onSendWeather(weatherSpecs);
 
             } finally {
                 c.close();

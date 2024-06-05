@@ -1,5 +1,5 @@
-/*  Copyright (C) 2017-2021 Andreas Shimokawa, AndrewH, Carsten Pfeiffer,
-    Daniele Gobbetti, Dikay900, Nick Spacek
+/*  Copyright (C) 2017-2024 Andreas Shimokawa, AndrewH, Carsten Pfeiffer,
+    Daniele Gobbetti, Dikay900, José Rebelo, Nick Spacek, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.export;
 
 import android.util.Xml;
@@ -142,7 +142,7 @@ public class GPXExporter implements ActivityTrackExporter {
         // lon and lat attributes do not have an explicit namespace
         ser.attribute(null, "lon", formatLocation(location.getLongitude()));
         ser.attribute(null, "lat", formatLocation(location.getLatitude()));
-        if (location.getAltitude() != -20000) {
+        if (location.getAltitude() != GPSCoordinate.UNKNOWN_ALTITUDE) {
             ser.startTag(NS_GPX_URI, "ele").text(formatLocation(location.getAltitude())).endTag(NS_GPX_URI, "ele");
         }
         ser.startTag(NS_GPX_URI, "time").text(DateTimeUtils.formatIso8601UTC(point.getTime())).endTag(NS_GPX_URI, "time");

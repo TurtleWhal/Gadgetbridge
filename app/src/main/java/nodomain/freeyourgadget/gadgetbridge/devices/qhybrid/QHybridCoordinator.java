@@ -1,5 +1,6 @@
-/*  Copyright (C) 2016-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniel
-    Dakhno, Daniele Gobbetti, José Rebelo
+/*  Copyright (C) 2019-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Damien Gaignon, Daniel Dakhno, Hasan Ammar, José Rebelo, Morten
+    Rieger Hannemose, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.qhybrid;
 
 import android.app.Activity;
@@ -26,7 +27,6 @@ import android.os.ParcelUuid;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,9 +40,13 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.CmfWatchProSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -126,7 +130,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     public boolean supportsFlashing() { return false; }
 
     @Override
-    public boolean supportsScreenshots() {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 
@@ -148,7 +152,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public int getCannedRepliesSlotCount(final GBDevice device) {
-        if (isHybridHR()) {
+        if (isHybridHR(device)) {
             return 16;
         }
 
@@ -156,18 +160,18 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsAlarmDescription(GBDevice device) {
-        return isHybridHR();
+    public boolean supportsAlarmTitle(GBDevice device) {
+        return isHybridHR(device);
     }
 
     @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
-        return false;
+    public boolean supportsAlarmDescription(GBDevice device) {
+        return isHybridHR(device);
     }
 
     @Override
     public boolean supportsHeartRateMeasurement(GBDevice device) {
-        return this.isHybridHR();
+        return isHybridHR(device);
     }
 
     @Override
@@ -187,7 +191,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public Class<? extends Activity> getAppsManagementActivity() {
-        return isHybridHR() ? AppManagerActivity.class : ConfigActivity.class;
+        return isHybridHR() ? AppManagerActivity.class : QHybridConfigActivity.class;
     }
 
     @Override
@@ -245,30 +249,43 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public int[] getSupportedDeviceSpecificSettings(GBDevice device) {
-        if (!isHybridHR()) {
-            return new int[0];
+    public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
+        final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
+        if (!isHybridHR(device)) {
+            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_fossilqhybrid_legacy);
+            return deviceSpecificSettings;
         }
-        //Settings applicable to all firmware versions
-        int[] supportedSettings = new int[]{
-                R.xml.devicesettings_inactivity,
-                R.xml.devicesettings_fossilhybridhr_all_fw,
-                R.xml.devicesettings_autoremove_notifications,
-                R.xml.devicesettings_canned_dismisscall_16,
-                R.xml.devicesettings_reject_call_method,
-                R.xml.devicesettings_transliteration,
-                R.xml.devicesettings_fossilhybridhr_dev
-        };
+        final List<Integer> generic = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.GENERIC);
         // Firmware version specific settings
         if (getFirmwareVersion() != null && getFirmwareVersion().smallerThan(new Version("3.0"))) {
-            supportedSettings = ArrayUtils.insert(0, supportedSettings, R.xml.devicesettings_fossilhybridhr_pre_fw300);
+            generic.add(R.xml.devicesettings_fossilhybridhr_pre_fw300);
         } else {
-            supportedSettings = ArrayUtils.insert(0, supportedSettings, R.xml.devicesettings_fossilhybridhr_post_fw300);
+            generic.add(R.xml.devicesettings_fossilhybridhr_post_fw300);
         }
         if (getFirmwareVersion() != null && getFirmwareVersion().smallerThan(new Version("2.20"))) {
-            supportedSettings = ArrayUtils.insert(1, supportedSettings, R.xml.devicesettings_fossilhybridhr_pre_fw220);
+            generic.add(R.xml.devicesettings_fossilhybridhr_pre_fw220);
         }
-        return supportedSettings;
+        // Settings applicable to all firmware versions
+        generic.add(R.xml.devicesettings_fossilhybridhr_calibration);
+        generic.add(R.xml.devicesettings_fossilhybridhr_navigation);
+        final List<Integer> health = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH);
+        health.add(R.xml.devicesettings_fossilhybridhr_workout_detection);
+        health.add(R.xml.devicesettings_inactivity);
+        final List<Integer> notifications = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.NOTIFICATIONS);
+        notifications.add(R.xml.devicesettings_fossilhybridhr_vibration);
+        notifications.add(R.xml.devicesettings_autoremove_notifications);
+        notifications.add(R.xml.devicesettings_canned_dismisscall_16);
+        notifications.add(R.xml.devicesettings_reject_call_method);
+        notifications.add(R.xml.devicesettings_transliteration);
+        notifications.add(R.xml.devicesettings_custom_deviceicon);
+        final List<Integer> developer = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
+        developer.add(R.xml.devicesettings_fossilhybridhr_dev);
+        return deviceSpecificSettings;
+    }
+
+    @Override
+    public DeviceSpecificSettingsCustomizer getDeviceSpecificSettingsCustomizer(final GBDevice device) {
+        return new QHybridSettingsCustomizer();
     }
 
     @NonNull
@@ -284,13 +301,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
         };
     }
 
-    @Override
-    public int[] getSupportedDeviceSpecificApplicationSettings() {
-        return new int[]{
-                R.xml.devicesettings_custom_deviceicon,
-        };
-    }
-
+    @Deprecated // we should use the isHybridHR(GBDevice) instead of iterating every single device
     private boolean isHybridHR() {
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getSelectedDevices();
         for(GBDevice device : devices){

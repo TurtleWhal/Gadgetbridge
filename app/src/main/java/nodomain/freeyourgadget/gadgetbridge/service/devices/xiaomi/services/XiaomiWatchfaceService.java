@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services;
 
 import org.slf4j.Logger;
@@ -80,8 +80,8 @@ public class XiaomiWatchfaceService extends AbstractXiaomiService implements Xia
 
                 LOG.debug("Watchface install status 0, uploading");
                 setDeviceBusy();
-                getSupport().getDataUploader().setCallback(this);
-                getSupport().getDataUploader().requestUpload(XiaomiDataUploadService.TYPE_WATCHFACE, fwHelper.getBytes());
+                getSupport().getDataUploadService().setCallback(this);
+                getSupport().getDataUploadService().requestUpload(XiaomiDataUploadService.TYPE_WATCHFACE, fwHelper.getBytes());
                 return;
         }
 
@@ -228,45 +228,41 @@ public class XiaomiWatchfaceService extends AbstractXiaomiService implements Xia
 
     @Override
     public void onUploadFinish(final boolean success) {
-        LOG.debug("Watchface upload finished: {}", success);
+        final int notificationMessage = success ?
+                R.string.uploadwatchfaceoperation_complete :
+                R.string.uploadwatchfaceoperation_failed;
 
-        getSupport().getDataUploader().setCallback(null);
+        onUploadProgress(notificationMessage, 100, false);
 
-        final String notificationMessage = success ?
-                getSupport().getContext().getString(R.string.updatefirmwareoperation_update_complete) :
-                getSupport().getContext().getString(R.string.updatefirmwareoperation_write_failed);
+        if (getSupport().getConnectionSpecificSupport() != null) {
+            getSupport().getConnectionSpecificSupport().runOnQueue("watchface upload finish", () -> {
+                LOG.debug("Watchface upload finished: {}", success);
+                getSupport().getDataUploadService().setCallback(null);
+                unsetDeviceBusy();
 
-        GB.updateInstallNotification(notificationMessage, false, 100, getSupport().getContext());
+                if (success) {
+                    setWatchface(fwHelper.getId());
+                    requestWatchfaceList();
+                }
 
-        unsetDeviceBusy();
-
-        if (success) {
-            setWatchface(fwHelper.getId());
-            requestWatchfaceList();
+                fwHelper = null;
+            });
         }
-
-        fwHelper = null;
     }
 
     @Override
     public void onUploadProgress(final int progressPercent) {
-        try {
-            final TransactionBuilder builder = getSupport().createTransactionBuilder("send data upload progress");
-            builder.add(new SetProgressAction(
-                    getSupport().getContext().getString(R.string.updatefirmwareoperation_update_in_progress),
-                    true,
-                    progressPercent,
-                    getSupport().getContext()
-            ));
-            builder.queue(getSupport().getQueue());
-        } catch (final Exception e) {
-            LOG.error("Failed to update progress notification", e);
-        }
+        onUploadProgress(R.string.uploadwatchfaceoperation_in_progress, progressPercent, true);
+    }
+
+    private void onUploadProgress(final int stringResource, final int progressPercent, final boolean ongoing) {
+        if (getSupport().getConnectionSpecificSupport() != null)
+            getSupport().getConnectionSpecificSupport().onUploadProgress(stringResource, progressPercent, ongoing);
     }
 
     private void setDeviceBusy() {
         final GBDevice device = getSupport().getDevice();
-        device.setBusyTask(getSupport().getContext().getString(R.string.updating_firmware));
+        device.setBusyTask(getSupport().getContext().getString(R.string.uploading_watchface));
         device.sendDeviceUpdateIntent(getSupport().getContext());
     }
 

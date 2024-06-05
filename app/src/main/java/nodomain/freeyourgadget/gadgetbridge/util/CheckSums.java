@@ -1,4 +1,5 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, Damien
+    Gaignon, Daniele Gobbetti, José Rebelo, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
 import androidx.annotation.Nullable;
@@ -25,8 +26,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Locale;
 import java.util.zip.CRC32;
 
 public class CheckSums {
@@ -173,5 +176,18 @@ public class CheckSums {
         }
         md.update(data);
         return md.digest();
+    }
+
+    @Nullable
+    public static String md5(final String str) {
+        final MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("MD5");
+        } catch (final NoSuchAlgorithmException e) {
+            LOG.error("Failed to get md5 digest", e);
+            return null;
+        }
+        md.update(str.getBytes(StandardCharsets.UTF_8));
+        return GB.hexdump(md.digest()).toLowerCase(Locale.ROOT);
     }
 }

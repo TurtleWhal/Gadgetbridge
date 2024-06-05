@@ -1,5 +1,4 @@
-/*  Copyright (C) 2015-2020 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, vanous, Vebryn
+/*  Copyright (C) 2023-2024 Daniel Dakhno, José Rebelo, Martin.JM
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
 import android.content.Context;
@@ -80,8 +79,13 @@ public class ActivityChartsActivity extends AbstractChartsActivity {
             tabList = new ArrayList<>(Arrays.asList(myTabs.split(",")));
         }
         final DeviceCoordinator coordinator = device.getDeviceCoordinator();
-        if (!coordinator.supportsRealtimeData()) {
-            tabList.remove("livestats");
+        if (!coordinator.supportsActivityTabs()) {
+            tabList.remove("activity");
+            tabList.remove("activitylist");
+        }
+        if (!coordinator.supportsSleepMeasurement()) {
+            tabList.remove("sleep");
+            tabList.remove("sleepweek");
         }
         if (!coordinator.supportsStressMeasurement()) {
             tabList.remove("stress");
@@ -89,8 +93,23 @@ public class ActivityChartsActivity extends AbstractChartsActivity {
         if (!coordinator.supportsPai()) {
             tabList.remove("pai");
         }
-        if (!coordinator.supportsSpo2()) {
+        if (!coordinator.supportsSpo2(device)) {
             tabList.remove("spo2");
+        }
+        if (!coordinator.supportsStepCounter()) {
+            tabList.remove("stepsweek");
+        }
+        if (!coordinator.supportsSpeedzones()) {
+            tabList.remove("speedzones");
+        }
+        if (!coordinator.supportsRealtimeData()) {
+            tabList.remove("livestats");
+        }
+        if (!coordinator.supportsTemperatureMeasurement()) {
+            tabList.remove("temperature");
+        }
+        if(!coordinator.supportsCyclingData()) {
+            tabList.remove("cycling");
         }
         return tabList;
     }
@@ -133,6 +152,10 @@ public class ActivityChartsActivity extends AbstractChartsActivity {
                     return new LiveActivityFragment();
                 case "spo2":
                     return new Spo2ChartFragment();
+                case "temperature":
+                    return new TemperatureChartFragment();
+                case "cycling":
+                    return new CyclingChartFragment();
             }
             return null;
         }
@@ -181,6 +204,10 @@ public class ActivityChartsActivity extends AbstractChartsActivity {
                     return getString(R.string.liveactivity_live_activity);
                 case "spo2":
                     return getString(R.string.pref_header_spo2);
+                case "temperature":
+                    return getString(R.string.menuitem_temperature);
+                case "cycling":
+                    return getString(R.string.title_cycling);
             }
             return super.getPageTitle(position);
         }

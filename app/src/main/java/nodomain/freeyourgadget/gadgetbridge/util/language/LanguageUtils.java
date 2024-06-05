@@ -1,6 +1,5 @@
-/*  Copyright (C) 2017-2022 Andreas Shimokawa, Aniruddha Adhikary, Daniele
-    Gobbetti, ivanovlev, kalaee, lazarosfs, McSym28, M. Hadi, Roi Greenberg,
-    Taavi Eomäe, Ted Stein, Thomas, Yaron Shahrabani, José Rebelo
+/*  Copyright (C) 2022-2024 Cédric Bellegarde, Davis Mosenkovs, José Rebelo,
+    roolx, ssilverr, thirschbuechler
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util.language;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_TRANSLITERATION_LANGUAGES;
@@ -36,6 +35,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.ArabicTransliterator;
+import nodomain.freeyourgadget.gadgetbridge.util.language.impl.ArmenianTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.BengaliTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.CommonSymbolsTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.CroatianTransliterator;
@@ -57,6 +57,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.language.impl.PersianTransliter
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.PolishTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.RussianTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.ScandinavianTransliterator;
+import nodomain.freeyourgadget.gadgetbridge.util.language.impl.SerbianTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.TurkishTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.UkranianTransliterator;
 
@@ -85,8 +86,10 @@ public class LanguageUtils {
         put("polish", new PolishTransliterator());
         put("russian", new RussianTransliterator());
         put("scandinavian", new ScandinavianTransliterator());
+        put("serbian", new SerbianTransliterator());
         put("turkish", new TurkishTransliterator());
         put("ukranian", new UkranianTransliterator());
+        put("armenian", new ArmenianTransliterator());
     }};
 
     /**

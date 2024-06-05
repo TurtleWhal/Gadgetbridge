@@ -1,16 +1,36 @@
+/*  Copyright (C) 2022-2024 Noodlez
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.asteroidos;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.content.Intent;
+
+import androidx.annotation.NonNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Objects;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventBatteryInfo;
@@ -47,14 +67,10 @@ public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
         addSupportedService(AsteroidOSConstants.NOTIFICATION_SERVICE_UUID);
         addSupportedService(AsteroidOSConstants.MEDIA_SERVICE_UUID);
 
-        IntentListener mListener = new IntentListener() {
-            @Override
-            public void notify(Intent intent) {
-                String action = intent.getAction();
-                if (BatteryInfoProfile.ACTION_BATTERY_INFO.equals(action)) {
-                    handleBatteryInfo((nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfo) intent.getParcelableExtra(BatteryInfoProfile.EXTRA_BATTERY_INFO));
-
-                }
+        IntentListener mListener = intent -> {
+            String action = intent.getAction();
+            if (BatteryInfoProfile.ACTION_BATTERY_INFO.equals(action)) {
+                handleBatteryInfo(Objects.requireNonNull(intent.getParcelableExtra(BatteryInfoProfile.EXTRA_BATTERY_INFO)));
             }
         };
 
@@ -63,7 +79,7 @@ public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
         addSupportedProfile(batteryInfoProfile);
     }
 
-    private void handleBatteryInfo(nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfo info) {
+    private void handleBatteryInfo(@NonNull nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfo info) {
         batteryCmd.level = info.getPercentCharged();
         handleGBDeviceEvent(batteryCmd);
     }
@@ -75,12 +91,12 @@ public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
         UUID characteristicUUID = characteristic.getUuid();
 
         if (characteristicUUID.equals(AsteroidOSConstants.MEDIA_COMMANDS_CHAR)) {
-            handleMediaCommand(gatt, characteristic);
+            handleMediaCommand(characteristic);
             return true;
         }
 
         LOG.info("Characteristic changed UUID: " + characteristicUUID);
-        LOG.info("Characteristic changed value: " + characteristic.getValue().toString());
+        LOG.info("Characteristic changed value: " + Arrays.toString(characteristic.getValue()));
         return false;
     }
 
@@ -200,7 +216,8 @@ public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+        WeatherSpec weatherSpec = weatherSpecs.get(0);
         AsteroidOSWeather asteroidOSWeather = new AsteroidOSWeather(weatherSpec);
         TransactionBuilder builder = new TransactionBuilder("send weather info");
         // Send city name
@@ -250,10 +267,9 @@ public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
 
     /**
      * Handles a media command sent from the AsteroidOS device
-     * @param gatt The bluetooth device's GATT info
      * @param characteristic The Characteristic information
      */
-    public void handleMediaCommand (BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+    public void handleMediaCommand (BluetoothGattCharacteristic characteristic) {
         LOG.info("handle media command");
         AsteroidOSMediaCommand command = new AsteroidOSMediaCommand(characteristic.getValue()[0]);
         GBDeviceEventMusicControl event = command.toMusicControlEvent();

@@ -1,5 +1,5 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, José Rebelo, Julien Pivotto, Kasha, Sebastian Kranz, Steffen
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, José Rebelo, Julien Pivotto, Kasha, Sebastian Kranz, Steffen
     Liebergeld, Uwe Hermann
 
     This file is part of Gadgetbridge.
@@ -15,16 +15,18 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices;
 
 import android.location.Location;
 import android.net.Uri;
+import android.os.Bundle;
 
 import java.util.ArrayList;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
@@ -135,7 +137,7 @@ public interface EventHandler {
 
     void onTestNewFunction();
 
-    void onSendWeather(WeatherSpec weatherSpec);
+    void onSendWeather(ArrayList<WeatherSpec> weatherSpecs);
 
     void onSetFmFrequency(float frequency);
 
@@ -148,4 +150,8 @@ public interface EventHandler {
     void onPowerOff();
 
     void onSetGpsLocation(Location location);
+
+    void onSleepAsAndroidAction(String action, Bundle extras);
+
+    void onCameraStatusChange(GBDeviceEventCameraRemote.Event event, String filename);
 }

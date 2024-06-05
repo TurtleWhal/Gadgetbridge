@@ -1,4 +1,5 @@
-/*  Copyright (C) 2017-2020 Andreas Shimokawa, keeshii
+/*  Copyright (C) 2019-2024 Andreas Shimokawa, José Rebelo, keeshii,
+    Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.externalevents;
 
 import static lineageos.providers.WeatherContract.WeatherColumns.TempUnit.FAHRENHEIT;
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.List;
 
 import lineageos.weather.LineageWeatherManager;
@@ -200,8 +202,9 @@ public class LineageOsWeatherReceiver extends BroadcastReceiver implements Linea
                 gbForecast.conditionCode = Weather.mapToOpenWeatherMapCondition(LineageOSToYahooCondition(cmForecast.getConditionCode()));
                 weatherSpec.forecasts.add(gbForecast);
             }
-            Weather.getInstance().setWeatherSpec(weatherSpec);
-            GBApplication.deviceService().onSendWeather(weatherSpec);
+            ArrayList<WeatherSpec> weatherSpecs = new ArrayList<>(Collections.singletonList(weatherSpec));
+            Weather.getInstance().setWeatherSpec(weatherSpecs);
+            GBApplication.deviceService().onSendWeather(weatherSpecs);
         } else {
             LOG.info("request has returned null for WeatherInfo");
         }

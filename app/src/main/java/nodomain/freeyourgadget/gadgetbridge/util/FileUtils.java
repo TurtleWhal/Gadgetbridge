@@ -1,5 +1,6 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Felix Konstantin Maurer, JohnnySun, Taavi Eomäe
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Daniele Gobbetti, Felix Konstantin Maurer, JohnnySun, José Rebelo,
+    Petr Vaněk, Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -14,24 +15,27 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
 import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Environment;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -40,6 +44,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.GBEnvironment;
@@ -83,6 +88,21 @@ public class FileUtils {
                 int bytes = inputStream.read(buf);
                 fout.write(buf, 0, bytes);
             }
+        }
+    }
+
+    /**
+     * Copies the contents of the given string to the destination file.
+     * @param string the contents to write.
+     * @param dst the file to write to
+     * @throws IOException
+     */
+    public static void copyStringToFile(String string, File dst, String mode) throws IOException {
+        boolean append = true;
+        if (!Objects.equals(mode, "append")) append = false;
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(dst, append))) {
+            writer.write(string);
         }
     }
 

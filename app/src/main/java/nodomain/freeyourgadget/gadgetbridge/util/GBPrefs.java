@@ -1,5 +1,6 @@
-/*  Copyright (C) 2016-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Dikay900, Felix Konstantin Maurer
+/*  Copyright (C) 2016-2024 Andreas Shimokawa, Anemograph, Carsten Pfeiffer,
+    Daniel Dakhno, Daniele Gobbetti, Davis Mosenkovs, Dikay900, Felix Konstantin
+    Maurer, José Rebelo, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
 import android.Manifest;
@@ -58,12 +59,18 @@ public class GBPrefs {
     public static boolean AUTO_RECONNECT_DEFAULT = true;
     public static final String PREF_ALLOW_INTENT_API = "prefs_key_allow_bluetooth_intent_api";
 
+    public static final String RECONNECT_SCAN_KEY = "prefs_general_key_auto_reconnect_scan";
+    public static final boolean RECONNECT_SCAN_DEFAULT = false;
+
     public static final String USER_NAME = "mi_user_alias";
     public static final String USER_NAME_DEFAULT = "gadgetbridge-user";
     private static final String USER_BIRTHDAY = "";
 
     public static final String CHART_MAX_HEART_RATE = "chart_max_heart_rate";
     public static final String CHART_MIN_HEART_RATE = "chart_min_heart_rate";
+
+    public static final String LAST_DEVICE_ADDRESSES = "last_device_addresses";
+    public static final String RECONNECT_ONLY_TO_CONNECTED = "general_reconnectonlytoconnected";
 
     private final Prefs mPrefs;
 
@@ -74,6 +81,10 @@ public class GBPrefs {
     public boolean getAutoReconnect(GBDevice device) {
         SharedPreferences deviceSpecificPreferences = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress());
         return deviceSpecificPreferences.getBoolean(DEVICE_AUTO_RECONNECT, AUTO_RECONNECT_DEFAULT);
+    }
+
+    public boolean getAutoReconnectByScan() {
+        return mPrefs.getBoolean(RECONNECT_SCAN_KEY, RECONNECT_SCAN_DEFAULT);
     }
 
     public boolean getAutoStart() {

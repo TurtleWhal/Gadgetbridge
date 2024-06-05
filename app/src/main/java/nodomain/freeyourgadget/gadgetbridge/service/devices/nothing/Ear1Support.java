@@ -1,21 +1,30 @@
-package nodomain.freeyourgadget.gadgetbridge.service.devices.nothing;
+/*  Copyright (C) 2021-2024 Arjan Schrijver, Daniele Gobbetti, Petr Vaněk
 
-import android.net.Uri;
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+package nodomain.freeyourgadget.gadgetbridge.service.devices.nothing;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.UUID;
-
-import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.service.serial.AbstractSerialDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.AbstractHeadphoneDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceIoThread;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 
-public class Ear1Support extends AbstractSerialDeviceSupport {
+public class Ear1Support extends AbstractHeadphoneDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(Ear1Support.class);
-
 
     @Override
     public void onSendConfiguration(String config) {
@@ -25,12 +34,6 @@ public class Ear1Support extends AbstractSerialDeviceSupport {
     @Override
     public void onTestNewFunction() {
         //getDeviceIOThread().write(((NothingProtocol) getDeviceProtocol()).encodeBatteryStatusReq());
-    }
-
-    @Override
-    public boolean connect() {
-        getDeviceIOThread().start();
-        return true;
     }
 
     @Override

@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 Alicia Hormann
+/*  Copyright (C) 2023-2024 Alicia Hormann
 
     This file is part of Gadgetbridge.
 
@@ -13,8 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.femometer;
 
 import android.app.Activity;
@@ -98,6 +97,34 @@ public class FemometerVinca2DeviceCoordinator extends AbstractDeviceCoordinator 
     @Override
     public int getAlarmSlotCount(final GBDevice device) {
         return 1;
+    }
+
+    @Override
+    public boolean supportsTemperatureMeasurement() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsActivityTracking() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsSleepMeasurement() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsStepCounter() {
+        return false;
+    }
+    @Override
+    public boolean supportsSpeedzones() {
+        return false;
+    }
+    @Override
+    public boolean supportsActivityTabs() {
+        return false;
     }
 
     @Override

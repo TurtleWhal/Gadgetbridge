@@ -1,7 +1,8 @@
-/*  Copyright (C) 2015-2023 Andreas Shimokawa, Carsten Pfeiffer, Christian
-    Fischer, Daniele Gobbetti, Dmitry Markin, JohnnySun, José Rebelo, Julien
-    Pivotto, Kasha, Michal Novotny, Petr Vaněk, Sebastian Kranz, Sergey Trofimov,
-    Steffen Liebergeld, Taavi Eomäe, Yoran Vulker, Zhong Jianxin
+/*  Copyright (C) 2018-2024 Andreas Shimokawa, Arjan Schrijver, beardhatcode,
+    Carsten Pfeiffer, Damien Gaignon, Daniel Dakhno, Daniele Gobbetti, Dmitry
+    Markin, José Rebelo, musover, Nathan Philipp Bo Seddig, NekoBox, Petr
+    Vaněk, Robbert Gurdeep Singh, Sebastian Kranz, Taavi Eomäe, Toby Murray,
+    uli, Yoran Vulker, Zhong Jianxin
 
     This file is part of Gadgetbridge.
 
@@ -16,7 +17,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami;
 
 import android.bluetooth.BluetoothAdapter;
@@ -62,7 +63,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.SimpleTimeZone;
 import java.util.TimeZone;
@@ -95,7 +95,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.ActivateDisplayOnLift;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.ActivateDisplayOnLiftSensitivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.DisconnectNotificationSetting;
-import nodomain.freeyourgadget.gadgetbridge.devices.huami.Huami2021Coordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.ZeppOsCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.Huami2021Service;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiCoordinator;
@@ -116,7 +116,8 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.MiBandActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.User;
-import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationManager;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationProviderType;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.opentracks.OpenTracksController;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice.State;
@@ -127,19 +128,20 @@ import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.model.SleepState;
 import nodomain.freeyourgadget.gadgetbridge.model.WearingState;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.AbstractFetchOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchStatisticsOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchTemperatureOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchHeartRateManualOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchHeartRateMaxOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchHeartRateRestingOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchPaiOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchSleepRespiratoryRateOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchSpo2NormalOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchSportsSummaryOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchStressAutoOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchStressManualOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.HuamiFetchDebugLogsOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.SleepAsAndroidSender;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.AbstractFetchOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchStatisticsOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchTemperatureOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchHeartRateManualOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchHeartRateMaxOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchHeartRateRestingOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchPaiOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchSleepRespiratoryRateOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchSpo2NormalOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchSportsSummaryOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchStressAutoOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchStressManualOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchDebugLogsOperation;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsCannedMessagesService;
 import nodomain.freeyourgadget.gadgetbridge.util.MediaManager;
 import nodomain.freeyourgadget.gadgetbridge.util.SilentMode;
@@ -175,10 +177,10 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.common.SimpleNotific
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.actions.StopNotificationAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.miband2.Mi2NotificationStrategy;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.miband2.Mi2TextNotificationStrategy;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.FetchActivityOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.InitOperation;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.InitOperation2021;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.UpdateFirmwareOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch.FetchActivityOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.init.InitOperation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.init.InitOperation2021;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.update.UpdateFirmwareOperation;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.NotificationStrategy;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.RealtimeSamplesSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
@@ -343,8 +345,9 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
     protected Huami2021ChunkedEncoder huami2021ChunkedEncoder;
     protected Huami2021ChunkedDecoder huami2021ChunkedDecoder;
 
-    private final Queue<AbstractFetchOperation> fetchOperationQueue = new LinkedList<>();
+    private final LinkedList<AbstractFetchOperation> fetchOperationQueue = new LinkedList<>();
 
+    protected SleepAsAndroidSender sleepAsAndroidSender;
     public HuamiSupport() {
         this(LOG);
     }
@@ -371,6 +374,7 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
     public void setContext(final GBDevice gbDevice, final BluetoothAdapter btAdapter, final Context context) {
         super.setContext(gbDevice, btAdapter, context);
         this.mediaManager = new MediaManager(context);
+
     }
 
     @Override
@@ -404,6 +408,9 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
                 }
             } else {
                 new InitOperation(authenticate, authFlags, cryptFlags, this, builder).perform();
+            }
+            if (sleepAsAndroidSender == null) {
+                sleepAsAndroidSender = new SleepAsAndroidSender(gbDevice);
             }
             characteristicHRControlPoint = getCharacteristic(GattCharacteristic.UUID_CHARACTERISTIC_HEART_RATE_CONTROL_POINT);
             characteristicChunked = getCharacteristic(HuamiService.UUID_CHARACTERISTIC_CHUNKEDTRANSFER);
@@ -946,20 +953,9 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
                 int suffixlength = appSuffix.length;
 
                 if (alertCategory == AlertCategory.CustomHuami) {
-                    String appName;
+                    String appName = "\0" + StringUtils.getFirstOf(notificationSpec.sourceName, "UNKNOWN") + "\0";
                     prefixlength = 3;
-                    final PackageManager pm = getContext().getPackageManager();
-                    ApplicationInfo ai = null;
-                    try {
-                        ai = pm.getApplicationInfo(notificationSpec.sourceAppId, 0);
-                    } catch (PackageManager.NameNotFoundException ignored) {
-                    }
 
-                    if (ai != null) {
-                        appName = "\0" + pm.getApplicationLabel(ai) + "\0";
-                    } else {
-                        appName = "\0" + "UNKNOWN" + "\0";
-                    }
                     appSuffix = appName.getBytes();
                     suffixlength = appSuffix.length;
                 }
@@ -1076,8 +1072,9 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
             return;
         }
 
-        final ByteBuffer buf = ByteBuffer.allocate(14 + reminder.getMessage().getBytes().length);
-        buf.order(ByteOrder.LITTLE_ENDIAN);
+        final byte[] reminderMessage = StringUtils.truncate(reminder.getMessage(), coordinator.getMaximumReminderMessageLength())
+                .getBytes(StandardCharsets.UTF_8);
+        final ByteBuffer buf = ByteBuffer.allocate(14 + reminderMessage.length).order(ByteOrder.LITTLE_ENDIAN);
 
         buf.put((byte) 0x0B);
         buf.put((byte) (position & 0xFF));
@@ -1112,16 +1109,7 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
 
         buf.put(BLETypeConversions.shortCalendarToRawBytes(cal));
         buf.put((byte) 0x00);
-
-        if (reminder.getMessage().getBytes().length > coordinator.getMaximumReminderMessageLength()) {
-            LOG.warn("The reminder message length {} is longer than {}, will be truncated",
-                    reminder.getMessage().getBytes().length,
-                    coordinator.getMaximumReminderMessageLength()
-            );
-            buf.put(Arrays.copyOf(reminder.getMessage().getBytes(), coordinator.getMaximumReminderMessageLength()));
-        } else {
-            buf.put(reminder.getMessage().getBytes());
-        }
+        buf.put(reminderMessage);
         buf.put((byte) 0x00);
 
         writeToChunked(builder, 2, buf.array());
@@ -1674,7 +1662,7 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
         }
 
         if ((dataTypes & RecordedDataTypes.TYPE_DEBUGLOGS) != 0 && coordinator.supportsDebugLogs()) {
-            this.fetchOperationQueue.add(new HuamiFetchDebugLogsOperation(this));
+            this.fetchOperationQueue.add(new FetchDebugLogsOperation(this));
         }
 
         if ((dataTypes & RecordedDataTypes.TYPE_STRESS) != 0 && coordinator.supportsStressMeasurement()) {
@@ -1686,11 +1674,11 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
             this.fetchOperationQueue.add(new FetchPaiOperation(this));
         }
 
-        if (Huami2021Coordinator.experimentalFeatures(getDevice())) {
-            if ((dataTypes & RecordedDataTypes.TYPE_SPO2) != 0 && coordinator.supportsSpo2()) {
-                this.fetchOperationQueue.add(new FetchSpo2NormalOperation(this));
-            }
+        if ((dataTypes & RecordedDataTypes.TYPE_SPO2) != 0 && coordinator.supportsSpo2(gbDevice)) {
+            this.fetchOperationQueue.add(new FetchSpo2NormalOperation(this));
+        }
 
+        if (ZeppOsCoordinator.experimentalFeatures(getDevice())) {
             if ((dataTypes & RecordedDataTypes.TYPE_HEART_RATE) != 0 && coordinator.supportsHeartRateStats()) {
                 this.fetchOperationQueue.add(new FetchHeartRateManualOperation(this));
                 this.fetchOperationQueue.add(new FetchHeartRateMaxOperation(this));
@@ -1722,6 +1710,10 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
 
     public AbstractFetchOperation getNextFetchOperation() {
         return fetchOperationQueue.poll();
+    }
+
+    public LinkedList<AbstractFetchOperation> getFetchOperationQueue() {
+        return fetchOperationQueue;
     }
 
     @Override
@@ -1999,7 +1991,7 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
             if (sendGpsToBand) {
                 lastPhoneGpsSent = 0;
                 sendPhoneGps(HuamiPhoneGpsStatus.SEARCHING, null);
-                GBLocationManager.start(getContext(), this);
+                GBLocationService.start(getContext(), getDevice(), GBLocationProviderType.GPS, 1000);
             } else {
                 sendPhoneGps(HuamiPhoneGpsStatus.DISABLED, null);
             }
@@ -2019,7 +2011,7 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
     protected void onWorkoutEnd() {
         final boolean startOnPhone = HuamiCoordinator.getWorkoutStartOnPhone(getDevice().getAddress());
 
-        GBLocationManager.stop(getContext(), this);
+        GBLocationService.stop(getContext(), getDevice());
 
         if (startOnPhone) {
             LOG.info("Stopping OpenTracks recording");
@@ -2271,9 +2263,12 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
                                            BluetoothGattCharacteristic characteristic) {
-        super.onCharacteristicChanged(gatt, characteristic);
+        if (super.onCharacteristicChanged(gatt, characteristic)) {
+            // handled upstream
+            return true;
+        }
 
-        UUID characteristicUUID = characteristic.getUuid();
+        final UUID characteristicUUID = characteristic.getUuid();
         if (HuamiService.UUID_CHARACTERISTIC_6_BATTERY_INFO.equals(characteristicUUID)) {
             handleBatteryInfo(characteristic.getValue(), BluetoothGatt.GATT_SUCCESS);
             return true;
@@ -2316,7 +2311,10 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
     @Override
     public boolean onCharacteristicRead(BluetoothGatt gatt,
                                         BluetoothGattCharacteristic characteristic, int status) {
-        super.onCharacteristicRead(gatt, characteristic, status);
+        if (super.onCharacteristicRead(gatt, characteristic, status)) {
+            // handled upstream
+            return true;
+        }
 
         UUID characteristicUUID = characteristic.getUuid();
         if (GattCharacteristic.UUID_CHARACTERISTIC_DEVICE_NAME.equals(characteristicUUID)) {
@@ -2601,6 +2599,8 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
                         MiBand2SampleProvider provider = new MiBand2SampleProvider(gbDevice, session);
                         MiBandActivitySample sample = createActivitySample(device, user, ts, provider);
                         sample.setHeartRate(getHeartrateBpm());
+                        sleepAsAndroidSender.onHrChanged(sample.getHeartRate(), 0);
+
 //                        sample.setSteps(getSteps());
                         sample.setRawIntensity(ActivitySample.NOT_MEASURED);
                         sample.setRawKind(HuamiConst.TYPE_ACTIVITY); // to make it visible in the charts TODO: add a MANUAL kind for that?
@@ -3090,7 +3090,7 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
     }
 
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
         final DeviceCoordinator coordinator = gbDevice.getDeviceCoordinator();
         if (!coordinator.supportsWeather()) {
             return;
@@ -3106,6 +3106,8 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
         if (gbDevice.getType() == DeviceType.AMAZFITBIP && version.compareTo(new Version("0.0.8.74")) < 0) {
             supportsConditionString = false;
         }
+
+        final WeatherSpec weatherSpec = weatherSpecs.get(0);
 
         MiBandConst.DistanceUnit unit = HuamiCoordinator.getDistanceUnit();
         int tz_offset_hours = SimpleTimeZone.getDefault().getOffset(weatherSpec.timestamp * 1000L) / (1000 * 60 * 60);
@@ -4243,10 +4245,6 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
 
     protected HuamiCoordinator getCoordinator() {
         return (HuamiCoordinator) gbDevice.getDeviceCoordinator();
-    }
-
-    protected Prefs getDevicePrefs() {
-        return new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
     }
 
     @Override

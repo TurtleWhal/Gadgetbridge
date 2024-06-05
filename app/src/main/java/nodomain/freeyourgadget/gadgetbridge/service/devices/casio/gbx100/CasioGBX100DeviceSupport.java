@@ -1,5 +1,4 @@
-/*  Copyright (C) 2016-2023 Andreas Böhler, Andreas Shimokawa, Carsten
-    Pfeiffer, Sebastian Kranz, Johannes Krude
+/*  Copyright (C) 2023-2024 Andreas Böhler, foxstidious, Johannes Krude
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.casio.gbx100;
 
 import android.bluetooth.BluetoothGatt;
@@ -539,6 +538,9 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
             Alarm alm = alarms.get(i);
             if(alm.getEnabled()) {
                 settings[0] = 0x40;
+                if (alm.getSnooze()) {
+                    settings[0] = 0x50;
+                }
             } else {
                 settings[0] = 0;
             }

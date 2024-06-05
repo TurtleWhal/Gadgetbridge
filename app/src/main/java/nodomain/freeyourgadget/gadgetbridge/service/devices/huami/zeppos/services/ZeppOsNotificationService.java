@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services;
 
 import static org.apache.commons.lang3.ArrayUtils.subarray;
@@ -39,7 +39,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.Huami2021Support;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.AbstractZeppOsService;
 import nodomain.freeyourgadget.gadgetbridge.util.BitmapUtil;
 import nodomain.freeyourgadget.gadgetbridge.util.LimitedQueue;
@@ -74,19 +74,14 @@ public class ZeppOsNotificationService extends AbstractZeppOsService {
 
     private final ZeppOsFileTransferService fileTransferService;
 
-    public ZeppOsNotificationService(final Huami2021Support support, final ZeppOsFileTransferService fileTransferService) {
-        super(support);
+    public ZeppOsNotificationService(final ZeppOsSupport support, final ZeppOsFileTransferService fileTransferService) {
+        super(support, true);
         this.fileTransferService = fileTransferService;
     }
 
     @Override
     public short getEndpoint() {
         return ENDPOINT;
-    }
-
-    @Override
-    public boolean isEncrypted() {
-        return true;
     }
 
     @Override
@@ -277,7 +272,7 @@ public class ZeppOsNotificationService extends AbstractZeppOsService {
                         case NotificationSpec.Action.TYPE_WEARABLE_REPLY:
                         case NotificationSpec.Action.TYPE_SYNTECTIC_REPLY_PHONENR:
                             hasReply = true;
-                            mNotificationReplyAction.add(notificationSpec.getId(), ((long) notificationSpec.getId() << 4) + i + 1);
+                            mNotificationReplyAction.add(notificationSpec.getId(), action.handle);
                             break;
                         default:
                             break;

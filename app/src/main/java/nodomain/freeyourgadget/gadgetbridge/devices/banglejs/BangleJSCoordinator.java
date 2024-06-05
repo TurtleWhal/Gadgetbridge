@@ -1,5 +1,6 @@
-/*  Copyright (C) 2016-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Gordon Williams, José Rebelo
+/*  Copyright (C) 2019-2024 Andreas Shimokawa, Damien Gaignon, Daniel Dakhno,
+    Gabriele Monaco, Ganblejs, glemco, Gordon Williams, José Rebelo, LukasEdl,
+    Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.banglejs;
 
 import android.app.Activity;
@@ -42,9 +43,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
-import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.banglejs.BangleJSDeviceSupport;
 
@@ -107,13 +106,13 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots() {
-        return false;
+    public boolean supportsActivityTracks() {
+        return true;
     }
 
     @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
-        return false;
+    public boolean supportsScreenshots(final GBDevice device) {
+        return device.getModel() != null && device.getModel().equals("2");
     }
 
     @Override
@@ -145,6 +144,11 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public Class<? extends Activity> getAppsManagementActivity() {
         return BuildConfig.INTERNET_ACCESS ? AppsManagementActivity.class : null;
+    }
+
+    @Override
+    public boolean suggestUnbindBeforePair() {
+        return false;
     }
 
     @Override
@@ -182,6 +186,8 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
         settings.add(R.xml.devicesettings_banglejs_location);
 
         settings.add(R.xml.devicesettings_header_notifications);
+        settings.add(R.xml.devicesettings_send_app_notifications);
+        settings.add(R.xml.devicesettings_notification_wake_on_open);
         settings.add(R.xml.devicesettings_text_bitmaps);
         settings.add(R.xml.devicesettings_transliteration);
 

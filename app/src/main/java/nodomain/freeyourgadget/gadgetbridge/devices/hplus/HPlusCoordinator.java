@@ -1,5 +1,6 @@
-/*  Copyright (C) 2016-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, João Paulo Barraca, José Rebelo, Lesur Frederic
+/*  Copyright (C) 2016-2024 Andreas Shimokawa, Carsten Pfeiffer, Damien
+    Gaignon, Daniel Dakhno, Daniele Gobbetti, João Paulo Barraca, José Rebelo,
+    Lesur Frederic, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -14,14 +15,11 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.hplus;
 
-import android.app.Activity;
 import android.bluetooth.le.ScanFilter;
-import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.ParcelUuid;
 
 import org.slf4j.Logger;
@@ -41,16 +39,13 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.HPlusHealthActivitySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
-import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.hplus.HPlusSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
@@ -81,33 +76,13 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsCalendarEvents() {
-        return false;
-    }
-
-    @Override
     public boolean supportsRealtimeData() {
         return true;
     }
 
     @Override
-    public boolean supportsWeather() {
-        return false;
-    }
-
-    @Override
     public boolean supportsFindDevice() {
         return true;
-    }
-
-    @Override
-    public Class<? extends Activity> getPairingActivity() {
-        return null;
-    }
-
-    @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
-        return null;
     }
 
     @Override
@@ -126,18 +101,8 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots() {
-        return false;
-    }
-
-    @Override
     public int getAlarmSlotCount(GBDevice device) {
         return 3; // FIXME - check the real value
-    }
-
-    @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
-        return false;
     }
 
     @Override
@@ -148,16 +113,6 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public String getManufacturer() {
         return "Zeblaze";
-    }
-
-    @Override
-    public boolean supportsAppsManagement(final GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public Class<? extends Activity> getAppsManagementActivity() {
-        return null;
     }
 
     @Override
@@ -240,11 +195,11 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     public static byte getScreenTime(String address) {
-        return (byte) (prefs.getInt(HPlusConstants.PREF_HPLUS_SCREENTIME, 5) & 0xFF);
+        return (byte) (GBApplication.getDevicePrefs(address).getInt(HPlusConstants.PREF_HPLUS_SCREENTIME, 5) & 0xFF);
     }
 
     public static byte getAllDayHR(String address) {
-        boolean value = (prefs.getBoolean(HPlusConstants.PREF_HPLUS_ALLDAYHR, true));
+        boolean value = (GBApplication.getDevicePrefs(address).getBoolean(HPlusConstants.PREF_HPLUS_ALLDAYHR, true));
 
         if (value) {
             return HPlusConstants.ARG_HEARTRATE_ALLDAY_ON;
@@ -314,6 +269,7 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
         return new int[]{
                 //R.xml.devicesettings_wearlocation, // disabled, since it is never used in code
                 R.xml.devicesettings_timeformat,
+                R.xml.devicesettings_hplus,
                 R.xml.devicesettings_transliteration
         };
     }

@@ -1,5 +1,4 @@
-/*  Copyright (C) 2023 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices;
 
 import androidx.annotation.NonNull;
@@ -99,6 +98,44 @@ public abstract class AbstractTimeSampleProvider<T extends AbstractTimeSample> i
             return null;
         }
         return samples.get(0);
+    }
+
+    public T getLastSampleBefore(final long timestampTo) {
+        final Device dbDevice = DBHelper.findDevice(getDevice(), getSession());
+        if (dbDevice == null) {
+            // no device, no sample
+            return null;
+        }
+
+        final Property deviceIdSampleProp = getDeviceIdentifierSampleProperty();
+        final Property timestampSampleProp = getTimestampSampleProperty();
+        final List<T> samples = getSampleDao().queryBuilder()
+                .where(deviceIdSampleProp.eq(dbDevice.getId()),
+                        timestampSampleProp.le(timestampTo))
+                .orderDesc(getTimestampSampleProperty())
+                .limit(1)
+                .list();
+
+        return !samples.isEmpty() ? samples.get(0) : null;
+    }
+
+    public T getNextSampleAfter(final long timestampFrom) {
+        final Device dbDevice = DBHelper.findDevice(getDevice(), getSession());
+        if (dbDevice == null) {
+            // no device, no sample
+            return null;
+        }
+
+        final Property deviceIdSampleProp = getDeviceIdentifierSampleProperty();
+        final Property timestampSampleProp = getTimestampSampleProperty();
+        final List<T> samples = getSampleDao().queryBuilder()
+                .where(deviceIdSampleProp.eq(dbDevice.getId()),
+                        timestampSampleProp.ge(timestampFrom))
+                .orderAsc(getTimestampSampleProperty())
+                .limit(1)
+                .list();
+
+        return !samples.isEmpty() ? samples.get(0) : null;
     }
 
     @Nullable

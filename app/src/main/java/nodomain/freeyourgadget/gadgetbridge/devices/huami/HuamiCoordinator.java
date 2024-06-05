@@ -1,5 +1,5 @@
-/*  Copyright (C) 2016-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, José Rebelo, Nephiel
+/*  Copyright (C) 2017-2024 Andreas Shimokawa, Damien Gaignon, Daniel Dakhno,
+    Daniele Gobbetti, José Rebelo, NekoBox, Nephiel, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.huami;
 
 import android.app.Activity;
@@ -76,6 +76,11 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
         ParcelUuid mi2Service = new ParcelUuid(MiBandService.UUID_SERVICE_MIBAND2_SERVICE);
         ScanFilter filter = new ScanFilter.Builder().setServiceUuid(mi2Service).build();
         return Collections.singletonList(filter);
+    }
+
+    @Override
+    public boolean suggestUnbindBeforePair() {
+        return false;
     }
 
     @Override
@@ -521,12 +526,7 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsSmartWakeup(GBDevice device) {
+    public boolean supportsScreenshots(final GBDevice device) {
         return false;
     }
 

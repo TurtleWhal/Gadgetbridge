@@ -1,4 +1,4 @@
-/*  Copyright (C) 2021 José Rebelo
+/*  Copyright (C) 2021-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,11 +13,12 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.devicesettings;
 
 import android.content.Context;
 
+import androidx.activity.result.ActivityResultCaller;
 import androidx.annotation.NonNull;
 import androidx.preference.Preference;
 
@@ -27,7 +28,7 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
  * A device-specific preference handler, that allows for {@link nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator}s to register
  * their own preferences dynamically.
  */
-public interface DeviceSpecificSettingsHandler {
+public interface DeviceSpecificSettingsHandler extends ActivityResultCaller {
     /**
      * Finds a preference with the given key. Returns null if the preference is not found.
      *

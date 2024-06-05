@@ -1,5 +1,5 @@
-/*  Copyright (C) 2016-2020 0nse, Andreas Shimokawa, Carsten Pfeiffer,
-    Daniele Gobbetti, Sebastian Kranz
+/*  Copyright (C) 2016-2024 0nse, Andreas Shimokawa, Carsten Pfeiffer,
+    Damien Gaignon, Daniele Gobbetti, José Rebelo, Petr Vaněk, Sebastian Kranz
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
 
 import java.util.Calendar;
@@ -49,7 +49,7 @@ public class ActivityUser {
 
     private static final String defaultUserName = "gadgetbridge-user";
     public static final int defaultUserGender = GENDER_FEMALE;
-    public static final int defaultUserYearOfBirth = 0;
+    public static final int defaultUserYearOfBirth = 1970;
     public static final int defaultUserAge = 0;
     public static final int defaultUserHeightCm = 175;
     public static final int defaultUserWeightKg = 70;

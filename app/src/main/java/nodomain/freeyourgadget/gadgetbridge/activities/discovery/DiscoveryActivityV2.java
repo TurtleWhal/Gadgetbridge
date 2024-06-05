@@ -1,6 +1,4 @@
-/*  Copyright (C) 2015-2023 Andreas Shimokawa, boun, Carsten Pfeiffer, Daniel
-    Dakhno, Daniele Gobbetti, JohnnySun, jonnsoft, José Rebelo, Lem Dulfo, Taavi
-    Eomäe, Uwe Hermann
+/*  Copyright (C) 2023-2024 Andreas Böhler, Daniel Dakhno, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.discovery;
 
 import static nodomain.freeyourgadget.gadgetbridge.util.GB.toast;
@@ -613,6 +611,22 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
             }
         }
 
+        if (coordinator.suggestUnbindBeforePair() && deviceCandidate.isBonded()) {
+            new MaterialAlertDialogBuilder(getContext())
+                    .setTitle(R.string.unbind_before_pair_title)
+                    .setMessage(R.string.unbind_before_pair_message)
+                    .setIcon(R.drawable.ic_warning_gray)
+                    .setPositiveButton(R.string.ok, (dialog, whichButton) -> {
+                        startPair(deviceCandidate, coordinator);
+                    })
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        } else {
+            startPair(deviceCandidate, coordinator);
+        }
+    }
+
+    private void startPair(final GBDeviceCandidate deviceCandidate, final DeviceCoordinator coordinator) {
         final Class<? extends Activity> pairingActivity = coordinator.getPairingActivity();
         if (pairingActivity != null) {
             final Intent intent = new Intent(this, pairingActivity);
@@ -786,7 +800,6 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
 
     private void loadSettings() {
         final Prefs prefs = GBApplication.getPrefs();
-        deviceFoundProcessor.setIgnoreBonded(prefs.getBoolean("ignore_bonded_devices", true));
         deviceFoundProcessor.setDiscoverUnsupported(prefs.getBoolean("discover_unsupported_devices", false));
     }
 

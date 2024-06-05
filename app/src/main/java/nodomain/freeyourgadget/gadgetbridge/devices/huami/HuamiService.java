@@ -1,5 +1,4 @@
-/*  Copyright (C) 2016-2021 Andreas Shimokawa, Carsten Pfeiffer, JohnnySun,
-    José Rebelo, Uwe Hermann
+/*  Copyright (C) 2018-2024 Andreas Shimokawa, gsbhat, José Rebelo, NekoBox
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.huami;
 
 import java.util.HashMap;
@@ -222,26 +221,13 @@ public class HuamiService {
     public static final byte SUCCESS = 0x01;
     public static final byte COMMAND_ACTIVITY_DATA_START_DATE = 0x01;
     public static final byte COMMAND_ACTIVITY_DATA_TYPE_ACTIVTY = 0x01;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_MANUAL_HEART_RATE = 0x02;
     public static final byte COMMAND_ACTIVITY_DATA_XXX_DATE = 0x02; // issued on first connect, followd by COMMAND_XXXX_ACTIVITY_DATA instead of COMMAND_FETCH_DATA
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_PAI = 0x0d;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_STRESS_MANUAL = 0x12;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_STRESS_AUTOMATIC = 0x13;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_SPO2_NORMAL = 0x25;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_SPO2_SLEEP = 0x26;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_STATISTICS = 0x2c;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_TEMPERATURE = 0x2e;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_SLEEP_RESPIRATORY_RATE = 0x38;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_RESTING_HEART_RATE = 0x3a;
-    public static final byte COMMAND_ACTIVITY_DATA_TYPE_MAX_HEART_RATE = 0x3d;
 
     public static final byte COMMAND_FIRMWARE_INIT = 0x01; // to UUID_CHARACTERISTIC_FIRMWARE, followed by fw file size in bytes
     public static final byte COMMAND_FIRMWARE_START_DATA = 0x03; // to UUID_CHARACTERISTIC_FIRMWARE
     public static final byte COMMAND_FIRMWARE_UPDATE_SYNC = 0x00; // to UUID_CHARACTERISTIC_FIRMWARE
     public static final byte COMMAND_FIRMWARE_CHECKSUM = 0x04; // to UUID_CHARACTERISTIC_FIRMWARE
     public static final byte COMMAND_FIRMWARE_REBOOT = 0x05; // to UUID_CHARACTERISTIC_FIRMWARE
-
-    public static final byte[] RESPONSE_ACTIVITY_DATA_START_DATE_SUCCESS = new byte[] { RESPONSE, COMMAND_ACTIVITY_DATA_START_DATE, SUCCESS};
 
     public static final byte[] WEAR_LOCATION_LEFT_WRIST = new byte[] { 0x20, 0x00, 0x00, 0x02 };
     public static final byte[] WEAR_LOCATION_RIGHT_WRIST = new byte[] { 0x20, 0x00, 0x00, (byte) 0x82};

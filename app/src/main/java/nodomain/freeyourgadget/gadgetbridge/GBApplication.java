@@ -1,6 +1,8 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Martin, Matthieu Baerts, Normano64, odavo32nof, Pauli Salmenrinne,
-    Pavel Elagin, Petr Vaněk, Saul Nunez, Taavi Eomäe
+/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Damien Gaignon, Daniel Dakhno, Daniele Gobbetti, Davis Mosenkovs,
+    Dmitriy Bogdanov, Joel Beckmeyer, José Rebelo, Kornél Schmidt, Ludovic
+    Jozeau, Martin, Martin.JM, mvn23, Normano64, odavo32nof, Pauli Salmenrinne,
+    Pavel Elagin, Petr Vaněk, Saul Nunez, Taavi Eomäe, x29a
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +17,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge;
 
 import android.annotation.TargetApi;
@@ -122,7 +124,7 @@ public class GBApplication extends Application {
     private static SharedPreferences sharedPrefs;
     private static final String PREFS_VERSION = "shared_preferences_version";
     //if preferences have to be migrated, increment the following and add the migration logic in migratePrefs below; see http://stackoverflow.com/questions/16397848/how-can-i-migrate-android-preferences-with-a-new-version
-    private static final int CURRENT_PREFS_VERSION = 28;
+    private static final int CURRENT_PREFS_VERSION = 30;
 
     private static final LimitedQueue<Integer, String> mIDSenderLookup = new LimitedQueue<>(16);
     private static Prefs prefs;
@@ -244,7 +246,6 @@ public class GBApplication extends Application {
         loadAppsPebbleBlackList();
 
         PeriodicExporter.enablePeriodicExport(context);
-        TimeChangeReceiver.scheduleNextDstChange(context);
 
         if (isRunningMarshmallowOrLater()) {
             notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -1445,6 +1446,50 @@ public class GBApplication extends Application {
             }
         }
 
+        if (oldVersion < 29) {
+            // Migrate HPlus preferences to device-specific
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (Device dbDevice : activeDevices) {
+                    final DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
+                    if (deviceType == DeviceType.HPLUS) {
+                        final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+                        final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+
+                        deviceSharedPrefsEdit.putString("hplus_screentime", sharedPrefs.getString("hplus_screentime", "5"));
+                        deviceSharedPrefsEdit.putBoolean("hplus_alldayhr", sharedPrefs.getBoolean("hplus_alldayhr", true));
+                        deviceSharedPrefsEdit.apply();
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "error acquiring DB lock");
+            }
+        }
+
+        if (oldVersion < 30) {
+            // Migrate QHybrid preferences to device-specific
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (Device dbDevice : activeDevices) {
+                    final DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
+                    if (deviceType == DeviceType.FOSSILQHYBRID) {
+                        final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+                        final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+
+                        deviceSharedPrefsEdit.putInt("QHYBRID_TIME_OFFSET", sharedPrefs.getInt("QHYBRID_TIME_OFFSET", 0));
+                        deviceSharedPrefsEdit.putInt("QHYBRID_TIMEZONE_OFFSET", sharedPrefs.getInt("QHYBRID_TIMEZONE_OFFSET", 0));
+                        deviceSharedPrefsEdit.apply();
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "error acquiring DB lock");
+            }
+        }
+
         editor.putString(PREFS_VERSION, Integer.toString(CURRENT_PREFS_VERSION));
         editor.apply();
     }
@@ -1454,6 +1499,10 @@ public class GBApplication extends Application {
             return null;
         }
         return context.getSharedPreferences("devicesettings_" + deviceIdentifier, Context.MODE_PRIVATE);
+    }
+
+    public static Prefs getDevicePrefs(final String deviceIdentifier) {
+        return new Prefs(getDeviceSpecificSharedPrefs(deviceIdentifier));
     }
 
     public static void deleteDeviceSpecificSharedPrefs(String deviceIdentifier) {

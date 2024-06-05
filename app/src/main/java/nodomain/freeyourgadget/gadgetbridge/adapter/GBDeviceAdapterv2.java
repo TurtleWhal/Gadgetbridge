@@ -1,5 +1,7 @@
-/*  Copyright (C) 2015-2020 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, José Rebelo, Lem Dulfo, maxirnilian
+/*  Copyright (C) 2016-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+    Pfeiffer, Damien Gaignon, Daniel Dakhno, Daniele Gobbetti, Davis Mosenkovs,
+    fparri, José Rebelo, mamucho, maxirnilian, mkusnierz, Petr Vaněk, Taavi
+    Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -14,7 +16,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.adapter;
 
 import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_CONNECT;
@@ -83,12 +85,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -121,6 +126,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.FormatUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
+import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
 /**
@@ -252,6 +258,16 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         holder.root.setBackgroundColor(Color.argb(alpha, 0, 0, 0));
     }
 
+    void handleDeviceConnect(GBDevice device){
+        if(!device.getDeviceCoordinator().isConnectable()){
+            device.setState(GBDevice.State.WAITING_FOR_SCAN);
+            device.sendDeviceUpdateIntent(GBApplication.getContext(), GBDevice.DeviceUpdateSubject.CONNECTION_STATE);
+            return;
+        }
+
+        GBApplication.deviceService(device).connect();
+    }
+
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, final int position) {
         final GBDevice device = devicesListWithFolders.get(position);
@@ -292,7 +308,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         createDynamicShortcut(device);
                     }
-                    GBApplication.deviceService(device).connect();
+                    handleDeviceConnect(device);
                 }
             }
         });
@@ -437,7 +453,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
 
 
         //take screenshot
-        holder.takeScreenshotView.setVisibility((device.isInitialized() && coordinator.supportsScreenshots()) ? View.VISIBLE : View.GONE);
+        holder.takeScreenshotView.setVisibility((device.isInitialized() && coordinator.supportsScreenshots(device)) ? View.VISIBLE : View.GONE);
         holder.takeScreenshotView.setOnClickListener(new View.OnClickListener()
 
                                                      {
@@ -827,9 +843,8 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
 
     private void showDeviceSubmenu(final View v, final GBDevice device) {
         boolean deviceConnected = device.getState() != GBDevice.State.NOT_CONNECTED;
-
         PopupMenu menu = new PopupMenu(v.getContext(), v);
-        menu.inflate(R.menu.activity_controlcenterv2_device_submenu);
+        menu.inflate(R.menu.fragment_devices_device_submenu);
 
         final boolean detailsShown = expandedDeviceAddress.equals(device.getAddress());
         boolean showInfoIcon = device.hasDeviceInfos() && !device.isBusy();
@@ -847,7 +862,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                     case R.id.controlcenter_device_submenu_connect:
                         if (device.getState() != GBDevice.State.CONNECTED) {
                             showTransientSnackbar(R.string.controlcenter_snackbar_connecting);
-                            GBApplication.deviceService(device).connect();
+                            handleDeviceConnect(device);
                         }
                         return true;
                     case R.id.controlcenter_device_submenu_disconnect:
@@ -855,12 +870,10 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                             showTransientSnackbar(R.string.controlcenter_snackbar_disconnecting);
                             GBApplication.deviceService(device).disconnect();
                         }
+                        removeFromLastDeviceAddressesPref(device);
                         return true;
                     case R.id.controlcenter_device_submenu_set_alias:
                         showSetAliasDialog(device);
-                        return true;
-                    case R.id.controlcenter_device_submenu_set_preferences:
-                        setAppPreferences(device);
                         return true;
                     case R.id.controlcenter_device_submenu_remove:
                         showRemoveDeviceDialog(device);
@@ -1059,6 +1072,15 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             }
         }
         return false;
+    }
+
+    private void removeFromLastDeviceAddressesPref(GBDevice device) {
+        Set<String> lastDeviceAddresses = GBApplication.getPrefs().getStringSet(GBPrefs.LAST_DEVICE_ADDRESSES, Collections.emptySet());
+        if (lastDeviceAddresses.contains(device.getAddress())) {
+            lastDeviceAddresses = new HashSet<String>(lastDeviceAddresses);
+            lastDeviceAddresses.remove(device.getAddress());
+            GBApplication.getPrefs().getPreferences().edit().putStringSet(GBPrefs.LAST_DEVICE_ADDRESSES, lastDeviceAddresses).apply();
+        }
     }
 
     private void setAppPreferences(GBDevice device) {
@@ -1294,6 +1316,13 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
     }
 
     private void setActivityCard(ViewHolder holder, final GBDevice device, long[] dailyTotals) {
+        boolean showActivityCard = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREFS_ACTIVITY_IN_DEVICE_CARD, true);
+        holder.cardViewActivityCardLayout.setVisibility(showActivityCard ? View.VISIBLE : View.GONE);
+
+        if (!showActivityCard) {
+            return;
+        }
+
         int steps = (int) dailyTotals[0];
         int sleep = (int) dailyTotals[1];
         ActivityUser activityUser = new ActivityUser();
@@ -1314,8 +1343,6 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         setUpChart(holder.SleepTimeChart);
         setChartsData(holder.SleepTimeChart, sleep, sleepGoalMinutes, context.getString(R.string.prefs_activity_in_device_card_sleep_title), String.format("%1s", getHM(sleep)), context);
 
-        boolean showActivityCard = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREFS_ACTIVITY_IN_DEVICE_CARD, true);
-        holder.cardViewActivityCardLayout.setVisibility(showActivityCard ? View.VISIBLE : View.GONE);
 
         boolean showActivitySteps = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREFS_ACTIVITY_IN_DEVICE_CARD_STEPS, true);
         boolean showActivitySleep = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREFS_ACTIVITY_IN_DEVICE_CARD_SLEEP, true);

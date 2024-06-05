@@ -1,6 +1,6 @@
-/*  Copyright (C) 2015-2021 Andreas Böhler, Andreas Shimokawa, Carsten
-    Pfeiffer, Cre3per, Daniel Dakhno, Daniele Gobbetti, Sergey Trofimov, Taavi
-    Eomäe, Uwe Hermann
+/*  Copyright (C) 2015-2024 Andreas Böhler, Andreas Shimokawa, Carsten
+    Pfeiffer, Cre3per, Daniel Dakhno, Daniele Gobbetti, Gordon Williams, José
+    Rebelo, Sergey Trofimov, Taavi Eomäe, Uwe Hermann, Yoran Vulker
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +15,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.btle;
 
 import android.bluetooth.BluetoothAdapter;
@@ -81,6 +81,7 @@ public final class BtLEQueue {
     private final InternalGattCallback internalGattCallback;
     private final InternalGattServerCallback internalGattServerCallback;
     private boolean mAutoReconnect;
+    private boolean scanReconnect;
     private boolean mImplicitGattCallbackModify = true;
     private boolean mSendWriteRequestResponse = false;
 
@@ -218,6 +219,10 @@ public final class BtLEQueue {
         mAutoReconnect = enable;
     }
 
+    public void setScanReconnect(boolean enable){
+        this.scanReconnect = enable;
+    }
+
     public void setImplicitGattCallbackModify(final boolean enable) {
         mImplicitGattCallbackModify = enable;
     }
@@ -227,7 +232,12 @@ public final class BtLEQueue {
     }
 
     protected boolean isConnected() {
-        return mGbDevice.isConnected();
+        if (mGbDevice.isConnected()) {
+            return true;
+        }
+
+        LOG.debug("isConnected(): current state = {}", mGbDevice.getState());
+        return false;
     }
 
     /**
@@ -285,11 +295,12 @@ public final class BtLEQueue {
         return result;
     }
 
-    private void setDeviceConnectionState(State newState) {
-        LOG.debug("new device connection state: " + newState);
-
-        mGbDevice.setState(newState);
-        mGbDevice.sendDeviceUpdateIntent(mContext, GBDevice.DeviceUpdateSubject.CONNECTION_STATE);
+    private void setDeviceConnectionState(final State newState) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            LOG.debug("new device connection state: " + newState);
+            mGbDevice.setState(newState);
+            mGbDevice.sendDeviceUpdateIntent(mContext, GBDevice.DeviceUpdateSubject.CONNECTION_STATE);
+        });
     }
 
     public void disconnect() {
@@ -349,6 +360,12 @@ public final class BtLEQueue {
      */
     private boolean maybeReconnect() {
         if (mAutoReconnect && mBluetoothGatt != null) {
+            if(scanReconnect){
+                LOG.info("Waiting for BLE scan before attempting reconnection...");
+                setDeviceConnectionState(State.WAITING_FOR_SCAN);
+                return true;
+            }
+
             LOG.info("Enabling automatic ble reconnect...");
             boolean result = mBluetoothGatt.connect();
             mPauseTransaction = false;
@@ -583,7 +600,9 @@ public final class BtLEQueue {
                 getCallbackToUse().onMtuChanged(gatt, mtu, status);
             }
 
-            mWaitForActionResultLatch.countDown();
+            if (mWaitForActionResultLatch != null) {
+                mWaitForActionResultLatch.countDown();
+            }
         }
 
 

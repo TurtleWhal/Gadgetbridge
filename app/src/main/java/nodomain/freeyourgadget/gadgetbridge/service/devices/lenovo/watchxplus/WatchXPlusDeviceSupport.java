@@ -1,6 +1,5 @@
-/*  Copyright (C) 2018-2021 Andreas Böhler, Andreas Shimokawa, Carsten
-    Pfeiffer, Daniele Gobbetti, mamucho, maxirnilian, mkusnierz, Sebastian Kranz,
-    Taavi Eomäe
+/*  Copyright (C) 2019-2024 Andreas Böhler, Andreas Shimokawa, Arjan
+    Schrijver, Damien Gaignon, mamucho, mkusnierz, Taavi Eomäe
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +14,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.lenovo.watchxplus;
 
 import android.bluetooth.BluetoothGatt;
@@ -1220,7 +1219,8 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(WeatherSpec weatherSpec) {
+    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+        WeatherSpec weatherSpec = weatherSpecs.get(0);
         try {
             TransactionBuilder builder = performInitialized("setWeather");
             int currentTemp;

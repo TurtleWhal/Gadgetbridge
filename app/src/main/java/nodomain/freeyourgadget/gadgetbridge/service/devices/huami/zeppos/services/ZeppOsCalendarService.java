@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services;
 
 import org.slf4j.Logger;
@@ -27,7 +27,7 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePref
 import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.Huami2021Support;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.AbstractZeppOsService;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
@@ -49,18 +49,13 @@ public class ZeppOsCalendarService extends AbstractZeppOsService {
 
     private int version = -1;
 
-    public ZeppOsCalendarService(final Huami2021Support support) {
-        super(support);
+    public ZeppOsCalendarService(final ZeppOsSupport support) {
+        super(support, false);
     }
 
     @Override
     public short getEndpoint() {
         return ENDPOINT;
-    }
-
-    @Override
-    public boolean isEncrypted() {
-        return false;
     }
 
     @Override
@@ -148,10 +143,12 @@ public class ZeppOsCalendarService extends AbstractZeppOsService {
         buf.putInt(calendarEventSpec.timestamp + calendarEventSpec.durationInSeconds);
 
         // Remind
-        buf.put((byte) 0x00); // ?
-        buf.put((byte) 0x00); // ?
-        buf.put((byte) 0x00); // ?
-        buf.put((byte) 0x00); // ?
+        if (calendarEventSpec.reminders != null && !calendarEventSpec.reminders.isEmpty()) {
+            buf.putInt((int) (calendarEventSpec.reminders.get(0) / 1000L));
+        } else {
+            buf.putInt(0);
+        }
+
         // Repeat
         buf.put((byte) 0x00); // ?
         buf.put((byte) 0x00); // ?
@@ -236,7 +233,10 @@ public class ZeppOsCalendarService extends AbstractZeppOsService {
             final int endTime = BLETypeConversions.toUint32(payload, i);
             i += 4;
 
-            // ? 00 00 00 00 00 00 00 00 ff ff ff ff
+            final int reminderTime = BLETypeConversions.toUint32(payload, i);
+            i += 4;
+
+            // ? 00 00 00 00 ff ff ff ff
             i += 12;
 
             boolean allDay = (payload[i] == 0x01);

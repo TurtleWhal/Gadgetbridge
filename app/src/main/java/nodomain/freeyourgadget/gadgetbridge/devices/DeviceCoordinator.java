@@ -1,6 +1,7 @@
-/*  Copyright (C) 2015-2021 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Dmitry Markin, JohnnySun, José Rebelo, Matthieu Baerts, Nephiel,
-    Uwe Hermann
+/*  Copyright (C) 2015-2024 akasaka / Genjitsu Labs, Alicia Hormann, Andreas
+    Böhler, Andreas Shimokawa, Arjan Schrijver, Carsten Pfeiffer, Damien Gaignon,
+    Daniel Dakhno, Daniele Gobbetti, Dmitry Markin, JohnnySun, José Rebelo,
+    Matthieu Baerts, Nephiel, Petr Vaněk, Uwe Hermann
 
     This file is part of Gadgetbridge.
 
@@ -15,7 +16,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices;
 
 import android.app.Activity;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
@@ -35,10 +37,12 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
 import nodomain.freeyourgadget.gadgetbridge.GBException;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.widgets.WidgetManager;
+import nodomain.freeyourgadget.gadgetbridge.entities.CyclingSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
@@ -53,8 +57,10 @@ import nodomain.freeyourgadget.gadgetbridge.model.SleepRespiratoryRateSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
+import nodomain.freeyourgadget.gadgetbridge.model.TimeSample;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.ServiceDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.SleepAsAndroidSender;
 
 /**
  * This interface is implemented at least once for every supported gadget device.
@@ -95,7 +101,7 @@ public interface DeviceCoordinator {
 
     enum ConnectionType{
         BLE(false, true),
-        BL_CLASSIC(true, false),
+        BT_CLASSIC(true, false),
         BOTH(true, true)
         ;
         boolean usesBluetoothClassic, usesBluetoothLE;
@@ -120,6 +126,14 @@ public interface DeviceCoordinator {
      * @return ConnectionType
      */
     ConnectionType getConnectionType();
+
+    /**
+     * Returns false is the Device is not connectable,
+     * only scannable, like beacons
+     *
+     * @return boolean
+     */
+    boolean isConnectable();
 
     /**
      * Checks whether this coordinator handles the given candidate.
@@ -178,6 +192,15 @@ public interface DeviceCoordinator {
     boolean supportsActivityTracking();
 
     /**
+     * Returns true if cycling data is supported by the device
+     * (with this coordinator).
+     * This enables the ChartsActivity.
+     *
+     * @return
+     */
+    boolean supportsCyclingData();
+
+    /**
      * Indicates whether the device supports recording dedicated activity tracks, like
      * walking, hiking, running, swimming, etc. and retrieving the recorded
      * data. This is different from the constant activity tracking since the tracks are
@@ -191,11 +214,22 @@ public interface DeviceCoordinator {
      */
     boolean supportsStressMeasurement();
 
+    boolean supportsSleepMeasurement();
+    boolean supportsStepCounter();
+    boolean supportsSpeedzones();
+    boolean supportsActivityTabs();
+
+    /**
+     * Returns true if measurement and fetching of body temperature is supported by the device
+     * (with this coordinator).
+     */
+    boolean supportsTemperatureMeasurement();
+
     /**
      * Returns true if SpO2 measurement and fetching is supported by the device
      * (with this coordinator).
      */
-    boolean supportsSpo2();
+    boolean supportsSpo2(GBDevice device);
 
     /**
      * Returns true if heart rate stats (max, resting, manual) measurement and fetching is supported
@@ -265,6 +299,11 @@ public interface DeviceCoordinator {
     TimeSampleProvider<? extends Spo2Sample> getSpo2SampleProvider(GBDevice device, DaoSession session);
 
     /**
+     * Returns the sample provider for Cycling data, for the device being supported.
+     */
+    TimeSampleProvider<CyclingSample> getCyclingSampleProvider(GBDevice device, DaoSession session);
+
+    /**
      * Returns the sample provider for max HR data, for the device being supported.
      */
     TimeSampleProvider<? extends HeartRateSample> getHeartRateMaxSampleProvider(GBDevice device, DaoSession session);
@@ -319,7 +358,7 @@ public interface DeviceCoordinator {
      *
      * @return
      */
-    boolean supportsScreenshots();
+    boolean supportsScreenshots(GBDevice device);
 
     /**
      * Returns the number of alarms this device/coordinator supports
@@ -331,16 +370,41 @@ public interface DeviceCoordinator {
     int getAlarmSlotCount(GBDevice device);
 
     /**
-     * Returns true if this device/coordinator supports alarms with smart wakeup
-     * @return
+     * Returns true if this device/coordinator supports an alarm with smart wakeup for the current position
+     * @param alarmPosition Position of the alarm
      */
-    boolean supportsSmartWakeup(GBDevice device);
+    boolean supportsSmartWakeup(GBDevice device, int alarmPosition);
+
+    /**
+     * Returns true if the smart alarm at the specified position supports setting an interval for this device/coordinator
+     * @param alarmPosition Position of the alarm
+     */
+    boolean supportsSmartWakeupInterval(GBDevice device, int alarmPosition);
+
+    /**
+     * Returns true if the alarm at the specified position *must* be a smart alarm for this device/coordinator
+     * @param alarmPosition Position of the alarm
+     * @return True if it must be a smart alarm, false otherwise
+     */
+    boolean forcedSmartWakeup(GBDevice device, int alarmPosition);
 
     /**
      * Returns true if this device/coordinator supports alarm snoozing
      * @return
      */
     boolean supportsAlarmSnoozing();
+
+    /**
+     * Returns true if this device/coordinator supports alarm titles
+     * @return
+     */
+    boolean supportsAlarmTitle(GBDevice device);
+
+    /**
+     * Returns the character limit for the alarm title, negative if no limit.
+     * @return
+     */
+    int getAlarmTitleLimit(GBDevice device);
 
     /**
      * Returns true if this device/coordinator supports alarm descriptions
@@ -395,6 +459,11 @@ public interface DeviceCoordinator {
     File getAppCacheDir() throws IOException;
 
     /**
+     * Returns the dedicated writable export directory for this device.
+     */
+    File getWritableExportDirectory(GBDevice device) throws IOException;
+
+    /**
      * Returns a String containing the device app sort order filename.
      */
     String getAppCacheSortFilename();
@@ -418,6 +487,12 @@ public interface DeviceCoordinator {
      * Returns how/if the given device should be bonded before connecting to it.
      */
     int getBondingStyle();
+
+    /**
+     * Whether it is recommended to unbind the device before pairing due to compatibility issues. Returns false
+     * if the device is known to pair without issues even when already bound in Android bluetooth settings.
+     */
+    boolean suggestUnbindBeforePair();
 
     /**
      * Returns true if this device is in an experimental state / not tested.
@@ -458,6 +533,11 @@ public interface DeviceCoordinator {
      * like artist, title, album, play state etc.
      */
     boolean supportsMusicInfo();
+
+    /**
+     * Indicates whether the device supports features required by Sleep As Android
+     */
+    boolean supportsSleepAsAndroid();
 
     /**
      * Indicates the maximum reminder message length.
@@ -518,18 +598,17 @@ public interface DeviceCoordinator {
     boolean supportsUnicodeEmojis();
 
     /**
+     * Returns the set of supported sleep as Android features
+      * @return Set
+     */
+    Set<SleepAsAndroidFeature> getSleepAsAndroidFeatures();
+
+    /**
      * Returns device specific settings related to connection
      *
      * @return int[]
      */
     int[] getSupportedDeviceSpecificConnectionSettings();
-
-    /**
-     * Returns device specific settings related to the application itself
-     * charts settings and so on
-     * @return int[]
-     */
-    int[] getSupportedDeviceSpecificApplicationSettings();
 
     /**
      * Returns device specific settings related to the Auth key
@@ -539,8 +618,18 @@ public interface DeviceCoordinator {
 
     /**
      * Indicates which device specific settings the device supports (not per device type or family, but unique per device).
+     *
+     * @deprecated use getDeviceSpecificSettings
      */
+    @Deprecated
     int[] getSupportedDeviceSpecificSettings(GBDevice device);
+
+    /**
+     * Returns the device-specific settings supported by this specific device. See
+     * {@link DeviceSpecificSettings} for more information
+     */
+    @Nullable
+    DeviceSpecificSettings getDeviceSpecificSettings(GBDevice device);
 
     /**
      * Returns the {@link DeviceSpecificSettingsCustomizer}, allowing for the customization of the devices specific settings screen.

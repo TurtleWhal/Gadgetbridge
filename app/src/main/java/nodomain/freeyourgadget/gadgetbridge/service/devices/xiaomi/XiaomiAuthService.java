@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 Andreas Shimokawa, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi;
 
 import android.content.SharedPreferences;
@@ -49,20 +49,16 @@ import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.proto.xiaomi.XiaomiProto;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.AbstractXiaomiService;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class XiaomiAuthService extends AbstractXiaomiService {
     private static final Logger LOG = LoggerFactory.getLogger(XiaomiAuthService.class);
 
-    public static final byte[] PAYLOAD_HEADER_AUTH = new byte[]{0, 0, 2, 2};
 
     public static final int COMMAND_TYPE = 1;
 
     public static final int CMD_SEND_USERID = 5;
-
     public static final int CMD_NONCE = 26;
     public static final int CMD_AUTH = 27;
 
@@ -83,20 +79,16 @@ public class XiaomiAuthService extends AbstractXiaomiService {
         return encryptionInitialized;
     }
 
-    protected void startEncryptedHandshake(final TransactionBuilder builder) {
+    protected void startEncryptedHandshake() {
         encryptionInitialized = false;
-
-        builder.add(new SetDeviceStateAction(getSupport().getDevice(), GBDevice.State.AUTHENTICATING, getSupport().getContext()));
 
         System.arraycopy(getSecretKey(getSupport().getDevice()), 0, secretKey, 0, 16);
         new SecureRandom().nextBytes(nonce);
 
-        getSupport().sendCommand(builder, buildNonceCommand(nonce));
+        getSupport().sendCommand("auth step 1", buildNonceCommand(nonce));
     }
 
-    protected void startClearTextHandshake(final TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getSupport().getDevice(), GBDevice.State.AUTHENTICATING, getSupport().getContext()));
-
+    protected void startClearTextHandshake() {
         final XiaomiProto.Auth auth = XiaomiProto.Auth.newBuilder()
                 .setUserId(getUserId(getSupport().getDevice()))
                 .build();
@@ -107,7 +99,7 @@ public class XiaomiAuthService extends AbstractXiaomiService {
                 .setAuth(auth)
                 .build();
 
-        getSupport().sendCommand(builder, command);
+        getSupport().sendCommand("auth step 1", command);
     }
 
     @Override
@@ -121,33 +113,34 @@ public class XiaomiAuthService extends AbstractXiaomiService {
                 LOG.debug("Got watch nonce");
 
                 // Watch nonce
-                final XiaomiProto.Command reply = handleWatchNonce(cmd.getAuth().getWatchNonce());
-                if (reply == null) {
-                    getSupport().disconnect();
+                final XiaomiProto.Command command = handleWatchNonce(cmd.getAuth().getWatchNonce());
+
+                if (command == null) {
+                    LOG.error("handleWatchNonce returned null, disconnecting");
+                    final GBDevice device = getSupport().getDevice();
+
+                    if (device != null) {
+                        GBApplication.deviceService(device).disconnect();
+                    }
+
                     return;
                 }
 
-                final TransactionBuilder builder = getSupport().createTransactionBuilder("auth step 2");
-                // TODO use sendCommand
-                builder.write(
-                        getSupport().getCharacteristic(getSupport().characteristicCommandWrite.getCharacteristicUUID()),
-                        ArrayUtils.addAll(PAYLOAD_HEADER_AUTH, reply.toByteArray())
-                );
-                builder.queue(getSupport().getQueue());
+                getSupport().sendCommand("auth step 2", command);
                 break;
             }
 
             case CMD_AUTH:
             case CMD_SEND_USERID: {
                 if (cmd.getSubtype() == CMD_AUTH || cmd.getAuth().getStatus() == 1) {
-                    LOG.info("Authenticated!");
-
                     encryptionInitialized = cmd.getSubtype() == CMD_AUTH;
 
-                    final TransactionBuilder builder = getSupport().createTransactionBuilder("phase 2 initialize");
-                    builder.add(new SetDeviceStateAction(getSupport().getDevice(), GBDevice.State.INITIALIZED, getSupport().getContext()));
-                    getSupport().phase2Initialize();
-                    builder.queue(getSupport().getQueue());
+                    LOG.info("Authenticated, further communications are {}", encryptionInitialized ? "encrypted" : "in plaintext");
+
+                    getSupport().getDevice().setState(GBDevice.State.INITIALIZED);
+                    getSupport().getDevice().sendDeviceUpdateIntent(getSupport().getContext(), GBDevice.DeviceUpdateSubject.DEVICE_STATE);
+
+                    getSupport().onAuthSuccess();
                 } else {
                     LOG.warn("could not authenticate");
                 }
@@ -158,12 +151,11 @@ public class XiaomiAuthService extends AbstractXiaomiService {
         }
     }
 
-    public byte[] encrypt(final byte[] arr, final short i) {
+    public byte[] encrypt(final byte[] arr, final int i) {
         final ByteBuffer packetNonce = ByteBuffer.allocate(12).order(ByteOrder.LITTLE_ENDIAN)
                 .put(encryptionNonce)
                 .putInt(0)
-                .putShort(i) // TODO what happens once this overflows?
-                .putShort((short) 0);
+                .putInt(i);
 
         try {
             return encrypt(encryptionKey, packetNonce.array(), arr);
@@ -217,7 +209,7 @@ public class XiaomiAuthService extends AbstractXiaomiService {
                 .build();
 
         final byte[] encryptedNonces = hmacSHA256(encryptionKey, ArrayUtils.addAll(nonce, watchNonce.getNonce().toByteArray()));
-        final byte[] encryptedDeviceInfo = encrypt(authDeviceInfo.toByteArray(), (short) 0);
+        final byte[] encryptedDeviceInfo = encrypt(authDeviceInfo.toByteArray(), 0);
         final XiaomiProto.AuthStep3 authStep3 = XiaomiProto.AuthStep3.newBuilder()
                 .setEncryptedNonces(ByteString.copyFrom(encryptedNonces))
                 .setEncryptedDeviceInfo(ByteString.copyFrom(encryptedDeviceInfo))

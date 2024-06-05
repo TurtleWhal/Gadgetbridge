@@ -1,4 +1,4 @@
-/*  Copyright (C) 2020 Andreas Shimokawa
+/*  Copyright (C) 2020-2024 Andreas Shimokawa
 
     This file is part of Gadgetbridge.
 
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 
 package nodomain.freeyourgadget.gadgetbridge.externalevents;
 
@@ -22,6 +22,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.Collections;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
@@ -38,9 +41,10 @@ public class TinyWeatherForecastGermanyReceiver extends BroadcastReceiver {
                 try {
                     WeatherSpec weatherSpec = bundle.getParcelable("WeatherSpec");
                     if (weatherSpec != null) {
-                        Weather.getInstance().setWeatherSpec(weatherSpec);
+                        ArrayList<WeatherSpec> weatherSpecs = new ArrayList<>(Collections.singletonList(weatherSpec));
                         weatherSpec.timestamp = (int) (System.currentTimeMillis() / 1000);
-                        GBApplication.deviceService().onSendWeather(weatherSpec);
+                        Weather.getInstance().setWeatherSpec(weatherSpecs);
+                        GBApplication.deviceService().onSendWeather(weatherSpecs);
                     }
                 } catch (Exception e) {
                     GB.toast("Gadgetbridge received broken or incompatible weather data", Toast.LENGTH_SHORT, GB.ERROR, e);

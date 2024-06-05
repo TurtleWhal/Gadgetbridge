@@ -1,5 +1,172 @@
 ### Changelog
 
+#### Next release (WIP)
+
+* Experimental support for Amazfit Bip 5 Unity
+* Experimental support for Redmi Watch 4
+* Initial support for cycling sensor
+* Initial support for more Garmin watches
+* Initial support for Huawei Watch Fit 2, Watch Fit 3, Watch 4 Pro
+* Initial support for Soundcore Liberty 3 Pro
+* Introduce new Dashboard view
+* AsteroidOS: Added icons to the notifications
+* Bangle.js: Add screenshot support
+* Bangle.js: Add setting to disable notifications
+* Bangle.js: Allow wake phone when opening notification response from watch
+* Bangle.js: Fix activity intensity normalization
+* Bangle.js: Fix message reply
+* Fossil/Skagen Hybrids: Update device settings to new structure
+* Galaxy Buds Live: Update device settings to new structure
+* Galaxy Buds 2: Fix recognition of some versions
+* HPlus: Migrate global preferences to device-specific
+* Huami: Fix reminder message encoding
+* Huawei: Add cycling workout type
+* Huawei: Add enable HeartRate and SpO2 force option
+* Huawei: Add huawei account support (pair without resetting watch)
+* Huawei: Add support for workout calories and cycling power
+* Huawei: Add remote camera shutter
+* Huawei: Ask pincode only on first connection
+* Huawei: Enable sleep detection
+* Huawei: File upload and watchface management
+* Huawei: Fix force DND support
+* Huawei: Fix long notification
+* Huawei: Fix TimeZone offset calculation
+* Huawei: Improve connection and reconnection
+* Huawei: Improve music controls
+* Huawei: Improve notification icons
+* Huawei: Improve workout parsing
+* Huawei: Rework settings menu with sub-screens
+* Huawei: Send user info to device
+* Huawei: Support sending GPS to band
+* Huawei Watch GT4: Add HR and SpO support
+* Huawei Watch Ultimate: Add HR and SpO support
+* Intent API: Added debug end call
+* Mi Band 6: Add menu items for NFC shortcuts
+* Nothing CMF Watch Pro: Add weather support
+* Nothing Earbuds: Add adjustable delay for auto-pick-up of calls
+* Nothing Earbuds: Add option to auto-reply to incoming phone calls
+* Nothing Earbuds: Add option to read aloud incoming notifications
+* Xiaomi Smart Band 8 Active: Fix discovery
+* Xiaomi: Add swimming workout type
+* Xiaomi: Allow transliteration
+* Xiaomi: Fix barometer
+* Xiaomi: Fix notification for apps in work profile
+* Xiaomi: Fix some crashes
+* Xiaomi: Improve reconnection
+* Xiaomi: Improve sleep parsing
+* Xiaomi: Improve weather support, add multiple locations
+* Xiaomi: Sync calendar event reminders
+* Zepp OS: Add support for Sleep as Android
+* Zepp OS: Sync calendar event reminders
+* Add Armenian and Serbian transliterators
+* Add GENERIC_PHONE and GENERIC_CALENDAR NotificationType handling
+* Add support for scannable-only devices
+* Fix crash when connecting on some phones
+* Fix crash when enabling bluetooth
+* Fix receiving shared gpx files
+* Format pace as mm:ss
+* Set navbar color to match theme
+* Simplify pairing of bonded and companion devices
+* Recognize "Delta Chat" as generic chat
+* Remove deprecated general auto-reconnect preference
+* Refactor location service
+* Fix text cutoff on all checkbox preferences
+
+#### 0.80.0
+* Initial support for Amazfit Bip 3
+* Initial support for Huawei Band 8
+* Initial support for Huawei Watch GT 4
+* Initial support for Huawei Watch Ultimate
+* Initial support for Sony LinkBuds
+* Initial support for Xiaomi Smart Band 8 Active
+* Bangle.js: Allow saving files on phone from watch
+* Bangle.js: Fix crash when file save is cancelled
+* Bangle.js: Set filename on save file dialogs
+* Bangle.js: Improve communication stability
+* Bangle.js: Sync activity tracks
+* Bangle.js: remove unwanted charaters from calendar events
+* Femometer Vinca II: Add temperature charts
+* Fossil/Skagen Hybrids: Remove activity fetching toasts and add finished signal
+* Fossil/Skagen Hybrids: Use steps instead of calories for activity intensity
+* Fossil/Skagen Hybrids: Mark device busy and show transfer notification while syncing
+* Huami/Zepp OS: Fix activity sync getting stuck sometimes
+* Mi Band 1/2: Fix vibration settings preference screens
+* Huawei: Add cycling workout type 
+* Huawei: Add smart wakeup interval
+* Pebble: Fix pairing with LE counterpart
+* Xiaomi Watch S1 Pro: Add temperature charts
+* Xiaomi: Fix sleep sync failing when sleep stages are not found
+* Xiaomi: Improve activity sync
+* Nothing CMF Watch Pro: Fix music playback status
+* Allow for device settings sub-screens
+* Device connection: Add support for scan before BLE connection
+* Misc UI improvements (alarms, chart settings)
+
+#### 0.79.1
+* Initial support for Huawei Watch Fit
+* Initial support for Xiaomi Redmi Watch 3
+* Fossil/Skagen Hybrids: Fix crash on multi-byte unicode characters in menu
+* Huawei: Add weather support
+* Bangle.js: Support higher MTU
+* Test Device: Add fake features and data
+* Periodically (around every 2 days) synchronize time on connected devices
+* Set alarm as used and enabled if time has changed
+
+#### 0.79.0
+* Initial support for Honor Magic Watch 2
+* Initial support for Mijia MHO-C303
+* Initial support for Nothing CMF Watch Pro
+* Initial support for Sony WI-SP600N
+* Experimental support for Redmi Watch 2
+* Experimental support for Xiaomi Smart Band 8 Pro
+* Experimental support for Xiaomi Watch S1 Pro
+* Experimental support for Xiaomi Watch S1
+* Experimental support for Xiaomi Watch S3
+* Galaxy Buds2 Pro: Fix recognition of some versions
+* Huawei Watch GT 2: Fix pairing
+* Redmi Smart Band Pro: Fix password digits
+* Pebble: Fix app configuration page
+* Pebble 2: Fix pairing issue
+* PineTime: Fix weather forecast on InfiniTime's new simple weather
+* Xiaomi: Fix sleep sometimes extending past the wakeup time
+* Xiaomi: Request battery level and charging state periodically
+* Xiaomi: Fix sleep stage parsing for some devices
+* Zepp OS: Improve device discovery
+* Zepp OS: Fix weather not working on some devices
+* Zepp OS: Prevent crash when installing large firmware updates
+* Fix sport activity summary group order
+* Fix reconnection to devices failing occasionally
+
+#### 0.78.0
+* Initial support for Honor Band 3,4,5,6
+* Initial support for Huawei Band 4, 4 Pro, 6, 7, 3e, 4e
+* Initial support for Huawei Talk Band B6
+* Initial support for Huawei Watch GT, GT 2
+* Initial support for Mijia LYWSD03MMC
+* Initial support for Nothing Ear (2)
+* Initial support for Nothing Ear (Stick)
+* Experimental support for Honor Band 7
+* Experimental support for Redmi Watch 2 Lite
+* Experimental support for Redmi Smart Band Pro
+* Casio GBX100: Add support for snooze alarm
+* Fossil/Skagen Hybrids: Update navigationApp to 1.1
+* Huami: Fetch SpO2 on devices that support it
+* Pebble: Attempt to fix app configuration webview
+* PineTime: Add support for InfiniTime's new simple weather
+* PineTime: Fix freeze and reboot when upgrading firmware
+* Pixoo: Enable sending images (non-persistent)
+* Pixoo: Get and send alarms
+* Pixoo: Set custom device name
+* Pixoo: support "clap hands to turn off screen" and "sleep after silence" settings
+* Xiaomi: Improve activity and workout parsing
+* Xiaomi: Improve stability and fix some crashes
+* Xiaomi: Improve weather
+* Xiaomi: Parse sleep stages
+* Add a notifications channel for connection status notifications
+* Improve automatic connection to all or previous devices
+* Fix devices sometimes staying stuck in a "Connecting" state
+* Map some missing Google Maps navigation actions
+
 #### 0.77.0
 * Initial support for Amazfit Balance
 * Initial support for Amazfit Active

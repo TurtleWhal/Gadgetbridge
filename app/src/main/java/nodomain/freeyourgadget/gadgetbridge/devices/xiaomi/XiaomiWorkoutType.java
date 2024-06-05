@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 José Rebelo
+/*  Copyright (C) 2023-2024 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -13,12 +13,21 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.xiaomi;
 
 import androidx.annotation.StringRes;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiPreferences;
+import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class XiaomiWorkoutType {
     private final int code;
@@ -57,5 +66,24 @@ public class XiaomiWorkoutType {
         }
 
         return -1;
+    }
+
+    public static Collection<XiaomiWorkoutType> getWorkoutTypesSupportedByDevice(final GBDevice device) {
+        final Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(device.getAddress()));
+        final List<String> codes = prefs.getList(XiaomiPreferences.PREF_WORKOUT_TYPES, Collections.emptyList());
+        final List<XiaomiWorkoutType> ret = new ArrayList<>(codes.size());
+
+        for (final String code : codes) {
+            final int codeInt = Integer.parseInt(code);
+            final int codeNameStringRes = XiaomiWorkoutType.mapWorkoutName(codeInt);
+            ret.add(new XiaomiWorkoutType(
+                    codeInt,
+                    codeNameStringRes != -1 ?
+                            GBApplication.getContext().getString(codeNameStringRes) :
+                            GBApplication.getContext().getString(R.string.widget_unknown_workout, code)
+            ));
+        }
+
+        return ret;
     }
 }
