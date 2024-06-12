@@ -66,7 +66,7 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     protected Pattern getSupportedDeviceName() {
-        return Pattern.compile("Bangle\\.js.*|Pixl\\.js.*|Puck\\.js.*|MDBT42Q.*|Espruino.*");
+        return Pattern.compile("Bangle\\.js.*|Pixl\\.js.*|Puck\\.js.*|MDBT42Q.*|Espruino.*|.*G-Watch");
     }
 
     @Override

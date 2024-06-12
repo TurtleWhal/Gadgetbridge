@@ -1586,6 +1586,17 @@ public class BangleJSDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
+    public void onReset(int flags) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("t", "reboot");
+            uartTxJSON("onReset", o);
+        } catch (JSONException e) {
+            LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    @Override
     public void onSetConstantVibration(int integer) {
         try {
             JSONObject o = new JSONObject();
