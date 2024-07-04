@@ -38,20 +38,21 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import net.e175.klaus.solarpositioning.DeltaT;
 import net.e175.klaus.solarpositioning.SPA;
+import net.e175.klaus.solarpositioning.SunriseTransitSet;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.threeten.bp.Instant;
-import org.threeten.bp.ZoneId;
-import org.threeten.bp.zone.ZoneOffsetTransition;
-import org.threeten.bp.zone.ZoneRules;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.zone.ZoneOffsetTransition;
+import java.time.zone.ZoneRules;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -3305,32 +3306,39 @@ public abstract class HuamiSupport extends AbstractBTLEDeviceSupport implements 
                 LOG.error("Error sending wind/humidity", ex);
             }
 
-            float[] longlat = GBApplication.getGBPrefs().getLongLat(getContext());
+            float[] longlat = GBApplication.getPrefs().getLongLat(getContext());
             float longitude = longlat[0];
             float latitude = longlat[1];
             if (longitude != 0 && latitude != 0) {
                 final GregorianCalendar dateTimeToday = new GregorianCalendar();
 
-                GregorianCalendar[] sunriseTransitSet = SPA.calculateSunriseTransitSet(dateTimeToday, latitude, longitude, DeltaT.estimate(dateTimeToday));
+                final SunriseTransitSet sunriseTransitSet = SPA.calculateSunriseTransitSet(
+                        dateTimeToday.toZonedDateTime(),
+                        latitude,
+                        longitude,
+                        DeltaT.estimate(dateTimeToday.toZonedDateTime().toLocalDate())
+                );
 
-                try {
-                    TransactionBuilder builder;
-                    builder = performInitialized("Sending sunrise/sunset");
+                if (sunriseTransitSet.getSunrise() != null && sunriseTransitSet.getSunset() != null) {
+                    try {
+                        TransactionBuilder builder;
+                        builder = performInitialized("Sending sunrise/sunset");
 
-                    ByteBuffer buf = ByteBuffer.allocate(10);
-                    buf.order(ByteOrder.LITTLE_ENDIAN);
-                    buf.put((byte) 16);
-                    buf.putInt(weatherSpec.timestamp);
-                    buf.put((byte) (tz_offset_hours * 4));
-                    buf.put((byte) sunriseTransitSet[0].get(GregorianCalendar.HOUR_OF_DAY));
-                    buf.put((byte) sunriseTransitSet[0].get(GregorianCalendar.MINUTE));
-                    buf.put((byte) sunriseTransitSet[2].get(GregorianCalendar.HOUR_OF_DAY));
-                    buf.put((byte) sunriseTransitSet[2].get(GregorianCalendar.MINUTE));
+                        ByteBuffer buf = ByteBuffer.allocate(10);
+                        buf.order(ByteOrder.LITTLE_ENDIAN);
+                        buf.put((byte) 16);
+                        buf.putInt(weatherSpec.timestamp);
+                        buf.put((byte) (tz_offset_hours * 4));
+                        buf.put((byte) sunriseTransitSet.getSunrise().getHour());
+                        buf.put((byte) sunriseTransitSet.getSunrise().getMinute());
+                        buf.put((byte) sunriseTransitSet.getSunset().getHour());
+                        buf.put((byte) sunriseTransitSet.getSunset().getMinute());
 
-                    writeToChunked(builder, 1, buf.array());
-                    builder.queue(getQueue());
-                } catch (Exception ex) {
-                    LOG.error("Error sending sunset/sunrise", ex);
+                        writeToChunked(builder, 1, buf.array());
+                        builder.queue(getQueue());
+                    } catch (Exception ex) {
+                        LOG.error("Error sending sunset/sunrise", ex);
+                    }
                 }
             }
         }

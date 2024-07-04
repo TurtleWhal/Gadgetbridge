@@ -72,7 +72,6 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoMaster;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.BluetoothStateChangeReceiver;
-import nodomain.freeyourgadget.gadgetbridge.externalevents.TimeChangeReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.opentracks.OpenTracksContentObserver;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceService;
@@ -87,6 +86,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.LimitedQueue;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
+import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
 import static nodomain.freeyourgadget.gadgetbridge.model.DeviceType.AMAZFITBIP;
 import static nodomain.freeyourgadget.gadgetbridge.model.DeviceType.AMAZFITCOR;
@@ -103,8 +103,6 @@ import static nodomain.freeyourgadget.gadgetbridge.model.DeviceType.TLW64;
 import static nodomain.freeyourgadget.gadgetbridge.model.DeviceType.WATCHXPLUS;
 import static nodomain.freeyourgadget.gadgetbridge.util.GB.NOTIFICATION_CHANNEL_HIGH_PRIORITY_ID;
 import static nodomain.freeyourgadget.gadgetbridge.util.GB.NOTIFICATION_ID_ERROR;
-
-import com.jakewharton.threetenabp.AndroidThreeTen;
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
@@ -127,8 +125,7 @@ public class GBApplication extends Application {
     private static final int CURRENT_PREFS_VERSION = 30;
 
     private static final LimitedQueue<Integer, String> mIDSenderLookup = new LimitedQueue<>(16);
-    private static Prefs prefs;
-    private static GBPrefs gbPrefs;
+    private static GBPrefs prefs;
     private static LockHandler lockHandler;
     /**
      * Note: is null on Lollipop
@@ -143,7 +140,7 @@ public class GBApplication extends Application {
 
     private static GBApplication app;
 
-    private static Logging logging = new Logging() {
+    private static final Logging logging = new Logging() {
         @Override
         protected String createLogDirectory() throws IOException {
             if (GBEnvironment.env().isLocalTest()) {
@@ -207,12 +204,8 @@ public class GBApplication extends Application {
             return;
         }
 
-        // Initialize the timezones library
-        AndroidThreeTen.init(this);
-
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
-        prefs = new Prefs(sharedPrefs);
-        gbPrefs = new GBPrefs(prefs);
+        prefs = new GBPrefs(sharedPrefs);
 
         if (!GBEnvironment.isEnvironmentSetup()) {
             GBEnvironment.setupEnvironment(GBEnvironment.createDeviceEnvironment());
@@ -1501,8 +1494,8 @@ public class GBApplication extends Application {
         return context.getSharedPreferences("devicesettings_" + deviceIdentifier, Context.MODE_PRIVATE);
     }
 
-    public static Prefs getDevicePrefs(final String deviceIdentifier) {
-        return new Prefs(getDeviceSpecificSharedPrefs(deviceIdentifier));
+    public static DevicePrefs getDevicePrefs(final String deviceIdentifier) {
+        return new DevicePrefs(getDeviceSpecificSharedPrefs(deviceIdentifier));
     }
 
     public static void deleteDeviceSpecificSharedPrefs(String deviceIdentifier) {
@@ -1587,12 +1580,8 @@ public class GBApplication extends Application {
         return typedValue.data;
     }
 
-    public static Prefs getPrefs() {
+    public static GBPrefs getPrefs() {
         return prefs;
-    }
-
-    public static GBPrefs getGBPrefs() {
-        return gbPrefs;
     }
 
     public DeviceManager getDeviceManager() {

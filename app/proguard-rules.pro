@@ -34,6 +34,9 @@
 }
 -keepattributes JavascriptInterface
 
+# Keep coordinators, they're only referenced from DeviceType
+-keep public class * implements nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator
+
 # Keep parseIncoming for GFDIMessage classes, as it is called by reflection in GFDIMessage#parseIncoming
 -keep public class * extends nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.GFDIMessage
 -keepclassmembers class * extends nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.GFDIMessage {
@@ -61,8 +64,10 @@
 # Keep Nordic DFU library
 -keep class no.nordicsemi.android.dfu.** { *; }
 
-# Keep dependency android-emojify (io.wax911.emojify) uses
--keep class org.hamcrest.** { *; }
+# For android-emojify - we are not using moshi, so ignore these
+-dontwarn com.squareup.moshi.**
+-dontwarn kotlinx.serialization.**
+-dontwarn okio.**
 
 # Keep logback classes
 -keep class ch.qos.** { *; }
@@ -72,6 +77,8 @@
 -keepclassmembers,allowobfuscation class * {
   @com.google.gson.annotations.SerializedName <fields>;
 }
+# Somehow the rule above was not enough for some
+-keep class nodomain.freeyourgadget.gadgetbridge.devices.pinetime.InfiniTimeDFU* { *; }
 
 # Keep generated protobuf classes
 -keep class nodomain.freeyourgadget.gadgetbridge.proto.** { *; }

@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -62,7 +63,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitStressLevel;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitTimeInZone;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.Optional;
 
 public class FitImporter {
     private static final Logger LOG = LoggerFactory.getLogger(FitImporter.class);
@@ -319,6 +319,7 @@ public class FitImporter {
                 return ActivityKind.TYPE_TREADMILL;
             case E_BIKE:
             case BIKE:
+            case BIKE_COMMUTE:
                 return ActivityKind.TYPE_CYCLING;
             case BIKE_INDOOR:
                 return ActivityKind.TYPE_INDOOR_CYCLING;

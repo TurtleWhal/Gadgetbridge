@@ -4,10 +4,10 @@ import androidx.documentfile.provider.DocumentFile;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.threeten.bp.Instant;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -50,7 +50,6 @@ public class AgpsHandler {
                 }
 
                 final GarminHttpResponse response = new GarminHttpResponse();
-                response.getHeaders().put("cache-control", "max-age=14400");
 
                 final byte[] rawBytes = FileUtils.readAll(agpsIn, 1024 * 1024); // 1MB, they're usually ~60KB
                 final String fileHash = GB.hexdump(CheckSums.md5(rawBytes)).toLowerCase(Locale.ROOT);
@@ -68,6 +67,7 @@ public class AgpsHandler {
                         return response;
                     }
                 }
+                response.getHeaders().put("cache-control", "max-age=14400");
 
                 // Run some sanity checks on known agps file formats
                 final GarminAgpsFile garminAgpsFile = new GarminAgpsFile(rawBytes);

@@ -5,11 +5,11 @@
     <string name="action_settings">設定</string>
     <string name="action_debug">デバッグ</string>
     <string name="action_quit">終了</string>
-    <string name="action_donate">寄付する</string>
+    <string name="action_donate">寄付</string>
     <string name="controlcenter_fetch_activity_data">同期</string>
-    <string name="controlcenter_find_device">失くしたデバイスを見つける</string>
+    <string name="controlcenter_find_device">デバイスを見つける</string>
     <string name="controlcenter_take_screenshot">スクリーンショットを撮る</string>
-    <string name="controlcenter_disconnect">切断する</string>
+    <string name="controlcenter_disconnect">切断</string>
     <string name="controlcenter_delete_device">デバイスを削除</string>
     <string name="controlcenter_delete_device_name">%1$s の削除</string>
     <string name="controlcenter_delete_device_dialogmessage">デバイスと関連するデータが削除されます！</string>
@@ -31,8 +31,8 @@
     <string name="appmanager_app_openinstore">Pebble アプリストアで検索</string>
     <string name="appmanager_health_activate">有効化</string>
     <string name="appmanager_health_deactivate">無効化</string>
-    <string name="appmanager_hrm_activate">HRMを有効にする</string>
-    <string name="appmanager_hrm_deactivate">HRMを無効にする</string>
+    <string name="appmanager_hrm_activate">HRM を有効にする</string>
+    <string name="appmanager_hrm_deactivate">HRM を無効にする</string>
     <string name="appmanager_weather_activate">システムの天気アプリを有効にする</string>
     <string name="appmanager_weather_deactivate">システムの天気アプリを無効にする</string>
     <string name="appmanager_weather_install_provider">天気通知アプリをインストール</string>
@@ -43,7 +43,7 @@
     <!--Strings related to FwAppInstaller-->
     <string name="title_activity_fw_app_insaller">ファームウェア/アプリのインストール</string>
     <string name="fw_upgrade_notice">%s をインストールしようとしています。</string>
-    <string name="fw_multi_upgrade_notice">お使いのMi Bandに、現在のファームウェアの代わりに %1$s および %2$s をインストールしようとしています。</string>
+    <string name="fw_multi_upgrade_notice">Mi Bandに、現在のファームウェアの代わりに %1$s および %2$s をインストールしようとしています。</string>
     <string name="miband_firmware_known">このファームウェアはテスト済みで、Gadgetbridgeと互換性があることが確認されています。</string>
     <string name="miband_firmware_unknown_warning">このファームウェアは未テストで、Gadgetbridgeと互換性がない可能性があります。
 \n
@@ -52,10 +52,10 @@
     <!--Strings related to Settings-->
     <string name="title_activity_settings">設定</string>
     <string name="pref_header_general">全般設定</string>
-    <string name="pref_title_general_autoconnectonbluetooth">Bluetoothがオンになったときに Gadgetbridge デバイスに接続</string>
+    <string name="pref_title_general_autoconnectonbluetooth">Bluetoothがオンになったときに Gadgetbridge デバイスに接続する</string>
     <string name="pref_title_general_autostartonboot">自動的に開始する</string>
     <string name="pref_title_general_autoreconnect">自動的に再接続する</string>
-    <string name="pref_title_audio_player">優先するオーディオプレイヤー</string>
+    <string name="pref_title_audio_player">優先する音楽プレイヤー</string>
     <string name="pref_default">デフォルト</string>
     <string name="pref_header_datetime">日付と時刻</string>
     <string name="pref_title_datetime_syctimeonconnect">時間を同期する</string>
@@ -71,14 +71,14 @@
     <string name="pref_title_notifications_repetitions">繰り返し</string>
     <string name="pref_title_notifications_call">着信通知</string>
     <string name="pref_title_notifications_sms">SMS</string>
-    <string name="pref_title_notifications_pebblemsg">Pebbleメッセージ</string>
-    <string name="pref_summary_notifications_pebblemsg">PebbleKit経由でPebbleに通知を送信するアプリケーションをサポートします。</string>
-    <string name="pref_title_notifications_generic">一般的な通知への対応</string>
+    <string name="pref_title_notifications_pebblemsg">Pebble メッセージ</string>
+    <string name="pref_summary_notifications_pebblemsg">PebbleKit 経由で Pebble に通知を送信するアプリケーションをサポートします。</string>
+    <string name="pref_title_notifications_generic">通知全般のサポート</string>
     <string name="pref_title_whenscreenon">Android の画面が ON のときにもウォッチに通知を表示する</string>
-    <string name="pref_title_notification_filter">サイレント</string>
-    <string name="pref_summary_notification_filter">サイレントモードが有効なときはすべての通知をブロックする</string>
+    <string name="pref_title_notification_filter">サイレント モード</string>
+    <string name="pref_summary_notification_filter">サイレント モードが有効なときはすべての通知をブロックする</string>
     <string name="pref_title_transliteration">翻字</string>
-    <string name="pref_summary_transliteration">お使いのデバイスがあなたの言語のフォントをサポートしていない場合、これを有効にしてください</string>
+    <string name="pref_summary_transliteration">デバイスがユーザーの言語のフォントをサポートしていない場合、これを有効にしてください</string>
     <string name="always">常に</string>
     <string name="when_screen_off">スクリーンが OFF のとき</string>
     <string name="never">なし</string>
@@ -92,16 +92,16 @@
     <string name="pref_header_cannned_messages">定型メッセージ</string>
     <string name="pref_title_canned_replies">返信</string>
     <string name="pref_title_canned_reply_suffix">共通の接尾語</string>
-    <string name="pref_title_canned_messages_dismisscall">留守番電話</string>
+    <string name="pref_title_canned_messages_dismisscall"/>
     <string name="pref_title_canned_messages_set">デバイスの更新</string>
     <string name="pref_header_development">開発者用設定</string>
     <string name="pref_title_development_miaddr">Mi Band のアドレス</string>
-    <string name="pref_title_pebble_settings">Pebble 設定</string>
+    <string name="pref_title_pebble_settings">Pebble の設定</string>
     <string name="pref_header_activitytrackers">アクティビティトラッカー</string>
-    <string name="pref_title_pebble_activitytracker">優先するアクティビティ トラッカー</string>
-    <string name="pref_title_pebble_sync_health">Pebble Health 同期</string>
-    <string name="pref_title_pebble_sync_misfit">Misfit 同期</string>
-    <string name="pref_title_pebble_sync_morpheuz">Morpheuz 同期</string>
+    <string name="pref_title_pebble_activitytracker">優先するアクティビティトラッカー</string>
+    <string name="pref_title_pebble_sync_health">Pebble Health の同期</string>
+    <string name="pref_title_pebble_sync_misfit">Misfit の同期</string>
+    <string name="pref_title_pebble_sync_morpheuz">Morpheuz の同期</string>
     <string name="pref_title_enable_outgoing_call">発信のサポート</string>
     <string name="pref_summary_enable_outgoing_call">これを無効にすると、Pebble 2/LE は発信時に振動しなくなります</string>
     <string name="pref_title_enable_pebblekit">サードパーティ製 Android アプリのアクセスを許可</string>
@@ -109,7 +109,7 @@
     <string name="pref_header_pebble_timeline">Pebble タイムライン</string>
     <string name="pref_title_sunrise_sunset">日の出と日の入り</string>
     <string name="pref_summary_sunrise_sunset">場所に基づいて、Pebble のタイムラインに日の出・日の入りの時間を送信します</string>
-    <string name="pref_title_enable_calendar_sync">カレンダーを同期</string>
+    <string name="pref_title_enable_calendar_sync">カレンダーの同期</string>
     <string name="pref_summary_enable_calendar_sync">カレンダーのイベントをタイムラインに送信します</string>
     <string name="pref_title_autoremove_notifications">消去した通知を自動削除する</string>
     <string name="pref_summary_autoremove_notifications">Android で通知が削除されたときに、デバイスから自動的に削除します</string>
@@ -140,25 +140,25 @@
     <string name="pref_title_pebble_reconnect_attempts">再接続の試行</string>
     <string name="pref_title_unit_system">単位</string>
     <string name="pref_title_timeformat">時刻の形式</string>
-    <string name="pref_title_screentime">画面 ON の期間</string>
+    <string name="pref_title_screentime">画面オンの時間</string>
     <string name="prefs_title_all_day_heart_rate">全日心拍測定</string>
     <string name="preferences_hplus_settings">HPlus/Makibes 設定</string>
     <string name="not_connected">未接続</string>
     <string name="connecting">接続中</string>
     <string name="connected">接続済み</string>
     <string name="unknown_state">不明な状態</string>
-    <string name="_unknown_">（不明）</string>
+    <string name="_unknown_">(不明)</string>
     <string name="test">テスト</string>
     <string name="test_notification">通知のテスト</string>
     <string name="this_is_a_test_notification_from_gadgetbridge">これは Gadgetbridge からのテスト通知です</string>
     <string name="bluetooth_is_not_supported_">Bluetooth はサポートされていません。</string>
-    <string name="bluetooth_is_disabled_">Bluetooth は無効です。</string>
-    <string name="tap_connected_device_for_app_mananger">接続済みのデバイスをタップしてアプリマネージャーを表示</string>
+    <string name="bluetooth_is_disabled_">Bluetooth が無効です。</string>
+    <string name="tap_connected_device_for_app_mananger">接続済みのデバイスをタップしてアプリの管理を表示</string>
     <string name="tap_connected_device_for_activity">接続済みのデバイスをタップしてアクティビティを表示</string>
     <string name="tap_connected_device_for_vibration">接続済みのデバイスをタップして振動する</string>
     <string name="tap_a_device_to_connect">接続するデバイスをタップ</string>
     <string name="cannot_connect_bt_address_invalid_">接続できません。 Bluetoothアドレスが無効ですか？</string>
-    <string name="gadgetbridge_running_generic">Gadgetbridgeは動作中です</string>
+    <string name="gadgetbridge_running_generic">Gadgetbridge は動作中です</string>
     <string name="installing_binary_d_d">バイナリーのインストール中 %1$d/%2$d</string>
     <string name="installation_failed_">インストールに失敗しました</string>
     <string name="installation_successful">インストールしました</string>
@@ -181,7 +181,7 @@
     <string name="device_with_rssi">%1$s (%2$s)</string>
     <string name="title_activity_android_pairing">デバイスのペアリング</string>
     <string name="android_pairing_hint">Android の Bluetooth ペアリング ダイアログを使用してデバイスをペアリングします。</string>
-    <string name="title_activity_mi_band_pairing">お使いのMi Bandをペアリング</string>
+    <string name="title_activity_mi_band_pairing">Mi Band をペアリング</string>
     <string name="pairing">%s とペアリング中…</string>
     <string name="pairing_creating_bond_with">%1$s (%2$s) と紐付けを作成中</string>
     <string name="pairing_unable_to_pair_with">%1$s (%2$s) とペアリングできません</string>
@@ -196,9 +196,9 @@
     <string name="left">左</string>
     <string name="right">右</string>
     <string name="miband_pairing_using_dummy_userdata">有効なユーザーデータが与えられていないため、現在はダミーのユーザーデータを使用しています。</string>
-    <string name="miband_pairing_tap_hint">お使いの Mi Band が振動し点滅したら数回連続してタップしてください。</string>
+    <string name="miband_pairing_tap_hint">Mi Band が振動し点滅したら数回連続してタップしてください。</string>
     <string name="appinstaller_install">インストール</string>
-    <string name="discovery_connected_devices_hint">お使いのデバイスを検出可能にしてください。現在接続中のデバイスはおそらく検出されません。Android 6 以降では位置情報 （例： GPS）を有効にしてください。不具合を引き起こす可能性があるため、Gadgetbridge に対してプライバシーガードを無効にしてください。数分経ってもデバイスが表示されない場合は、Android デバイスを再起動してから再試行してください。</string>
+    <string name="discovery_connected_devices_hint">デバイスを検出可能な状態にしてください。現在接続中のデバイスはおそらく検出されません。Android 6 以降では位置情報 （例： GPS）を有効にしてください。不具合を引き起こす可能性があるため、Gadgetbridge に対してプライバシーガードを無効にしてください。数分経ってもデバイスが表示されない場合、Android デバイスを再起動してから再試行してください。</string>
     <string name="discovery_note">注：</string>
     <string name="candidate_item_device_image">デバイスイメージ</string>
     <string name="miband_prefs_alias">名前/別名</string>
@@ -232,7 +232,7 @@
     <string name="stats_y_axis_label">歩数（分）</string>
     <string name="control_center_find_lost_device">なくしたデバイスを探す</string>
     <string name="control_center_cancel_to_stop_vibration">キャンセルで振動を停止します。</string>
-    <string name="title_activity_charts">活動と睡眠</string>
+    <string name="title_activity_charts">アクティビティと睡眠</string>
     <string name="title_activity_set_alarm">アラームの設定</string>
     <string name="controlcenter_start_configure_alarms">アラームを設定</string>
     <string name="title_activity_alarm_details">アラームの詳細</string>
@@ -262,9 +262,9 @@
 \n</string>
     <string name="notif_battery_low_bigtext_number_of_charges">充電回数: %s</string>
     <string name="sleepchart_your_sleep">睡眠</string>
-    <string name="weeksleepchart_sleep_a_week">週の睡眠</string>
+    <string name="weeksleepchart_sleep_a_week">1週間の睡眠</string>
     <string name="weeksleepchart_today_sleep_description">今日の睡眠、目標: %1$s</string>
-    <string name="weekstepschart_steps_a_week">週の歩数</string>
+    <string name="weekstepschart_steps_a_week">1週間の歩数</string>
     <string name="activity_sleepchart_activity_and_sleep">アクティビティ</string>
     <string name="updating_firmware">ファームウェアの書き込み中…</string>
     <string name="fwapp_install_device_not_ready">ファイルをインストールできません。デバイスの準備ができていません。</string>
@@ -302,7 +302,7 @@
     <string name="abstract_chart_fragment_kind_activity">アクティビティ</string>
     <string name="abstract_chart_fragment_kind_light_sleep">浅い睡眠</string>
     <string name="abstract_chart_fragment_kind_deep_sleep">深い睡眠</string>
-    <string name="abstract_chart_fragment_kind_not_worn">未着用</string>
+    <string name="abstract_chart_fragment_kind_not_worn">未装着</string>
     <string name="device_not_connected">未接続です。</string>
     <string name="user_feedback_all_alarms_disabled">すべてのアラームを無効にしました</string>
     <string name="pref_title_keep_data_on_device">アクティビティデータをデバイスに保持する</string>
@@ -339,12 +339,12 @@
     <string name="authentication_required">認証が必要です</string>
     <string name="appwidget_text">Zzz</string>
     <string name="add_widget">ウィジェットを追加</string>
-    <string name="activity_prefs_sleep_duration">好ましい睡眠時間（時間）</string>
+    <string name="activity_prefs_sleep_duration">目標睡眠時間 (時間)</string>
     <string name="appwidget_setting_alarm">アラームを %1$02d:%2$02d に設定しました</string>
     <string name="device_hw">ハードウェアリビジョン: %1$s</string>
     <string name="device_fw">ファームウェアバージョン: %1$s</string>
     <string name="error_creating_directory_for_logfiles">ログファイルのディレクトリを作成中にエラー: %1$s</string>
-    <string name="DEVINFO_HR_VER">HR: </string>
+    <string name="DEVINFO_HR_VER">"HR: "</string>
     <string name="updatefirmwareoperation_update_in_progress">ファームウェアを更新しています</string>
     <string name="updatefirmwareoperation_firmware_not_sent">ファームウェアを送信しませんでした</string>
     <string name="charts_legend_heartrate">心拍数</string>
@@ -353,12 +353,14 @@
     <string name="pref_summary_pebble_health_store_raw">データを「そのまま」格納し、あとで解釈できるようにデータベースの使用量を増やします。</string>
     <string name="action_db_management">データの管理</string>
     <string name="title_activity_db_management">データの管理</string>
-    <string name="activity_db_management_import_export_explanation">データベース操作は、お使いのデバイスで次のパスを使用します。 \nこのパスは、他の Android アプリケーションやお使いのコンピュータがアクセス可能です。\nエクスポートされたデータベースが見つかります (またはインポートしたいデータベースを配置します):</string>
+    <string name="activity_db_management_import_export_explanation">データベース操作は、デバイスの次のパスを使用します。
+\nこのパスは、他の Android アプリケーションやお使いのコンピュータがアクセス可能です。
+\nエクスポートされたデータベースが見つかります (またはインポートしたいデータベースを配置します):</string>
     <string name="activity_db_management_merge_old_title">レガシー データベースの削除</string>
     <string name="dbmanagementactivvity_cannot_access_export_path">エクスポート パスにアクセスできません。開発者に連絡してください。</string>
     <string name="dbmanagementactivity_exported_to">エクスポートしました: %1$s</string>
     <string name="dbmanagementactivity_error_exporting_db">データベースのエクスポートエラー : %1$s</string>
-    <string name="dbmanagementactivity_error_exporting_shared">設定のエクスポート時にエラー: %1$s</string>
+    <string name="dbmanagementactivity_error_exporting_shared">設定のエクスポート時にエラーが発生しました: %1$s</string>
     <string name="dbmanagementactivity_import_data_title">データをインポートしますか?</string>
     <string name="dbmanagementactivity_overwrite_database_confirmation">現在のデータを上書きしてもよろしいですか？ 現在のアクティビティデータは (もしあれば) すべて上書きされます。</string>
     <string name="dbmanagementactivity_import_successful">インポートしました。</string>
@@ -415,7 +417,7 @@
     <string name="discovery_dont_pair">ペアリングしない</string>
     <string name="fw_upgrade_notice_amazfitbip">Amazfit Bip に %s のファームウェアをインストールしようとしています。
 \n
-\n.fw ファイル、その後 .res ファイル、最後に .gps ファイルをインストールしてください。お使いのウォッチは、.fw ファイルをインストールした後に再起動します。
+\n.fw ファイル、その後 .res ファイル、最後に .gps ファイルをインストールしてください。ウォッチは、.fw ファイルをインストールした後に再起動します。
 \n
 \n注: これらのファイルが前回にインストールしたものと完全に同じ場合、.res と .gps をインストールする必要はありません。
 \n
@@ -438,7 +440,7 @@
     <string name="controlcenter_connect">接続…</string>
     <string name="fw_upgrade_notice_amazfitcor">Amazfit Cor に %s のファームウェアをインストールしようとしています。
 \n
-\n.fw ファイルをインストールし、その後 .res ファイルをインストールしください。お使いのバンドは、.fw ファイルをインストールした後に再起動します。
+\n.fw ファイルをインストールし、その後 .res ファイルをインストールしください。バンドは、.fw ファイルをインストールした後に再起動します。
 \n
 \n注: .res ファイルが前回にインストールしたものと同じ場合、新たに.res ファイルをインストールする必要はありません。
 \n
@@ -446,7 +448,7 @@
     <string name="pref_title_pebble_enable_bgjs">バックグラウンド JS を有効にします</string>
     <string name="pref_summary_pebble_enable_bgjs">有効にすると、ウォッチフェイスに天気やバッテリー情報等を表示することができるようになります</string>
     <string name="activity_web_view">Web View アクティビティ</string>
-    <string name="pref_title_charts_swipe">チャートアクティビティで左/右のスワイプを有効にする</string>
+    <string name="pref_title_charts_swipe">左/右のスワイプでチャートを切り替える</string>
     <string name="prefs_title_heartrate_measurement_interval">終日心拍測定</string>
     <string name="interval_one_minute">1分間に1回</string>
     <string name="interval_five_minutes">5分ごと</string>
@@ -482,7 +484,7 @@
     <string name="devicetype_no1_f1">No.1 F1</string>
     <string name="devicetype_teclast_h30">Teclast H30</string>
     <string name="pref_header_auto_export">自動エクスポート</string>
-    <string name="pref_title_auto_export_enabled">自動エクスポートは有効です</string>
+    <string name="pref_title_auto_export_enabled">自動エクスポートを有効にする</string>
     <string name="pref_title_auto_export_location">エクスポートする場所</string>
     <string name="pref_title_auto_export_interval">エクスポートする間隔</string>
     <string name="pref_summary_auto_export_interval">%d 時間ごとにエクスポート</string>
@@ -495,9 +497,9 @@
     <string name="controlcenter_start_activity_tracks">アクティビティの追跡</string>
     <string name="activity_type_not_measured">未測定</string>
     <string name="activity_type_activity">アクティビティ</string>
-    <string name="activity_type_light_sleep">浅い眠り</string>
-    <string name="activity_type_deep_sleep">深い眠り</string>
-    <string name="activity_type_not_worn">デバイス未着用</string>
+    <string name="activity_type_light_sleep">浅い睡眠</string>
+    <string name="activity_type_deep_sleep">深い睡眠</string>
+    <string name="activity_type_not_worn">デバイス未装着</string>
     <string name="activity_type_running">ランニング</string>
     <string name="activity_type_walking">ウォーキング</string>
     <string name="activity_type_swimming">スイミング</string>
@@ -519,8 +521,8 @@
     <string name="menuitem_compass">コンパス</string>
     <string name="menuitem_settings">設定</string>
     <string name="menuitem_alipay">Alipay</string>
-    <string name="controlcenter_change_led_color">LEDの色を変更</string>
-    <string name="controlcenter_change_fm_frequency">FMの周波数を変更</string>
+    <string name="controlcenter_change_led_color">LED の色を変更</string>
+    <string name="controlcenter_change_fm_frequency">FM の周波数を変更</string>
     <string name="controlcenter_calibrate_device">デバイスの調整</string>
     <string name="debugactivity_really_factoryreset_title">工場出荷状態にリセットしますか？</string>
     <string name="debugactivity_really_factoryreset">工場出荷状態にリセットすると、接続されているデバイスからすべてのデータを削除します(サポートされている場合)。 Xiaomi/HuamiデバイスではBluetoothのMACアドレスも変更するため、Gadgetbridgeには新しいデバイスとして表示されます。</string>
@@ -528,14 +530,14 @@
     <string name="whitelist_all_for_notifications">すべて通知のホワイトリストにする</string>
     <string name="fw_upgrade_notice_miband3">Mi Band 3 に %s ファームウェアをインストールします。
 \n
-\n.fw ファイルをインストールして、その後 .res ファイルをインストールするようにしてください。 .fw ファイルをインストールした後、お使いのバンドは再起動します。
+\n.fw ファイルをインストールして、その後 .res ファイルをインストールするようにしてください。 .fw ファイルのインストール後、バンドは再起動します。
 \n
 \n注: .res が以前にインストールしたものと全く同じ場合は、インストールする必要はありません。
 \n
 \nご自身の責任で行ってください！</string>
     <string name="pref_title_notifications_timeout">通知の間の最小時間</string>
     <string name="pref_title_rtl">右横書き</string>
-    <string name="pref_summary_rtl">お使いのデバイスが右から左へ書く言語を表示できない場合はこれを有効にします</string>
+    <string name="pref_summary_rtl">デバイスが右から左へ書く言語を表示できない場合、これを有効にしてください</string>
     <string name="pref_rtl_max_line_length">右横書きの最大行長</string>
     <string name="pref_rtl_max_line_length_summary">右横書きの文の行を伸長または短縮して分割します</string>
     <string name="prefs_screen_orientation">画面の向き</string>
@@ -631,24 +633,24 @@
 \n 
 \n自己責任の下で行ってください！
 \n 
-\n完全にはテストされていません。お使いのデバイス名が \"Amazfit Band 2\" の場合、おそらく BEATS_W ファームウェアをフラッシュする必要があります</string>
+\n完全にはテストされていません。デバイス名が \"Amazfit Band 2\" の場合、おそらく BEATS_W ファームウェアをフラッシュする必要があります</string>
     <string name="pref_title_support_voip_calls">VoIP アプリの通話を有効にする</string>
     <string name="fw_upgrade_notice_miband4">Mi Band 4 に %s ファームウェアをインストールしようとしています。
 \n
-\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールすると、お使いの バンドが再起動します。
+\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールすると、バンドが再起動します。
 \n
 \n注: 以前にインストールしたものとまったく同じ場合、.res をインストールする必要はありません。
 \n
-\nご自身のリスクで進めてください！</string>
+\nご自身の責任で行ってください！</string>
     <string name="pref_summary_expose_hr">Gadgetbridge の接続中に、他のアプリが HR データにリアルタイムでアクセスできるようにします</string>
     <string name="pref_title_expose_hr">サードパーティのリアルタイム HR アクセス</string>
     <string name="pref_title_use_custom_font">カスタムフォントを使用する</string>
-    <string name="pref_summary_use_custom_font">お使いのデバイスに絵文字に対応したスタムフォントファームウェアがある場合は有効にしてください</string>
+    <string name="pref_summary_use_custom_font">デバイスに絵文字に対応したスタムフォントファームウェアがある場合、これを有効にしてください</string>
     <string name="pref_display_add_device_fab">新しいデバイスを接続するボタン</string>
     <string name="pref_display_add_device_fab_on">常に表示</string>
     <string name="pref_display_add_device_fab_off">デバイスが登録されていない場合にのみ表示</string>
     <string name="pref_header_charts">チャートの設定</string>
-    <string name="pref_title_charts_average">グラーフに平均を表示する</string>
+    <string name="pref_title_charts_average">グラフに平均値を表示する</string>
     <string name="czesh">チェコ語</string>
     <string name="swedish">スウェーデン語</string>
     <string name="hebrew">ヘブライ語</string>
@@ -701,7 +703,7 @@
     <string name="seconds">秒</string>
     <string name="km_h">km/h</string>
     <string name="meters_second">m/s</string>
-    <string name="steps_unit">歩数</string>
+    <string name="steps_unit">歩</string>
     <string name="cm">cm</string>
     <string name="meters">m</string>
     <string name="averageKMPaceSeconds">ペース</string>
@@ -709,17 +711,17 @@
     <string name="maxPace">最速のペース</string>
     <string name="maxSpeed">最大</string>
     <string name="caloriesBurnt">カロリー</string>
-    <string name="activeSeconds"/>
+    <string name="activeSeconds">アクティブ</string>
     <string name="steps">歩数</string>
     <string name="minAltitude">最小</string>
     <string name="maxAltitude">最大</string>
     <string name="distanceMeters">距離</string>
-    <string name="device_requires_key">キーが必要です</string>
+    <string name="device_requires_key">キーが必要です。長押しして入力してください</string>
     <string name="about_contributors">貢献者</string>
-    <string name="about_activity_title_generic">Gadgetbridgeについて</string>
-    <string name="about_title">について</string>
-    <string name="hr_widget_last_notification">最終通知</string>
-    <string name="hr_appname_commute">通勤</string>
+    <string name="about_activity_title_generic">Gadgetbridge について</string>
+    <string name="about_title">このアプリについて</string>
+    <string name="hr_widget_last_notification">最後の通知</string>
+    <string name="hr_appname_commute">Commute</string>
     <string name="hr_appname_stopwatch">ストップウォッチ</string>
     <string name="hr_widget_weather">天気</string>
     <string name="hr_widget_battery">バッテリー</string>
@@ -727,7 +729,7 @@
     <string name="hr_widget_date">日付</string>
     <string name="hr_widget_steps">歩数</string>
     <string name="hr_widget_heart_rate">心拍数</string>
-    <string name="qhybrid_vibration_strength">振動強度:</string>
+    <string name="qhybrid_vibration_strength">振動の強さ：</string>
     <string name="widget_1_hour">1 時間</string>
     <string name="widget_20_minutes">20 分</string>
     <string name="widget_10_minutes">10 分</string>
@@ -762,16 +764,16 @@
     <string name="prefs_disconnect_notification">切断通知</string>
     <string name="Distance">距離</string>
     <string name="sonyswr12_settings_title">Sony SWR12 設定</string>
-    <string name="sonyswr12_settings_low_vibration">低振動対応</string>
-    <string name="sonyswr12_settings_stamina">省電力モードがオンになっている</string>
+    <string name="sonyswr12_settings_low_vibration">弱い振動への対応</string>
+    <string name="sonyswr12_settings_stamina">省電力モードをオンにする</string>
     <string name="sonyswr12_settings_alarm_interval">分単位のスマートアラーム間隔</string>
-    <string name="sonyswr12_settings_low_vibration_summary">バンドで低強度の振動を有効にする</string>
-    <string name="sonyswr12_settings_stamina_summary">省電力モードでは、心拍数の定期的な自動測定がオフになり、作業時間が長くなります</string>
+    <string name="sonyswr12_settings_low_vibration_summary">バンドで低強度の振動を有効にします</string>
+    <string name="sonyswr12_settings_stamina_summary">省電力モードでは、心拍数の定期的な自動測定がオフになり、動作時間が長くなります</string>
     <string name="sonyswr12_settings_alarm_interval_summary">スマートアラーム間隔は、インストールされたアラームの前の間隔です。 この間隔では、デバイスはユーザーを目覚めさせるために睡眠の最も軽い段階を検出しようとしています</string>
     <string name="prefs_wena3_receive_calls_title">着信設定</string>
     <string name="prefs_wena3_button_action_name_start_timer">設定中タイマーを開始</string>
     <string name="prefs_wena3_menu_icon_hint">設定アイコンは常にメニューの最後に表示されます</string>
-    <string name="prefs_wena3_notification_vibration_repetition_3">3回</string>
+    <string name="prefs_wena3_notification_vibration_repetition_3">3 回</string>
     <string name="prefs_wena3_button_action_name_qrio_lock">Qrioロック</string>
     <string name="prefs_wena3_auto_power_off_turn_off_time_item">電源オフ</string>
     <string name="prefs_wena3_vibration_short">ショート</string>
@@ -800,14 +802,14 @@
     <string name="prefs_wena3_title_screen">画面表示設定</string>
     <string name="prefs_wena3_item_large_font">フォントサイズ大きめ</string>
     <string name="prefs_wena3_home_icon_name_energy">エナジー</string>
-    <string name="prefs_wena3_notification_vibration_repetition_2">2回</string>
+    <string name="prefs_wena3_notification_vibration_repetition_2">2 回</string>
     <string name="prefs_wena3_auto_power_off_hint">指定した時間でWenaの電源を自動でオフ・オンにします</string>
     <string name="prefs_wena3_hint_lift_wrist">腕首を回すとき画面を点灯します</string>
     <string name="prefs_wena3_hint_large_font">通知、スケジュールなどの文字を大きくにします</string>
     <string name="prefs_wena3_button_action_item_double">ダブルクリック</string>
     <string name="prefs_wena3_vibration_rapid">ラピッド</string>
     <string name="prefs_wena3_button_action_name_qrio_unlock">Qrio解除</string>
-    <string name="prefs_wena3_notification_vibration_repetition_1">一回</string>
+    <string name="prefs_wena3_notification_vibration_repetition_1">1 回</string>
     <string name="prefs_wena3_receive_calls_item">着信通知を受け取る</string>
     <string name="prefs_wena3_hint_weather_statusbar">ホーム画面の左上に天気アイコンを表示します</string>
     <string name="prefs_wena3_home_icon_name_wena_pay">Wena Pay</string>
@@ -818,13 +820,13 @@
     <string name="yellow">黄</string>
     <string name="prefs_wena3_notification_default_call_led">着信ときのLED色</string>
     <string name="red">赤</string>
-    <string name="cyan">青空</string>
+    <string name="cyan">青緑</string>
     <string name="prefs_wena3_vibration_siren">サイレン</string>
     <string name="prefs_wena3_menu_icon_title">メニュー並び替え</string>
     <string name="prefs_wena3_notification_default_call_vibration_repetition">着信バイブ繰り返し</string>
     <string name="prefs_wena3_notification_default_vibration">通知のバイブ</string>
     <string name="prefs_wena3_notification_vibration_repetition_0">ボタンを操作するまで</string>
-    <string name="prefs_wena3_notification_vibration_repetition_4">4回</string>
+    <string name="prefs_wena3_notification_vibration_repetition_4">4 回</string>
     <string name="prefs_wena3_vibration_strength_item">バイブ強さ</string>
     <string name="prefs_wena3_receive_calls_hint">無効にすると着信通知はWenaに届かなくなる</string>
     <string name="prefs_wena3_button_action_item_long">長押し</string>
@@ -850,19 +852,19 @@
     <string name="prefs_wena3_button_action_name_activity_screen">アクティビティ画面</string>
     <string name="prefs_wena3_notification_settings_title">通知設定</string>
     <string name="application_name_banglejs_nightly">Bangle.js Gadgetbridge (Nightly)</string>
-    <string name="pref_pair_bluetooth_calls_help_title">Bluetooth通話の着信方法</string>
+    <string name="pref_pair_bluetooth_calls_help_title">Bluetooth 通話の着信方法</string>
     <string name="fw_upgrade_notice_miband7">Xiaomi Smart Band 7 に %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfit_gtr4">Amazfit GTR 4に %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
-    <string name="pref_pair_bluetooth_calls_help_summary">Bluetooth通話を着信するには、Androidデバイスをウォッチの2番目のインスタンスとペアリングする必要があります。</string>
-    <string name="pref_pair_bluetooth_calls_help_warning">注意：2番目のインスタンスを有効にせずにBluetooth通話を有効にすると、着信通知が上手く動作しない場合があります。</string>
+    <string name="pref_pair_bluetooth_calls_help_summary">Bluetooth通話を着信するには、Android をウォッチの2番目のインスタンスとペアリングする必要があります。</string>
+    <string name="pref_pair_bluetooth_calls_help_warning">注意：2番目のインスタンスを有効にせずに Bluetooth 通話を有効にすると、着信通知が上手く動作しない場合があります。</string>
     <string name="pref_title_notification_use_as">アプリリストの使用方法…</string>
     <string name="appmanager_watchface_activate">有効化</string>
     <string name="appmanager_app_start">実行</string>
@@ -870,7 +872,7 @@
     <string name="appmanager_download_started">アプリのダウンロードを開始しました</string>
     <string name="appmanager_download_app_error">アプリのダウンロード中にエラーが発生しました</string>
     <string name="pref_title_notifications_ignore_low_priority">優先度の低い通知を非表示にする</string>
-    <string name="find_lost_device_message">%1$sを探しますか？</string>
+    <string name="find_lost_device_message">%1$s を探しますか？</string>
     <string name="controlcenter_power_off">電源を切る</string>
     <string name="battery_detail_activity_title">バッテリー情報</string>
     <string name="pref_header_connection">接続</string>
@@ -879,12 +881,12 @@
     <string name="pref_header_audio">音声</string>
     <string name="pref_header_calendar">カレンダー</string>
     <string name="pref_header_generic">全般</string>
-    <string name="pref_header_health">ヘルスケア</string>
+    <string name="pref_header_health">健康管理</string>
     <string name="pref_header_display">ディスプレイ</string>
     <string name="pref_header_sound_vibration">音と振動</string>
     <string name="pref_header_equalizer">イコライザー</string>
     <string name="pref_summary_general_reconnectonlytoconnected">すべてのデバイスに再接続するのではなく、接続済みのデバイスにのみ再接続</string>
-    <string name="pref_summary_mb_intents">一部のアプリでデバイスのメディアコントロールが機能しない場合に有効化する</string>
+    <string name="pref_summary_mb_intents">一部のアプリでデバイスのメディアコントロールが機能しない場合に有効化してください</string>
     <string name="pref_theme_dynamic">ダイナミックカラー</string>
     <string name="pref_title_notification_delay_calls">着信通知の遅延</string>
     <string name="pref_summary_receive_calls_watch">ウォッチ上で発信/着信する</string>
@@ -909,52 +911,52 @@
     <string name="open_fw_installer_ensure_device_connected">%s が接続されていることを確認してください</string>
     <string name="fw_upgrade_notice_amazfitneo">Amazfit Neo に %s ファームウェアをインストールしようとしています。
 \n
-\n.fwファイルをインストールすると、お使いのバンドが再起動します。
+\n.fwファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="about_activity_title_banglejs_nightly">Bangle.js Gadgetbridge (Nightly) について</string>
     <string name="pref_title_notification_wake_on_open">自動点灯とロック解除</string>
     <string name="pref_display_caller_title">連絡先の情報を表示する</string>
-    <string name="pref_summary_notifications_ignore_low_priority">優先度の低い通知をウォッチに送信しない</string>
+    <string name="pref_summary_notifications_ignore_low_priority">優先度の低い通知をウォッチに送信しないようにします</string>
     <string name="pref_title_notification_cache_while_disconnected">接続が切断されている間の通知をキャッシュする</string>
     <string name="pref_header_notification_application_settings">アプリごとの設定</string>
     <string name="pref_title_notification_use_as_deny">選択したアプリからの通知を拒否する</string>
-    <string name="pref_title_notification_use_as_allow">選択したアプリからの通知を拒否する</string>
+    <string name="pref_title_notification_use_as_allow">選択したアプリからの通知を許可する</string>
     <string name="pref_message_privacy_mode_complete">すべての内容を非表示</string>
     <string name="pref_message_privacy_mode_bodyonly">本文のみ非表示</string>
-    <string name="pref_title_weather_summary">LineageOS の Weather provider に使用されますが、ほかの Android バージョンでは \"Weather notification\" のようなアプリを使用する必要があります。詳しくは Gadgetbridge の Wiki をご覧ください。</string>
+    <string name="pref_title_weather_summary">LineageOS の Weather provider に使用されますが、他の Android バージョンでは \"Weather notification\" のようなアプリを使用する必要があります。詳しくは Gadgetbridge の Wiki をご覧ください。</string>
     <string name="pref_applications_settings">アプリケーション一覧</string>
-    <string name="debugactivity_confirm_remove_device_preferences"/>
+    <string name="debugactivity_confirm_remove_device_preferences">接続されたすべてのデバイスの環境設定を削除しますがよろしいですか？</string>
     <string name="pref_title_general_reconnectonlytoconnected">接続中のデバイスにのみ再接続する</string>
-    <string name="pref_summary_notification_prefer_long_text">可能な場合に長文の通知をデバイスに送信する</string>
-    <string name="pref_summary_notifications_ignore_work_profile">仕事用プロファイルのアプリからの通知をウォッチに送信しない</string>
+    <string name="pref_summary_notification_prefer_long_text">可能な場合に長文の通知をデバイスに送信します</string>
+    <string name="pref_summary_notifications_ignore_work_profile">仕事用プロファイルのアプリからの通知をウォッチに送信しないようにします</string>
     <string name="pref_pair_bluetooth_calls_help_2">2. Android の Bluetooth の設定に移動し、表示された新しいデバイスとペアリングします（使用中のウォッチと似た名前ですが、ウォッチの名前の末尾に接頭辞が付きます。例： Amazfit GTR 4 - AFC8）。</string>
     <string name="pref_title_notifications_generic_settings">Android 通知設定</string>
     <string name="pref_title_notifications_ignore_work_profile">仕事用プロファイルを非表示にする</string>
-    <string name="pref_summary_banglejs_text_bitmap">ウォッチ内蔵のフォントで表示できない場合にGadgetbridgeでビットマップにレンダリングし、ウォッチに表示する</string>
-    <string name="pref_summary_banglejs_txt_bitmap_size">テキストをビットマップにレンダリングするときの大きさ</string>
+    <string name="pref_summary_banglejs_text_bitmap">ウォッチ内蔵のフォントで表示できない場合に Gadgetbridge でフォントをビットマップでレンダリングし、ウォッチに表示します</string>
+    <string name="pref_summary_banglejs_txt_bitmap_size">フォントをビットマップにレンダリングするときの大きさ</string>
     <string name="pref_title_banglejs_phone_gps_enbale">Android の GPS データを使用する</string>
     <string name="pref_title_banglejs_phone_gps_network_only">測位にネットワークのみを使用する</string>
     <string name="pref_summary_banglejs_phone_gps_enbale">Android の GPS データを使って Bangle デバイスの GPS データを上書きします</string>
-    <string name="pref_summary_banglejs_phone_gps_update_interval">GPS の位置情報が更新される間隔（ミリ秒）</string>
+    <string name="pref_summary_banglejs_phone_gps_update_interval">GPS の位置情報が更新される間隔 (ミリ秒)</string>
     <string name="pref_summary_banglejs_webview_url">カスタムアプリローダーが必要な場合は https://…/android.html の URL をここに入力してください。空白にすると https://banglejs.com/apps が指定されます</string>
     <string name="pref_header_authentication">認証</string>
     <string name="pref_title_custom_deviceicon">デバイス固有の通知アイコンを表示する</string>
     <string name="fw_upgrade_notice_miband5">Mi Band 4 に %s ファームウェアをインストールしようとしています。
 \n
-\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールすると、お使いの バンドが再起動します。
+\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールすると、バンドが再起動します。
 \n
 \n注: .resファイルが以前にインストールしたものとまったく同じ場合、新たに.res をインストールする必要はありません。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfit_band7">Amazfit Band 7に %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_miband6">Mi Band 4 に %s ファームウェアをインストールしようとしています。
 \n
-\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールすると、お使いの バンドが再起動します。
+\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールすると、バンドが再起動します。
 \n
 \n注: .resファイルが以前にインストールしたものとまったく同じ場合、新たに.res をインストールする必要はありません。
 \n
@@ -962,13 +964,13 @@
     <string name="open_fw_installer_getting_files_title">ファームウェア/アプリ ファイルを取得</string>
     <string name="pref_header_system">システム</string>
     <string name="pref_header_offline_voice">オフラインボイス</string>
-    <string name="pref_pair_bluetooth_calls_title">Bluetooth通話用のペアリング</string>
+    <string name="pref_pair_bluetooth_calls_title">Bluetooth 通話用のペアリング</string>
     <string name="pref_pair_bluetooth_calls_help_1">1. 下のボタンをタップしてペアリングを開始する。</string>
     <string name="pref_summary_notification_delay_calls">着信通知をデバイスに送信するまでの遅延時間（秒）</string>
     <string name="pref_pair_bluetooth_calls_summary">ペアリングを開始するにはここをタップ</string>
-    <string name="pref_title_notification_prefer_long_text">長文の通知を表示する</string>
-    <string name="pref_title_banglejs_text_bitmap">テキストをビットマップにする</string>
-    <string name="pref_title_banglejs_txt_bitmap_size">テキストのビットマップサイズ</string>
+    <string name="pref_title_notification_prefer_long_text">長文の通知を優先する</string>
+    <string name="pref_title_banglejs_text_bitmap">ビットマップフォントを使用する</string>
+    <string name="pref_title_banglejs_txt_bitmap_size">フォントのビットマップサイズ</string>
     <string name="pref_summary_banglejs_phone_gps_network_only">測位にネットワークプロバイダーのみを使用します。消費電力を減らしますが、精度が低くなります。再接続が必要です。</string>
     <string name="pref_title_banglejs_phone_gps_update_interval">GPS データの更新間隔</string>
     <string name="pref_blacklist_calendars_summary">ブラックリストに登録したカレンダーはデバイスに同期されません</string>
@@ -988,7 +990,7 @@
     <string name="calendar_year">1年</string>
     <string name="fw_upgrade_notice_amazfit_gts3">Amazfit GTS 3 に %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfitgts">Amazfit GTS に %s ファームウェアをインストールしようとしています。
@@ -1000,52 +1002,52 @@
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfit_gts4_mini">Amazfit GTS 4 Miniに %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfit_gtr3_pro">Amazfit GTR 3 Proに %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfit_trex2">Amazfit T-Rex 2に %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfit_gtr3">Amazfit GTR 3に %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfit_cheetah_pro">Amazfit Cheetah Proに %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="pref_header_time">時間</string>
     <string name="fw_upgrade_notice_zepp_os">%sに %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="pref_header_workout">ワークアウト</string>
     <string name="pref_title_message_privacy_mode">メッセージのプライバシー設定</string>
     <string name="pref_message_privacy_mode_off">すべての内容を表示</string>
     <string name="title_activity_controlcenter_banglejs_nightly">Bangle.js Gadgetbridge (Nightly)</string>
-    <string name="prefs_activity_in_device_card_distance_title_summary">距離は歩数と歩幅から算出されています（設定＞ユーザー情報 で調整できます）</string>
+    <string name="prefs_activity_in_device_card_distance_title_summary">距離は歩数と歩幅から算出されています（設定 - ユーザー情報 で調整できます）</string>
     <string name="appmanager_app_share">共有</string>
-    <string name="check_all_applications"/>
+    <string name="check_all_applications">すべてのアプリを確認する</string>
     <string name="fw_upgrade_notice_amazfitbip_lite">Amazfit Bip Lite に %s のファームウェアをインストールしようとしています。
 \n
-\n.fw ファイル、その後 .res ファイル、最後に .gps ファイルをインストールしてください。お使いのウォッチは、.fw ファイルをインストールした後に再起動します。
+\n.fw ファイル、その後 .res ファイル、最後に .gps ファイルをインストールしてください。ウォッチは、.fw ファイルをインストールした後に再起動します。
 \n
 \n注: これらのファイルが前回にインストールしたものと完全に同じ場合、.res と .gps をインストールする必要はありません。
 \n
 \nご自身の責任で行ってください!</string>
     <string name="fw_upgrade_notice_amazfitbip3pro">Amazfit Bip 3 Pro に %s のファームウェアをインストールしようとしています。
 \n
-\n.fw ファイルをインストールし、その後 .res ファイルをインストールしてください。お使いのウォッチは、.fw ファイルをインストールした後に再起動します。
+\n.fw ファイルをインストールし、その後 .res ファイルをインストールしてください。ウォッチは、.fw ファイルをインストールした後に再起動します。
 \n
 \n注: これらのファイルが前回にインストールしたものと完全に同じ場合、.res ファイルをインストールする必要はありません。
 \n
@@ -1068,31 +1070,31 @@
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfit_gts4">Amazfit GTS 4に %s ファームウェアをインストールしようとしています。
 \n
-\n.zipファイルをインストールすると、お使いのバンドが再起動します。
+\n.zipファイルをインストールすると、バンドが再起動します。
 \n
 \n自己責任の下で行ってください！</string>
     <string name="fw_upgrade_notice_amazfitx">Amazfit X に %s ファームウェアをインストールしようとしています。
 \n
-\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールすると、お使いの バンドが再起動します。
+\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールすると、バンドが再起動します。
 \n
 \n注: .resファイルが以前にインストールしたものとまったく同じ場合、新たに.res をインストールする必要はありません。
 \n
 \n自己責任の下で行ってください！</string>
-    <string name="pref_pair_bluetooth_calls_help_3">3. 以下のBluetooth通話設定を有効にします。</string>
+    <string name="pref_pair_bluetooth_calls_help_3">3. 以下のBluetooth 通話設定を有効にします。</string>
     <string name="bluetooth_calls">Bluetooth 通話</string>
-    <string name="bluetooth_calls_pairing">Bluetooth通話のペアリング</string>
-    <string name="bluetooth_calls_settings">Bluetooth通話の設定</string>
-    <string name="pref_display_caller_summary">着信時に電話番号か名前を表示する</string>
+    <string name="bluetooth_calls_pairing">Bluetooth 通話のペアリング</string>
+    <string name="bluetooth_calls_settings">Bluetooth 通話の設定</string>
+    <string name="pref_display_caller_summary">着信時に電話番号か名前を表示します</string>
     <string name="pref_summary_custom_deviceicon">接続時に Gadgetbridge のアイコンの代わりに デバイス固有の Android 通知アイコンを表示します</string>
     <string name="pref_title_preview_message_in_title">タイトルにメッセージのプレビューを表示する</string>
-    <string name="pref_summary_notification_cache_while_disconnected">接続が途切れたデバイスが再接続されたときに見逃した通知を送信する</string>
+    <string name="pref_summary_notification_cache_while_disconnected">接続が途切れたデバイスが再接続されたときに見逃した通知を送信します</string>
     <string name="fw_upgrade_notice_amazfitbip3">Amazfit Bip 3 に %s のファームウェアをインストールしようとしています。
 \n
-\n.fw ファイルをインストールし、その後 .res ファイルをインストールしてください。お使いのウォッチは、.fw ファイルをインストールした後に再起動します。
+\n.fw ファイルをインストールし、その後 .res ファイルをインストールしてください。ウォッチは、.fw ファイルをインストールした後に再起動します。
 \n
 \n注: これらのファイルが前回にインストールしたものと完全に同じ場合、.res ファイルをインストールする必要はありません。
 \n
-\nご自身の責任で行ってください!</string>
+\nご自身の責任で行ってください！</string>
     <string name="fw_upgrade_notice_amazfitgtr">Amazfit GTR に %s ファームウェアをインストールしようとしています。
 \n 
 \n.fw ファイルをインストールし、次に.res ファイル、最後に.gpsファイルをインストールしてください。 .fw ファイルをインストールした後、ウォッチが再起動します。
@@ -1100,10 +1102,10 @@
 \n注: .res ファイルと .gps ファイルが前回にインストールしたものと同じ場合、新たにこれらのファイルをインストールする必要はありません。
 \n 
 \n自己責任の下で行ってください！</string>
-    <string name="open_fw_installer_warning_title">警告</string>
-    <string name="open_fw_installer_warning_text">この機能はお使いのデバイスを使用不能にする可能性があります。開発者はそのような経験はしていませんが、実行する際は自己責任の下で行ってください。</string>
+    <string name="open_fw_installer_warning_title">注意</string>
+    <string name="open_fw_installer_warning_text">この機能はデバイスを使用不能にする可能性があります。開発者はそのような経験はしていませんが、実行する際は自己責任の下で行ってください。</string>
     <string name="open_fw_installer_pick_file">ファイルの選択</string>
-    <string name="open_fw_installer_info_text_title">ファイルインストーラ</string>
+    <string name="open_fw_installer_info_text_title">ファイル インストーラ</string>
     <string name="open_fw_installer_connect_minimum_one_device">ファイルを送信したいデバイスを少なくとも1つ接続してください。</string>
     <string name="application_name_banglejs_main">Bangle.js Gadgetbridge</string>
     <string name="title_activity_controlcenter_banglejs_main">Bangle.js Gadgetbridge</string>
@@ -1116,21 +1118,21 @@
     <string name="pref_screen_notification_profile_todo_list">To-Do リスト</string>
     <string name="pref_screen_notification_profile_schedule">スケジュール</string>
     <string name="zetime_prefs_inactivity_repetitions">繰り返し</string>
-    <string name="zetime_signaling_beep">継続的なビープ音</string>
-    <string name="zetime_signaling_vibrate">継続的な振動</string>
-    <string name="zetime_signaling_vibrate_beep">継続的な振動とビープ音</string>
-    <string name="zetime_signaling_vibrate_twice">2回振動</string>
-    <string name="zetime_signaling_vibrate_once">一度だけ振動</string>
+    <string name="zetime_signaling_beep">ビープ音を鳴らし続ける</string>
+    <string name="zetime_signaling_vibrate">振動させ続ける</string>
+    <string name="zetime_signaling_vibrate_beep">振動とビープ音を鳴らし続ける</string>
+    <string name="zetime_signaling_vibrate_twice">2回振動させる</string>
+    <string name="zetime_signaling_vibrate_once">1回だけ振動させる</string>
     <string name="prefs_hr_alarm_activity">スポーツ アクティビティ時の心拍数アラーム</string>
     <string name="pref_sleep_mode_sleep_screen_title">スリープ画面</string>
     <string name="pref_header_auto_fetch">自動取得</string>
     <string name="heartrate_bpm_135">135 bpm</string>
     <string name="reminder_every_month">毎月</string>
     <string name="pref_summary_device_internet_access">このデバイス上のアプリにインターネット接続を許可します</string>
-    <string name="pref_summary_sync_calendar">切断時にもカレンダーのアラートを有効にします</string>
+    <string name="pref_summary_sync_calendar">切断されているときにもカレンダーのアラートを有効にします</string>
     <string name="pref_title_vibration_strength">振動の強さ</string>
     <string name="pref_summary_relax_firmware_checks">ファームウェアの確認を緩和します</string>
-    <string name="pref_agps_header">補助GPS</string>
+    <string name="pref_agps_header">補助 GPS</string>
     <string name="pref_workout_detection_sensitivity">感度</string>
     <string name="pref_cache_weather">天気情報をキャッシュする</string>
     <string name="prefs_notifications_and_calls_shake_reject">手首を振って着信を無視/拒否する</string>
@@ -1142,22 +1144,22 @@
     <string name="heartrate_bpm_145">145 bpm</string>
     <string name="heartrate_bpm_185">185 bpm</string>
     <string name="pref_title_device_intents">インテントを許可する</string>
-    <string name="reminder_time_once">%1$s, 1回だけ</string>
+    <string name="reminder_time_once">%1$s, 1度だけ</string>
     <string name="pref_title_casio_alert_calendar">カレンダー通知のアラート</string>
     <string name="pref_title_casio_alert_call">着信のアラート</string>
-    <string name="pref_summary_casio_alert_call">着信時にアラート（振動/ビープ音）を鳴らします</string>
+    <string name="pref_summary_casio_alert_call">着信時にアラート(振動/ビープ音)を鳴らします</string>
     <string name="pref_title_casio_alert_email">メール通知のアラート</string>
     <string name="pref_summary_casio_alert_sms">SMS通知時にアラート（振動/ビープ音）を鳴らします</string>
     <string name="pref_title_casio_alert_other">その他の通知のアラート</string>
-    <string name="pref_summary_casio_alert_other">他カテゴリの通知時にアラート（振動/ビープ音を鳴らします）</string>
+    <string name="pref_summary_casio_alert_other">他カテゴリの通知時にアラート(振動/ビープ音)を鳴らします</string>
     <string name="pref_summary_screen_on_on_notifications">通知がきたときにバンドの画面を ON にします</string>
     <string name="pref_summary_send_app_notifications">アプリの通知をデバイスに送信します</string>
     <string name="pref_title_allow_high_mtu">高 MTU を許可する</string>
     <string name="pref_title_overwrite_settings_on_connection">接続時に設定を上書きする</string>
     <string name="pref_summary_overwrite_settings_on_connection">バンドに接続するときに、バンド上のすべての設定を上書きします。</string>
     <string name="pref_title_device_internet_access">インターネット接続を許可する</string>
-    <string name="pref_title_relax_firmware_checks">お使いのデバイス向けでないファームウェアをフラッシュしたい場合に有効化（自己責任で）</string>
-    <string name="pref_summary_huami_force_new_protocol">お使いのデバイスのファームウェア更新後に接続できなくなった場合に有効にしてください</string>
+    <string name="pref_title_relax_firmware_checks">お使いのデバイス向けでないファームウェアを書き込みたい場合に有効化（自己責任で）</string>
+    <string name="pref_summary_huami_force_new_protocol">ファームウェア更新後にデバイスに接続できなくなった場合、これを有効にしてください</string>
     <string name="title_activity_LenovoWatch_calibration">Watch X Plus の調整</string>
     <string name="prefs_notifications_and_calls_continious_ring">着信中の通知</string>
     <string name="pref_notifications_and_calls_enable_misscall">不在着信を通知する</string>
@@ -1166,8 +1168,8 @@
     <string name="prefs_notifications_and_calls_reject">ボタンで着信着信を無視/拒否する</string>
     <string name="pref_summary_notifications_and_calls_title_shake_reject">ウォッチのボタン動作を複製する</string>
     <string name="pref_header_sensors_calibration">センサーの補正</string>
-    <string name="pref_sensors_bp_calibration_low">血圧（下）</string>
-    <string name="pref_sensors_bp_calibration_high">血圧（上）</string>
+    <string name="pref_sensors_bp_calibration_low">血圧 (下)</string>
+    <string name="pref_sensors_bp_calibration_high">血圧 (上)</string>
     <string name="power_mode_title">ウォッチの電源モード</string>
     <string name="femometer_measurement_mode_title">測定モード</string>
     <string name="zetime_analog_mode_handsandsteps">針と歩数</string>
@@ -1186,7 +1188,7 @@
     <string name="busy_task_fetch_stress_data">ストレスデータを取得中</string>
     <string name="busy_task_fetch_sleep_respiratory_rate_data">睡眠時呼吸数のデータを取得中</string>
     <string name="busy_task_fetch_statistics">統計の取得中</string>
-    <string name="prefs_wearmode">着用モード</string>
+    <string name="prefs_wearmode">装着モード</string>
     <string name="heartrate_bpm_50">50 bpm</string>
     <string name="heartrate_bpm_120">120 bpm</string>
     <string name="heartrate_bpm_125">125 bpm</string>
@@ -1207,7 +1209,7 @@
     <string name="pref_title_developer_settings">開発者向けの設定</string>
     <string name="fossil_hr_edit_action_delete">削除</string>
     <string name="qhybrid_calibration_counterclockwise">反時計回り</string>
-    <string name="connection_over_ble">BLE での接続</string>
+    <string name="connection_over_ble">Bluetooth LE による接続</string>
     <string name="pref_header_notifications_and_calls_callhandling">通話の対応</string>
     <string name="reminder_delete_confirm_description">リマインダーを削除しますか？</string>
     <string name="contact_delete_confirm_description">\'%1$s\' を削除しますか？</string>
@@ -1218,11 +1220,11 @@
     <string name="pref_summary_casio_alert_email">メール通知時にアラート（振動/ビープ音）を鳴らします</string>
     <string name="pref_title_device_spec_settings_show_raw_graph">アクティビティグラフに生データを表示する</string>
     <string name="power_mode_watch">時計のみ</string>
-    <string name="power_mode_normal">普通</string>
+    <string name="power_mode_normal">ノーマル</string>
     <string name="femometer_measurement_mode_normal">通常モード（60秒-90秒）</string>
     <string name="femometer_measurement_mode_precise">精密モード（3分）</string>
     <string name="reminder_message">メッセージ</string>
-    <string name="zetime_title_screentime">画面 ON の時間（秒）</string>
+    <string name="zetime_title_screentime">画面オンの時間 (秒)</string>
     <string name="zetime_analog_mode_hands">針のみ</string>
     <string name="zetime_activity_tracking_summary">アクティビティ トラッキングを ON にすると、歩数などがカウントされます。</string>
     <string name="pref_force_connection_type_ble">Bluetooth LE</string>
@@ -1236,14 +1238,14 @@
     <string name="pref_world_clocks_title">世界時計</string>
     <string name="pref_title_screen_on_on_notifications">通知時に画面を ON にする</string>
     <string name="pref_workout_detection_title">ワークアウトの検出</string>
-    <string name="pref_workout_keep_screen_on_summary">ワークアウト中は画面を ON のままにします。リアルタイムのワークアウト データを表示し続けるために明るさが調整されます</string>
+    <string name="pref_workout_keep_screen_on_summary">ワークアウト中は画面をオンのままにし、リアルタイムのワークアウト データを表示し続けるために明るさが調整されます</string>
     <string name="spo2_perc_85">85%</string>
     <string name="spo2_perc_90">90%</string>
     <string name="spo2_off">Off</string>
     <string name="clap_hands_to_wakeup_device">手を叩いて画面を ON にする</string>
     <string name="pref_title_authkey">認証キー</string>
-    <string name="pixoo_power_saving_summary">マイクが無音状態を一定期間検知すると画面が OFF になります</string>
-    <string name="clap_hands_to_wakeup_device_summary">再度手を叩くと画面を OFF にします</string>
+    <string name="pixoo_power_saving_summary">マイクが無音状態を一定期間検知すると画面がオフになります</string>
+    <string name="clap_hands_to_wakeup_device_summary">再度手を叩くと画面をオフにします</string>
     <string name="pref_summary_authkey">接続したいすべての Android デバイス上で認証キーを共通のキーに変更してください。以前のデフォルトキーは 0123456789@ABCDE です</string>
     <string name="pref_explanation_authkey">一部のデバイスでは初期設定に特別なペアリング キーが必要です。ここをタップすると詳細をWikiで確認できます。</string>
     <string name="prefs_hr_alarm_low">下限</string>
@@ -1251,7 +1253,7 @@
     <string name="pref_gps_combination">GPS の組み合わせ</string>
     <string name="pref_gps_satellite_search">衛星の検索</string>
     <string name="pref_crown_vibration">リューズの振動</string>
-    <string name="pref_workout_detection_summary">ワークアウトは自動的に検出されます</string>
+    <string name="pref_workout_detection_summary">ワークアウトを自動的に検出します</string>
     <string name="pref_workout_send_gps_title">ワークアウト中に位置情報を送信する</string>
     <string name="pref_workout_send_gps_summary">ワークアウト中に現在の位置情報をバンドに送信します</string>
     <string name="pref_workout_keep_screen_on_title">ワークアウト中は画面を ON のままにする</string>
@@ -1261,8 +1263,8 @@
     <string name="pref_workout_detection_alert_summary">ワークアウトが検出されたときに通知します</string>
     <string name="pref_workout_detection_enabled_summary">このワークアウトの自動検出を有効にします</string>
     <string name="pref_workout_detection_ask_first">最初に確認する</string>
-    <string name="pref_workout_detection_ask_first_summary">このワークアウトを検出したとき、ウォッチ上で承認する必要があります</string>
-    <string name="pref_workout_detection_enabled">検出は有効です</string>
+    <string name="pref_workout_detection_ask_first_summary">このワークアウトを検出したとき、ウォッチ上で承認を求めます</string>
+    <string name="pref_workout_detection_enabled">検出を有効にする</string>
     <string name="pref_summary_disable_new_ble_scanning">検出中にデバイスが見つからない場合、このオプションをチェックしてください</string>
     <string name="discovery_bluetooth_le_scan">Bluetooth LE スキャン：</string>
     <string name="preferences_miband_1_2_warning">注意：これらの設定はMi Band 1とMi Band 2にのみ適用されます。</string>
@@ -1298,7 +1300,7 @@
     <string name="qhybrid_calibration_10_steps">10 ステップ</string>
     <string name="qhybrid_calibration_100_steps">100 ステップ</string>
     <string name="wearmode_band">バンド（リストバンド）</string>
-    <string name="fossil_hr_synced_activity_data">同期済みのアクティビティデータ</string>
+    <string name="fossil_hr_synced_activity_data">同期済みのアクティビティ データ</string>
     <string name="fossil_hr_new_action_cancel">キャンセル</string>
     <string name="pref_summary_physical_buttons">ウォッチの物理ボタンの機能を設定します</string>
     <string name="devicetype_qhybrid">Fossil Q Hybrid</string>
@@ -1310,12 +1312,12 @@
     <string name="pref_summary_preview_message_in_title">デバイスに許可されている場合、メッセージのプレビューを通知のタイトルに表示します</string>
     <string name="pref_summary_casio_alert_calendar">カレンダー通知時にアラート（振動/ビープ音）を鳴らします</string>
     <string name="pref_summary_allow_high_mtu">転送速度を向上させますが、一部の Android デバイスでは機能しない可能性があります。</string>
-    <string name="pref_title_goal_secondary">二番目の目標</string>
+    <string name="pref_title_goal_secondary">2番目の目標</string>
     <string name="pref_title_notifications_and_calls_repeat_on_call">着信通知を繰り返す</string>
     <string name="pref_title_device_spec_settings_force_time">時刻を強制的に同期する</string>
     <string name="pref_summary_device_spec_settings_title_force_time">再接続したときに時刻を自動で同期するようにします。アナログ針が間違った時刻を示すことがあります！</string>
-    <string name="pref_title_sensors_altitude">高度の補正</string>
-    <string name="pref_sensors_bp_calibration">血圧の補正</string>
+    <string name="pref_title_sensors_altitude">高度計の補正</string>
+    <string name="pref_sensors_bp_calibration">血圧計の補正</string>
     <string name="prefs_sensors_button_bp_calibration">補正</string>
     <string name="prefs_sensors_button_bp_calibration_sum">ここを押して補正を開始</string>
     <string name="power_mode_saving">省電力</string>
@@ -1337,7 +1339,7 @@
     <string name="pref_cache_weather_summary">天気情報はアプリの再起動をまたいでキャッシュされます。</string>
     <string name="busy_task_fetch_pai_data">PAI のデータを取得中</string>
     <string name="busy_task_fetch_hr_data">心拍数のデータを取得中</string>
-    <string name="prefs_weardirection">着用する向き</string>
+    <string name="prefs_weardirection">装着する向き</string>
     <string name="pref_screen_notification_profile_inactivity">無活動の通知</string>
     <string name="pref_screen_notification_profile_event_reminder">イベント リマインダー</string>
     <string name="pref_screen_notification_profile_find_device">デバイスを見つける</string>
@@ -1403,7 +1405,7 @@
     <string name="pref_summary_third_party_app_device_settings">インストールされているサードパーティのアプリがインテントを通じてデバイスの設定を行えるようにします。</string>
     <string name="pref_title_third_party_app_device_settings">サードパーティのアプリに設定の変更を許可する</string>
     <string name="prefs_reserve_reminder_calendar_summary">同期されるカレンダー イベントの数</string>
-    <string name="prefs_find_phone_duration">着信音の継続時間（秒）</string>
+    <string name="prefs_find_phone_duration">着信音の継続時間 (秒)</string>
     <string name="hydration_dnd_summary">水分補給の警告を一定期間無効にします</string>
     <string name="mi2_prefs_heart_rate_monitoring">心拍数のモニタリング</string>
     <string name="mi2_prefs_heart_rate_monitoring_summary">心拍数のモニタリングを設定します</string>
@@ -1441,7 +1443,7 @@
     <string name="english_ca">英語（カナダ）</string>
     <string name="manual">手動</string>
     <string name="spanish_es">スペイン語（スペイン）</string>
-    <string name="pref_do_not_disturb_not_wear">未着用時はサイレント モードにする</string>
+    <string name="pref_do_not_disturb_not_wear">未装着時はサイレント モードにする</string>
     <string name="prefs_screen_timeout">画面消灯</string>
     <string name="lefun_prefs_antilost_title">紛失防止</string>
     <string name="prefs_password_4_digits_0_to_9_summary">パスワードは数字のみを用いた4桁である必要があります</string>
@@ -1475,9 +1477,9 @@
     <string name="activity_prefs_discovery_pairing">検出とペアリングの設定</string>
     <string name="pref_title_charts_range">チャートの範囲</string>
     <string name="charts_legend_stress_average">平均ストレス</string>
-    <string name="activity_prefs_distance_meters">1日の目標：距離(m)</string>
+    <string name="activity_prefs_distance_meters">1日の目標: 距離 (m)</string>
     <string name="charts_legend_spo2_average">平均血中酸素濃度</string>
-    <string name="activity_prefs_calories_burnt">1日の目標：カロリー消費</string>
+    <string name="activity_prefs_calories_burnt">1日の目標: カロリー消費</string>
     <string name="dbmanagementactivity_export_data_title">データをエクスポートしますか？</string>
     <string name="activity_db_management_empty_db_warning">注意！このボタンを押すとデータベースがリセットされます。</string>
     <string name="dbmanagementactivity_export_finished">削除が完了しました</string>
@@ -1637,7 +1639,7 @@
     <string name="menuitem_female_health">女性の健康</string>
     <string name="menuitem_email">メール</string>
     <string name="menuitem_countdown">カウントダウン</string>
-    <string name="menuitem_personal_activity_intelligence">個人活動情報（PAI）</string>
+    <string name="menuitem_personal_activity_intelligence">パーソナルアクティビティインテリジェンス (PAI)</string>
     <string name="devicetype_huawei_watchgt2e">Huawei Watch GT 2e</string>
     <string name="zepp_os_watchface_vast_sky">Vast Sky</string>
     <string name="zepp_os_watchface_pure_white">Pure white</string>
@@ -1854,4 +1856,854 @@
     <string name="prefs_fm_preset_instructions">ボタンを長押しでプリセットを保存</string>
     <string name="widget_listing_label">ステータスとアラーム</string>
     <string name="prefs_fm_presets_presets">プリセット</string>
+    <string name="watch_not_connected">ウォッチが接続されていません</string>
+    <string name="pref_title_lower_button_function_short">下ボタン（短）</string>
+    <string name="pref_title_upper_button_function_long">上ボタン（長）</string>
+    <string name="pref_title_middle_button_function_double">中ボタン（2 回）</string>
+    <string name="hr_appname_workout">ワークアウト</string>
+    <string name="pref_title_middle_button_function_long">中ボタン（長）</string>
+    <string name="pref_title_upper_button_function_double">上ボタン（2 回）</string>
+    <string name="qhybrid_buttons_overwrite_success">ボタンが上書きされました</string>
+    <string name="about_links">リンク</string>
+    <string name="qhybrid_changes_delay_prompt">変更の反映に数秒かかります…</string>
+    <string name="pref_title_lower_button_function_double">下ボタン（2 回）</string>
+    <string name="about_additional_contributions">アプリ開発に貢献していただいたすべての貢献者に感謝します…✊</string>
+    <string name="gpx_receiver_overwrite_some_files">ファイルは既に存在します。上書きしますか？</string>
+    <string name="about_version">バージョン %s</string>
+    <string name="qhybrid_overwrite_buttons">ボタンを上書き</string>
+    <string name="qhybrid_buttons_overwrite_error">ボタンを上書きできませんでした</string>
+    <string name="text_receiver_activity_title">テキストをデバイスに送る</string>
+    <string name="qhybrid_goal_in_steps">目標歩数</string>
+    <string name="qhybrid_time_shift">タイムシフト</string>
+    <string name="pref_title_upper_button_long_press_action">上ボタンを長く押したときの動作</string>
+    <string name="pref_title_upper_button_function_short">上ボタン（短）</string>
+    <string name="pref_title_middle_button_function_short">中ボタン（短）</string>
+    <string name="pref_title_lower_button_function_long">下ボタン（長）</string>
+    <string name="hr_widget_active_minutes">活動時間</string>
+    <string name="hr_appname_wellness">ウェルネス</string>
+    <string name="pref_title_lower_button_short_press_action">下ボタンを短く押したときの動作</string>
+    <string name="hr_widget_nothing">なし</string>
+    <string name="about_core_team_title">コア チーム（貢献した順）</string>
+    <string name="about_hash">コミット %s</string>
+    <string name="gpx_receiver_files_received">GPX ファイルを受信しました：</string>
+    <string name="appmanager_downloaded_to_cache">%s をキャッシュにダウンロードしました</string>
+    <string name="pref_title_mb_intents">メディアボタンのインテントを直接送信する</string>
+    <string name="low_power_gps">省電力 GPS</string>
+    <string name="all_satellites">すべての衛星</string>
+    <string name="gadgetbridge_running_main_nightly">Gadgetbridge Nightly は動作中です</string>
+    <string name="application_name_main_nopebble">Gadgetbridge (Nightly, No Pebble provider)</string>
+    <string name="title_activity_controlcenter_main_nopebble">Gadgetbridge Nightly No Pebble</string>
+    <string name="about_activity_title_main_nopebble">Gadgetbridge Nightly No Pebble について</string>
+    <string name="gadgetbridge_running_main_nopebble">Gadgetbridge Nightly No Pebble は動作中です</string>
+    <string name="appmanager_item_outdated">(古いバージョン)</string>
+    <string name="uncheck_all_applications">すべてのアプリを未確認にする</string>
+    <string name="about_description_generic">メーカーが提供するクローズドソースの Android アプリの代替として開発された、クラウドレスでコピーレフトの自由なアプリ。</string>
+    <string name="permission_request">%1$s を使うと、 Android からあなたのデバイスにメッセージやその他のデータを送ることができます。データへのアクセス許可がない場合、この機能は正しく動作しない可能性があります。
+\n
+\n動作に必要なアクセス許可を要求するダイアログが表示されます。
+\n
+\n\'%2$s\' をタップして進みます。</string>
+    <string name="permission_location">%1$s は、画面がオフの状態でもウォッチとの接続を維持するためにバックグラウンドで位置情報にアクセスする権限が必要です。
+\n
+\n\'%2$s\' をタップして同意します。</string>
+    <string name="permission_granting_mandatory">これらすべての許可がなければ、アプリが正しく動作しない可能性があります</string>
+    <string name="gadgetbridge_running_banglejs_main">Bangle.js は動作中です</string>
+    <string name="about_description_banglejs_nightly">Gadgetbridge プロジェクト上に構築された Bangle.js の Android コンパニオン アプリ。インターネット アクセスが追加されています。
+\n
+\nGoogle Play ストアのポリシーにより、アプリ自体に寄付リンクを使用することはできませんが、このアプリを気に入っていただけましたら、以下の Gadgetbridge ホームページから寄付をご検討ください。</string>
+    <string name="about_description_main_nightly">メーカーが提供するクローズドソースの Android アプリの代替として開発された、クラウドレスでコピーレフトの自由なアプリ。Gadgetbridge の Nightly リリース。すでに Gadgetbridge か Pebble アプリがインストールされている場合、Pebble provider の競合のためインストールできません。</string>
+    <string name="about_description_main_nopebble">メーカーが提供するクローズドソースの Android アプリの代替として開発された、クラウドレスでコピーレフトの自由なアプリ。このバージョンは競合を避けるために Pebble provider の名前が変更されているため Pebble 関連の機能は動作しませんが、既存の Gadgetbridge と一緒にインストールすることができます。</string>
+    <string name="single_band">シングルバンド</string>
+    <string name="dual_band">デュアルバンド</string>
+    <string name="gadgetbridge_running_banglejs_nightly">Nightly Bangle.js は動作中です</string>
+    <string name="permission_display_over_other_apps">%1$s は、 %1$s がバックグラウンドで動作しているときに Bangle.js ウォッチがインテントを経由してアクティビティを開始するために、他のアプリの上に重ねて表示する権限が必要です。
+\n
+\nこれによって、音楽アプリを起動して音楽を再生したり、その他いろいろなことができます。
+\n
+\n\'%2$s\' をタップし、 \'%1$s\' を選択して \'他のアプリの上に重ねて表示できるようにする\' を有効にし、戻るをタップして %1$s に戻ってください。
+\n
+\n%1$s がこの権限を求めるのを停止するには Gadgetbridge の設定を開き、 \'権限の状態を確認する\' をオフにしてください。
+\n
+\nアプリを期待通りに動作させるには、必要な権限を %1$s に与えてください。</string>
+    <string name="device_experimental">試験的</string>
+    <string name="debugactivity_confirm_remove_device_preferences_title">デバイスの環境設定を削除しますか？</string>
+    <string name="device_unsupported">未サポート</string>
+    <string name="open_fw_installer_getting_files_text">ファームウェア ファイルは自身で入手する必要があります。Apk ファイル、インターネット、フォーラム、Amazfitwatchfaces（Miband/Amazfit デバイス向け）などでファイルを探す必要があります。</string>
+    <string name="error_background_service_reason_truncated">以下の理由でバックグラウンドサービスの開始に失敗しました…</string>
+    <string name="action_changelog">Changelog</string>
+    <string name="prefs_activity_in_device_card_sleep_title_summary">睡眠の期間を表示する</string>
+    <string name="error_version_check_extreme_caution">注意：バージョン情報の確認中にエラーが発生しました。続行しないでください。バージョン名は \"%s\" です</string>
+    <string name="open_fw_installer_select_file">デバイスにアップロードしたいファイルを選択： %s</string>
+    <string name="device_is_currently_bonded">既に接続済みです</string>
+    <string name="error_background_service_reason">バックグラウンドサービスの開始は例外のため失敗しました。エラー：</string>
+    <string name="error_background_service">バックグラウンドサービスの開始に失敗しました</string>
+    <string name="require_location_provider">位置情報を有効にする必要があります</string>
+    <string name="pref_check_permission_status">権限の状態を確認する</string>
+    <string name="strokes_minute">ストローク/秒</string>
+    <string name="aerobicTrainingEffect">有酸素の効果</string>
+    <string name="pref_show_changelog">起動時に Changelog を表示</string>
+    <string name="pref_show_changelog_summary">Gadgetbridge が更新された後に前バージョンからの変更履歴を表示します</string>
+    <string name="laps_unit">周</string>
+    <string name="bpm">bpm</string>
+    <string name="Strokes">ストローク</string>
+    <string name="qhybrid_pref_summary_actions">Commute アプリのアクション</string>
+    <string name="button_watchface_preview">ウォッチで試す</string>
+    <string name="watchface_dialog_widget_cat_position">位置</string>
+    <string name="qhybrid_title_background_image">背景画像</string>
+    <string name="qhybrid_title_watchface">ウォッチフェイスの設定</string>
+    <string name="qhybrid_pref_title_external_intents">危険な外部インテントを許可</string>
+    <string name="discover_unsupported_devices">未サポートのデバイスも表示する</string>
+    <string name="maxStride">最大歩幅</string>
+    <string name="HeartRateZones">心拍ゾーン</string>
+    <string name="hrZoneFatBurn">脂肪燃焼</string>
+    <string name="watchface_dialog_widget_cat_generic">全般</string>
+    <string name="hrZoneWarmUp">ウォーミングアップ</string>
+    <string name="activity_detail_duration_label">期間</string>
+    <string name="qhybrid_title_apps">アプリ</string>
+    <string name="button_watchface_add_widget">ウィジェットの追加</string>
+    <string name="TrainingEffect">トレーニングの効果</string>
+    <string name="fossil_hr_edit_action">アクションの編集</string>
+    <string name="pref_summary_developer_settings">開発者向けの設定と機能</string>
+    <string name="devicetype_amazfit_trex_pro">Amazfit T-Rex Pro</string>
+    <string name="watchface_widget_type_date">日付</string>
+    <string name="watchface_widget_type_steps">歩数</string>
+    <string name="watchface_widget_type_heart_rate">心拍数</string>
+    <string name="qhybrid_pref_summary_external_intents">他の Android アプリからファイルをアップロード/上書きすることを許可します</string>
+    <string name="permission_notification_listener">%1$s は、Android の画面がオフのときにもウォッチに通知を表示するために、通知にアクセスする必要があります。
+\n
+\n\'%2$s\' をタップし、 \'%1$s\' を選択して \'通知へのアクセス許可\' を有効にし、 戻るボタンをタップして %1$s に戻ってください。</string>
+    <string name="permission_notification_policy_access">%1$s は、 Android がオフのときにもウォッチでサイレント モードを有効にするために、サイレント モードの設定にアクセスする必要があります。
+\n
+\n\'%2$s\' をタップし、 \'%1$s\' を選択して \'サイレント モードの利用を許可\' を有効にし、 戻るボタンをタップして %1$s に戻ってください。</string>
+    <string name="minHR">最小心拍数</string>
+    <string name="seconds_km">秒/km</string>
+    <string name="seconds_m">秒/m</string>
+    <string name="calories_unit">kcal</string>
+    <string name="qhybrid_summary_calibration">ウォッチの針を補正します</string>
+    <string name="Speed">速度</string>
+    <string name="watchface_widget_type_weather">天気</string>
+    <string name="minCadence">最小ケイデンス</string>
+    <string name="spm">歩/min</string>
+    <string name="averageAltitude">平均</string>
+    <string name="minSpeed">最小</string>
+    <string name="hrZoneNa">利用不可</string>
+    <string name="hrZoneAnaerobic">無酸素</string>
+    <string name="anaerobicTrainingEffect">無酸素の効果</string>
+    <string name="maximumOxygenUptake">最大酸素摂取量</string>
+    <string name="minStride">最小歩幅</string>
+    <string name="maxCadence">最大ケイデンス</string>
+    <string name="discover_unsupported_devices_description">このオプションを有効にすると、検出されたすべての Bluetooth デバイスを表示します。短くタップすると、デバイス名と MAC アドレスをクリップボードにコピーします。長くタップすると、\'テストデバイスの追加\' ダイアログが表示されます。アプリが停止する可能性があります。</string>
+    <string name="hrZoneExtreme">エクストリーム</string>
+    <string name="currentWorkoutLoad">ワークアウトの負荷</string>
+    <plurals name="widget_alarm_target_hours">
+        <item quantity="other">%d 時間</item>
+    </plurals>
+    <string name="qhybrid_summary_file_management">ファイルをアップロード/ダウンロードします</string>
+    <string name="descentMeters">下り坂</string>
+    <string name="ascentDistance">上り坂の距離</string>
+    <string name="strokes_unit">ストローク</string>
+    <string name="swolf_index">SWOLF 指数</string>
+    <string name="minutes_km">分/km</string>
+    <string name="swim_style">泳法</string>
+    <string name="qhybrid_title_file_management">ファイルの管理</string>
+    <string name="button_watchface_settings">ウォッチフェイスの設定</string>
+    <string name="watchface_dialog_title_set_name">ウォッチフェイスに名前を付ける</string>
+    <string name="button_watchface_save_apply">保存して適用</string>
+    <string name="appmanager_app_edit">編集</string>
+    <string name="error_exporting_device_preferences">デバイス固有設定のエクスポート中にエラーが発生しました</string>
+    <string name="error_setting_alias">エイリアスの設定中にエラーが発生しました：</string>
+    <string name="averageStride">平均歩幅</string>
+    <string name="averageCadence">平均ケイデンス</string>
+    <string name="maxHR">最大心拍数</string>
+    <string name="swolfIndex">SWOLF</string>
+    <string name="swimStyle">泳法</string>
+    <string name="laneLength">レーン長</string>
+    <string name="swingAngleAvg">平均スイング角度</string>
+    <string name="unknownDataEncountered">不明なデータです</string>
+    <string name="strokes_second">ストローク/秒</string>
+    <string name="ft">ft</string>
+    <string name="yard">yard</string>
+    <string name="hrZoneAerobic">有酸素</string>
+    <string name="mi">mi</string>
+    <string name="minPace">最遅のペース</string>
+    <string name="activity_detail_start_label">開始</string>
+    <string name="activity_detail_end_label">終了</string>
+    <string name="Swimming">スイミング</string>
+    <string name="prefs_operating_sounds">操作音</string>
+    <string name="qhybrid_title_calibration">補正</string>
+    <string name="qhybrid_pref_title_actions">アクション</string>
+    <string name="button_watchface_select_image">背景画像の変更</string>
+    <string name="watchface_dialog_widget_cat_2nd_tz_widget">2番目のタイムゾーンのウィジェット</string>
+    <string name="watchface_dialog_widget_cat_custom_widget">カスタム ウィジェット</string>
+    <string name="watchface_dialog_widget_type">種類</string>
+    <string name="watchface_dialog_widget_x_coordinate">X 座標（最大値 240）</string>
+    <string name="pref_check_permission_status_summary">直ちに必要がない場合であっても、不足している権限をチェックして許可を求めます。デバイスが権限を必要とする機能に対応していないときにのみ無効にしてください。権限がないと問題が発生する場合があります！</string>
+    <string name="baseAltitude">基準標高</string>
+    <string name="qhybrid_calibration_align_hint">以下のボタンを使ってウォッチの針を 12:00 に合わせてください。</string>
+    <string name="qhybrid_watchface_configuration_old_firmware">ファームウェア バージョン DN1.0.2.19r 以下 のウォッチ向けのウォッチフェイス設定画面</string>
+    <string name="button_watchface_edit_name">名前の編集</string>
+    <string name="watchface_dialog_widget_y_coordinate">Y 座標（最大値 240）</string>
+    <string name="ascentMeters">上り坂</string>
+    <string name="descentDistance">下り坂の距離</string>
+    <string name="flatDistance">平地の距離</string>
+    <string name="elevationLoss">喪失標高</string>
+    <string name="totalStride">合計歩幅</string>
+    <string name="laps">ラップ</string>
+    <string name="error_location_enabled_mandatory">デバイスをスキャンするには位置情報を有効にする必要があります</string>
+    <string name="elevationGain">獲得標高</string>
+    <string name="swolfAvg">平均 SWOLF</string>
+    <string name="swolfMax">最大 SWOLF</string>
+    <string name="swolfMin">最小 SWOLF</string>
+    <string name="averageSpeed">平均速度</string>
+    <string name="groundContactTimeAvg">平均接地時間</string>
+    <string name="mi_h">mi/h</string>
+    <string name="minutes_mi">min/mi</string>
+    <string name="milliseconds">ミリ秒</string>
+    <string name="km">km</string>
+    <string name="degrees">度</string>
+    <string name="Pace">ペース</string>
+    <string name="Elevation">高度</string>
+    <string name="Activity">アクティビティ</string>
+    <string name="Steps">歩数</string>
+    <string name="RunningForm">ランニングフォーム</string>
+    <string name="watchface_dialog_widget_color">色</string>
+    <string name="watchface_dialog_widget_preset_left">左</string>
+    <string name="watchface_dialog_widget_color_black">黒</string>
+    <string name="watchface_dialog_title_widget">ウィジェットの設定</string>
+    <string name="watchface_dialog_widget_width">ウィジェットの幅（ピクセル数）</string>
+    <string name="watchface_setting_title_display_refresh_timeout">画面更新の時間</string>
+    <string name="watchface_setting_display_refresh_partial">一部更新（分）</string>
+    <string name="hybridhr_widget_bg_dashed_circle">破線の円</string>
+    <string name="devicetype_galaxybuds_pro">Galaxy Buds Pro</string>
+    <string name="watchface_dialog_widget_preset_right">右</string>
+    <string name="watchface_setting_display_refresh_full">全更新（分）</string>
+    <string name="devicetype_nothingear2">Nothing Ear (2)</string>
+    <string name="watchface_widget_type_chance_rain">降水確率</string>
+    <string name="devicetype_galaxybuds_2">Galaxy Buds2</string>
+    <string name="hybridhr_widget_bg_thin_circle">細い円</string>
+    <string name="watchface_setting_button_toggle_widgets">ウィジェットの切り替え</string>
+    <string name="watchface_setting_button_move_hands">針を動かす</string>
+    <string name="watchface_widget_type_calories">カロリー</string>
+    <string name="watchface_setting_power_saving_display">装着していない間は画面を更新しない</string>
+    <string name="hybridhr_widget_bg_double_circle">二重の円</string>
+    <string name="watchface_setting_power_saving_hands">装着していない間は針の動きを無効化する</string>
+    <string name="watchface_dialog_widget_color_white">白</string>
+    <string name="watchface_dialog_title_settings">ウォッチフェイスの設定</string>
+    <string name="watchface_widget_type_2nd_tz">2番目のタイムゾーン</string>
+    <string name="watchface_setting_title_custom_events">カスタム イベント</string>
+    <string name="watchface_setting_button_toggle_backlight">バックライトを点灯</string>
+    <string name="watchface_widget_type_uv_index">紫外線指数</string>
+    <string name="watchface_setting_title_power_saving">省電力</string>
+    <string name="watchface_dialog_widget_background">枠</string>
+    <string name="watchface_upload_failed">ウォッチフェイスのアップロードに失敗しました。再試行してください。</string>
+    <string name="watchface_cache_confirm_overwrite">同じ名前のウォッチフェイスが既に存在します。上書きしますか？</string>
+    <string name="qhybrid_title_watchface_designer">ウォッチフェイスの編集</string>
+    <string name="watchface_dialog_widget_presets">位置のプリセット</string>
+    <string name="devicetype_nothingear1">Nothing Ear (1)</string>
+    <string name="devicetype_nothingearstick">Nothing Ear (Stick)</string>
+    <string name="devicetype_nothing_cmf_watch_pro">CMF Watch Pro</string>
+    <string name="devicetype_galaxybuds">Galaxy Buds</string>
+    <string name="devicetype_galaxybuds_live">Galaxy Buds Live</string>
+    <string name="watchface_dialog_widget_preset_top">上</string>
+    <string name="watchface_dialog_widget_preset_bottom">下</string>
+    <string name="watchface_widget_type_battery">バッテリー</string>
+    <string name="devicetype_galaxybuds_2_pro">Galaxy Buds2 Pro</string>
+    <string name="watchface_widget_type_active_mins">活動時間</string>
+    <string name="prefs_game_mode">ゲームモード</string>
+    <string name="pref_title_equalizer_dynamic">ダイナミック</string>
+    <string name="nothing_prefs_audiomode_title">オーディオ モード</string>
+    <string name="nothing_prefs_inear_title">装着検出</string>
+    <string name="nothing_prefs_inear_summary">イヤホンを装着しているかどうかで音楽を再生/停止します</string>
+    <string name="pref_title_equalizer_soft">ソフト</string>
+    <string name="prefs_game_mode_summary">Android がゲームモードに対応している場合のみ</string>
+    <string name="prefs_touch_lock">タッチをブロック</string>
+    <string name="prefs_ambient_voice_summary">声を際立たせます</string>
+    <string name="prefs_ambient_volume_right">アンビエント ボリューム（右）</string>
+    <string name="prefs_ambient_voice_focus">音声フォーカス</string>
+    <string name="prefs_ambient_volume">アンビエント ボリューム</string>
+    <string name="prefs_equalizer_preset">プリセットのイコライザー</string>
+    <string name="prefs_equalizer">イコライザー</string>
+    <string name="prefs_equalizer_summary">イコライザーを有効/無効にします</string>
+    <string name="prefs_dolby_mode">Dolby モード</string>
+    <string name="prefs_dolby_summary">イコライザーの Dolby プリセット</string>
+    <string name="pref_title_equalizer_bass_boost">低音ブースト</string>
+    <string name="pref_title_equalizer_clear">クリア</string>
+    <string name="pref_title_equalizer_trebble">高音ブースト</string>
+    <string name="prefs_customize_ambient_sound_summary">外音取り込み機能をカスタマイズします</string>
+    <string name="prefs_ambient_sound_during_call_title">通話中の外音取り込み</string>
+    <string name="prefs_ambient_sound_during_call_summary">通話中に自分の声がはっきり聞こえるようにします</string>
+    <string name="prefs_ambient_sound">外音取り込み</string>
+    <string name="prefs_touch_lock_buds2">タッチ コントロール</string>
+    <string name="prefs_touch_lock_summary">タッチ操作を無効にします</string>
+    <string name="prefs_seamless_connection_switch_title">他のデバイスに自動的に切り換える</string>
+    <string name="prefs_seamless_connection_switch_summary">ペアリング済みのデバイス間で自動的に接続先を切り替えます</string>
+    <string name="prefs_ambient_volume_left">アンビエント ボリューム（左）</string>
+    <string name="prefs_ambient_settings_title">外音取り込み機能の設定</string>
+    <string name="prefs_active_noise_cancelling">アクティブノイズキャンセリング</string>
+    <string name="prefs_active_noise_cancelling_light">軽度のアクティブノイズキャンセリング</string>
+    <string name="prefs_ambient_mode">外音取り込みモード</string>
+    <string name="prefs_galaxy_buds_experimental">試験的</string>
+    <string name="pref_title_equalizer_normal">ノーマル</string>
+    <string name="prefs_right">右</string>
+    <string name="pref_title_touch_spotify_galaxy_app">Spotify (Galaxy Wearable アプリのみ)</string>
+    <string name="pref_voice_detect_duration_5">5 秒</string>
+    <string name="left_earbud">イヤホン (左)</string>
+    <string name="pref_header_spo2">血中酸素</string>
+    <string name="pref_title_touch_voice_assistant">ボイスアシスタント</string>
+    <string name="prefs_active_noise_cancelling_transparency">透過度</string>
+    <string name="right_earbud">イヤホン (右)</string>
+    <string name="prefs_active_noise_cancelling_level">アクティブノイズキャンセルのレベル</string>
+    <string name="prefs_pressure_relief">より自然な外音取り込み</string>
+    <string name="pressure_relief_summary">アクティブノイズキャンセルを使用していないときの耳への圧迫感を防ぎます</string>
+    <string name="pref_header_heartrate_sleep">睡眠</string>
+    <string name="battery_case">バッテリーケース</string>
+    <string name="pref_title_touch_spotify">Spotify</string>
+    <string name="pref_title_touch_ambient">周囲の音</string>
+    <string name="prefs_voice_detect_duration">終了するまでの無音状態の時間:</string>
+    <string name="pref_title_touch_anc">アクティブノイズキャンセリング</string>
+    <string name="pref_voice_detect_duration_10">10 秒</string>
+    <string name="prefs_active_noise_cancelling_summary">周囲の雑音を遮断します</string>
+    <string name="prefs_left">左</string>
+    <string name="pref_header_heartrate_alerts">心拍数アラート</string>
+    <string name="audio_codec">オーディオコーデック</string>
+    <string name="pref_title_touch_volume">音量</string>
+    <string name="pref_header_stress">ストレス</string>
+    <string name="prefs_active_noise_cancelling_level_high">強</string>
+    <string name="prefs_active_noise_cancelling_level_low">弱</string>
+    <string name="pref_header_heartrate_allday">全日測定</string>
+    <string name="pref_header_sony_sound_control">サウンド コントロール</string>
+    <string name="pref_voice_detect_duration_15">15 秒</string>
+    <string name="pref_header_sony_ambient_sound_control">外音コントロール</string>
+    <string name="pref_header_sony_device_info">デバイス情報</string>
+    <string name="pref_title_touch_spotify_official_app">Spotify (公式アプリのみ)</string>
+    <string name="sony_speak_to_chat_focus_on_voice">ボイスフォーカス</string>
+    <string name="sony_sound_position">音楽が聞こえる方向を変更</string>
+    <string name="sony_ambient_sound_wind_noise_reduction">風ノイズ低減</string>
+    <string name="sony_anc_optimize_confirmation_title">ノイズキャンセリングの最適化</string>
+    <string name="sony_ambient_sound_ambient_sound">外音取り込み</string>
+    <string name="sony_anc_optimize_title">最適化</string>
+    <string name="sony_surround_mode_concert_hall">Concert Hall</string>
+    <string name="sony_warn_sbc_codec">注意：イコライザー、音楽が聞こえる方向の変更、サラウンド(VPT)は、SBC コーデックでのみ動作します。</string>
+    <string name="sony_anc_optimize_confirmation_description">いつもどおり装着してください。装着状態や気圧が変化したときは、再度実行してください。</string>
+    <string name="sony_anc_optimizer_status_starting">開始しています…</string>
+    <string name="sony_equalizer_preset_off">Off</string>
+    <string name="sony_equalizer_preset_excited">Excited</string>
+    <string name="sony_equalizer_preset_relaxed">Relaxed</string>
+    <string name="pref_header_sony_equalizer_preset_custom_2">Custom Preset 2</string>
+    <string name="sony_equalizer_band_16000">16k</string>
+    <string name="sony_equalizer_clear_bass">CLEAR BASS</string>
+    <string name="sony_audio_upsampling">DSEE HX</string>
+    <string name="pref_adaptive_volume_control_title">アダプティブボリュームコントロール</string>
+    <string name="sony_speak_to_chat_summary">話し始めると自動でノイズキャンセリングをオフにします。</string>
+    <string name="sony_speak_to_chat_sensitivity">声の検出感度</string>
+    <string name="sony_speak_to_chat_sensitivity_auto">自動</string>
+    <string name="sony_speak_to_chat_sensitivity_low">低感度</string>
+    <string name="sony_notification_voice_guide">通知音と音声ガイダンス</string>
+    <string name="sony_automatic_power_off">自動電源オフ</string>
+    <string name="sony_automatic_power_off_off">オフしない</string>
+    <string name="sony_automatic_power_off_5_min">5 分</string>
+    <string name="watchface_dialog_widget_timezone">タイムゾーン</string>
+    <string name="devicetype_sony_wena3">SONY Wena 3</string>
+    <string name="withings_steel_hr">Withings Steel HR</string>
+    <string name="huawei_trusleep_title">HUAWEI TruSleep ™</string>
+    <string name="sony_equalizer_band_6300">6.3k</string>
+    <string name="sony_automatic_power_off_30_min">30 分</string>
+    <string name="sony_ambient_sound_off">オフ</string>
+    <string name="sony_equalizer_preset_mellow">Mellow</string>
+    <string name="sony_equalizer_preset_bass_boost">Bass Boost</string>
+    <string name="pref_wide_area_tap_title">ワイドエリアタップ</string>
+    <string name="sony_speak_to_chat_timeout_long">長い (約 1 分)</string>
+    <string name="pref_anc_optimizer_state_pressure">気圧</string>
+    <string name="pref_wide_area_tap_summary">耳周辺の顔のタップを認識します</string>
+    <string name="sony_speak_to_chat_sensitivity_high">高感度</string>
+    <string name="devicetype_bose_qc35">Bose QC35</string>
+    <string name="sony_anc_optimizer_status_finished">終了しています…</string>
+    <string name="sony_sound_position_rear_right">Rear Right</string>
+    <string name="sony_surround_mode_outdoor_stage">Outdoor Stage</string>
+    <string name="sony_equalizer_preset_custom_2">Custom 2</string>
+    <string name="pref_header_sony_equalizer_bands">Bands</string>
+    <string name="sony_equalizer_preset_vocal">Vocal</string>
+    <string name="sony_equalizer_preset_treble_boost">Treble Boost</string>
+    <string name="sony_equalizer_preset_manual">Manual</string>
+    <string name="pref_header_sony_equalizer_preset_custom_1">Custom Preset 1</string>
+    <string name="sony_speak_to_chat">スピーク・トゥ・チャット</string>
+    <string name="sony_pause_when_taken_off">ヘッドホンを外したら音楽を一時停止</string>
+    <string name="double_tap">ダブルタップ</string>
+    <string name="long_press">長押し</string>
+    <string name="watchface_widget_type_custom">カスタムウィジェット</string>
+    <string name="sony_automatic_power_off_1_hour">1 時間</string>
+    <string name="sony_automatic_power_off_when_taken_off">外したとき</string>
+    <string name="sony_automatic_power_off_3_hour">3 時間</string>
+    <string name="sony_equalizer_preset_custom_1">Custom 1</string>
+    <string name="sony_sound_position_front">Front</string>
+    <string name="sony_sound_position_off">Off</string>
+    <string name="sony_sound_position_front_left">Front Left</string>
+    <string name="sony_anc_optimizer_status_wearing_condition">装着状態を測定しています…</string>
+    <string name="sony_anc_optimizer_status_analyzing">解析しています…</string>
+    <string name="sony_speak_to_chat_timeout_short">短い (約 5 秒)</string>
+    <string name="single_tap">タップ</string>
+    <string name="sony_ambient_sound_noise_cancelling">ノイズキャンセリング</string>
+    <string name="sony_anc_optimizer_status_not_running">止まっています</string>
+    <string name="sony_equalizer_preset_bright">Bright</string>
+    <string name="sony_connect_two_devices">2台の機器と同時に接続</string>
+    <string name="sony_touch_sensor">タッチセンサーのコントロール</string>
+    <string name="pref_adaptive_volume_control_summary">周囲の音に合わせて音量を自動で調整します</string>
+    <string name="huawei_trusleep_summary_light">改善された睡眠モニタリング</string>
+    <string name="sony_equalizer">イコライザー</string>
+    <string name="triple_tap">トリプルタップ</string>
+    <string name="sony_surround_mode">サラウンド(VPT)</string>
+    <string name="sony_surround_mode_off">Off</string>
+    <string name="sony_surround_mode_arena">Arena</string>
+    <string name="sony_surround_mode_club">Club</string>
+    <string name="continue_pressing">押し続ける</string>
+    <string name="devicetype_vesc">VESC</string>
+    <string name="sony_ambient_sound">モード</string>
+    <string name="sony_ambient_sound_focus_voice">ボイスフォーカス</string>
+    <string name="sony_ambient_sound_level">外音取り込みのレベル</string>
+    <string name="pref_header_sony_anc_optimizer">ノイズキャンセリングの最適化</string>
+    <string name="sony_anc_optimize_description">タップしてノイズキャンセリングの最適化を開始します。</string>
+    <string name="sony_sound_position_front_right">Front Right</string>
+    <string name="sony_sound_position_rear_left">Rear Left</string>
+    <string name="pref_adaptive_noise_cancelling_title">アダプティブサウンドコントロール</string>
+    <string name="pref_adaptive_noise_cancelling_summary">周囲の音に合わせてノイズキャンセリングの強さを自動で調整します</string>
+    <string name="sony_speak_to_chat_sensitivity_standard">標準</string>
+    <string name="sony_speak_to_chat_timeout_off">自動で終了しない</string>
+    <string name="sony_speak_to_chat_timeout_standard">標準 (約 30 秒)</string>
+    <string name="huawei_trusleep_summary">睡眠の質と呼吸のパターンをリアルタイムで測定します。
+\n睡眠パターンを分析し、6つの睡眠課題を正確に診断します。</string>
+    <string name="sony_equalizer_preset_speech">Speech</string>
+    <string name="sony_anc_optimizer_status_atmospheric_pressure">気圧を測定しています…</string>
+    <string name="sony_equalizer_band_2500">2.5k</string>
+    <string name="sony_equalizer_band_1000">1k</string>
+    <string name="sony_equalizer_band_400">400</string>
+    <string name="sony_speak_to_chat_timeout">終了するまでの時間</string>
+    <string name="sony_quick_access_double_tap">Quick Access (ダブルタップ)</string>
+    <string name="huawei_alarm_smart_description">スマート起床を無効にしないでください。</string>
+    <string name="prefs_activity_recognition">アクティビティ検出の設定</string>
+    <string name="pref_activity_recognize_biking">自転車の検出</string>
+    <string name="pref_activity_recognize_walking">ウォーキングの検出</string>
+    <string name="pref_activity_recognition_mode_auto">自動</string>
+    <string name="pref_navigation_app_osmand">OsmAnd(+)</string>
+    <string name="devicetype_xiaomi_watch_s1">Xiaomi Watch S1</string>
+    <string name="devicetype_mi_watch_color_sport">Mi Watch Color Sport</string>
+    <string name="sony_button_mode_off">Off</string>
+    <string name="devicetype_xiaomi_watch_s1_pro">Xiaomi Watch S1 Pro</string>
+    <string name="huawei_trusleep_warning">注意：これを有効にすると Gadgetbridge に睡眠が表示されなくなります！了承する場合はここをタップしてください。</string>
+    <string name="pref_activity_recognition_mode_none">なし</string>
+    <string name="temperature_scale_celsius">摂氏</string>
+    <string name="temperature_scale_fahrenheit">華氏</string>
+    <string name="fossil_hr_nav_app_not_installed_notify_title">ナビゲーションアプリがウォッチにインストールされていません</string>
+    <string name="pref_title_navigation_prefs">ナビゲーションの設定</string>
+    <string name="pref_navigation_app_gmaps">Google マップ</string>
+    <string name="pref_title_navigation_apps">ナビゲーションアプリ</string>
+    <string name="serial_number">シリアルナンバー</string>
+    <string name="fossil_hr_nav_app_not_installed_notify_text">ナビゲーションが開始されましたが、ナビゲーションアプリがウォッチにインストールされていません。アプリの管理からインストールしてください。</string>
+    <string name="pref_media_pause">停止</string>
+    <string name="watchface_dialog_widget_timezone_duration">時計を表示する時間 (秒)</string>
+    <string name="pref_media_next">次の曲</string>
+    <string name="distance_format_meters">###m</string>
+    <string name="distance_format_miles">###.#mi</string>
+    <string name="sony_button_mode_left">ボタンの機能 (左)</string>
+    <string name="pref_screen_brightness">画面の明るさ</string>
+    <string name="pref_media_play">再生</string>
+    <string name="pref_device_action_dnd_off">サイレント モード - オフ</string>
+    <string name="distance_format_kilometers">###.#km</string>
+    <string name="pref_title_opentracks_packagename">OpenTracks のパッケージ名</string>
+    <string name="devicetype_xiaomi_watch_s3">Xiaomi Watch S3</string>
+    <string name="devicetype_xiaomi_watch_s1_active">Xiaomi Watch S1 Active</string>
+    <string name="pref_screen_auto_brightness_title">明るさの自動調節</string>
+    <string name="sony_quick_access_triple_tap">Quick Access (トリプルタップ)</string>
+    <string name="sony_button_mode_help_title">ボタンの機能 - ヘルプ</string>
+    <string name="sony_button_mode_help_summary">各ボタンの機能の説明</string>
+    <string name="sony_button_mode_ambient_sound_control">外音コントロール</string>
+    <string name="pref_media_volumeup">音量アップ</string>
+    <string name="pref_media_volumedown">音量ダウン</string>
+    <string name="pref_summary_fossil_hr_navigation_instructions">ウォッチのナビゲーションアプリの動作を設定します</string>
+    <string name="pref_button_action_disabled">無効</string>
+    <string name="pref_media_playpause">再生/停止</string>
+    <string name="pref_media_previous">前の曲</string>
+    <string name="pref_device_action_dnd_priority">サイレント モード - 重要度の高い通知のみ</string>
+    <string name="pref_device_action_dnd_alarms">サイレント モード - アラームのみ</string>
+    <string name="pref_device_action_dnd_on">サイレント モード - オン</string>
+    <string name="distance_format_feet">###ft</string>
+    <string name="pref_activity_recognize_running">ランニングの検出</string>
+    <string name="pref_activity_recognition_mode_ask">確認する</string>
+    <string name="menuitem_menu">メニュー</string>
+    <string name="pref_activity_recognize_rowing">ローイングの検出</string>
+    <string name="quick_attention">クイックアテンション</string>
+    <string name="pref_screen_auto_brightness_summary">周囲の明るさに応じて画面の明るさを調整します</string>
+    <string name="pref_title_fossil_hr_navigation_instructions">ナビゲーション</string>
+    <string name="sony_button_mode_playback_control">再生コントロール</string>
+    <string name="sony_button_mode_volume_control">音量コントロール</string>
+    <string name="sony_button_mode_right">ボタンの機能 (右)</string>
+    <string name="huawei_alarm_event_description">スマート起床を有効にしないでください。</string>
+    <string name="pref_summary_opentracks_packagename">外部フィットネスアプリの GPS 記録の開始/停止に使用されます。</string>
+    <string name="pref_summary_navigation_forward">ナビゲーションアプリからの指示をウォッチに転送します</string>
+    <string name="sony_protocol_v1">Version 1</string>
+    <string name="sony_protocol_v2">Version 2</string>
+    <string name="sony_protocol_v3">Version 3</string>
+    <string name="protocol_version">Protocol Version</string>
+    <string name="pref_title_navigation_forward">ウォッチにナビゲーションを送信する</string>
+    <string name="fossil_hr_button_config_info">一部のボタンの動作はウォッチのファームウェアで固定されているため設定できません。
+\n
+\n注意：Fossil公式アプリで設定したウォッチフェイスを使っているときに上ボタンを長押しすると、ウィジェットの表示/非表示も切り替わります。</string>
+    <string name="devicetype_pixoo">Pixoo</string>
+    <string name="pref_force_options_summary">一部のデバイスは、いくつかのオプションに対応していないと偽っている場合があります。この設定はそれらのオプションを強制的に有効化します。
+\n自己責任で使用してください。
+\n詳細は Wiki を確認してください</string>
+    <string name="error_deleting_device">デバイスの削除中にエラーが発生しました: %s</string>
+    <string name="controlcenter_connected_fraction">接続済み: %d/%d</string>
+    <string name="error_setting_parent_folder">親フォルダの設定中にエラーが発生しました: %s</string>
+    <string name="temperature_scale_cf_summary">デバイスが華氏と摂氏のどちらを使用するか選択します。</string>
+    <string name="temperature_scale_cf">温度の単位</string>
+    <string name="pref_summary_osmand_packagename">連携する OsmAnd のパッケージ名を選択します</string>
+    <string name="wifi_ssid">SSID</string>
+    <string name="pref_title_osmand_packagename">OsmAnd のパッケージ名</string>
+    <string name="devicetype_miband2_hrx">Mi Band HRX</string>
+    <string name="info_no_devices_connected">デバイスが接続されていません</string>
+    <string name="controlcenter_unset_folder">フォルダを未設定にする</string>
+    <string name="controlcenter_toggle_details">詳細の表示/非表示</string>
+    <string name="controlcenter_add_new_folder">新しいフォルダを追加する</string>
+    <string name="controlcenter_set_parent_folder">親フォルダを設定する</string>
+    <string name="wifi_hotspot">Wi-Fi ホットスポット</string>
+    <string name="ftp_server">FTP サーバー</string>
+    <string name="controlcenter_set_folder_title">フォルダの設定</string>
+    <string name="info_connected_count">%d 台のデバイスが接続済みです</string>
+    <string name="pref_force_options">オプションを強制的に有効化</string>
+    <string name="pref_spo_automatic_enable">自動SpO2測定を有効にする</string>
+    <string name="auto_reconnect_ble_title">自動でデバイスに再接続</string>
+    <string name="auto_reconnect_ble_summary">定期的にデバイスへの接続を試みます</string>
+    <string name="pref_enable_call_accept">電話に応じられるようにする</string>
+    <string name="devicetype_asteroidos">AsteroidOS</string>
+    <string name="devicetype_soflow_s06">SoFlow SO6</string>
+    <string name="pref_enable_call_accept_summary">デバイスから着信に応じられるようにします</string>
+    <string name="pref_disable_find_phone_with_dnd">サイレント モード有効時は「スマートフォンを探す」を無効にする</string>
+    <string name="pref_heartrate_automatic_enable">自動心拍測定を有効にする</string>
+    <string name="devicetype_super_cars">Shell Racing</string>
+    <string name="controlcenter_folder_name">フォルダ名:</string>
+    <string name="pref_enable_call_reject_summary">デバイスから電話を拒否できるようにします</string>
+    <string name="pref_enable_call_reject">電話を拒否できるようにする</string>
+    <string name="supercars_turbo_speed_label">Turbo Speed</string>
+    <string name="pref_dashboard_all_devices_title">すべてのデバイス</string>
+    <string name="pref_dashboard_select_devices_title">デバイスを選択…</string>
+    <string name="devicetype_huawei_watchfit2">Huawei Watch Fit 2</string>
+    <string name="autoconnect_from_device_title">デバイスからの接続</string>
+    <string name="steps_streaks_average_steps">平均
+\n歩数</string>
+    <string name="steps_streaks_since_date">%s から</string>
+    <string name="prefs_hourly_chime">時報</string>
+    <string name="intent_api_broadcast_export_title">データベースのエクスポート時のブロードキャスト</string>
+    <string name="intent_api_broadcast_export_summary">データベースのエクスポートが終了したときにインテントをブロードキャストする</string>
+    <string name="intent_api_allow_debug_commands_title">デバッグ コマンドを許可</string>
+    <string name="fossil_hr_pairing_successful">ペアリングに成功しました</string>
+    <string name="fossil_hr_pairing_failed">ペアリングに失敗しました</string>
+    <string name="pai_chart_per_week">1週間のPAI</string>
+    <string name="num_min">%d 分</string>
+    <string name="step_streak_average_steps_hint">期間中の1日あたりの平均歩数</string>
+    <string name="contact_missing_number">連絡先の番号がありません</string>
+    <string name="pref_title_debug">デバッグ リクエスト</string>
+    <string name="title">題名</string>
+    <string name="pref_dashboard_widget_today_24h_title">24時間表示</string>
+    <string name="pref_title_huawei_account">Huawei アカウント</string>
+    <string name="pref_summary_huawei_account">ペアリング時に使用するHuawei アカウント。これを設定すると工場出荷状態にリセットすることなくペアリングできます。</string>
+    <string name="connection_over_bt_classic">Bluetooth Classic による接続</string>
+    <string name="step_streak_ongoing">継続中</string>
+    <string name="steps_streaks_streak_days">継続
+\n日数</string>
+    <string name="bottom_nav_dashboard">ダッシュボード</string>
+    <string name="pref_dashboard_first_title">ダッシュボードを最初に表示する</string>
+    <string name="pref_dashboard_widget_settings">ウィジェットの設定</string>
+    <string name="pref_dashboard_widget_today_title">活動チャート</string>
+    <string name="address">アドレス</string>
+    <string name="steps_streaks_hint">中断することなく連続で目標の歩数を達成した日数</string>
+    <string name="pref_charts_range_on">チャートの範囲は「月」になっています</string>
+    <string name="pai_plus_num">+%d</string>
+    <string name="activity_list_summary_activities">アクティビティ</string>
+    <string name="activity_prefs_goal_standing_time_minutes">1日の目標: 立っている時間 (分)</string>
+    <string name="dbmanagementactivity_error_cleaning_export_directory">エクスポート ディレクトリ %1$s からのファイル削除中にエラーが発生しました</string>
+    <string name="steps_streaks">目標歩数の連続達成日数</string>
+    <string name="contact_name">名前</string>
+    <string name="step_streak_total">合計</string>
+    <string name="pref_title_lock_unlock">ロック</string>
+    <string name="contact_missing_name">連絡先の名前がありません</string>
+    <string name="intent_api_allow_activity_sync_summary">Intent API を経由してアクティビティ同期をトリガーできるようにします</string>
+    <string name="pref_header_intent_api">Intent API</string>
+    <string name="autoconnect_from_device_summary">ヘッドホン等のデバイスから接続が開始されたときに接続を確立します</string>
+    <string name="pref_force_connection_type_auto">自動</string>
+    <string name="pai_chart_per_month">1か月間のPAI</string>
+    <string name="steps_streaks_total_days_hint_totals">すべての歩いた日数に対する目標達成日数の割合</string>
+    <string name="step_streaks_achievements_sharing_message">私の歩数達成実績！</string>
+    <string name="ftp_server_start_summary">ウォッチ上で FTP サーバーを開始します</string>
+    <string name="description">説明文</string>
+    <string name="notification_channel_connection_status_name">接続状態</string>
+    <string name="error_showing_changelog">Changelog の表示中にエラーが発生しました</string>
+    <string name="activity_list_summary_active_time">活動時間</string>
+    <string name="pref_chart_sleep_rolling_24_off">前日12:00から当日12:00</string>
+    <string name="active_time">活動時間</string>
+    <string name="activity_prefs_activetime_minutes">1日の目標: 活動時間 (分)</string>
+    <string name="steps_streaks_total_steps">合計
+\n歩数</string>
+    <string name="steps_streaks_total_steps_average_hint">1日平均 %d 歩</string>
+    <string name="status_icon">ステータスアイコン</string>
+    <string name="changelog_show_full">More…</string>
+    <string name="intent_api_allow_trigger_export_summary">Intent API を経由してデータベースのエクスポートをトリガーできるようにします</string>
+    <string name="activity_prefs_summary_allow_bluetooth_intent_api">Intent API を経由して Bluetooth 接続を制御できるようにします</string>
+    <string name="activity_prefs_allow_bluetooth_intent_api">Bluetooth Intent API</string>
+    <string name="pref_sleepasandroid_feat_alarms">アラーム</string>
+    <string name="pref_sleepasandroid_feat_notifications">通知</string>
+    <string name="wifi_hotspot_stop_summary">ウォッチ上で Wi-Fi ホットスポットを停止します</string>
+    <string name="wifi_hotspot_summary">ウォッチ上で Wi-Fi ホットスポットを制御できるようにします</string>
+    <string name="ftp_server_status">FTP サーバーの状態</string>
+    <string name="preview_image">プレビュー画像</string>
+    <string name="changelog_full_title">Changelog</string>
+    <string name="activity_prefs_goal_fat_burn_time_minutes">1日の目標: 脂肪燃焼時間 (分)</string>
+    <string name="standing_time">立っている時間</string>
+    <string name="devicetype_soundcore_liberty3_pro">Soundcore Liberty 3 Pro</string>
+    <string name="weekstepschart_steps_a_month">1か月間の歩数</string>
+    <string name="pref_charts_range_off">チャートの範囲は「週」になっています</string>
+    <string name="weeksleepchart_sleep_a_month">1か月間の睡眠</string>
+    <string name="pref_title_chart_sleep_rolling_24_hour">睡眠の範囲</string>
+    <string name="ftp_server_summary">ウォッチ上で FTP サーバーを制御します</string>
+    <string name="ftp_server_stop_summary">ウォッチ上で FTP サーバーを停止します</string>
+    <string name="ftp_server_configuration">FTP サーバーの設定</string>
+    <string name="ftp_server_root_dir">ルートディレクトリ</string>
+    <string name="username">ユーザー名</string>
+    <string name="fossil_hr_confirm_connection">ウォッチで接続を承認してください</string>
+    <string name="fossil_hr_connection_not_confirmed">ウォッチで接続が承認されなかったため、非認証モードを使用しています</string>
+    <string name="wifi_hotspot_configuration">Wi-Fi ホットスポットの設定</string>
+    <string name="wifi_hotspot_status">Wi-Fi ホットスポットの状態</string>
+    <string name="wifi_hotspot_start_summary">ウォッチ上で Wi-Fi ホットスポットを開始します</string>
+    <string name="contact_phone_number">電話番号</string>
+    <string name="dashboard_settings">ダッシュボードの設定</string>
+    <string name="pref_dashboard_first_summary">Gadgetbridge 起動時にデバイスの一覧ではなく、ダッシュボードを表示します</string>
+    <string name="bottom_nav_devices">デバイス</string>
+    <string name="pref_dashboard_cards_title">ウィジェットをカードの上に表示する</string>
+    <string name="pref_dashboard_cards_summary">ダッシュボード上のウィジェットの周りに枠を付けます</string>
+    <string name="devicetype_huawei_band9">Huawei Band 9</string>
+    <string name="devicetype_huawei_watchfit3">Huawei Watch Fit 3</string>
+    <string name="devicetype_huawei_watch4pro">Huawei Watch 4 Pro</string>
+    <string name="activity_summaries_all_devices">すべてのデバイス</string>
+    <string name="devicetype_flipper_zero">Flipper zero</string>
+    <string name="step_streak_longest">最長</string>
+    <string name="steps_streaks_achievement_rate">達成
+\n率</string>
+    <string name="steps_streaks_total_steps_hint_totals">これまでに記録された歩数の合計</string>
+    <string name="step_streak_days_hint">連続で目標の歩数を達成した日数</string>
+    <string name="steps_streaks_total_steps_hint">期間中の合計歩数</string>
+    <string name="step_streaks_achievements_sharing_title">歩数実績</string>
+    <string name="prefs_hourly_chime_summary">1時間毎にウォッチがビープ音を鳴らすようにします</string>
+    <string name="intent_api_allow_debug_commands_summary">Intent API を経由してデバッグメニュー コマンドをトリガーできるようにします</string>
+    <string name="pref_summary_debug">Huawei デバイスにデバッグ リクエストを送信します</string>
+    <string name="pref_title_bottom_navigation_bar">画面下部にナビゲーションバーを表示する</string>
+    <string name="pref_summary_bottom_navigation_bar_on">ナビゲーションバーまたは横スワイプでメイン画面を切り替えます</string>
+    <string name="pref_sleepasandroid_feat_movement">加速度センサー</string>
+    <string name="intent_api_allow_activity_sync_title">アクティビティ同期のトリガーを許可</string>
+    <string name="intent_api_allow_trigger_export_title">データベースのエクスポートを許可</string>
+    <string name="title_cycling">サイクリング</string>
+    <string name="pref_summary_wheel_diameter">タイヤの直径(インチ)。一般的には26, 27, 27.5, 29などです。</string>
+    <string name="pref_title_wheel_diameter">タイヤの直径</string>
+    <string name="chart_cycling_point_label_distance">今日: %.1f km
+\n合計: %.1f km</string>
+    <string name="chart_cycling_point_label_speed">%.1f km/h</string>
+    <string name="devicetype_nut_mini">Nut mini</string>
+    <string name="pref_dashboard_widgets_order_summary">有効にするウィジェットと、ダッシュボードに表示するウィジェットの順番を選択します</string>
+    <string name="pref_summary_bottom_navigation_bar_off">横スワイプでメイン画面を切り替えます</string>
+    <string name="pref_dashboard_devices_to_include">ダッシュボードに含めるデバイス</string>
+    <string name="pref_dashboard_widget_goals_chart_title">目標チャート</string>
+    <string name="pref_summary_device_intents">Bangle.js ウォッチアプリが Android Intent を送信できるようにし、Android 上の他のアプリ(Taskerなど)が com.banglejs.uart.tx Intent を使って Bangle.js にデータを送信できるようにします。バックグラウンドで動作するには、他のアプリの上に重ねて表示する権限が必要です。</string>
+    <string name="pref_dashboard_select_devices_summary">指定したデバイスのアクティビティを統合してダッシュボードに表示します</string>
+    <string name="pref_dashboard_widget_show_legend_title">凡例を表示する</string>
+    <string name="pref_dashboard_widget_double_size_title">大きいウィジェット</string>
+    <string name="pref_dashboard_widget_today_24h_summary">アクティビティを2つの12時間サークルではなく、1つの24時間サークルで表示します</string>
+    <string name="activity_type_worn">装着</string>
+    <string name="pref_dashboard_widget_double_size_summary">ウィジェットがダッシュボードの2列を使用できるようにします</string>
+    <string name="pref_dashboard_widget_show_legend_summary">ウィジェットの下部にグラフの色を説明する凡例を表示します</string>
+    <string name="pref_dashboard_all_devices_summary">登録したすべてのデバイスのアクティビティデータを統合してダッシュボードに表示します</string>
+    <string name="zetime_signaling_beep_once">1回だけビープ音を鳴らす</string>
+    <string name="pref_dashboard_widget_today_upside_down_summary">24時間モードのときに0時をチャートの下側に描写し、12時を上側に表示します</string>
+    <string name="watchface_resolution_doesnt_match">ウォッチフェイスの解像度がデバイスの画面と一致しません。ウォッチフェイスは %1$s で、デバイスの画面は %2$s です</string>
+    <string name="toast_setting_requires_reconnect">設定は再接続時に反映されます</string>
+    <string name="zetime_signaling_beep_twice">2回ビープ音を鳴らす</string>
+    <string name="zetime_signaling_vibrate_beep_once">1回だけ振動とビープ音を鳴らす</string>
+    <string name="zetime_calories_type">カロリーの種類</string>
+    <string name="zetime_title_alarm_signaling">アラームの鳴り方を設定する</string>
+    <string name="toast_camera_permission_required">この機能にはカメラの権限が必要です。</string>
+    <string name="toast_camera_support_required">この機能にはカメラのサポートが必要です。</string>
+    <string name="toast_camera_photo_taken">写真を次の場所に保存しました: %s</string>
+    <string name="pref_dashboard_widget_today_upside_down_title">0時を下側に表示</string>
+    <string name="pref_alert_tone">アラート音</string>
+    <string name="chart_get_active_and_synchronize">何らかのアクティビティを行い、デバイスを同期してください。</string>
+    <string name="pref_agps_expiry_reminder_enabled">補助 GPS 有効期限リマインダー</string>
+    <string name="pref_sleep_mode_smart_enable_title">スマートスリープ</string>
+    <string name="pref_sleep_mode_smart_enable_summary">睡眠中にバンドが装着されたとき、スリープモードを自動的に有効にします</string>
+    <string name="prefs_stress_monitoring_description">休んでいる間のストレスレベルをモニタリングします</string>
+    <string name="pref_touch_tone">タッチ音</string>
+    <string name="pref_touch_tone_summary">イヤホンがタッチされたときに音を鳴らします</string>
+    <string name="pref_wearing_tone">装着音</string>
+    <string name="pref_wearing_tone_summary">イヤホンが装着されたときに音を鳴らします</string>
+    <string name="prefs_stress_monitoring_title">ストレスモニタリング</string>
+    <string name="changelog_ok_button">OK</string>
+    <string name="loyalty_cards_catima">Catima</string>
+    <string name="pref_theme_dynamic_colors_explanation">注意: ダイナミックカラーのテーマを使用するには、Android 12 以上の外観設定で壁紙の色またはカラーパレットを有効にする必要があります。有効にしない場合、Gadgetbridge はデフォルトの Material 3 カラーを使用します。</string>
+    <string name="loyalty_cards_catima_not_installed">ポイントカードの管理には Catima が必要です</string>
+    <string name="withings_calibration_text_hours">下のダイヤルを使って時針を 12 に合わせてください。</string>
+    <string name="activity_info">アクティビティ情報</string>
+    <string name="loyalty_cards_sync_archived">アーカイブしたカードを同期する</string>
+    <string name="loyalty_cards_sync_summary">タップしてカードをウォッチに同期します</string>
+    <string name="widget">ウィジェット</string>
+    <string name="pref_auto_reply_calls_title">自動的に電話に応答する</string>
+    <string name="pref_auto_reply_calls_delay_title">自動的に応答するまでの時間</string>
+    <string name="pref_speak_notifications_focus_exclusive_title">他のアプリの音声を一時停止する</string>
+    <string name="pref_speak_notifications_aloud_summary">ヘッドホンで通知を読み上げます</string>
+    <string name="uploadwatchfaceoperation_complete">ウォッチフェイスのインストールが完了しました</string>
+    <string name="loyalty_cards_install">Catima をインストールする</string>
+    <string name="loyalty_cards_catima_not_compatible">インストールされている Catima のバージョンは Gadgetbridge に対応していません。Catima と Gadgetbridge を最新版に更新してください。</string>
+    <string name="loyalty_cards_catima_permissions_summary">Gadgetbridge が Catima のカードを同期するにはカードを読み取る権限が必要です。このボタンをタップして権限を許可してください。</string>
+    <string name="loyalty_cards_sync_options">同期設定</string>
+    <string name="loyalty_cards_sync">同期</string>
+    <string name="loyalty_cards_open_catima">Catima を開く</string>
+    <string name="withings_bt_calibration_previous">戻る</string>
+    <string name="withings_calibration_text_minutes">次に、ダイヤルを使って分針を 12 に合わせてください。</string>
+    <string name="pref_test_features_summary">このテストデバイスで有効な機能</string>
+    <string name="loyalty_cards_sync_title">ポイントカードを同期する</string>
+    <string name="activity_summaries_all_activities">すべてのアクティビティ</string>
+    <string name="pref_force_connection_type_title">接続形式を指定する</string>
+    <string name="loyalty_cards_catima_permissions_title">不足している権限</string>
+    <string name="withings_calibration_text_activity_target">最後に、アクティビティの針を 100% に合わせてください。この針は時計回りにしか動きません。</string>
+    <string name="loyalty_cards_catima_package">Catioma のパッケージ名</string>
+    <string name="loyalty_cards_sync_groups_only">特定のグループのみ同期する</string>
+    <string name="loyalty_cards_sync_groups">同期するグループ</string>
+    <string name="loyalty_cards_install_catima_fail">アプリストアを開けませんでした</string>
+    <string name="pref_theme_dynamic_colors_not_available_warning">ダイナミックカラーは Android 12 未満のデバイスでは利用できません。Gadgetbridge はデフォルトの Material 3 カラーを使用します。</string>
+    <string name="prompt_restart_gadgetbridge">反映するには Gadgetbridge を再起動してください。</string>
+    <string name="uploadwatchfaceoperation_in_progress">ウォッチフェイスをアップロードしています</string>
+    <string name="pref_speak_notifications_aloud_title">通知を読み上げる</string>
+    <string name="pref_speak_notifications_focus_exclusive_summary_on">通知の読み上げ中は他のアプリの音声を一時停止します</string>
+    <string name="pref_speak_notifications_focus_exclusive_summary_off">通知の読み上げ中は他のアプリの音声を小さくします</string>
+    <string name="pref_header_calls_and_notifications">通話と通知</string>
+    <string name="pref_auto_reply_calls_delay_summary">自動で電話に出るまでの秒数</string>
+    <string name="loyalty_cards_sync_starred">お気に入りに登録したカードのみ同期する</string>
+    <string name="changelog_title">What\'s New</string>
+    <string name="activity_summaries_statistics">統計</string>
+    <string name="loyalty_cards">ポイントカード</string>
+    <string name="loyalty_cards_syncing">%d 枚のポイントカードをデバイスに同期しています</string>
+    <string name="withings_bt_calibration_next">進む</string>
+    <string name="pref_test_features_title">機能</string>
+    <string name="sports_activity_quick_filter_this_month">今月</string>
+    <string name="sports_activity_quick_filter_7days">7日間</string>
+    <string name="sports_activity_quick_filter_30days">30日間</string>
+    <string name="uploadwatchfaceoperation_failed">ウォッチフェイスのインストールに失敗しました</string>
+    <string name="pref_force_connection_type_description">デバイスが Gadgetbridge に応答しない場合、接続形式を指定してみてください</string>
+    <string name="pref_auto_reply_calls_summary">着信があったときに自動で電話に出ます</string>
+    <string name="sports_activity_quick_filter_last_week">先週</string>
+    <string name="sports_activity_quick_filter_this_week">先週</string>
+    <string name="sports_activity_quick_filter_last_month">先月</string>
+    <string name="sports_activity_quick_filter_select">期間</string>
+    <string name="activity_filter_to_placeholder">今日</string>
+    <string name="toast_app_must_be_selected">設定するにはアプリを選択する必要があります</string>
+    <string name="toast_app_must_not_be_selected">設定するにはアプリを未選択にする必要があります</string>
+    <string name="devicetype_amazfit_bip5_unity">Amazfit Bip 5 Unity</string>
+    <string name="qhybrid_use_activity_hand_as_notification_counter">アクティビティの針を通知カウンターとして使う</string>
+    <string name="pref_write_logfiles_not_available">ファイルロギングの初期化に失敗したため、ログファイルの記録は現在利用できません。アプリを再起動してログファイルの初期化をやり直してください。</string>
+    <string name="status">状態</string>
+    <string name="dismiss">無視</string>
+    <string name="start">開始</string>
+    <string name="pref_workout_detection_time">ワークアウトが検出されるまでの時間</string>
+    <string name="set">セット</string>
+    <string name="mi5_prefs_workout_activity_types_summary">ワークアウト画面に表示するアクティビティの種類を選択します</string>
+    <string name="prefs_heartrate_alert_low_threshold">低心拍数アラートのしきい値</string>
+    <string name="pref_agps_update_time">補助 GPS 更新時間</string>
+    <string name="pref_agps_expiry_reminder_time">補助 GPS 有効期限リマインダーの時間</string>
+    <string name="pref_camera_remote_summary">ウォッチでカメラのシャッターを切れるようにします</string>
+    <string name="prefs_spo2_monitoring_title">SpO2 モニタリング</string>
+    <string name="show_ongoing_activity">進行中のアクティビティをポップアップで表示</string>
+    <string name="mi5_prefs_workout_activity_types">ワークアウトアクティビティの種類</string>
+    <string name="serbian">セルビア語</string>
+    <string name="prefs_activity_monitoring_description">バンドが運動を検出したとき、自動的に心拍数を測定する頻度を上げて心拍数の捕捉精度を向上させます。</string>
+    <string name="about_additional_device_support">追加のデバイスサポート</string>
+    <string name="stop">停止</string>
+    <string name="agps_status_missing">不明</string>
+    <string name="agps_status_pending">未確定</string>
+    <string name="agps_status_current">現在</string>
+    <string name="pref_camera_remote_title">リモートシャッター</string>
+    <string name="prefs_relaxation_reminder_title">休憩リマインダー</string>
+    <string name="prefs_spo2_alert_threshold">SpO2 アラートのしきい値</string>
+    <string name="prefs_activity_monitoring_title">アクティビティモニタリング</string>
+    <string name="devicetype_garmin_vivomove_hr">Garmin Vívomove HR</string>
+    <string name="devicetype_garmin_vivomove_style">Garmin Vívomove Style</string>
+    <string name="devicetype_garmin_venu_3">Garmin Venu 3</string>
+    <string name="devicetype_garmin_instinct_solar">Garmin Instinct Solar</string>
+    <string name="devicetype_garmin_instinct_2_solar">Garmin Instinct 2 Solar</string>
+    <string name="devicetype_garmin_instinct_2_soltac">Garmin Instinct 2 SolTac</string>
+    <string name="devicetype_garmin_instinct_crossover">Garmin Instinct Crossover</string>
+    <string name="devicetype_garmin_forerunner_245">Garmin Forerunner 245</string>
+    <string name="devicetype_garmin_swim_2">Garmin Swim 2</string>
+    <string name="devicetype_garmin_vivoactive_4">Garmin Vívoactive 4</string>
+    <string name="devicetype_garmin_vivoactive_4s">Garmin Vívoactive 4S</string>
+    <string name="devicetype_garmin_vivoactive_5">Garmin Vívoactive 5</string>
+    <string name="folder">フォルダ</string>
+    <string name="copied_to_clipboard">クリップボードにコピーしました</string>
+    <string name="no_folder_selected">フォルダが選択されていません</string>
+    <string name="folder_is_empty">フォルダは空です</string>
+    <string name="url">URL</string>
+    <string name="garmin_agps_local_file">ローカルファイル</string>
+    <string name="pref_agps_expire_time">補助 GPS 有効期限</string>
+    <string name="pref_agps_status">補助 GPS の状態</string>
+    <string name="agps_status_error">エラー</string>
+    <string name="prefs_relaxation_reminder_description">ストレス値が 80 を超えるとバンドを振動させて通知します</string>
+    <string name="pref_workout_detection_time_summary">ワークアウトとして検出されるまでの運動の継続時間</string>
+    <string name="updatefirmwareoperation_failed_low_mtu">現在の %1$d の MTU は低すぎます。デバイス設定で高 MTU を有効にし、デバイスを切断/再接続してください。</string>
+    <string name="prefs_spo2_monitoring_description">血中酸素濃度を一日中、自動的にモニタリングします</string>
+    <string name="devicetype_garmin_instinct_2s">Garmin Instinct 2S</string>
+    <string name="watchface_setting_wrist_flick_hour">時針 (-360 から 360)</string>
+    <string name="pref_summary_canned_messages_set">以下に設定したメッセージをデバイスに送信します</string>
+    <string name="yes">はい</string>
+    <string name="watchface_setting_wrist_flick_minute">分針 (-360 から 360)</string>
+    <string name="activity_filter_from_placeholder">かなり前</string>
+    <string name="devicetype_garmin_vivosmart_5">Garmin Vívosmart 5</string>
+    <string name="activity_filter_reset_filter">フィルタをリセット</string>
+    <string name="activity_filter_name_contains">ラベル</string>
+    <string name="activity_filter_apply_filter">フィルタを適用</string>
+    <string name="no">いいえ</string>
+    <string name="sports_activity_confirm_delete_description">%d のアクティビティを削除しますか？</string>
+    <string name="prefs_autolight">自動点灯</string>
+    <string name="fossil_hr_commute_processing">リクエストの処理中…</string>
+    <string name="activity_filter_filter_title">フィルタ</string>
+    <string name="addto_filter">フィルタに追加</string>
+    <string name="sports_activity_confirm_delete_title">%d のアクティビティの削除</string>
+    <string name="backstroke">背泳ぎ</string>
+    <string name="fossil_hr_commute_actions_explanation">ここで設定したアクションは、ウォッチの Commute アプリに表示されます。これらのアクションによって生成されるインテントの処理方法については、wiki をお読みください。</string>
+    <string name="prefs_autoremove_message">SMS 通知を自動的に削除する</string>
+    <string name="medley">メドレー</string>
+    <string name="freestyle">自由形</string>
+    <string name="devicetype_garmin_venu_2_plus">Garmin Venu 2 Plus</string>
+    <string name="breaststroke">平泳ぎ</string>
+    <string name="pref_switch_noise_control">ノイズコントロールの切り替え</string>
+    <string name="prefs_noise_control_with_one_earbud">片方のイヤホンでノイズコントロール</string>
+    <string name="pref_switch_controls_anc_ambient_off">ノイズキャンセリング ←→ 周囲の音 ←→ オフ</string>
+    <string name="prefs_double_tap_edge_summary">タッチパッド外のダブルタップを検出します</string>
+    <string name="pref_switch_controls_anc_off">ノイズキャンセリング ←→ オフ</string>
+    <string name="prefs_voice_detect">音声検出</string>
+    <string name="pref_switch_controls_ambient_off">周囲の音 ←→ オフ</string>
+    <string name="prefs_galaxy_touch_options">タッチ設定</string>
+    <string name="prefs_double_tap_edge">イヤホンの端をダブルタップ</string>
+    <string name="pref_ambient_sound_tone_summary">ソフトからクリアの間で調整します</string>
+    <string name="prefs_noise_control_with_one_earbud_summary">イヤホンを片方のみ使用しているときでもノイズコントロールを使えるようにします</string>
+    <string name="prefs_voice_detect_summary">周囲の音の取り込みを有効にし、声が検出されたときにコンテンツの音量を自動的に下げます</string>
+    <string name="pref_balance">バランス</string>
+    <string name="prefs_noise_control">ノイズコントロール</string>
+    <string name="pref_switch_controls_anc_ambient">ノイズキャンセリング ←→ 周囲の音</string>
+    <string name="pref_ambient_sound_tone">周囲の音を取り込む際のトーン</string>
+    <string name="prefs_in_ear_detection_summary">イヤホン装着時に電話の音声をイヤホンで再生します</string>
+    <string name="devicetype_garmin_instinct_2s_solar">Garmin Instinct 2S Solar</string>
+    <string name="devicetype_hama_fit6900">Hama Fit6900</string>
+    <string name="devicetype_garmin_epix_pro">Garmin Epix Pro</string>
+    <string name="devicetype_garmin_instinct_2x_solar">Garmin Instinct 2X Solar</string>
+    <string name="devicetype_garmin_venu_2">Garmin Venu 2</string>
+    <string name="devicetype_garmin_forerunner_265">Garmin Forerunner 265</string>
+    <string name="devicetype_garmin_venu_3s">Garmin Venu 3S</string>
+    <string name="devicetype_garmin_fenix_6_sapphire">Garmin Fenix 6 Sapphire</string>
+    <string name="devicetype_garmin_fenix_7_pro">Garmin Fenix 7 Pro</string>
+    <string name="devicetype_garmin_fenix_7s">Garmin Fenix 7S</string>
+    <string name="devicetype_garmin_forerunner_255">Garmin Forerunner 255</string>
 </resources>

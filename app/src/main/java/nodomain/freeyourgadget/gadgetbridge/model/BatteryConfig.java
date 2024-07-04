@@ -19,16 +19,29 @@ package nodomain.freeyourgadget.gadgetbridge.model;
 
 import java.util.Objects;
 
-public class BatteryConfig {
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
+public class BatteryConfig {
     private final int batteryIndex;
     private final int batteryIcon;
     private final int batteryLabel;
+    private final int defaultLowThreshold;
+    private final int defaultFullThreshold;
+
+    public BatteryConfig(int batteryIndex) {
+        this(batteryIndex, GBDevice.BATTERY_ICON_DEFAULT, GBDevice.BATTERY_LABEL_DEFAULT);
+    }
 
     public BatteryConfig(int batteryIndex, int batteryIcon, int batteryLabel) {
+        this(batteryIndex, batteryIcon, batteryLabel, 10, 100);
+    }
+
+    public BatteryConfig(final int batteryIndex, final int batteryIcon, final int batteryLabel, final int defaultLowThreshold, final int defaultFullThreshold) {
         this.batteryIndex = batteryIndex;
         this.batteryIcon = batteryIcon;
         this.batteryLabel = batteryLabel;
+        this.defaultLowThreshold = defaultLowThreshold;
+        this.defaultFullThreshold = defaultFullThreshold;
     }
 
     public int getBatteryIndex() {
@@ -43,16 +56,34 @@ public class BatteryConfig {
         return batteryLabel;
     }
 
+    public int getDefaultLowThreshold() {
+        return defaultLowThreshold;
+    }
+
+    public int getDefaultFullThreshold() {
+        return defaultFullThreshold;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof BatteryConfig)) return false;
         BatteryConfig that = (BatteryConfig) o;
-        return getBatteryIndex() == that.getBatteryIndex() && getBatteryIcon() == that.getBatteryIcon() && getBatteryLabel() == that.getBatteryLabel();
+        return getBatteryIndex() == that.getBatteryIndex() &&
+                getBatteryIcon() == that.getBatteryIcon() &&
+                getBatteryLabel() == that.getBatteryLabel() &&
+                getDefaultLowThreshold() == that.getDefaultLowThreshold() &&
+                getDefaultFullThreshold() == that.getDefaultFullThreshold();
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getBatteryIndex(), getBatteryIcon(), getBatteryLabel());
+        return Objects.hash(
+                getBatteryIndex(),
+                getBatteryIcon(),
+                getBatteryLabel(),
+                getDefaultLowThreshold(),
+                getDefaultFullThreshold()
+        );
     }
 }

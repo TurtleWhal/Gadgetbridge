@@ -31,7 +31,9 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
@@ -40,10 +42,12 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.SleepAsAndroidFeature;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
+import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.banglejs.BangleJSDeviceSupport;
 
@@ -78,6 +82,16 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public boolean supportsCalendarEvents() {
         return true;
+    }
+
+    @Override
+    public boolean supportsSleepAsAndroid() {
+        return true;
+    }
+
+    @Override
+    public Set<SleepAsAndroidFeature> getSleepAsAndroidFeatures() {
+        return EnumSet.of(SleepAsAndroidFeature.ACCELEROMETER, SleepAsAndroidFeature.HEART_RATE, SleepAsAndroidFeature.NOTIFICATIONS, SleepAsAndroidFeature.ALARMS);
     }
 
     @Override
@@ -177,6 +191,19 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
         just like DeviceCommunicationService.sanitizeNotifText would have done if we'd
         reported false *if* conversion is disabled */
         return true;
+    }
+
+    @Override
+    public BatteryConfig[] getBatteryConfig(final GBDevice device) {
+        return new BatteryConfig[]{
+                new BatteryConfig(
+                        0,
+                        GBDevice.BATTERY_ICON_DEFAULT,
+                        GBDevice.BATTERY_LABEL_DEFAULT,
+                        15,
+                        100
+                )
+        };
     }
 
     @Override

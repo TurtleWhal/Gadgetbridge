@@ -827,10 +827,12 @@
     <string name="pbw_install_handler_hw_revision_mismatch">Unable to install the given firmware: It doesn\'t match your Pebble\'s hardware revision.</string>
     <string name="installer_activity_wait_while_determining_status">Please wait while determining the installation status…</string>
     <string name="notif_battery_low_title">Gadget battery Low!</string>
+    <string name="notif_battery_full_title">Gadget battery Full!</string>
     <string name="notif_battery_low_percent">%1$s battery left: %2$s%%</string>
     <string name="notif_battery_low_bigtext_last_charge_time">Last charge: %s \n</string>
     <string name="notif_battery_low_bigtext_number_of_charges">Number of charges: %s</string>
     <string name="notif_battery_low">%1$s battery low</string>
+    <string name="notif_battery_full">%1$s battery full</string>
     <string name="notif_battery_low_extended">%1$s battery low: %2$s</string>
     <string name="notif_export_failed_title">Export database failed! Please check your settings.</string>
     <string name="prefs_charts_tabs">Charts tabs</string>
@@ -928,7 +930,7 @@
     <string name="pref_huami_truncate_fetch_operation_timestamps_summary">Truncate the fetch operation timestamps to minutes. Disable this setting to keep the timestamps in seconds, if you face issues while fetching very short workouts.</string>
     <string name="pref_title_dont_ack_transfer">Do not ACK activity data transfer</string>
     <string name="pref_summary_dont_ack_transfers">If not ACKed to the band, activity data is not cleared. Useful if GB is used together with other apps.</string>
-    <string name="pref_summary_keep_data_on_device">Will keep activity data on the device even after synchronization. Useful if GB is used together with other apps.</string>
+    <string name="pref_summary_keep_data_on_device">Will keep activity data on the device even after synchronization. Useful if GB is used together with other apps. This may cause the watch to run out of space and/or stop syncing properly.</string>
     <string name="pref_enable_unsupported_settings_title">Enable unsupported settings</string>
     <string name="pref_enable_unsupported_settings_summary">This will enable access to all available settings, even if unsupported by the device. This can cause instability and crashes on the device.</string>
     <string name="pref_title_low_latency_fw_update">Use low-latency mode for firmware flashing</string>
@@ -1103,6 +1105,7 @@
     <string name="activity_prefs_year_birth">Year of birth</string>
     <string name="activity_prefs_gender">Gender</string>
     <string name="activity_prefs_height_cm">Height in cm</string>
+    <string name="activity_prefs_height_inches">Height in inches</string>
     <string name="activity_prefs_weight_kg">Weight in kg</string>
     <string name="activity_prefs_target_weight_kg">Target weight in kg</string>
     <string name="activity_prefs_step_length_cm">Step length in cm</string>
@@ -1134,6 +1137,7 @@
     <string name="activity_prefs_chart_min_session_length">Minimal activity length (minutes)</string>
     <string name="authenticating">Authenticating</string>
     <string name="authentication_required">Authentication required</string>
+    <string name="authentication_failed_check_key">Authentication failed, please check auth key</string>
     <string name="activity_prefs_sleep_duration">Preferred sleep duration in hours</string>
     <string name="device_hw">Hardware revision: %1$s</string>
     <string name="device_fw">Firmware version: %1$s</string>
@@ -1493,9 +1497,17 @@
     <string name="devicetype_zepp_e">Zepp E</string>
     <string name="devicetype_garmin_vivomove_hr">Garmin Vívomove HR</string>
     <string name="devicetype_garmin_vivomove_style">Garmin Vívomove Style</string>
+    <string name="devicetype_garmin_venu_2">Garmin Venu 2</string>
     <string name="devicetype_garmin_venu_2_plus">Garmin Venu 2 Plus</string>
     <string name="devicetype_garmin_venu_3">Garmin Venu 3</string>
+    <string name="devicetype_garmin_venu_3s">Garmin Venu 3S</string>
     <string name="devicetype_garmin_epix_pro">Garmin Epix Pro</string>
+    <string name="devicetype_garmin_fenix_5">Garmin Fenix 5</string>
+    <string name="devicetype_garmin_fenix_6">Garmin Fenix 6</string>
+    <string name="devicetype_garmin_fenix_6_sapphire">Garmin Fenix 6 Sapphire</string>
+    <string name="devicetype_garmin_fenix_7s">Garmin Fenix 7S</string>
+    <string name="devicetype_garmin_fenix_7_pro">Garmin Fenix 7 Pro</string>
+    <string name="devicetype_garmin_instinct">Garmin Instinct</string>
     <string name="devicetype_garmin_instinct_solar">Garmin Instinct Solar</string>
     <string name="devicetype_garmin_instinct_2s">Garmin Instinct 2S</string>
     <string name="devicetype_garmin_instinct_2s_solar">Garmin Instinct 2S Solar</string>
@@ -1504,6 +1516,9 @@
     <string name="devicetype_garmin_instinct_2_soltac">Garmin Instinct 2 SolTac</string>
     <string name="devicetype_garmin_instinct_crossover">Garmin Instinct Crossover</string>
     <string name="devicetype_garmin_forerunner_245">Garmin Forerunner 245</string>
+    <string name="devicetype_garmin_forerunner_255">Garmin Forerunner 255</string>
+    <string name="devicetype_garmin_forerunner_255s">Garmin Forerunner 255S</string>
+    <string name="devicetype_garmin_forerunner_265">Garmin Forerunner 265</string>
     <string name="devicetype_garmin_swim_2">Garmin Swim 2</string>
     <string name="devicetype_garmin_vivoactive_4">Garmin Vívoactive 4</string>
     <string name="devicetype_garmin_vivoactive_4s">Garmin Vívoactive 4S</string>
@@ -1561,6 +1576,7 @@
     <string name="devicetype_sony_linkbuds">Sony LinkBuds</string>
     <string name="devicetype_sony_linkbuds_s">Sony LinkBuds S</string>
     <string name="devicetype_soundcore_liberty3_pro">Soundcore Liberty 3 Pro</string>
+    <string name="devicetype_moondrop_space_travel">Moondrop Space Travel</string>
     <string name="devicetype_binary_sensor">Binary sensor</string>
     <string name="devicetype_honor_band3">Honor Band 3</string>
     <string name="devicetype_honor_band4">Honor Band 4</string>
@@ -1599,6 +1615,7 @@
     <string name="notification_channel_high_priority_name">High-priority</string>
     <string name="notification_channel_transfer_name">Data transfer</string>
     <string name="notification_channel_low_battery_name">Low battery</string>
+    <string name="notification_channel_full_battery_name">Full battery</string>
     <string name="notification_channel_gps">GPS tracking</string>
     <string name="notification_gps_title">Gadgetbridge GPS</string>
     <string name="notification_gps_text">Sending GPS location to %1$d devices</string>
@@ -1607,6 +1624,7 @@
     <string name="devicetype_sg2">Lemfo SG2</string>
     <string name="devicetype_lefun">Lefun</string>
     <string name="devicetype_bohemic_smart_bracelet">Bohemic Smart Bracelet</string>
+    <string name="devicetype_hama_fit6900">Hama Fit6900</string>
     <!-- Menus on the smart device -->
     <string name="menuitem_nothing">Nothing</string>
     <string name="menuitem_status">Status</string>
@@ -2210,6 +2228,7 @@
     <string name="prefs_switch_control_left">Switch control left</string>
     <string name="prefs_switch_control_right">Switch control right</string>
     <string name="prefs_galaxy_touch_options">Touch Options</string>
+    <string name="battery_i">Battery %d</string>
     <string name="battery_case">Battery case</string>
     <string name="left_earbud">Left earbud</string>
     <string name="right_earbud">Right earbud</string>
@@ -2359,6 +2378,19 @@
     <string name="sony_protocol_v1">Version 1</string>
     <string name="sony_protocol_v2">Version 2</string>
     <string name="sony_protocol_v3">Version 3</string>
+    <string name="moondrop_equalizer_preset_reference">Reference</string>
+    <string name="moondrop_equalizer_preset_basshead">Basshead</string>
+    <string name="moondrop_equalizer_preset_monitor">Monitor</string>
+    <string name="moondrop_touch_earbud">Earbud</string>
+    <string name="moondrop_touch_earbud_both">Both</string>
+    <string name="moondrop_touch_trigger">Trigger</string>
+    <string name="moondrop_touch_action_play_pause">Play/Pause</string>
+    <string name="moondrop_touch_action_call_pick_hang">Pick/Hang Call</string>
+    <string name="moondrop_touch_action_call_start">Start Call</string>
+    <string name="moondrop_touch_action_assistant">Trigger Voice Assistant</string>
+    <string name="moondrop_touch_action_anc_mode">Switch Active Noise Cancelling Mode</string>
+    <string name="moondrop_touch_trigger_long_press_1s">Long Press (1s)</string>
+    <string name="moondrop_touch_trigger_long_press_3s">Long Press (3s)</string>
     <string name="protocol_version">Protocol Version</string>
     <string name="pref_screen_auto_brightness_title">Auto Brightness</string>
     <string name="pref_screen_auto_brightness_summary">Adjust screen brightness according to ambient light</string>
@@ -2826,6 +2858,11 @@
     <string name="pref_dashboard_select_devices_summary">Combine activity data from specific devices for the totals on the dashboard</string>
     <string name="pref_dashboard_widget_today_hr_interval_title">Heart rate interval</string>
     <string name="pref_dashboard_widget_today_hr_interval_summary">The amount of minutes the chart shows \'worn\' after each successful heart rate measurement</string>
+    <plurals name="amount_of_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <string name="dashboard_calendar_month_goals_reached_title">% of steps goal reached</string>
     <string name="pref_auto_reply_calls_summary">The phone will automatically pick-up incoming phonecalls</string>
     <string name="pref_auto_reply_calls_title">Automatically answer phone calls</string>
     <string name="pref_auto_reply_calls_delay_summary">Number of seconds after which the call is automatically picked up</string>
@@ -2889,4 +2926,20 @@
     <string name="garmin_agps_local_file">Local file</string>
     <string name="pref_garmin_agps_help">The list below contains all URLs requested by the watch for AGPS updates. You can select a file from the phone\'s storage that will be sent to the watch when it requests an update.</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="loading">Loading…</string>
+    <string name="toggle_debug_mode">Toggle debug mode</string>
+    <string name="share_debug_info">Share debug info</string>
+    <string name="realtime_settings">Realtime settings</string>
+    <string name="unsupported">Unsupported</string>
+    <string name="min_val">Minimum: %d</string>
+    <string name="max_val">Maximum: %d</string>
+    <string name="show_in_notification">Show in notification</string>
+    <string name="battery_low_notify_enabled">Notify on low battery</string>
+    <string name="battery_low_threshold">Low battery threshold</string>
+    <string name="battery_full_notify_enabled">Notify on full battery</string>
+    <string name="battery_full_threshold">Full battery threshold</string>
+    <string name="default_percentage">Default (%1$d%%)</string>
+    <string name="battery_percentage_str">%1$s%%</string>
+    <string name="pref_fetch_unknown_files_title">Fetch unknown files</string>
+    <string name="pref_fetch_unknown_files_summary">Fetch unknown activity files from the watch. They will not be processed, but will be saved in the phone.</string>
 </resources>

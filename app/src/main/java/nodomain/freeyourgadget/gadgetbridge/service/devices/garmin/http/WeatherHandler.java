@@ -7,6 +7,7 @@ import com.google.gson.GsonBuilder;
 
 import net.e175.klaus.solarpositioning.DeltaT;
 import net.e175.klaus.solarpositioning.SPA;
+import net.e175.klaus.solarpositioning.SunriseTransitSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,7 +139,7 @@ public class WeatherHandler {
             high = new WeatherValue(dailyForecast.maxTemp - 273f, "CELSIUS");
             low = new WeatherValue(dailyForecast.minTemp - 273f, "CELSIUS");
             precipProb = dailyForecast.precipProbability;
-            icon = mapToCmfCondition(dailyForecast.conditionCode);
+            icon = mapToGarminCondition(dailyForecast.conditionCode);
 
             if (dailyForecast.sunRise != 0 && dailyForecast.sunSet != 0) {
                 epochSunrise = dailyForecast.sunRise;
@@ -146,15 +147,19 @@ public class WeatherHandler {
             } else {
                 final Location lastKnownLocation = new CurrentPosition().getLastKnownLocation();
 
-                final GregorianCalendar[] sunriseTransitSet = SPA.calculateSunriseTransitSet(
-                        date,
+                final SunriseTransitSet sunriseTransitSet = SPA.calculateSunriseTransitSet(
+                        date.toZonedDateTime(),
                         lastKnownLocation.getLatitude(),
                         lastKnownLocation.getLongitude(),
-                        DeltaT.estimate(date)
+                        DeltaT.estimate(date.toZonedDateTime().toLocalDate())
                 );
 
-                epochSunrise = (int) (sunriseTransitSet[0].getTime().getTime() / 1000);
-                epochSunset = (int) (sunriseTransitSet[2].getTime().getTime() / 1000);
+                if (sunriseTransitSet.getSunrise() != null) {
+                    epochSunrise = (int) (sunriseTransitSet.getSunrise().toInstant().getEpochSecond());
+                }
+                if (sunriseTransitSet.getSunset() != null) {
+                    epochSunset = (int) (sunriseTransitSet.getSunset().toInstant().getEpochSecond());
+                }
             }
 
             wind = new Wind(new WeatherValue(dailyForecast.windSpeed * 3.6, "METERS_PER_SECOND"), dailyForecast.windDirection);
@@ -184,7 +189,7 @@ public class WeatherHandler {
             temp = new WeatherValue(hourlyForecast.temp - 273f, "CELSIUS");
             precipProb = hourlyForecast.precipProbability;
             wind = new Wind(new WeatherValue(hourlyForecast.windSpeed * 3.6, "METERS_PER_SECOND"), hourlyForecast.windDirection);
-            icon = mapToCmfCondition(hourlyForecast.conditionCode);
+            icon = mapToGarminCondition(hourlyForecast.conditionCode);
             //dewPoint = new WeatherValue(hourlyForecast.temp - 273f, "CELSIUS"); // TODO dewPoint
             uvIndex = hourlyForecast.uvIndex;
             relativeHumidity = hourlyForecast.humidity;
@@ -214,7 +219,7 @@ public class WeatherHandler {
             epochSeconds = weatherSpec.timestamp;
             temperature = new WeatherValue(weatherSpec.currentTemp - 273f, "CELSIUS");
             description = weatherSpec.currentCondition;
-            icon = mapToCmfCondition(weatherSpec.currentConditionCode);
+            icon = mapToGarminCondition(weatherSpec.currentConditionCode);
             feelsLikeTemperature = new WeatherValue(weatherSpec.currentTemp - 273f, "CELSIUS");
             dewPoint = new WeatherValue(weatherSpec.dewPoint - 273f, "CELSIUS");
             relativeHumidity = weatherSpec.currentHumidity;
@@ -238,16 +243,26 @@ public class WeatherHandler {
 
     public static class Wind {
         public WeatherValue speed;
-        public String directionString; // NW
+        public String directionString;
         public Integer direction;
 
         public Wind(final WeatherValue speed, final int direction) {
             this.speed = speed;
+            this.directionString = getWindDirection(direction);
             this.direction = direction;
         }
     }
 
-    public static int mapToCmfCondition(int openWeatherMapCondition) {
+    public static String getWindDirection(int degrees) {
+        degrees = (degrees % 360 + 360) % 360;
+
+        final String[] directions = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+        final int index = (int) Math.round(((double) degrees % 360) / 45);
+
+        return directions[index % 8];
+    }
+
+    public static int mapToGarminCondition(final int openWeatherMapCondition) {
         // Icons mapped from a Venu 3:
         // 0 1 2 unk
         // 3 4 5 6 sunny
