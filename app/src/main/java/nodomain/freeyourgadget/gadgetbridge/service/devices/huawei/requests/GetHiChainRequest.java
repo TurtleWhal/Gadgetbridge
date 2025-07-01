@@ -53,13 +53,19 @@ public class GetHiChainRequest extends Request {
     private byte[] challenge = null;
     private byte[] psk = null;
 
+    // The user needs to confirm the pairing request on the device itself.
+    private final int firstAuthenticateTimeout = 30 * 1000;
+    private final int authenticateTimeout = 5000;
 
     public GetHiChainRequest(HuaweiSupportProvider support, boolean firstConnection) {
         super(support);
         this.serviceId = DeviceConfig.id;
         this.commandId = HiChain.id;
         if (firstConnection) {
+            setupTimeoutUntilNext(firstAuthenticateTimeout);
             operationCode = 0x01;
+        } else {
+            setupTimeoutUntilNext(authenticateTimeout);
         }
         this.step = 0x01;
     }
@@ -163,9 +169,10 @@ public class GetHiChainRequest extends Request {
         if (!(receivedPacket instanceof HiChain.Response))
             throw new ResponseTypeMismatchException(receivedPacket, HiChain.Response.class);
 
-        // TODO: handle failure codes
-
         HiChain.Response response = (HiChain.Response)receivedPacket;
+        if (response.errorCode != 0) {
+            throw new ResponseParseException("Got errorCode " +  response.errorCode);
+        }
         step = response.step;
 
         LOG.debug("Response operationCode: " + operationCode + " - step: " + step);

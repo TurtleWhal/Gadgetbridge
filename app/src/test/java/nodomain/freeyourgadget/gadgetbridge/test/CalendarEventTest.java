@@ -25,13 +25,13 @@ public class CalendarEventTest extends TestBase {
     @Test
     public void testHashCode() {
         CalendarEvent c1 =
-                new CalendarEvent(BEGIN, END, ID_1, "something", null, null, CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null);
+                new CalendarEvent(BEGIN, END, ID_1, "something", null, null, CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null, null, null, null);
         CalendarEvent c2 =
-                new CalendarEvent(BEGIN, END, ID_1, null, "something", null, CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null);
+                new CalendarEvent(BEGIN, END, ID_1, null, "something", null, CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null, null, null, null);
         CalendarEvent c3 =
-                new CalendarEvent(BEGIN, END, ID_1, null, null, "something", CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null);
+                new CalendarEvent(BEGIN, END, ID_1, null, null, "something", CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null, null, null, null);
         CalendarEvent c4 =
-                new CalendarEvent(BEGIN, END, ID_1, null, null, "something", CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, "some");
+                new CalendarEvent(BEGIN, END, ID_1, null, null, "something", CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, "some", null, null, null);
 
         assertEquals(c1.hashCode(), c1.hashCode());
         assertNotEquals(c1.hashCode(), c2.hashCode());
@@ -43,16 +43,16 @@ public class CalendarEventTest extends TestBase {
     @Test
     public void testSync() {
         List<CalendarEvent> eventList = new ArrayList<>();
-        eventList.add(new CalendarEvent(BEGIN, END, ID_1, null, "something", null, CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null));
+        eventList.add(new CalendarEvent(BEGIN, END, ID_1, null, "something", null, CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null, null, null, null));
 
         GBDevice dummyGBDevice = createDummyGDevice("00:00:01:00:03");
         dummyGBDevice.setState(GBDevice.State.INITIALIZED);
 //        Device device = DBHelper.getDevice(dummyGBDevice, daoSession);
-        CalendarReceiver testCR = new CalendarReceiver(dummyGBDevice);
+        CalendarReceiver testCR = new CalendarReceiver(getContext(), dummyGBDevice);
 
         testCR.syncCalendar(eventList);
 
-        eventList.add(new CalendarEvent(BEGIN, END, ID_2, null, "something", null, CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null));
+        eventList.add(new CalendarEvent(BEGIN, END, ID_2, null, "something", null, CALNAME_1, CALACCOUNTNAME_1, COLOR_1, false, null, null, null, null));
         testCR.syncCalendar(eventList);
 
         CalendarSyncStateDao calendarSyncStateDao = daoSession.getCalendarSyncStateDao();

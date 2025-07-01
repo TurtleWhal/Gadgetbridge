@@ -39,9 +39,9 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSett
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.AbstractZeppOsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class ZeppOsWatchfaceService extends AbstractZeppOsService {
@@ -79,6 +79,15 @@ public class ZeppOsWatchfaceService extends AbstractZeppOsService {
         CITY_OF_SPEED(0x00002DBC, R.string.zepp_os_watchface_city_of_speed),
         STARRY_SKY(0x00002DBD, R.string.zepp_os_watchface_starry_sky),
         THE_ULTIMA(0x00002DBE, R.string.zepp_os_watchface_the_ultima),
+
+        // Codes are from Active 2
+        ELEGANT(0x00002DE4, R.string.zepp_os_watchface_elegant),
+        DEEP_SPACE(0x00002DE5, R.string.zepp_os_watchface_deep_space),
+        SILVER_SHADOWS(0x00002DE6, R.string.zepp_os_watchface_silver_shadows),
+        RHYTHM(0x00002DE7, R.string.zepp_os_watchface_rhythm),
+        DIGITAL_WRAITH(0x00002DE8, R.string.zepp_os_watchface_digital_wraith),
+        VITAL_ORANGE(0x00002DE9, R.string.zepp_os_watchface_vital_orange),
+        VITAL(0x00002DEA, R.string.zepp_os_watchface_vital),
         ;
 
         private final int code;
@@ -162,7 +171,9 @@ public class ZeppOsWatchfaceService extends AbstractZeppOsService {
     }
 
     @Override
-    public void initialize(final TransactionBuilder builder) {
+    public void initialize(final ZeppOsTransactionBuilder builder) {
+        watchfaces.clear();
+
         requestWatchfaces(builder);
         requestCurrentWatchface(builder);
     }
@@ -171,21 +182,15 @@ public class ZeppOsWatchfaceService extends AbstractZeppOsService {
         return watchfaces;
     }
 
-    public void requestWatchfaces(final TransactionBuilder builder) {
+    public void requestWatchfaces(final ZeppOsTransactionBuilder builder) {
         write(builder, CMD_LIST_GET);
     }
 
     public void requestCurrentWatchface() {
-        try {
-            final TransactionBuilder builder = new TransactionBuilder("request current watchface");
-            requestCurrentWatchface(builder);
-            builder.queue(getSupport().getQueue());
-        } catch (final Exception e) {
-            LOG.error("Failed to request current watchface", e);
-        }
+        withTransactionBuilder("request current watchface", this::requestCurrentWatchface);
     }
 
-    public void requestCurrentWatchface(final TransactionBuilder builder) {
+    public void requestCurrentWatchface(final ZeppOsTransactionBuilder builder) {
         write(builder, CMD_CURRENT_GET);
     }
 

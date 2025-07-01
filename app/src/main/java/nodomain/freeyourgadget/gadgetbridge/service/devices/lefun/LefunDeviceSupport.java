@@ -21,7 +21,6 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.text.format.DateFormat;
 import android.widget.Toast;
 
@@ -36,7 +35,6 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import de.greenrobot.dao.query.Query;
@@ -64,19 +62,13 @@ import nodomain.freeyourgadget.gadgetbridge.entities.LefunSleepSample;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.lefun.requests.FindDeviceRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.lefun.requests.GetActivityDataRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.lefun.requests.GetBatteryLevelRequest;
@@ -105,7 +97,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 /**
  * Device support class for Lefun devices
  */
-public class LefunDeviceSupport extends AbstractBTLEDeviceSupport {
+public class LefunDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(LefunDeviceSupport.class);
 
     private final List<Request> inProgressRequests = Collections.synchronizedList(new ArrayList<Request>());
@@ -128,7 +120,7 @@ public class LefunDeviceSupport extends AbstractBTLEDeviceSupport {
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         builder.setCallback(this);
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
 
         // Enable notification
         builder.notify(getCharacteristic(LefunConstants.UUID_CHARACTERISTIC_LEFUN_NOTIFY), true);
@@ -665,9 +657,8 @@ public class LefunDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] data) {
         if (characteristic.getUuid().equals(LefunConstants.UUID_CHARACTERISTIC_LEFUN_NOTIFY)) {
-            byte[] data = characteristic.getValue();
             // Parse response
             if (data.length >= LefunConstants.CMD_HEADER_LENGTH && data[0] == LefunConstants.CMD_RESPONSE_ID) {
                 // Note: full validation is done within the request
@@ -700,7 +691,7 @@ public class LefunDeviceSupport extends AbstractBTLEDeviceSupport {
             return false;
         }
 
-        return super.onCharacteristicChanged(gatt, characteristic);
+        return super.onCharacteristicChanged(gatt, characteristic, data);
     }
 
     /**
@@ -763,6 +754,7 @@ public class LefunDeviceSupport extends AbstractBTLEDeviceSupport {
         sample.setSteps(diff);
         lastStepsCount = command.getSteps();
         Intent intent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES)
+                .putExtra(GBDevice.EXTRA_DEVICE, getDevice())
                 .putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample)
                 .putExtra(DeviceService.EXTRA_TIMESTAMP, sample.getTimestamp());
         LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
@@ -810,8 +802,7 @@ public class LefunDeviceSupport extends AbstractBTLEDeviceSupport {
      * Callback when device info has been obtained
      */
     public void completeInitialization() {
-        gbDevice.setState(GBDevice.State.INITIALIZED);
-        gbDevice.sendDeviceUpdateIntent(getContext());
+        gbDevice.setUpdateState(GBDevice.State.INITIALIZED, getContext());
         onReadConfiguration("");
     }
 
@@ -917,6 +908,7 @@ public class LefunDeviceSupport extends AbstractBTLEDeviceSupport {
                 session.getLefunActivitySampleDao().insertOrReplace(sample);
 
                 final Intent intent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES)
+                        .putExtra(GBDevice.EXTRA_DEVICE, getDevice())
                         .putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample);
                 LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
             }
@@ -1027,5 +1019,15 @@ public class LefunDeviceSupport extends AbstractBTLEDeviceSupport {
                         GB.ERROR, e);
             }
         }
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

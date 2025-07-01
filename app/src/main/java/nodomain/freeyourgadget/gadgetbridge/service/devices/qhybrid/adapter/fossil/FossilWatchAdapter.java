@@ -46,6 +46,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -94,6 +95,8 @@ import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.UriHelper;
 
 public class FossilWatchAdapter extends WatchAdapter {
+    private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
+
     private ArrayList<Request> requestQueue = new ArrayList<>();
 
     protected FossilRequest fossilRequest;
@@ -130,7 +133,7 @@ public class FossilWatchAdapter extends WatchAdapter {
             timeoutHandler = new Handler(timeoutLooper);
             Looper.loop();
         }
-    });
+    }, "FossilWatchAdapter_" + THREAD_COUNTER.getAndIncrement());
 
     private Runnable requestTimeoutRunnable = new Runnable() {
         @Override
@@ -154,6 +157,16 @@ public class FossilWatchAdapter extends WatchAdapter {
         queueWrite(new RequestMtuRequest(512), false);
 
         getDeviceInfos();
+    }
+
+    @Override
+    public void dispose() {
+        if (timeoutLooper != null) {
+            timeoutHandler.removeCallbacks(requestTimeoutRunnable);
+            timeoutLooper.quit();
+        }
+
+        super.dispose();
     }
 
     private void restartRequestTimeout(){
@@ -360,6 +373,7 @@ public class FossilWatchAdapter extends WatchAdapter {
         queueWrite(new SaveCalibrationRequest());
     }
 
+    @Override
     public void vibrate(nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.PlayNotificationRequest.VibrationType vibration) {
         // queueWrite(new nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.PlayNotificationRequest(vibration, -1, -1));
     }
@@ -436,12 +450,10 @@ public class FossilWatchAdapter extends WatchAdapter {
                     if (!success) {
                         GB.toast("error writing notification settings", Toast.LENGTH_SHORT, GB.ERROR);
 
-                        getDeviceSupport().getDevice().setState(GBDevice.State.NOT_CONNECTED);
-                        getDeviceSupport().getDevice().sendDeviceUpdateIntent(getContext());
+                        getDeviceSupport().getDevice().setUpdateState(GBDevice.State.NOT_CONNECTED, getContext());
                     }
 
-                    getDeviceSupport().getDevice().setState(GBDevice.State.INITIALIZED);
-                    getDeviceSupport().getDevice().sendDeviceUpdateIntent(getContext());
+                    getDeviceSupport().getDevice().setUpdateState(GBDevice.State.INITIALIZED, getContext());
                 }
             }, false);
         } catch (Exception e) {
@@ -540,7 +552,7 @@ public class FossilWatchAdapter extends WatchAdapter {
             public void handleFileData(byte[] fileData) {
                 try (DBHandler dbHandler = GBApplication.acquireDB()) {
                     ActivityFileParser parser = new ActivityFileParser();
-                    ArrayList<ActivityEntry> entries = parser.parseFile(fileData);
+                    ArrayList<ActivityEntry> entries = parser.parseFile(fileData).getKey();
                     HybridHRActivitySampleProvider provider = new HybridHRActivitySampleProvider(getDeviceSupport().getDevice(), dbHandler.getDaoSession());
 
                     HybridHRActivitySample[] samples = new HybridHRActivitySample[entries.size()];
@@ -555,7 +567,7 @@ public class FossilWatchAdapter extends WatchAdapter {
 
                     queueWrite(new FileDeleteRequest(getHandle()));
                     GB.updateTransferNotification(null, "", false, 100, getContext());
-                    GB.signalActivityDataFinish();
+                    GB.signalActivityDataFinish(getDeviceSupport().getDevice());
                     LOG.debug("Synchronized activity data");
                 } catch (Exception ex) {
                     GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
@@ -585,7 +597,7 @@ public class FossilWatchAdapter extends WatchAdapter {
         // this device doesn't have concept of on-off alarm, so use the last slot for this and store
         // this alarm in the database so the user knows what is going on and can disable it
 
-        if (alarms.toArray().length == 1 && alarms.get(0).getRepetition() == 0) { //single shot?
+        if (alarms.size() == 1 && alarms.get(0).getRepetition() == 0) { //single shot?
             Alarm oneshot = alarms.get(0);
             alarms = (ArrayList<? extends Alarm>) AlarmUtils.mergeOneshotToDeviceAlarms(getDeviceSupport().getDevice(), (nodomain.freeyourgadget.gadgetbridge.entities.Alarm) oneshot, 5);
         }
@@ -628,14 +640,14 @@ public class FossilWatchAdapter extends WatchAdapter {
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
         switch (characteristic.getUuid().toString()) {
             case "3dda0006-957f-7d4a-34a6-74696673696d": {
-                handleBackgroundCharacteristic(characteristic);
+                handleBackgroundCharacteristic(characteristic, value);
                 break;
             }
             case "00002a37-0000-1000-8000-00805f9b34fb": {
-                handleHeartRateCharacteristic(characteristic);
+                handleHeartRateCharacteristic(characteristic, value);
                 break;
             }
             case "3dda0002-957f-7d4a-34a6-74696673696d":
@@ -646,14 +658,14 @@ public class FossilWatchAdapter extends WatchAdapter {
                     boolean requestFinished;
                     try {
                         if (characteristic.getUuid().toString().equals("3dda0003-957f-7d4a-34a6-74696673696d")) {
-                            byte requestType = (byte) (characteristic.getValue()[0] & 0x0F);
+                            byte requestType = (byte) (value[0] & 0x0F);
 
                             if (requestType != 0x0A && requestType != fossilRequest.getType()) {
                                 // throw new RuntimeException("Answer type " + requestType + " does not match current request " + fossilRequest.getType());
                             }
                         }
 
-                        fossilRequest.handleResponse(characteristic);
+                        fossilRequest.handleResponse(characteristic, value);
                         requestFinished = fossilRequest.isFinished();
                     } catch (RuntimeException e) {
                         if (characteristic.getUuid().toString().equals("3dda0005-957f-7d4a-34a6-74696673696d")) {
@@ -682,7 +694,7 @@ public class FossilWatchAdapter extends WatchAdapter {
         return true;
     }
 
-    public void handleHeartRateCharacteristic(BluetoothGattCharacteristic characteristic) {
+    public void handleHeartRateCharacteristic(BluetoothGattCharacteristic characteristic, byte[] value) {
     }
 
     @Override
@@ -731,8 +743,7 @@ public class FossilWatchAdapter extends WatchAdapter {
         }
     }
 
-    protected void handleBackgroundCharacteristic(BluetoothGattCharacteristic characteristic) {
-        byte[] value = characteristic.getValue();
+    protected void handleBackgroundCharacteristic(BluetoothGattCharacteristic characteristic, byte[] value) {
         switch (value[1]) {
             case 2: {
                 byte syncId = value[2];
@@ -751,6 +762,7 @@ public class FossilWatchAdapter extends WatchAdapter {
                     log("Button press on button " + button);
 
                     Intent i = new Intent(QHYBRID_EVENT_BUTTON_PRESS);
+                    i.setPackage(BuildConfig.APPLICATION_ID);
                     i.putExtra("BUTTON", button);
                     getContext().sendBroadcast(i);
                 }
@@ -832,8 +844,7 @@ public class FossilWatchAdapter extends WatchAdapter {
     }
 
     private void setDeviceState(GBDevice.State state) {
-        getDeviceSupport().getDevice().setState(state);
-        getDeviceSupport().getDevice().sendDeviceUpdateIntent(getContext(), GBDevice.DeviceUpdateSubject.DEVICE_STATE);
+        getDeviceSupport().getDevice().setUpdateState(state, getContext());
     }
 
     public void queueWrite(FossilRequest request, boolean priorise) {

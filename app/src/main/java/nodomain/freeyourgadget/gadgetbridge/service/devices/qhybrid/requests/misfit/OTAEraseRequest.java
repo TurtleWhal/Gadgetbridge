@@ -45,13 +45,13 @@ public class OTAEraseRequest extends Request {
     }
 
 
+    @Override
     public UUID getRequestUUID(){
         return UUID.fromString("3dda0003-957f-7d4a-34a6-74696673696d");
     }
 
     @Override
-    public void handleResponse(BluetoothGattCharacteristic characteristic) {
-        byte[] bytes = characteristic.getValue();
+    public void handleResponse(BluetoothGattCharacteristic characteristic, byte[] bytes) {
         final ByteBuffer wrap = ByteBuffer.wrap(bytes);
         wrap.order(ByteOrder.LITTLE_ENDIAN);
         short fileHandle = wrap.getShort(1);

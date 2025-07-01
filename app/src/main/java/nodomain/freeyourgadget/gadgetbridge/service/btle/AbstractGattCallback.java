@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2024 Carsten Pfeiffer, Daniel Dakhno
+/*  Copyright (C) 2015-2025 Carsten Pfeiffer, Daniel Dakhno, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -20,6 +20,8 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 
+import androidx.annotation.NonNull;
+
 /**
  * Base class for GattCallbacks wishing to just implement a few of the methods.
  */
@@ -33,7 +35,7 @@ public abstract class AbstractGattCallback implements GattCallback {
     }
 
     @Override
-    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
         return false;
     }
 
@@ -43,12 +45,12 @@ public abstract class AbstractGattCallback implements GattCallback {
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
         return false;
     }
 
     @Override
-    public boolean onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+    public boolean onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status, byte[] value) {
         return false;
     }
 
@@ -63,5 +65,21 @@ public abstract class AbstractGattCallback implements GattCallback {
 
     @Override
     public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+    }
+
+    @Override
+    public void onReliableWriteCompleted(BluetoothGatt gatt, int status) {
+    }
+
+    @Override
+    public void onPhyRead(BluetoothGatt gatt, int txPhy, int rxPhy, int status){
+    }
+
+    @Override
+    public void onPhyUpdate(BluetoothGatt gatt, int txPhy, int rxPhy, int status){
+    }
+
+    @Override
+    public void onServiceChanged(@NonNull BluetoothGatt gatt){
     }
 }

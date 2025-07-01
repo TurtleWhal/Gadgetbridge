@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2024 Andreas Shimokawa, José Rebelo
+/*  Copyright (C) 2023-2024 Andreas Shimokawa, José Rebelo, Yoran Vulker
 
     This file is part of Gadgetbridge.
 
@@ -16,6 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.widget.Toast;
@@ -36,17 +37,19 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Locale;
 
+import javax.crypto.Cipher;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -65,6 +68,7 @@ public class XiaomiAuthService extends AbstractXiaomiService {
     public static final int CMD_AUTH = 27;
 
     private boolean encryptionInitialized = false;
+    private boolean checkDecryptionMac = true;
 
     private final byte[] secretKey = new byte[16];
     private final byte[] nonce = new byte[16];
@@ -105,6 +109,12 @@ public class XiaomiAuthService extends AbstractXiaomiService {
     }
 
     @Override
+    public void setContext(final Context context) {
+        super.setContext(context);
+        this.checkDecryptionMac = getCoordinator().checkDecryptionMac();
+    }
+
+    @Override
     public void handleCommand(final XiaomiProto.Command cmd) {
         if (cmd.getType() != COMMAND_TYPE) {
             throw new IllegalArgumentException("Not an auth command");
@@ -140,8 +150,7 @@ public class XiaomiAuthService extends AbstractXiaomiService {
 
                     LOG.info("Authenticated, further communications are {}", encryptionInitialized ? "encrypted" : "in plaintext");
 
-                    getSupport().getDevice().setState(GBDevice.State.INITIALIZED);
-                    getSupport().getDevice().sendDeviceUpdateIntent(getSupport().getContext(), GBDevice.DeviceUpdateSubject.DEVICE_STATE);
+                    getSupport().getDevice().setUpdateState(GBDevice.State.INITIALIZED, getSupport().getContext());
 
                     getSupport().onAuthSuccess();
                 } else {
@@ -180,7 +189,7 @@ public class XiaomiAuthService extends AbstractXiaomiService {
         packetNonce.putInt(0);
 
         try {
-            return decrypt(decryptionKey, packetNonce.array(), arr);
+            return decrypt(decryptionKey, packetNonce.array(), arr, checkDecryptionMac);
         } catch (final CryptoException e) {
             throw new RuntimeException("failed to decrypt", e);
         }
@@ -195,12 +204,10 @@ public class XiaomiAuthService extends AbstractXiaomiService {
         System.arraycopy(step2hmac, 32, decryptionNonce, 0, 4);
         System.arraycopy(step2hmac, 36, encryptionNonce, 0, 4);
 
-        if (BuildConfig.DEBUG) {
-            LOG.debug("decryptionKey: {}", GB.hexdump(decryptionKey));
-            LOG.debug("encryptionKey: {}", GB.hexdump(encryptionKey));
-            LOG.debug("decryptionNonce: {}", GB.hexdump(decryptionNonce));
-            LOG.debug("encryptionNonce: {}", GB.hexdump(encryptionNonce));
-        }
+        LOG.debug("decryptionKey: {}", GB.hexdump(decryptionKey));
+        LOG.debug("encryptionKey: {}", GB.hexdump(encryptionKey));
+        LOG.debug("decryptionNonce: {}", GB.hexdump(decryptionNonce));
+        LOG.debug("encryptionNonce: {}", GB.hexdump(encryptionNonce));
 
         final byte[] decryptionConfirmation = hmacSHA256(decryptionKey, ArrayUtils.addAll(watchNonce.getNonce().toByteArray(), nonce));
         if (!Arrays.equals(decryptionConfirmation, watchNonce.getHmac().toByteArray())) {
@@ -325,7 +332,7 @@ public class XiaomiAuthService extends AbstractXiaomiService {
 
     public static byte[] encrypt(final byte[] key, final byte[] nonce, final byte[] payload) throws
             CryptoException {
-        final CCMBlockCipher cipher = createBlockCipher(true, new SecretKeySpec(key, "AES"), nonce);
+        final CCMBlockCipher cipher = createBlockCipher(true, new SecretKeySpec(key, "AES"), 32, nonce);
         final byte[] out = new byte[cipher.getOutputSize(payload.length)];
         final int outBytes = cipher.processBytes(payload, 0, payload.length, out, 0);
         cipher.doFinal(out, outBytes);
@@ -334,20 +341,52 @@ public class XiaomiAuthService extends AbstractXiaomiService {
 
     public static byte[] decrypt(final byte[] key,
                                  final byte[] nonce,
-                                 final byte[] encryptedPayload) throws CryptoException {
-        final CCMBlockCipher cipher = createBlockCipher(false, new SecretKeySpec(key, "AES"), nonce);
-        final byte[] decrypted = new byte[cipher.getOutputSize(encryptedPayload.length)];
-        cipher.doFinal(decrypted, cipher.processBytes(encryptedPayload, 0, encryptedPayload.length, decrypted, 0));
+                                 final byte[] encryptedPayload,
+                                 final boolean checkMac) throws CryptoException {
+        final int macSizeBits = checkMac ? 32 : 0;
+        final int actualEncryptedLength = checkMac ? encryptedPayload.length : encryptedPayload.length - 4;
+        final CCMBlockCipher cipher = createBlockCipher(false, new SecretKeySpec(key, "AES"), macSizeBits, nonce);
+        final byte[] decrypted = new byte[cipher.getOutputSize(actualEncryptedLength)];
+        cipher.doFinal(decrypted, cipher.processBytes(encryptedPayload, 0, actualEncryptedLength, decrypted, 0));
         return decrypted;
     }
 
     public static CCMBlockCipher createBlockCipher(final boolean forEncrypt,
                                                    final SecretKey secretKey,
+                                                   final int macSizeBits,
                                                    final byte[] nonce) {
         final AESEngine aesFastEngine = new AESEngine();
         aesFastEngine.init(forEncrypt, new KeyParameter(secretKey.getEncoded()));
         final CCMBlockCipher blockCipher = new CCMBlockCipher(aesFastEngine);
-        blockCipher.init(forEncrypt, new AEADParameters(new KeyParameter(secretKey.getEncoded()), 32, nonce, null));
+        blockCipher.init(forEncrypt, new AEADParameters(new KeyParameter(secretKey.getEncoded()), macSizeBits, nonce, null));
         return blockCipher;
+    }
+
+    public byte[] encryptV2(final byte[] message) {
+        try {
+            // I wish I was kidding
+            return ctrCrypt(Cipher.ENCRYPT_MODE, encryptionKey, encryptionKey, message);
+        } catch (final GeneralSecurityException ex) {
+            throw new RuntimeException("failed to encrypt message", ex);
+        }
+    }
+
+    public byte[] decryptV2(final byte[] ciphertext) {
+        try {
+            // I wish I was kidding
+            return ctrCrypt(Cipher.DECRYPT_MODE, decryptionKey, decryptionKey, ciphertext);
+        } catch (final GeneralSecurityException ex) {
+            throw new RuntimeException("failed to decrypt message", ex);
+        }
+    }
+
+    public byte[] ctrCrypt(final int op, final byte[] key, final byte[] iv, final byte[] message) throws GeneralSecurityException {
+        final Cipher cipher = Cipher.getInstance("AES/CTR/NoPadding");
+        cipher.init(
+                op,
+                new SecretKeySpec(key, "AES"),
+                new IvParameterSpec(iv)
+        );
+        return cipher.doFinal(message);
     }
 }

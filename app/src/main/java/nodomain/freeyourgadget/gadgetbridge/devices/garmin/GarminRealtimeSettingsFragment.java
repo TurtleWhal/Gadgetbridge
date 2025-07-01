@@ -22,12 +22,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
-import android.text.TextWatcher;
-import android.widget.ArrayAdapter;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.DrawableRes;
@@ -59,7 +55,9 @@ import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractPreferenceFragment;
+import nodomain.freeyourgadget.gadgetbridge.adapter.SimpleIconListAdapter;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.RunnableListIconItem;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSettingsService;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
@@ -232,7 +230,7 @@ public class GarminRealtimeSettingsFragment extends AbstractPreferenceFragment {
     }
 
     void reload() {
-        final boolean debug = GBApplication.getDevicePrefs(device.getAddress()).getBoolean(PREF_DEBUG, BuildConfig.DEBUG);
+        final boolean debug = GBApplication.getDevicePrefs(device).getBoolean(PREF_DEBUG, BuildConfig.DEBUG);
 
         final FragmentActivity activity = getActivity();
         if (activity == null) {
@@ -411,6 +409,9 @@ public class GarminRealtimeSettingsFragment extends AbstractPreferenceFragment {
                             case 2: // garmin pay
                             case 7: // text responses
                             case 8: // music providers
+                            case 17: // Solar Intensity
+                            case 29: // Set Up ECG App
+                            case 30: // ECG
                                 pref = new Preference(activity);
                                 pref.setVisible(debug);
                                 pref.setEnabled(false);
@@ -570,29 +571,57 @@ public class GarminRealtimeSettingsFragment extends AbstractPreferenceFragment {
                     case 10: // find my device
                     case 11: // preferred activity tracker
                     case 13: // help & info
+                    case 24: // available accessories?
                         pref = new Preference(activity);
                         pref.setVisible(debug);
                         pref.setEnabled(false);
                         break;
                     case 15: // sortable + delete
                         // Add all sortable items and then continue
-                        final String moveUpStr = activity.getString(R.string.widget_move_up);
-                        final String moveDownStr = activity.getString(R.string.widget_move_down);
-                        final String deleteStr = activity.getString(R.string.appmananger_app_delete);
-
                         for (int i = 0; i < entry.getSortOptions().getEntriesCount(); i++) {
                             final GdiSettingsService.SortEntry sortEntry = entry.getSortOptions().getEntries(i);
-                            final List<String> sortableOptions = new ArrayList<>(3);
+                            final Preference sortPref = new Preference(activity);
+                            final int iFinal = i;
+
+                            final List<RunnableListIconItem> sortableOptions = new ArrayList<>(3);
                             if (i > 0) {
-                                sortableOptions.add(moveUpStr);
+                                sortableOptions.add(new RunnableListIconItem(activity.getString(R.string.widget_move_up), R.drawable.ic_arrow_upward, () -> {
+                                    sortPref.setEnabled(false);
+                                    sendChangeRequest(
+                                            GdiSettingsService.ChangeRequest.newBuilder()
+                                                    .setScreenId(screenId)
+                                                    .setEntryId(sortEntry.getId())
+                                                    .setPosition(GdiSettingsService.ChangeRequest.Position.newBuilder()
+                                                            .setIndex(iFinal - 1)
+                                                    )
+                                    );
+                                }));
                             }
                             if (i < entry.getSortOptions().getEntriesCount() - 1) {
-                                sortableOptions.add(moveDownStr);
+                                sortableOptions.add(new RunnableListIconItem(activity.getString(R.string.widget_move_down), R.drawable.ic_arrow_downward, () -> {
+                                    sortPref.setEnabled(false);
+                                    sendChangeRequest(
+                                            GdiSettingsService.ChangeRequest.newBuilder()
+                                                    .setScreenId(screenId)
+                                                    .setEntryId(sortEntry.getId())
+                                                    .setPosition(GdiSettingsService.ChangeRequest.Position.newBuilder()
+                                                            .setIndex(iFinal + 1)
+                                                    )
+                                    );
+                                }));
                             }
-                            sortableOptions.add(deleteStr);
-                            final ArrayAdapter<String> sortOptionsAdapter = new ArrayAdapter<>(activity, android.R.layout.simple_list_item_1, sortableOptions);
-                            final int iFinal = i;
-                            final Preference sortPref = new Preference(activity);
+                            sortableOptions.add(new RunnableListIconItem(activity.getString(R.string.appmananger_app_delete), R.drawable.ic_delete, () -> {
+                                sortPref.setEnabled(false);
+                                sendChangeRequest(
+                                        GdiSettingsService.ChangeRequest.newBuilder()
+                                                .setScreenId(screenId)
+                                                .setEntryId(sortEntry.getId())
+                                                .setPosition(GdiSettingsService.ChangeRequest.Position.newBuilder()
+                                                        .setDelete(true)
+                                                )
+                                );
+                            }));
+                            final SimpleIconListAdapter sortOptionsAdapter = new SimpleIconListAdapter(activity, sortableOptions);
                             sortPref.setTitle(sortEntry.getTitle().getText());
                             sortPref.setPersistent(false);
                             sortPref.setIconSpaceReserved(false);
@@ -600,40 +629,8 @@ public class GarminRealtimeSettingsFragment extends AbstractPreferenceFragment {
                             sortPref.setOnPreferenceClickListener(preference -> {
                                 new MaterialAlertDialogBuilder(activity)
                                         .setTitle(sortPref.getTitle())
-                                        .setAdapter(sortOptionsAdapter, (dialogInterface, j) -> {
-                                            final String option = sortableOptions.get(j);
-                                            int moveOffset = 0;
-                                            if (option.equals(moveUpStr)) {
-                                                moveOffset = -1;
-                                            } else if (option.equals(moveDownStr)) {
-                                                moveOffset = 1;
-                                            }
-
-                                            if (moveOffset != 0) {
-                                                sortPref.setEnabled(false);
-                                                sendChangeRequest(
-                                                        GdiSettingsService.ChangeRequest.newBuilder()
-                                                                .setScreenId(screenId)
-                                                                .setEntryId(sortEntry.getId())
-                                                                .setPosition(GdiSettingsService.ChangeRequest.Position.newBuilder()
-                                                                        .setIndex(iFinal + moveOffset)
-                                                                )
-                                                );
-                                                return;
-                                            }
-
-                                            if (option.equals(deleteStr)) {
-                                                sortPref.setEnabled(false);
-                                                sendChangeRequest(
-                                                        GdiSettingsService.ChangeRequest.newBuilder()
-                                                                .setScreenId(screenId)
-                                                                .setEntryId(sortEntry.getId())
-                                                                .setPosition(GdiSettingsService.ChangeRequest.Position.newBuilder()
-                                                                        .setDelete(true)
-                                                                )
-                                                );
-                                            }
-                                        }).setNegativeButton(android.R.string.cancel, null)
+                                        .setAdapter(sortOptionsAdapter, (dialogInterface, j) -> sortableOptions.get(j).getAction().run())
+                                        .setNegativeButton(android.R.string.cancel, null)
                                         .create().show();
                                 return true;
                             });
@@ -725,8 +722,15 @@ public class GarminRealtimeSettingsFragment extends AbstractPreferenceFragment {
                 sb.append("id=").append(entry.getId());
                 sb.append(", type=").append(entry.getType());
 
+                if (icon == 0 && entry.hasIcon()) {
+                    sb.append(", icon=").append(entry.getIcon());
+                }
+
                 if (entry.hasTarget()) {
                     sb.append(", targetType=").append(entry.getTarget().getType());
+                    if (entry.getTarget().hasActivity()) {
+                        sb.append(", targetActivity=").append(entry.getTarget().getActivity());
+                    }
                 }
 
                 pref.setSummary(sb.toString());
@@ -738,15 +742,25 @@ public class GarminRealtimeSettingsFragment extends AbstractPreferenceFragment {
         }
 
         // If no preferences after the last visible preference category are visible, hide it
+        boolean previousWasVisible = false;
+        PreferenceCategory lastSeenCategory = null;
         for (int i = prefScreen.getPreferenceCount() - 1; i >= 0; i--) {
-            final Preference lastVisiblePreference = prefScreen.getPreference(i);
-            if (lastVisiblePreference.isVisible()) {
-                break;
+            final Preference pref = prefScreen.getPreference(i);
+            if (pref instanceof PreferenceCategory) {
+                lastSeenCategory = (PreferenceCategory) pref;
+
+                if (!previousWasVisible) {
+                    lastSeenCategory.setVisible(false);
+                }
+
+                previousWasVisible = false;
+            } else {
+                previousWasVisible |= pref.isVisible();
             }
-            if (lastVisiblePreference instanceof PreferenceCategory) {
-                lastVisiblePreference.setVisible(false);
-                break;
-            }
+        }
+
+        if (!previousWasVisible && lastSeenCategory != null) {
+            lastSeenCategory.setVisible(false);
         }
     }
 
@@ -772,22 +786,46 @@ public class GarminRealtimeSettingsFragment extends AbstractPreferenceFragment {
                     return R.drawable.ic_shortcut;
                 case 27: // Notifications & Alerts
                     return R.drawable.ic_notifications;
+                case 30: // Wrist heart rate frequency
+                    return R.drawable.ic_heartrate;
+                case 38: // Alarms
+                    return R.drawable.ic_access_alarms;
+                case 5: // Sensors & accessories
                 case 46: // Watch Sensors
                     return R.drawable.ic_sensor_calibration;
                 case 47: // Accessories
                     return R.drawable.ic_bluetooth_searching;
+                case 6: // Map
+                    return R.drawable.ic_map;
                 case 7: // Music
                     return R.drawable.ic_music_note;
+                case 8: // Phone
+                    return R.drawable.ic_phone;
+                case 11: // Connectivity
+                    return R.drawable.ic_bluetooth_searching;
                 case 13: // Audio Prompts
+                case 60: // Sound & Vibe
                     return R.drawable.ic_volume_up;
+                case 61: // Display & Brightness
+                    return R.drawable.ic_wb_sunny;
+                case 62: // Focus Modes
+                    return R.drawable.ic_focus;
                 case 14: // User Profile
                     return R.drawable.ic_person;
                 case 15: // Safety & Tracking
-                    return R.drawable.ic_health;
+                    return R.drawable.ic_emergency;
                 case 16: // Activity Tracking
                     return R.drawable.ic_activity_unknown_small;
+                case 17: // Navigation
+                    return R.drawable.ic_navigation;
+                case 18: // Power manager
+                    return R.drawable.ic_battery;
                 case 19: // System
                     return R.drawable.ic_settings;
+                case 26: // Appearance
+                    return R.drawable.ic_paint;
+                case 44: // Health & wellness
+                    return R.drawable.ic_health;
 
                 //
                 // Sortable screens (glances, apps, etc)
@@ -800,7 +838,7 @@ public class GarminRealtimeSettingsFragment extends AbstractPreferenceFragment {
     }
 
     void toggleDebug() {
-        final Prefs prefs = GBApplication.getDevicePrefs(device.getAddress());
+        final Prefs prefs = GBApplication.getDevicePrefs(device);
         prefs.getPreferences().edit()
                 .putBoolean(PREF_DEBUG, !prefs.getBoolean(PREF_DEBUG, BuildConfig.DEBUG))
                 .apply();

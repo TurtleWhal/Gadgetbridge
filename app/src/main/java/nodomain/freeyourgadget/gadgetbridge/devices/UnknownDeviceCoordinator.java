@@ -18,22 +18,18 @@
 package nodomain.freeyourgadget.gadgetbridge.devices;
 
 import android.app.Activity;
-import android.content.Context;
-import android.net.Uri;
-
-import java.util.List;
 
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
-import nodomain.freeyourgadget.gadgetbridge.GBException;
+import java.util.List;
+
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.ControlCenterv2;
 import nodomain.freeyourgadget.gadgetbridge.entities.AbstractActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
@@ -43,14 +39,14 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.unknown.UnknownDevic
 public class UnknownDeviceCoordinator extends AbstractDeviceCoordinator {
     private final UnknownSampleProvider sampleProvider;
 
-    private static final class UnknownSampleProvider implements SampleProvider {
+    private static final class UnknownSampleProvider implements SampleProvider<AbstractActivitySample> {
         @Override
-        public int normalizeType(int rawType) {
-            return ActivityKind.TYPE_UNKNOWN;
+        public ActivityKind normalizeType(int rawType) {
+            return ActivityKind.UNKNOWN;
         }
 
         @Override
-        public int toRawActivityKind(int activityKind) {
+        public int toRawActivityKind(ActivityKind activityKind) {
             return 0;
         }
 
@@ -60,17 +56,22 @@ public class UnknownDeviceCoordinator extends AbstractDeviceCoordinator {
         }
 
         @Override
-        public List getAllActivitySamples(int timestamp_from, int timestamp_to) {
+        public List<AbstractActivitySample> getAllActivitySamples(int timestamp_from, int timestamp_to) {
             return null;
         }
 
         @Override
-        public List getActivitySamples(int timestamp_from, int timestamp_to) {
+        public List<AbstractActivitySample> getAllActivitySamplesHighRes(int timestamp_from, int timestamp_to) {
             return null;
         }
 
         @Override
-        public List getSleepSamples(int timestamp_from, int timestamp_to) {
+        public boolean hasHighResData() {
+            return false;
+        }
+
+        @Override
+        public List<AbstractActivitySample> getActivitySamples(int timestamp_from, int timestamp_to) {
             return null;
         }
 
@@ -95,6 +96,12 @@ public class UnknownDeviceCoordinator extends AbstractDeviceCoordinator {
 
         @Nullable
         @Override
+        public AbstractActivitySample getLatestActivitySample(final int until) {
+            return null;
+        }
+
+        @Nullable
+        @Override
         public AbstractActivitySample getFirstActivitySample() {
             return null;
         }
@@ -105,14 +112,9 @@ public class UnknownDeviceCoordinator extends AbstractDeviceCoordinator {
         sampleProvider = new UnknownSampleProvider();
     }
 
-    @NonNull
     @Override
     public boolean supports(GBDeviceCandidate candidate) {
         return false;
-    }
-
-    @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
     }
 
     @Override
@@ -122,93 +124,17 @@ public class UnknownDeviceCoordinator extends AbstractDeviceCoordinator {
 
     @Override
     public SampleProvider<?> getSampleProvider(GBDevice device, DaoSession session) {
-        return new UnknownSampleProvider();
-    }
-
-    @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
-        return null;
-    }
-
-    @Override
-    public boolean supportsActivityDataFetching() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsActivityTracking() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsScreenshots(final GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public int getAlarmSlotCount(GBDevice device) {
-        return 0;
-    }
-
-    @Override
-    public boolean supportsHeartRateMeasurement(GBDevice device) {
-        return false;
+        return sampleProvider;
     }
 
     @Override
     public String getManufacturer() {
-        return "unknown";
-    }
-
-    @Override
-    public boolean supportsAppsManagement(final GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public Class<? extends Activity> getAppsManagementActivity() {
-        return null;
-    }
-
-    @Override
-    public boolean supportsCalendarEvents() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsRealtimeData() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsWeather() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsFindDevice() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsLedColor() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsRgbLedColor() {
-        return false;
+        return "Generic";
     }
 
     @NonNull
     @Override
-    public int[] getColorPresets() {
-        return new int[0];
-    }
-
-    @NonNull
-    @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return UnknownDeviceSupport.class;
     }
 
@@ -218,16 +144,9 @@ public class UnknownDeviceCoordinator extends AbstractDeviceCoordinator {
         return R.string.devicetype_unknown;
     }
 
-
     @Override
     @DrawableRes
     public int getDefaultIconResource() {
         return R.drawable.ic_device_unknown;
-    }
-
-    @Override
-    @DrawableRes
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_unknown_disabled;
     }
 }

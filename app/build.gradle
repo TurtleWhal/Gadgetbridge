@@ -1,9 +1,11 @@
 import java.nio.file.Files
 
-apply plugin: "com.android.application"
-apply plugin: 'com.google.protobuf'
+plugins {
+    id 'com.android.application'
+    id 'com.google.protobuf'
+}
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
     systemProperty "MiFirmwareDir", System.getProperty("MiFirmwareDir", null)
     systemProperty "logback.configurationFile", System.getProperty("user.dir", null) + "/app/src/main/assets/logback.xml"
     systemProperty "GB_LOGFILES_DIR", Files.createTempDirectory("gblog").toString()
@@ -20,33 +22,39 @@ def getVersionCode = { ->
     }
 }
 
-def buildGitChangelog = {
-    def allCommits = providers.exec {
-        commandLine('git', 'log', '--pretty=format:%h %s')
-    }.standardOutput.asText.get()
-
-    def commitVersionCode = getVersionCode()
-    def includedCommits = 0
-    def changelogNode = new Node(null, 'changelog')
-
-    allCommits.trim().eachLine { line ->
-        if (includedCommits > 100) {
-            return true;
-        }
-
-        def (commitHash, commitMessage) = line.split(" ", 2)
-        if (commitMessage.contains("Translated using Weblate")) {
-            return true;
-        }
-
-        def releaseNode = new Node(changelogNode, 'release', [version: commitHash, versioncode: commitVersionCode--])
-        def _ = new Node(releaseNode, 'change', [:], commitMessage)
-        includedCommits++
-    }
-
+tasks.register("buildGitChangelog"){
     def changelogFile = new File("${project.rootDir}/app/build/generated/res/changelog/xml/changelog_git.xml")
-    changelogFile.getParentFile().mkdirs()
-    changelogFile.write(groovy.xml.XmlUtil.serialize(changelogNode))
+
+    inputs.file(project.rootProject.file(".git/HEAD"))
+    outputs.file(changelogFile)
+
+    doLast {
+        def allCommits = providers.exec {
+            commandLine('git', 'log', '--pretty=format:%h %s')
+        }.standardOutput.asText.get()
+
+        def commitVersionCode = getVersionCode()
+        def includedCommits = 0
+        def changelogNode = new Node(null, 'changelog')
+
+        allCommits.trim().eachLine { line ->
+            if (includedCommits > 100) {
+                return true
+            }
+
+            def (commitHash, commitMessage) = line.split(" ", 2)
+            if (commitMessage.contains("Translated using Weblate")) {
+                return true
+            }
+
+            def releaseNode = new Node(changelogNode, 'release', [version: commitHash, versioncode: commitVersionCode--])
+            def _ = new Node(releaseNode, 'change', [:], commitMessage)
+            includedCommits++
+        }
+
+        changelogFile.getParentFile().mkdirs()
+        changelogFile.write(groovy.xml.XmlUtil.serialize(changelogNode))
+    }
 }
 
 def getGitHashShort = { ->
@@ -59,28 +67,34 @@ def getGitHashShort = { ->
     }
 }
 
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
 android {
     compileOptions {
-        coreLibraryDesugaringEnabled true
-
-        // for Android 5+
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-    namespace 'nodomain.freeyourgadget.gadgetbridge'
+    namespace = 'nodomain.freeyourgadget.gadgetbridge'
 
     defaultConfig {
         applicationId "nodomain.freeyourgadget.gadgetbridge"
 
+        // Note: update toolchain.languageVersion when changing targetSdk
         //noinspection OldTargetApi
-        targetSdkVersion 33
-        compileSdk 33
-        minSdkVersion 21
+        targetSdk = 34
+        compileSdk = 36
+        // Note: update sourceCompatibility and targetCompatibility when changing minSdk
+        minSdk = 21
+
+        buildToolsVersion = '36.0.0'
 
         // Note: always bump BOTH versionCode and versionName!
-        versionName "0.81.0"
-        versionCode 232
+        versionName "0.86.1"
+        versionCode 240
         vectorDrawables.useSupportLibrary = true
         buildConfigField "String", "GIT_HASH_SHORT", "\"${getGitHashShort()}\""
         buildConfigField "boolean", "INTERNET_ACCESS", "false"
@@ -97,7 +111,7 @@ android {
         }
     }
 
-    flavorDimensions "device_type"
+    flavorDimensions += "device_type"
     productFlavors {
         mainline {
             // Ensure that when starting from scratch, 'mainline' is selected, not 'banglejs'
@@ -114,7 +128,6 @@ android {
             applicationIdSuffix ".banglejs"
             versionNameSuffix "-banglejs"
             buildConfigField "boolean", "INTERNET_ACCESS", "true"
-            targetSdkVersion 33
             // Note: app/src/banglejs/AndroidManifest.xml contains some extra permissions
         }
     }
@@ -139,9 +152,9 @@ android {
             debuggable false
 
             if (System.getProperty("nightly_store_file") != null) {
-                signingConfig signingConfigs.nightly
+                signingConfig = signingConfigs.nightly
             } else {
-                signingConfig signingConfigs.debug
+                signingConfig = signingConfigs.debug
             }
         }
 
@@ -153,15 +166,14 @@ android {
             debuggable false
 
             if (System.getProperty("nightly_store_file") != null) {
-                signingConfig signingConfigs.nightly
+                signingConfig = signingConfigs.nightly
             } else {
-                signingConfig signingConfigs.debug
+                signingConfig = signingConfigs.debug
             }
         }
 
         applicationVariants.all { variant ->
             variant.resValue "string", "applicationId", variant.applicationId
-            buildGitChangelog()
 
             if (variant.buildType.name == 'nightly' || variant.buildType.name == 'nopebble') {
                 variant.outputs.all {
@@ -175,14 +187,14 @@ android {
     }
 
     lint {
-        abortOnError true
-        lintConfig file("$rootDir/app/src/main/lint.xml")
+        abortOnError = true
+        lintConfig = file("${rootDir}/app/src/main/lint.xml")
         // If true, generate an HTML report (with issue explanations, sourcecode, etc)
-        htmlReport true
+        htmlReport = true
         // Optional path to report (default will be lint-results.html in the builddir)
-        htmlOutput file("$project.buildDir/reports/lint/lint.html")
+        htmlOutput = layout.buildDirectory.file("reports/lint/lint.html").get().asFile
         // Ignore checks present in the snapshot
-        baseline file("lint-baseline.xml")
+        baseline = file("lint-baseline.xml")
     }
 
     testOptions {
@@ -192,43 +204,44 @@ android {
         }
     }
     buildFeatures {
-        aidl true
-        buildConfig true
+        aidl = true
+        buildConfig = true
     }
 }
 
 dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation "androidx.camera:camera-core:1.2.3"
-    implementation "androidx.camera:camera-camera2:1.2.3"
-    implementation 'androidx.camera:camera-view:1.2.3'
-    implementation 'androidx.camera:camera-lifecycle:1.2.3'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
+    implementation "androidx.camera:camera-core:1.4.2"
+    implementation "androidx.camera:camera-camera2:1.4.2"
+    implementation 'androidx.camera:camera-view:1.4.2'
+    implementation 'androidx.camera:camera-lifecycle:1.4.2'
 
     testImplementation "junit:junit:4.13.2"
-    testImplementation "org.mockito:mockito-core:5.12.0"
-    testImplementation "org.robolectric:robolectric:4.12.2"
-    testImplementation "org.hamcrest:hamcrest-library:2.2"
+    testImplementation "org.mockito:mockito-core:5.18.0"
+    testImplementation "org.robolectric:robolectric:4.15.1"
+    testImplementation "org.hamcrest:hamcrest-library:3.0"
 
-    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation "androidx.appcompat:appcompat:1.7.1"
     implementation "androidx.preference:preference:1.2.1"
     implementation "androidx.cardview:cardview:1.0.0"
-    implementation "androidx.recyclerview:recyclerview:1.3.2"
+    implementation "androidx.recyclerview:recyclerview:1.4.0"
     implementation "androidx.legacy:legacy-support-v4:1.0.0"
-    implementation "androidx.gridlayout:gridlayout:1.0.0"
+    implementation "androidx.gridlayout:gridlayout:1.1.0"
     implementation "androidx.palette:palette:1.0.0"
-    implementation "androidx.activity:activity:1.7.2"
-    implementation "androidx.fragment:fragment:1.6.2"
-    implementation "androidx.viewpager2:viewpager2:1.0.0"
+    implementation "androidx.activity:activity:1.10.1"
+    implementation "androidx.fragment:fragment:1.8.8"
+    implementation "androidx.viewpager2:viewpager2:1.1.0"
 
-    implementation "com.google.android.material:material:1.9.0"
+    // Not latest version because of https://github.com/material-components/material-components-android/issues/3924
+    implementation "com.google.android.material:material:1.12.0"
     implementation 'com.google.android.flexbox:flexbox:3.0.0'
-    implementation "com.google.code.gson:gson:2.8.9"
+    implementation "com.google.code.gson:gson:2.13.1"
 
-    implementation "no.nordicsemi.android:dfu:1.12.0"
+    implementation "no.nordicsemi.android:dfu:2.5.0"
     implementation "com.github.tony19:logback-android:3.0.0"
-    implementation "org.slf4j:slf4j-api:2.0.13"
+    implementation "org.slf4j:slf4j-api:2.0.17"
     implementation "com.github.PhilJay:MPAndroidChart:3.1.0"
     implementation "com.github.pfichtner:durationformatter:0.1.1"
     implementation "de.cketti.library.changelog:ckchangelog:1.2.2"
@@ -237,12 +250,23 @@ dependencies {
     // use pristine greendao instead of our custom version, since our custom jitpack-packaged
     // version contains way too much and our custom patches are in the generator only.
     implementation "org.greenrobot:greendao:2.2.1"
-    implementation "org.apache.commons:commons-lang3:3.7"
+    implementation "org.apache.commons:commons-lang3:3.17.0"
     implementation "org.cyanogenmod:platform.sdk:6.0"
     implementation 'com.jaredrummler:colorpicker:1.1.0'
-    implementation 'com.github.wax911:android-emojify:1.9.2'
-    implementation 'com.google.protobuf:protobuf-javalite:4.27.2'
+    implementation 'com.github.wax911.android-emojify:contract:1.9.7'
+    implementation 'com.github.wax911.android-emojify:emojify:1.9.7'
+    implementation 'com.github.wax911.android-emojify:gson:1.9.7'
+    implementation 'com.google.protobuf:protobuf-javalite:4.31.1'
     implementation 'com.android.volley:volley:1.2.1'
+    implementation 'org.msgpack:msgpack-core:0.9.9'
+
+    implementation 'com.github.mapsforge.mapsforge:mapsforge-core:0.25.0'
+    implementation 'com.github.mapsforge.mapsforge:mapsforge-map:0.25.0'
+    implementation 'com.github.mapsforge.mapsforge:mapsforge-map-reader:0.25.0'
+    implementation 'com.github.mapsforge.mapsforge:mapsforge-themes:0.25.0'
+    implementation 'com.github.mapsforge.mapsforge:mapsforge-map-android:0.25.0'
+    implementation 'com.caverock:androidsvg:1.4'
+    implementation 'org.jsoup:jsoup:1.21.1'
 
     // Bouncy Castle is included directly in GB, to avoid pulling the entire dependency
     // It's included in the org.bouncycastle.shaded package, to fix conflicts with roboelectric
@@ -250,26 +274,21 @@ dependencies {
     //implementation 'org.bouncycastle:bcprov-jdk18on:1.76'
 
     // Android SDK bundles org.json, but we need an actual implementation to replace the stubs in tests
-    testImplementation 'org.json:json:20240303'
+    testImplementation 'org.json:json:20250517'
 
-    // Fix Duplicate class build error
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
+    // Fix Duplicate class build error for conflicting kotlin-stdlib versions
+    // does not seem to be currently needed, as it uses the latest across all transitive
+    //implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
 
     // Needed for Armenian transliteration
     implementation 'org.ahocorasick:ahocorasick:0.6.3'
 }
 
 preBuild.dependsOn(":GBDaoGenerator:genSources")
+preBuild.dependsOn(tasks.buildGitChangelog)
 
 gradle.beforeProject {
     preBuild.dependsOn(":GBDaoGenerator:genSources")
-}
-
-sourceSets {
-    main {
-        java.srcDirs += "${protobuf.generatedFilesBaseDir}"
-        java.srcDirs += "build/generated/source/buildConfig"
-    }
 }
 
 tasks.register('cleanGenerated', Delete) {
@@ -283,7 +302,7 @@ tasks.clean.dependsOn(tasks.cleanGenerated)
 
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:4.27.2'
+        artifact = 'com.google.protobuf:protoc:4.31.1'
     }
     generateProtoTasks {
         all().each { task ->

@@ -25,16 +25,17 @@ import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
-import android.text.format.DateFormat;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 
 import java.text.ParseException;
+import java.time.LocalTime;
 import java.util.Date;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
+import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class GBPrefs extends Prefs {
@@ -52,8 +53,6 @@ public class GBPrefs extends Prefs {
     public static final String PING_TONE = "ping_tone";
     public static final String AUTO_EXPORT_INTERVAL = "auto_export_interval";
     private static final boolean AUTO_START_DEFAULT = true;
-    private static final String BG_JS_ENABLED = "pebble_enable_background_javascript";
-    private static final boolean BG_JS_ENABLED_DEFAULT = false;
     public static final String RTL_SUPPORT = "rtl";
     public static final String RTL_CONTEXTUAL_ARABIC = "contextualArabic";
     public static boolean AUTO_RECONNECT_DEFAULT = true;
@@ -94,14 +93,11 @@ public class GBPrefs extends Prefs {
         return getBoolean(AUTO_START, AUTO_START_DEFAULT);
     }
 
-    public boolean isBackgroundJsEnabled() {
-        return getBoolean(BG_JS_ENABLED, BG_JS_ENABLED_DEFAULT);
-    }
-
     public String getUserName() {
         return getString(USER_NAME, USER_NAME_DEFAULT);
     }
 
+    @Nullable
     public Date getUserBirthday() {
         String date = getString(USER_BIRTHDAY, null);
         if (date == null) {
@@ -117,19 +113,6 @@ public class GBPrefs extends Prefs {
 
     public int getUserGender() {
         return 0;
-    }
-
-    public String getTimeFormat() {
-        String timeFormat = getString(DeviceSettingsPreferenceConst.PREF_TIMEFORMAT, DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_AUTO);
-        if (DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_AUTO.equals(timeFormat)) {
-            if (DateFormat.is24HourFormat(GBApplication.getContext())) {
-                timeFormat = DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_24H;
-            } else {
-                timeFormat = DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_12H;
-            }
-        }
-
-        return timeFormat;
     }
 
     public float[] getLongLat(Context context) {
@@ -152,5 +135,25 @@ public class GBPrefs extends Prefs {
             }
         }
         return new float[]{longitude, latitude};
+    }
+
+    public boolean getNotificationTimesEnabled() {
+        return getBoolean("notification_times_enabled", false);
+    }
+
+    public LocalTime getNotificationTimesStart() {
+        return getLocalTime("notification_times_start", "08:00");
+    }
+
+    public LocalTime getNotificationTimesEnd() {
+        return getLocalTime("notification_times_end", "22:00");
+    }
+
+    public boolean isMetricUnits() {
+        return getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, "metric").equals("metric");
+    }
+
+    public boolean syncTime() {
+        return getBoolean("datetime_synconconnect", true);
     }
 }

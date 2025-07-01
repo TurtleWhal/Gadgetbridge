@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2024 Andreas Böhler
+/*  Copyright (C) 2023-2025 Andreas Böhler, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -22,6 +22,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
 
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -32,7 +33,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.BondingInterface;
 import nodomain.freeyourgadget.gadgetbridge.util.BondingUtil;
 
 public class BondAction extends PlainAction implements BondingInterface {
-    private String mMacAddress;
+    private GBDeviceCandidate mCandidate;
     private final BroadcastReceiver pairingReceiver = BondingUtil.getPairingReceiver(this);
     private final BroadcastReceiver bondingReceiver = BondingUtil.getBondingReceiver(this);
 
@@ -43,12 +44,7 @@ public class BondAction extends PlainAction implements BondingInterface {
 
     @Override
     public GBDeviceCandidate getCurrentTarget() {
-        return null;
-    }
-
-    @Override
-    public String getMacAddress() {
-        return mMacAddress;
+        return mCandidate;
     }
 
     @Override
@@ -65,7 +61,7 @@ public class BondAction extends PlainAction implements BondingInterface {
     @Override
     public void registerBroadcastReceivers() {
         LocalBroadcastManager.getInstance(GBApplication.getContext()).registerReceiver(pairingReceiver, new IntentFilter(GBDevice.ACTION_DEVICE_CHANGED));
-        getContext().registerReceiver(bondingReceiver, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED));
+        ContextCompat.registerReceiver(getContext(), bondingReceiver, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED), ContextCompat.RECEIVER_EXPORTED);
     }
 
     @Override
@@ -75,8 +71,9 @@ public class BondAction extends PlainAction implements BondingInterface {
 
     @Override
     public boolean run(BluetoothGatt gatt) {
-        mMacAddress = gatt.getDevice().getAddress();
-        BondingUtil.tryBondThenComplete(this, gatt.getDevice(), gatt.getDevice().getAddress());
+        BluetoothDevice device = gatt.getDevice();
+        mCandidate = new GBDeviceCandidate(device, GBDevice.RSSI_UNKNOWN, null);
+        BondingUtil.tryBondThenComplete(this, device);
         return true;
     }
 }

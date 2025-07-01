@@ -30,6 +30,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
@@ -125,7 +126,7 @@ public class PebblePairingActivity extends AbstractGBActivity implements Bonding
                 btDevice.getBondState() == BluetoothDevice.BOND_BONDING) {
             BondingUtil.connectThenComplete(this, deviceCandidate);
         } else {
-            BondingUtil.tryBondThenComplete(this, deviceCandidate.getDevice(), deviceCandidate.getDevice().getAddress());
+            BondingUtil.tryBondThenComplete(this, deviceCandidate.getDevice());
         }
     }
 
@@ -168,6 +169,7 @@ public class PebblePairingActivity extends AbstractGBActivity implements Bonding
 
     @Override
     public void onBondingComplete(boolean success) {
+        LOG.debug("ONBONDINGCOMPLETE");
         unregisterBroadcastReceivers();
         if (success) {
             startActivity(new Intent(this, ControlCenterv2.class).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
@@ -185,11 +187,6 @@ public class PebblePairingActivity extends AbstractGBActivity implements Bonding
     @Override
     public GBDeviceCandidate getCurrentTarget() {
         return this.deviceCandidate;
-    }
-
-    @Override
-    public String getMacAddress() {
-        return deviceCandidate.getDevice().getAddress();
     }
 
     @Override
@@ -252,14 +249,16 @@ public class PebblePairingActivity extends AbstractGBActivity implements Bonding
         super.onPause();
     }
 
+    @Override
     public void unregisterBroadcastReceivers() {
         AndroidUtils.safeUnregisterBroadcastReceiver(LocalBroadcastManager.getInstance(this), pairingReceiver);
         AndroidUtils.safeUnregisterBroadcastReceiver(this, bondingReceiver);
     }
 
+    @Override
     public void registerBroadcastReceivers() {
         LocalBroadcastManager.getInstance(this).registerReceiver(pairingReceiver, new IntentFilter(GBDevice.ACTION_DEVICE_CHANGED));
-        registerReceiver(bondingReceiver, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED));
+        ContextCompat.registerReceiver(this, bondingReceiver, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED), ContextCompat.RECEIVER_EXPORTED);
     }
 
     @Override

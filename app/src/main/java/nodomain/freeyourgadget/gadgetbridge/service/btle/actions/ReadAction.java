@@ -16,34 +16,48 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.btle.actions;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEAction;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCallback;
 
 /**
- * Invokes a read operation on a given GATT characteristic.
- * The result will be made available asynchronously through the
- * {@link BluetoothGattCallback}
+ * Invokes a read operation on a given {@link BluetoothGattCharacteristic}.
+ * The result will be made available asynchronously through
+ * {@link GattCallback#onCharacteristicRead}
  */
 public class ReadAction extends BtLEAction {
+    private static final Logger LOG = LoggerFactory.getLogger(ReadAction.class);
 
     public ReadAction(BluetoothGattCharacteristic characteristic) {
         super(characteristic);
     }
 
+    @SuppressLint("MissingPermission")
     @Override
     public boolean run(BluetoothGatt gatt) {
         int properties = getCharacteristic().getProperties();
         if ((properties & BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
             return gatt.readCharacteristic(getCharacteristic());
         }
+        LOG.error("ReadAction for non-readable characteristic {}", getCharacteristic().getUuid());
         return false;
     }
 
     @Override
     public boolean expectsResult() {
         return true;
+    }
+
+    @Override
+    public String toString() {
+        BluetoothGattCharacteristic characteristic = getCharacteristic();
+        String uuid = characteristic == null ? "(null)" : characteristic.getUuid().toString();
+        return getCreationTime() + ": " + getClass().getSimpleName() + " " + uuid;
     }
 }

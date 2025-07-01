@@ -61,16 +61,14 @@ public class Widget extends AppWidgetProvider {
     static BroadcastReceiver broadcastReceiver = null;
 
 
-    private long[] getSteps(GBDevice gbDevice) {
+    private DailyTotals getSteps(GBDevice gbDevice) {
         Context context = GBApplication.getContext();
         Calendar day = GregorianCalendar.getInstance();
 
         if (!(context instanceof GBApplication)) {
-            return new long[]{0, 0, 0};
+            return new DailyTotals();
         }
-        DailyTotals ds = new DailyTotals();
-        return ds.getDailyTotalsForDevice(gbDevice, day);
-        //return ds.getDailyTotalsForAllDevices(day);
+        return DailyTotals.getDailyTotalsForDevice(gbDevice, day);
     }
 
     private String getHM(long value) {
@@ -90,6 +88,7 @@ public class Widget extends AppWidgetProvider {
 
         //onclick refresh
         Intent intent = new Intent(context, Widget.class);
+        intent.setPackage(BuildConfig.APPLICATION_ID);
         intent.setAction(WIDGET_CLICK);
         intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
         PendingIntent refreshDataIntent = PendingIntentUtils.getBroadcast(
@@ -98,31 +97,35 @@ public class Widget extends AppWidgetProvider {
 
         //open GB main window
         Intent startMainIntent = new Intent(context, ControlCenterv2.class);
+        startMainIntent.setPackage(BuildConfig.APPLICATION_ID);
         PendingIntent startMainPIntent = PendingIntentUtils.getActivity(context, 0, startMainIntent, 0, false);
         views.setOnClickPendingIntent(R.id.todaywidget_header_icon, startMainPIntent);
 
         //alarms popup menu
         Intent startAlarmListIntent = new Intent(context, WidgetAlarmsActivity.class);
+        startAlarmListIntent.setPackage(BuildConfig.APPLICATION_ID);
         startAlarmListIntent.putExtra(GBDevice.EXTRA_DEVICE, deviceForWidget);
         PendingIntent startAlarmListPIntent = PendingIntentUtils.getActivity(context, appWidgetId, startAlarmListIntent, PendingIntent.FLAG_UPDATE_CURRENT, false);
         views.setOnClickPendingIntent(R.id.todaywidget_header_alarm_icon, startAlarmListPIntent);
 
         //charts
         Intent startChartsIntent = new Intent(context, ActivityChartsActivity.class);
+        startChartsIntent.setPackage(BuildConfig.APPLICATION_ID);
         startChartsIntent.putExtra(GBDevice.EXTRA_DEVICE, deviceForWidget);
         PendingIntent startChartsPIntent = PendingIntentUtils.getActivity(context, appWidgetId, startChartsIntent, PendingIntent.FLAG_CANCEL_CURRENT, false);
         views.setOnClickPendingIntent(R.id.todaywidget_bottom_layout, startChartsPIntent);
 
-        long[] dailyTotals = getSteps(deviceForWidget);
-        int steps = (int) dailyTotals[0];
-        int sleep = (int) dailyTotals[1];
+        DailyTotals dailyTotals = getSteps(deviceForWidget);
+        int steps = (int) dailyTotals.getSteps();
+        int sleep = (int) dailyTotals.getSleep();
+        int distanceCm = (int) dailyTotals.getDistance();
         ActivityUser activityUser = new ActivityUser();
         int stepGoal = activityUser.getStepsGoal();
         int sleepGoal = activityUser.getSleepDurationGoal();
         int sleepGoalMinutes = sleepGoal * 60;
         int distanceGoal = activityUser.getDistanceGoalMeters() * 100;
         int stepLength = activityUser.getStepLengthCm();
-        double distanceMeters = dailyTotals[0] * stepLength * 0.01;
+        double distanceMeters = (distanceCm > 0 ? distanceCm : steps * stepLength) * 0.01;
         String distanceFormatted = FormatUtils.getFormattedDistanceLabel(distanceMeters);
 
         if (sleep < 1) {
@@ -139,7 +142,7 @@ public class Widget extends AppWidgetProvider {
         views.setProgressBar(R.id.todaywidget_distance_progress, distanceGoal, steps * stepLength, false);
         views.setViewVisibility(R.id.todaywidget_battery_icon, View.GONE);
         if (deviceForWidget != null) {
-            String status = String.format("%1s", deviceForWidget.getStateString());
+            String status = String.format("%1s", deviceForWidget.getStateString(context));
             if (deviceForWidget.isConnected()) {
                 if (deviceForWidget.getBatteryLevel() > 1) {
                     views.setViewVisibility(R.id.todaywidget_battery_icon, View.VISIBLE);

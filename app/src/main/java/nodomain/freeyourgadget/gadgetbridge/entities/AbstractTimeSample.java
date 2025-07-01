@@ -22,6 +22,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.TimeSample;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 
 public abstract class AbstractTimeSample implements TimeSample {
+    // Unix timestamp in milliseconds
     public abstract void setTimestamp(long timestamp);
 
     public abstract long getUserId();
@@ -31,6 +32,10 @@ public abstract class AbstractTimeSample implements TimeSample {
     public abstract long getDeviceId();
 
     public abstract void setDeviceId(long deviceId);
+
+    public abstract void setDevice(Device device);
+
+    public abstract void setUser(User user);
 
     @NonNull
     @Override

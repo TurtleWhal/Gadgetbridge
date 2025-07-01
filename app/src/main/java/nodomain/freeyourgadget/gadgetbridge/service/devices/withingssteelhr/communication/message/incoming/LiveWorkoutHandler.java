@@ -55,6 +55,7 @@ public class LiveWorkoutHandler implements IncomingMessageHandler {
         this.support = support;
     }
 
+    @Override
     public void handleMessage(Message message) {
         List<WithingsStructure> data = message.getDataStructures();
         if (data != null) {
@@ -119,7 +120,7 @@ public class LiveWorkoutHandler implements IncomingMessageHandler {
             baseActivitySummary = new BaseActivitySummary();
         }
 
-        baseActivitySummary.setActivityKind(withingsWorkoutType.toActivityKind());
+        baseActivitySummary.setActivityKind(withingsWorkoutType.toActivityKind().getCode());
     }
 
     private void sendGpsState() {

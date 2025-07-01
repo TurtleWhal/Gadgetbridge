@@ -1,6 +1,6 @@
 steps:
   build:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:33.0.0
+    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
     commands:
       - pwd #bump
       - ./gradlew assembleDebug --stacktrace

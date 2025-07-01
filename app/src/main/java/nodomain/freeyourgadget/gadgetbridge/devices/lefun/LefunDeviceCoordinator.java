@@ -17,7 +17,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.lefun;
 
-import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
 
@@ -45,11 +44,6 @@ import static nodomain.freeyourgadget.gadgetbridge.devices.lefun.LefunConstants.
  * Device coordinator for Lefun band
  */
 public class LefunDeviceCoordinator extends AbstractBLEDeviceCoordinator {
-    @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
-
-    }
-
     @Override
     public int getBondingStyle() {
         return BONDING_STYLE_NONE;
@@ -85,11 +79,6 @@ public class LefunDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public SampleProvider<? extends ActivitySample> getSampleProvider(GBDevice device, DaoSession session) {
         return new LefunSampleProvider(device, session);
-    }
-
-    @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
-        return null;
     }
 
     @Override
@@ -145,7 +134,7 @@ public class LefunDeviceCoordinator extends AbstractBLEDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return LefunDeviceSupport.class;
     }
 
@@ -157,10 +146,5 @@ public class LefunDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_h30_h10;
-    }
-
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_h30_h10_disabled;
     }
 }

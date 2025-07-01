@@ -14,8 +14,12 @@ public class FieldDefinitionSleepStage extends FieldDefinition {
 
     @Override
     public Object decode(final ByteBuffer byteBuffer) {
-        final int raw = (int) baseType.decode(byteBuffer, scale, offset);
-        return SleepStage.fromId(raw);
+        final Object rawObj = baseType.decode(byteBuffer, scale, offset);
+        if (rawObj != null) {
+            final int raw = (int) rawObj;
+            return SleepStage.fromId(raw);
+        }
+        return null;
     }
 
     @Override
@@ -28,6 +32,7 @@ public class FieldDefinitionSleepStage extends FieldDefinition {
     }
 
     public enum SleepStage {
+        UNMEASURABLE(0),
         AWAKE(1),
         LIGHT(2),
         DEEP(3),

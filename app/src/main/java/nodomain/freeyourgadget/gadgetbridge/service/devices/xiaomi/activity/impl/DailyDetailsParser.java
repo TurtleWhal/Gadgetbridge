@@ -57,12 +57,22 @@ public class DailyDetailsParser extends XiaomiActivityParser {
             case 3:
                 headerSize = 5;
                 break;
+            case 4:
+                headerSize = 6;
+                break;
             default:
                 LOG.warn("Unable to parse daily details version {}", fileId.getVersion());
                 return false;
         }
 
         final ByteBuffer buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+        buf.limit(buf.limit() - 4); // discard crc at the end
+        buf.get(new byte[7]); // skip fileId bytes
+        final byte fileIdPadding = buf.get();
+        if (fileIdPadding != 0) {
+            LOG.warn("Expected 0 padding after fileId, got {} - parsing might fail", fileIdPadding);
+        }
+
         final byte[] header = new byte[headerSize];
         buf.get(header);
 
@@ -146,6 +156,14 @@ public class DailyDetailsParser extends XiaomiActivityParser {
                 if (complexParser.nextGroup(8)) {
                     // TODO
                 }
+            }
+
+            if (version >= 4) {
+                // TODO: light value (short)
+                complexParser.nextGroup(16);
+
+                // TODO: body momentum (short)
+                complexParser.nextGroup(16);
             }
 
             samples.add(sample);

@@ -1,4 +1,5 @@
-/*  Copyright (C) 2021-2024 Arjan Schrijver, Daniel Dakhno, José Rebelo
+/*  Copyright (C) 2021-2024 Arjan Schrijver, Daniel Dakhno, José Rebelo,
+    Johannes Krude
 
     This file is part of Gadgetbridge.
 
@@ -37,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -86,7 +88,7 @@ public class ConfigureReminders extends AbstractGBActivity {
 
         gbDevice = getIntent().getParcelableExtra(GBDevice.EXTRA_DEVICE);
 
-        mGBReminderListAdapter = new GBReminderListAdapter(this);
+        mGBReminderListAdapter = new GBReminderListAdapter(this, gbDevice.getDeviceCoordinator().getRemindersHaveTime());
 
         final RecyclerView remindersRecyclerView = findViewById(R.id.reminder_list);
         remindersRecyclerView.setHasFixedSize(true);
@@ -100,10 +102,7 @@ public class ConfigureReminders extends AbstractGBActivity {
             public void onClick(View v) {
                 final DeviceCoordinator coordinator = gbDevice.getDeviceCoordinator();
 
-                final Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
-                int reservedSlots = prefs.getInt(DeviceSettingsPreferenceConst.PREF_RESERVER_REMINDERS_CALENDAR, coordinator.supportsCalendarEvents() ? 0 : 9);
-
-                int deviceSlots = coordinator.getReminderSlotCount(gbDevice) - reservedSlots;
+                int deviceSlots = coordinator.getReminderSlotCount(gbDevice) - GBApplication.getDevicePrefs(gbDevice).getReservedReminderCalendarSlots();
 
                 if (mGBReminderListAdapter.getItemCount() >= deviceSlots) {
                     // No more free slots
@@ -154,7 +153,13 @@ public class ConfigureReminders extends AbstractGBActivity {
     private Reminder createDefaultReminder(@NonNull Device device, @NonNull User user) {
         final Reminder reminder = new Reminder();
         reminder.setRepetition(Reminder.ONCE);
-        reminder.setDate(Calendar.getInstance().getTime());
+        if (gbDevice.getDeviceCoordinator().getRemindersHaveTime()) {
+            reminder.setDate(Calendar.getInstance().getTime());
+        } else {
+            Calendar noonUTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            noonUTC.set(noonUTC.get(Calendar.YEAR), noonUTC.get(Calendar.MONTH), noonUTC.get(Calendar.DAY_OF_MONTH), 12, 0);
+            reminder.setDate(noonUTC.getTime());
+        }
         reminder.setMessage("");
         reminder.setDeviceId(device.getId());
         reminder.setUserId(user.getId());

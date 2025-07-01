@@ -19,7 +19,6 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.tlw64;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.net.Uri;
 import android.text.format.DateFormat;
 import android.widget.Toast;
 
@@ -49,24 +48,18 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 import static org.apache.commons.lang3.math.NumberUtils.min;
 
-public class TLW64Support extends AbstractBTLEDeviceSupport {
+public class TLW64Support extends AbstractBTLESingleDeviceSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(TLW64Support.class);
 
@@ -87,7 +80,7 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         LOG.info("Initializing");
 
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
 
         ctrlCharacteristic = getCharacteristic(TLW64Constants.UUID_CHARACTERISTIC_CONTROL);
         notifyCharacteristic = getCharacteristic(TLW64Constants.UUID_CHARACTERISTIC_NOTIFY);
@@ -102,7 +95,7 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
         builder.write(ctrlCharacteristic, new byte[]{TLW64Constants.CMD_BATTERY});
         builder.write(ctrlCharacteristic, new byte[]{TLW64Constants.CMD_FIRMWARE_VERSION});
 
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
 
         LOG.info("Initialization Done");
 
@@ -115,13 +108,12 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] data) {
+        if (super.onCharacteristicChanged(gatt, characteristic, data)) {
             return true;
         }
 
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] data = characteristic.getValue();
         if (data.length == 0)
             return true;
 
@@ -514,7 +506,7 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
 
     private void handleActivityData(byte[] data) {
         if (data[1] == (byte) 0xfd) {
-            LOG.info("CRC received: " + (data[2] & 0xff) + ", calculated: " + (crc & 0xff));
+            LOG.info("CRC received: {}, calculated: {}", data[2] & 0xff, crc & 0xff);
             if (data[2] != crc) {
                 GB.toast(getContext(), "Incorrect CRC. Try fetching data again.", Toast.LENGTH_LONG, GB.ERROR);
                 GB.updateTransferNotification(null, "Data transfer failed", false, 0, getContext());
@@ -522,7 +514,7 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
                     getDevice().unsetBusyTask();
                     getDevice().sendDeviceUpdateIntent(getContext());
                 }
-            } else if (samples.size() > 0) {
+            } else if (!samples.isEmpty()) {
                 try (DBHandler dbHandler = GBApplication.acquireDB()) {
                     Long userId = DBHelper.getUser(dbHandler.getDaoSession()).getId();
                     Long deviceId = DBHelper.getDevice(getDevice(), dbHandler.getDaoSession()).getId();
@@ -531,13 +523,13 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
                         samples.get(i).setDeviceId(deviceId);
                         samples.get(i).setUserId(userId);
                         if (data[0] == TLW64Constants.CMD_FETCH_STEPS) {
-                            samples.get(i).setRawKind(ActivityKind.TYPE_ACTIVITY);
+                            samples.get(i).setRawKind(ActivityKind.ACTIVITY.getCode());
                             samples.get(i).setRawIntensity(samples.get(i).getSteps());
                         } else if (data[0] == TLW64Constants.CMD_FETCH_SLEEP) {
                             if (samples.get(i).getRawIntensity() < 7) {
-                                samples.get(i).setRawKind(ActivityKind.TYPE_DEEP_SLEEP);
+                                samples.get(i).setRawKind(ActivityKind.DEEP_SLEEP.getCode());
                             } else
-                                samples.get(i).setRawKind(ActivityKind.TYPE_LIGHT_SLEEP);
+                                samples.get(i).setRawKind(ActivityKind.LIGHT_SLEEP.getCode());
                         }
                         provider.addGBActivitySample(samples.get(i));
                     }
@@ -549,7 +541,7 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
                         if (getDevice().isBusy()) {
                             getDevice().unsetBusyTask();
                             getDevice().sendDeviceUpdateIntent(getContext());
-                            GB.signalActivityDataFinish();
+                            GB.signalActivityDataFinish(getDevice());
                         }
                     }
                 } catch (Exception ex) {
@@ -571,10 +563,12 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
             if (data[0] == TLW64Constants.CMD_FETCH_STEPS) {
                 timestamp.set(Calendar.MINUTE, 0);
                 sample.setSteps(data[6] * 256 + (data[7] & 0xff));
+                //noinspection lossy-conversions
                 crc ^= (data[6] ^ data[7]);
             } else if (data[0] == TLW64Constants.CMD_FETCH_SLEEP) {
                 timestamp.set(Calendar.MINUTE, data[6] & 0xff);
                 sample.setRawIntensity(data[7] * 256 + (data[8] & 0xff));
+                //noinspection lossy-conversions
                 crc ^= (data[7] ^ data[8]);
                 startProgress = 33;
             }
@@ -588,5 +582,15 @@ public class TLW64Support extends AbstractBTLEDeviceSupport {
                     ((int) (Calendar.getInstance().getTimeInMillis() / 1000L) - firstTimestamp);
             GB.updateTransferNotification(null, getContext().getString(R.string.busy_task_fetch_activity_data), true, progress, getContext());
         }
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

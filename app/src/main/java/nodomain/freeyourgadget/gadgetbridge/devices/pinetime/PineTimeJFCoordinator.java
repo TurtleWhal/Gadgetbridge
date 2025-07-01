@@ -18,7 +18,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.pinetime;
 
-import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
 
@@ -31,11 +30,8 @@ import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
-import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.pinetime.PineTimeJFSupport;
 
@@ -43,11 +39,6 @@ public class PineTimeJFCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     protected Pattern getSupportedDeviceName() {
         return Pattern.compile("Pinetime-JF.*|InfiniTime.*");
-    }
-
-    @Override
-    public Class<? extends Activity> getPairingActivity() {
-        return null;
     }
 
     @Override
@@ -60,11 +51,6 @@ public class PineTimeJFCoordinator extends AbstractBLEDeviceCoordinator {
     public boolean supportsFlashing() { return true; }
 
     @Override
-    public boolean supportsActivityDataFetching() {
-        return false;
-    }
-
-    @Override
     public boolean supportsActivityTracking() {
         return true;
     }
@@ -72,16 +58,6 @@ public class PineTimeJFCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public SampleProvider<? extends ActivitySample> getSampleProvider(GBDevice device, DaoSession session) {
         return new PineTimeActivitySampleProvider(device, session);
-    }
-
-    @Override
-    public boolean supportsScreenshots(final GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public int getAlarmSlotCount(GBDevice device) {
-        return 0;
     }
 
     @Override
@@ -97,26 +73,6 @@ public class PineTimeJFCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public String getManufacturer() {
         return "Pine64";
-    }
-
-    @Override
-    public boolean supportsAppsManagement(final GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public Class<? extends Activity> getAppsManagementActivity() {
-        return null;
-    }
-
-    @Override
-    public boolean supportsCalendarEvents() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsRealtimeData() {
-        return false;
     }
 
     @Override
@@ -144,21 +100,18 @@ public class PineTimeJFCoordinator extends AbstractBLEDeviceCoordinator {
         return 8;
     }
 
+    @Override
     public boolean supportsNavigation() {
         return true;
     }
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return PineTimeJFSupport.class;
     }
 
     @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) {
-        // nothing to delete, yet
-    }
-
     public int[] getSupportedDeviceSpecificSettings(GBDevice device) {
         return new int[]{
                 R.xml.devicesettings_transliteration,
@@ -166,7 +119,6 @@ public class PineTimeJFCoordinator extends AbstractBLEDeviceCoordinator {
                 R.xml.devicesettings_prefix_notification_with_app
         };
     }
-
 
     @Override
     public int getDeviceNameResource() {
@@ -177,10 +129,5 @@ public class PineTimeJFCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_pinetime;
-    }
-
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_pinetime_disabled;
     }
 }

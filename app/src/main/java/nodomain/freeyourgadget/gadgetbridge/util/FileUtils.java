@@ -25,6 +25,7 @@ import android.os.Environment;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -36,6 +37,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -43,6 +45,7 @@ import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -52,6 +55,14 @@ import nodomain.freeyourgadget.gadgetbridge.GBEnvironment;
 public class FileUtils {
     // Don't use slf4j here -- would be a bootstrapping problem
     private static final String TAG = "FileUtils";
+
+    private static final List<String> KNOWN_PACKAGES = Arrays.asList(
+            "nodomain.freeyourgadget.gadgetbridge",
+            "nodomain.freeyourgadget.gadgetbridge.nightly",
+            "nodomain.freeyourgadget.gadgetbridge.nightly_nopebble",
+            "com.espruino.gadgetbridge.banglejs",
+            "com.espruino.gadgetbridge.banglejs.nightly"
+    );
 
     /**
      * Copies the the given sourceFile to destFile, overwriting it, in case it exists.
@@ -134,7 +145,6 @@ public class FileUtils {
         }
         try (InputStream fin = new BufferedInputStream(in)) {
             copyStreamToFile(fin, destFile);
-            fin.close();
         }
     }
 
@@ -322,6 +332,26 @@ public class FileUtils {
         return out.toByteArray();
     }
 
+    public static List<File> listRecursive(final File dir, final FilenameFilter filter) {
+        final List<File> ret = new ArrayList<>();
+        listRecursive(ret, dir, filter);
+        return ret;
+    }
+
+    private static void listRecursive(final List<File> ret, final File dir, final FilenameFilter filter) {
+        final File[] files = dir.listFiles();
+        if (files == null) {
+            return;
+        }
+        for (File file : files) {
+            if (file.isDirectory()) {
+                listRecursive(ret, file, filter);
+            } else if (filter.accept(dir, file.getName())) {
+                ret.add(file);
+            }
+        }
+    }
+
     public static boolean deleteRecursively(File dir) {
         if (!dir.exists()) {
             return true;
@@ -391,5 +421,45 @@ public class FileUtils {
         }
         fos.close();
         return Uri.fromFile(tempFile);
+    }
+
+    /**
+     * When migrating the database between Gadgetbridge versions or phones, we may end up with the
+     * wrong path persisted in the database. Attempt to find the file in the current external data.
+     *
+     * @return the fixed file path, if it exists, null otherwise
+     */
+    @Nullable
+    public static File tryFixPath(final File file) {
+        if (file == null || (file.isFile() && file.canRead())) {
+            return file;
+        }
+
+        File externalFilesDir;
+        try {
+            externalFilesDir = getExternalFilesDir();
+        } catch (final IOException e) {
+            return null;
+        }
+
+        final String absolutePath = file.getAbsolutePath();
+        for (final String knownPackage : KNOWN_PACKAGES) {
+            final int i = absolutePath.indexOf(knownPackage);
+            if (i < 0) {
+                continue;
+            }
+
+            // We found the gadgetbridge package in the path!
+            String relativePath = absolutePath.substring(i + knownPackage.length() + 1);
+            if (relativePath.startsWith("files/")) {
+                relativePath = relativePath.substring(6);
+            }
+            final File fixedFile = new File(externalFilesDir, relativePath);
+            if (fixedFile.exists()) {
+                return fixedFile;
+            }
+        }
+
+        return null;
     }
 }

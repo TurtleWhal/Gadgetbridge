@@ -24,19 +24,19 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.widget.Toast;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import androidx.core.content.ContextCompat;
 
-import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventBatteryInfo;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCharacteristic;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfoProfile;
@@ -48,6 +48,8 @@ import nodomain.freeyourgadget.gadgetbridge.util.protobuf.messagefields.StringMe
 import nodomain.freeyourgadget.gadgetbridge.util.protobuf.messagefields.VarintMessageField;
 
 public class FlipperZeroSupport extends FlipperZeroBaseSupport{
+    private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
+
     private BatteryInfoProfile batteryInfoProfile = new BatteryInfoProfile(this);
 
     private final String UUID_SERIAL_SERVICE = "8fe5b3d5-2e7f-4a98-2a48-7acc60fe0000";
@@ -75,7 +77,7 @@ public class FlipperZeroSupport extends FlipperZeroBaseSupport{
                         handlePlaySubGHZ(intent);
                     }
                 }
-            }).start();
+            }, "FlipperZeroSupport_" + THREAD_COUNTER.getAndIncrement()).start();
         }
     };
     boolean recevierRegistered = false;
@@ -127,11 +129,11 @@ public class FlipperZeroSupport extends FlipperZeroBaseSupport{
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         if(!recevierRegistered) {
-            getContext().registerReceiver(receiver, new IntentFilter(COMMAND_PLAY_FILE));
+            ContextCompat.registerReceiver(getContext(), receiver, new IntentFilter(COMMAND_PLAY_FILE), ContextCompat.RECEIVER_EXPORTED);
             recevierRegistered = true;
         }
 
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
         builder.read(getCharacteristic(GattCharacteristic.UUID_CHARACTERISTIC_FIRMWARE_REVISION_STRING));
 
         batteryInfoProfile.requestBatteryInfo(builder);
@@ -140,17 +142,17 @@ public class FlipperZeroSupport extends FlipperZeroBaseSupport{
         return builder
                 .notify(getCharacteristic(UUID.fromString(UUID_SERIAL_CHARACTERISTIC_RESPONSE)), true)
                 .requestMtu(512)
-                .add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+                .setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
     }
 
     @Override
-    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
         if(characteristic.getUuid().equals(GattCharacteristic.UUID_CHARACTERISTIC_FIRMWARE_REVISION_STRING)){
-            String revision = characteristic.getStringValue(0);
+            String revision = BLETypeConversions.getStringValue(value, 0);
             getDevice().setFirmwareVersion(revision);
             getDevice().sendDeviceUpdateIntent(getContext());
         }
-        return super.onCharacteristicRead(gatt, characteristic, status);
+        return super.onCharacteristicRead(gatt, characteristic, value, status);
     }
 
     @Override
@@ -245,8 +247,6 @@ public class FlipperZeroSupport extends FlipperZeroBaseSupport{
 
     @Override
     public void onFetchRecordedData(int dataTypes) {
-        super.onFetchRecordedData(dataTypes);
-
         onTestNewFunction();
     }
 }

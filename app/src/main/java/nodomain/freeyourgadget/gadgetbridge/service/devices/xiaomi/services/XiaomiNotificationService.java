@@ -52,6 +52,9 @@ import nodomain.freeyourgadget.gadgetbridge.util.NotificationUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiBitmapUtils.convertToPixelFormat;
+import static nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiBitmapUtils.getPixelFormatString;
+
 public class XiaomiNotificationService extends AbstractXiaomiService implements XiaomiDataUploadService.Callback {
     private static final Logger LOG = LoggerFactory.getLogger(XiaomiNotificationService.class);
 
@@ -89,6 +92,10 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
 
     @Override
     public void initialize() {
+        mPackages.clear();
+        mNotificationPackageName.clear();
+        mNotificationKey.clear();
+
         getSupport().sendCommand("get screen on on notifications", COMMAND_TYPE, CMD_SCREEN_ON_ON_NOTIFICATIONS_GET);
         requestCannedMessages();
     }
@@ -519,11 +526,20 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
             return;
         }
 
-        int unk1 = notificationIconRequest.getUnknown1();
-        int unk2 = notificationIconRequest.getUnknown2();
+        final int status = notificationIconRequest.getStatus();
+        final int pixelFormat = notificationIconRequest.getPixelFormat();
 
         final int size = notificationIconRequest.getSize();
-        LOG.debug("Got notification icon request for size {} for {}, unk1={}, unk2={}", size, iconPackageName, unk1, unk2);
+        LOG.debug("Got notification icon request for size {} for {}, status={}, pixelFormat={} ({})",
+                size,
+                iconPackageName,
+                status,
+                getPixelFormatString(pixelFormat),
+                pixelFormat);
+
+        if (status != 0) {
+            return;
+        }
 
         final Drawable icon = NotificationUtils.getAppIcon(getSupport().getContext(), iconPackageName);
         if (icon == null) {
@@ -532,23 +548,14 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
             return;
         }
 
-        final Bitmap bmp = BitmapUtil.toBitmap(icon);
-        final Bitmap bmpResized = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        final Canvas canvas = new Canvas(bmpResized);
-        final Rect rect = new Rect(0, 0, size, size);
-        canvas.drawBitmap(bmp, null, rect, null);
-
-        // convert from RGBA To ABGR
-        final ByteBuffer buf = ByteBuffer.allocate(size * size * 4).order(ByteOrder.LITTLE_ENDIAN);
-        for (int x = 0; x < size; x++) {
-            for (int y = 0; y < size; y++) {
-                //noinspection SuspiciousNameCombination x and y are flipped on purpose
-                buf.putInt(bmpResized.getPixel(y, x));
-            }
+        final byte[] bitmap = convertToPixelFormat(pixelFormat, icon, size, size);
+        if (bitmap == null || bitmap.length == 0) {
+            LOG.error("Failed to convert app icon");
+            return;
         }
 
         getSupport().getDataUploadService().setCallback(this);
-        getSupport().getDataUploadService().requestUpload(XiaomiDataUploadService.TYPE_NOTIFICATION_ICON, buf.array());
+        getSupport().getDataUploadService().requestUpload(XiaomiDataUploadService.TYPE_NOTIFICATION_ICON, bitmap);
     }
 
     @Override

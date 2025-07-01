@@ -21,7 +21,6 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
 import android.media.AudioManager;
-import android.net.Uri;
 import android.view.KeyEvent;
 import android.widget.Toast;
 
@@ -48,20 +47,14 @@ import nodomain.freeyourgadget.gadgetbridge.entities.XWatchActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice.State;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.DeviceInfo;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
-public class XWatchSupport extends AbstractBTLEDeviceSupport {
+public class XWatchSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(XWatchSupport.class);
     private final GBDeviceEventVersionInfo versionCmd = new GBDeviceEventVersionInfo();
     TransactionBuilder builder = null;
@@ -92,7 +85,7 @@ public class XWatchSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), State.INITIALIZING, getContext());
 
         enableNotifications(builder)
                 .setDateTime(builder)
@@ -109,7 +102,7 @@ public class XWatchSupport extends AbstractBTLEDeviceSupport {
      * @param builder
      */
     private void setInitialized(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), State.INITIALIZED, getContext());
     }
 
     @Override
@@ -247,35 +240,36 @@ public class XWatchSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        super.onCharacteristicChanged(gatt, characteristic);
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] data) {
+        super.onCharacteristicChanged(gatt, characteristic, data);
 
         UUID characteristicUUID = characteristic.getUuid();
         if (XWatchService.UUID_NOTIFY.equals(characteristicUUID)) {
-            byte[] data = characteristic.getValue();
             if (data[0] == XWatchService.COMMAND_ACTIVITY_TOTALS) {
-                handleSummarizedData(characteristic.getValue());
+                handleSummarizedData(data);
             } else if (data[0] == XWatchService.COMMAND_ACTIVITY_DATA) {
-                handleDetailedData(characteristic.getValue());
+                handleDetailedData(data);
             } else if (data[0] == XWatchService.COMMAND_ACTION_BUTTON) {
-                handleButtonPressed(characteristic.getValue());
+                handleButtonPressed(data);
             } else if (data[0] == XWatchService.COMMAND_CONNECTED) {
                 handleDeviceInfo(data, BluetoothGatt.GATT_SUCCESS);
             } else {
                 LOG.info("Handled characteristic with unknown data: " + characteristicUUID);
-                logMessageContent(characteristic.getValue());
+                logMessageContent(data);
             }
         } else {
             LOG.info("Unhandled characteristic changed: " + characteristicUUID);
-            logMessageContent(characteristic.getValue());
+            logMessageContent(data);
         }
         return false;
     }
 
     @Override
     public boolean onCharacteristicRead(BluetoothGatt gatt,
-                                        BluetoothGattCharacteristic characteristic, int status) {
-        return super.onCharacteristicChanged(gatt, characteristic);
+                                        BluetoothGattCharacteristic characteristic, byte[] value,
+                                        int status) {
+        return super.onCharacteristicChanged(gatt, characteristic, value);
         //TODO: Implement (if necessary)
     }
 
@@ -359,7 +353,7 @@ public class XWatchSupport extends AbstractBTLEDeviceSupport {
                         value[5]
                 );
 
-                category = ActivityKind.TYPE_ACTIVITY;
+                category = ActivityKind.ACTIVITY.getCode();
                 intensity = (value[7] & 255) + ((value[8] & 255) << 8);
                 steps = (value[9] & 255) + ((value[10] & 255) << 8);
 
@@ -483,5 +477,15 @@ public class XWatchSupport extends AbstractBTLEDeviceSupport {
         timestamp = (int) (cal.getTimeInMillis() / 1000);
 
         return timestamp;
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

@@ -33,7 +33,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.HeartRateUtils;
+import nodomain.freeyourgadget.gadgetbridge.entities.User;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityPoint;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrack;
 import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
@@ -43,12 +45,11 @@ public class GPXExporter implements ActivityTrackExporter {
     private static final String NS_GPX_URI = "http://www.topografix.com/GPX/1/1";
     private static final String NS_GPX_PREFIX = "";
     private static final String NS_TRACKPOINT_EXTENSION = "gpxtpx";
-    private static final String NS_TRACKPOINT_EXTENSION_URI = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1";
+    private static final String NS_TRACKPOINT_EXTENSION_URI = "https://www8.garmin.com/xmlschemas/TrackPointExtensionv2.xsd";
     private static final String NS_XSI_URI = "http://www.w3.org/2001/XMLSchema-instance";
     private static final String TOPOGRAFIX_NAMESPACE_XSD = "http://www.topografix.com/GPX/1/1/gpx.xsd";
     private static final String OPENTRACKS_PREFIX = "opentracks";
     private static final String OPENTRACKS_NAMESPACE_URI = "http://opentracksapp.com/xmlschemas/v1";
-    private static final String OPENTRACKS_NAMESPACE_XSD = "http://opentracksapp.com/xmlschemas/OpenTracks_v1.xsd";
 
     private String creator;
     private boolean includeHeartRate = true;
@@ -68,10 +69,12 @@ public class GPXExporter implements ActivityTrackExporter {
 
             ser.startTag(NS_GPX_URI, "gpx");
             ser.attribute(null, "version", "1.1");
-            ser.attribute(null, "creator", getCreator());
-            ser.attribute(NS_XSI_URI, "schemaLocation", NS_GPX_URI + " "
-                    + TOPOGRAFIX_NAMESPACE_XSD + " "
-                    + OPENTRACKS_NAMESPACE_URI + " " + OPENTRACKS_NAMESPACE_XSD);
+            if (creator != null) {
+                ser.attribute(null, "creator", creator);
+            } else {
+                ser.attribute(null, "creator", GBApplication.app().getNameAndVersion());
+            }
+            ser.attribute(NS_XSI_URI, "schemaLocation",NS_GPX_URI + " " + TOPOGRAFIX_NAMESPACE_XSD);
 
             exportMetadata(ser, track);
             exportTrack(ser, track);
@@ -84,11 +87,16 @@ public class GPXExporter implements ActivityTrackExporter {
 
     private void exportMetadata(XmlSerializer ser, ActivityTrack track) throws IOException {
         ser.startTag(NS_GPX_URI, "metadata");
-        ser.startTag(NS_GPX_URI, "name").text(track.getName()).endTag(NS_GPX_URI, "name");
+        if (track.getName() != null) {
+            ser.startTag(NS_GPX_URI, "name").text(track.getName()).endTag(NS_GPX_URI, "name");
+        }
 
-        ser.startTag(NS_GPX_URI, "author");
-        ser.startTag(NS_GPX_URI, "name").text(track.getUser().getName()).endTag(NS_GPX_URI, "name");
-        ser.endTag(NS_GPX_URI, "author");
+        final User user = track.getUser();
+        if (user != null) {
+            ser.startTag(NS_GPX_URI, "author");
+            ser.startTag(NS_GPX_URI, "name").text(user.getName()).endTag(NS_GPX_URI, "name");
+            ser.endTag(NS_GPX_URI, "author");
+        }
 
         ser.startTag(NS_GPX_URI, "time").text(formatTime(new Date())).endTag(NS_GPX_URI, "time");
 
@@ -107,7 +115,6 @@ public class GPXExporter implements ActivityTrackExporter {
         ser.endTag(NS_GPX_URI, "extensions");
 
         List<List<ActivityPoint>> segments = track.getSegments();
-        String source = getSource(track);
         boolean atLeastOnePointExported = false;
         for (List<ActivityPoint> segment : segments) {
             if (segment.isEmpty()) {
@@ -117,7 +124,7 @@ public class GPXExporter implements ActivityTrackExporter {
 
             ser.startTag(NS_GPX_URI, "trkseg");
             for (ActivityPoint point : segment) {
-                atLeastOnePointExported |= exportTrackPoint(ser, point, source, segment);
+                atLeastOnePointExported |= exportTrackPoint(ser, point, segment);
             }
             ser.endTag(NS_GPX_URI, "trkseg");
         }
@@ -129,21 +136,17 @@ public class GPXExporter implements ActivityTrackExporter {
         ser.endTag(NS_GPX_URI, "trk");
     }
 
-    private String getSource(ActivityTrack track) {
-        return track.getDevice().getName();
-    }
-
-    private boolean exportTrackPoint(XmlSerializer ser, ActivityPoint point, String source, List<ActivityPoint> trackPoints) throws IOException {
+    private boolean exportTrackPoint(XmlSerializer ser, ActivityPoint point, Iterable<ActivityPoint> trackPoints) throws IOException {
         GPSCoordinate location = point.getLocation();
         if (location == null) {
             return false; // skip invalid points, that just contain hr data, for example
         }
         ser.startTag(NS_GPX_URI, "trkpt");
         // lon and lat attributes do not have an explicit namespace
-        ser.attribute(null, "lon", formatLocation(location.getLongitude()));
-        ser.attribute(null, "lat", formatLocation(location.getLatitude()));
+        ser.attribute(null, "lon", formatDouble(location.getLongitude()));
+        ser.attribute(null, "lat", formatDouble(location.getLatitude()));
         if (location.getAltitude() != GPSCoordinate.UNKNOWN_ALTITUDE) {
-            ser.startTag(NS_GPX_URI, "ele").text(formatLocation(location.getAltitude())).endTag(NS_GPX_URI, "ele");
+            ser.startTag(NS_GPX_URI, "ele").text(formatDouble(location.getAltitude())).endTag(NS_GPX_URI, "ele");
         }
         ser.startTag(NS_GPX_URI, "time").text(DateTimeUtils.formatIso8601UTC(point.getTime())).endTag(NS_GPX_URI, "time");
         String description = point.getDescription();
@@ -151,6 +154,15 @@ public class GPXExporter implements ActivityTrackExporter {
             ser.startTag(NS_GPX_URI, "desc").text(description).endTag(NS_GPX_URI, "desc");
         }
         //ser.startTag(NS_GPX_URI, "src").text(source).endTag(NS_GPX_URI, "src");
+        if (location.hasHdop()) {
+            ser.startTag(NS_GPX_URI, "hdop").text(formatDouble(location.getHdop())).endTag(NS_GPX_URI, "hdop");
+        }
+        if (location.hasVdop()) {
+            ser.startTag(NS_GPX_URI, "vdop").text(formatDouble(location.getVdop())).endTag(NS_GPX_URI, "vdop");
+        }
+        if (location.hasPdop()) {
+            ser.startTag(NS_GPX_URI, "pdop").text(formatDouble(location.getPdop())).endTag(NS_GPX_URI, "pdop");
+        }
 
         exportTrackpointExtensions(ser, point, trackPoints);
 
@@ -159,37 +171,47 @@ public class GPXExporter implements ActivityTrackExporter {
         return true;
     }
 
-    private void exportTrackpointExtensions(XmlSerializer ser, ActivityPoint point, List<ActivityPoint> trackPoints) throws IOException {
+    private void exportTrackpointExtensions(XmlSerializer ser, ActivityPoint point, Iterable<ActivityPoint> trackPoints) throws IOException {
         if (!includeHeartRate) {
             return;
         }
 
+        float speed = point.getSpeed();
+        int cadence = point.getCadence();
         int hr = point.getHeartRate();
-        if (!HeartRateUtils.getInstance().isValidHeartRateValue(hr)) {
-            if (!includeHeartRateOfNearestSample) {
-                return;
-            }
+        if (!HeartRateUtils.getInstance().isValidHeartRateValue(hr) && includeHeartRateOfNearestSample) {
 
             ActivityPoint closestPointItem = findClosestSensibleActivityPoint(point.getTime(), trackPoints);
-            if(closestPointItem == null) {
-                return;
+            if (closestPointItem != null) {
+                hr = closestPointItem.getHeartRate();
             }
 
-            hr = closestPointItem.getHeartRate();
-            if (!HeartRateUtils.getInstance().isValidHeartRateValue(hr)) {
-                return;
-            }
+        }
+
+        boolean exportHr = HeartRateUtils.getInstance().isValidHeartRateValue(hr) && includeHeartRate;
+
+        if (!exportHr && speed < 0 && cadence < 0) {
+            // No valid data to export in extensions
+            return;
         }
 
         ser.startTag(NS_GPX_URI, "extensions");
         ser.setPrefix(NS_TRACKPOINT_EXTENSION, NS_TRACKPOINT_EXTENSION_URI);
         ser.startTag(NS_TRACKPOINT_EXTENSION_URI, "TrackPointExtension");
-        ser.startTag(NS_TRACKPOINT_EXTENSION_URI, "hr").text(String.valueOf(hr)).endTag(NS_TRACKPOINT_EXTENSION_URI, "hr");
+        if (exportHr) {
+            ser.startTag(NS_TRACKPOINT_EXTENSION_URI, "hr").text(String.valueOf(hr)).endTag(NS_TRACKPOINT_EXTENSION_URI, "hr");
+        }
+        if (cadence >= 0) {
+            ser.startTag(NS_TRACKPOINT_EXTENSION_URI, "cad").text(String.valueOf(cadence)).endTag(NS_TRACKPOINT_EXTENSION_URI, "cad");
+        }
+        if (speed >= 0) {
+            ser.startTag(NS_TRACKPOINT_EXTENSION_URI, "speed").text(formatDouble(speed)).endTag(NS_TRACKPOINT_EXTENSION_URI, "speed");
+        }
         ser.endTag(NS_TRACKPOINT_EXTENSION_URI, "TrackPointExtension");
         ser.endTag(NS_GPX_URI, "extensions");
     }
 
-    private @Nullable ActivityPoint findClosestSensibleActivityPoint(Date time, List<ActivityPoint> trackPoints) {
+    private @Nullable ActivityPoint findClosestSensibleActivityPoint(Date time, Iterable<ActivityPoint> trackPoints) {
         ActivityPoint closestPointItem = null;
         HeartRateUtils heartRateUtilsInstance = HeartRateUtils.getInstance();
 
@@ -211,7 +233,7 @@ public class GPXExporter implements ActivityTrackExporter {
         return closestPointItem;
     }
 
-    private String formatLocation(double value) {
+    private String formatDouble(double value) {
         return new BigDecimal(value).setScale(GPSCoordinate.GPS_DECIMAL_DEGREES_SCALE, RoundingMode.HALF_UP).toPlainString();
     }
 

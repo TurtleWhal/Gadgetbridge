@@ -22,7 +22,7 @@ import java.util.Map;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 
 public final class QHybridConstants {
-    public static final String HYBRIDHR_WATCHFACE_VERSION = "1.11";
+    public static final String HYBRIDHR_WATCHFACE_VERSION = "1.13";
     public static final int HYBRID_HR_WATCHFACE_WIDGET_SIZE = 76;
 
     public static Map<String, String> KNOWN_WAPP_VERSIONS = new HashMap<String, String>() {
@@ -43,12 +43,12 @@ public final class QHybridConstants {
         }
     };
 
-    public static Map<Integer, Integer> WORKOUT_TYPES_TO_ACTIVITY_KIND = new HashMap<Integer, Integer>() {
+    public static Map<Integer, ActivityKind> WORKOUT_TYPES_TO_ACTIVITY_KIND = new HashMap<Integer, ActivityKind>() {
         {
-            put(1, ActivityKind.TYPE_RUNNING);
-            put(2, ActivityKind.TYPE_CYCLING);
-            put(8, ActivityKind.TYPE_WALKING);
-            put(12, ActivityKind.TYPE_HIKING);
+            put(1, ActivityKind.RUNNING);
+            put(2, ActivityKind.CYCLING);
+            put(8, ActivityKind.WALKING);
+            put(12, ActivityKind.HIKING);
         }
     };
 }

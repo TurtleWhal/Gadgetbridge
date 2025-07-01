@@ -16,6 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.devicesettings;
 
+import android.content.Context;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.text.Spanned;
@@ -24,10 +25,15 @@ import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.MultiSelectListPreference;
 import androidx.preference.Preference;
+import androidx.preference.SwitchPreferenceCompat;
+
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -46,28 +52,28 @@ public final class DeviceSettingsUtils {
     /**
      * Returns the preference key where to save the list of possible value for a preference, comma-separated.
      */
-    public static String getPrefPossibleValuesKey(final String key) {
+    public static String getPrefPossibleValuesKey(final CharSequence key) {
         return String.format(Locale.ROOT, "%s_possible_values", key);
     }
 
     /**
      * Returns the preference key where to save the list of entry labels for a preference, comma-separated.
      */
-    public static String getPrefPossibleValueLabelsKey(final String key) {
+    public static String getPrefPossibleValueLabelsKey(final CharSequence key) {
         return String.format(Locale.ROOT, "%s_possible_value_labels", key);
     }
 
     /**
      * Returns the preference key where to that a config was reported as supported (boolean).
      */
-    public static String getPrefKnownConfig(final String key) {
+    public static String getPrefKnownConfig(final CharSequence key) {
         return String.format(Locale.ROOT, "%s_is_known", key);
     }
 
     /**
      * Populates a list preference, or hides it if no known supported values are known.
      */
-    public static void populateOrHideListPreference(final String prefKey,
+    public static void populateOrHideListPreference(final CharSequence prefKey,
                                                     final DeviceSpecificSettingsHandler handler,
                                                     final Prefs prefs) {
         final Preference pref = handler.findPreference(prefKey);
@@ -154,7 +160,7 @@ public final class DeviceSettingsUtils {
      */
     public static void hidePrefIfNoneVisible(final DeviceSpecificSettingsHandler handler,
                                              final String prefToHide,
-                                             final List<String> subPrefs) {
+                                             final Iterable<String> subPrefs) {
         final Preference pref = handler.findPreference(prefToHide);
         if (pref == null) {
             return;
@@ -188,6 +194,36 @@ public final class DeviceSettingsUtils {
         });
     }
 
+    public static void sortListPreference(final ListPreference listPreference) {
+        final CharSequence[] entries = listPreference.getEntries();
+        final CharSequence[] entryValues = listPreference.getEntryValues();
+
+        if (entries == null || entryValues == null || entries.length != entryValues.length) {
+            LOG.warn("Invalid entries or values to sort");
+            return;
+        }
+
+        final int length = entries.length;
+        final String[][] combined = new String[length][2];
+
+        for (int i = 0; i < length; i++) {
+            combined[i][0] = entries[i].toString();
+            combined[i][1] = entryValues[i].toString();
+        }
+
+        // Sort, keeping "auto" at the top
+        Arrays.sort(combined, 1, length, Comparator.comparing(o -> o[0]));
+
+        // Reassign sorted values
+        for (int i = 0; i < length; i++) {
+            entries[i] = combined[i][0];
+            entryValues[i] = combined[i][1];
+        }
+
+        listPreference.setEntries(entries);
+        listPreference.setEntryValues(entryValues);
+    }
+
     public static final class MinMaxInputFilter implements InputFilter {
         private final int min;
         private final int max;
@@ -208,5 +244,41 @@ public final class DeviceSettingsUtils {
             }
             return "";
         }
+    }
+
+    public static void addConfirmablePreferenceHandlerFor(final DeviceSpecificSettingsHandler handler,
+                                                          final String preferenceKey,
+                                                          final int alertMessage) {
+        final Preference pref = handler.findPreference(preferenceKey);
+        if (pref == null) {
+            return;
+        }
+        pref.setOnPreferenceChangeListener((preference, newValue) -> {
+            final Context context = handler.getContext();
+            final CharSequence preferenceName = pref.getTitle();
+            final String title = context.getString(R.string.earfun_change_confirm_title, preferenceName);
+            final String message = context.getString(alertMessage);
+
+            new MaterialAlertDialogBuilder(context)
+                    .setTitle(title)
+                    .setMessage(message)
+                    .setPositiveButton(handler.getContext().getString(R.string.ok), (dialog, which) -> {
+                        if (pref instanceof EditTextPreference) {
+                            ((EditTextPreference) pref).setText(newValue.toString());
+                        } else if (pref instanceof ListPreference) {
+                            ((ListPreference) pref).setValue(newValue.toString());
+                        } else if (pref instanceof SwitchPreferenceCompat) {
+                            ((SwitchPreferenceCompat) pref).setChecked((Boolean) newValue);
+                        } else {
+                            LOG.error("Unsupported preference type {} for confirmable handler: {}", pref.getClass(), pref);
+                            return;
+                        }
+                        handler.notifyPreferenceChanged(preferenceKey);
+                    })
+                    .setNegativeButton(handler.getContext().getString(R.string.Cancel), (dialog, which) -> dialog.dismiss())
+                    .create()
+                    .show();
+            return false;
+        });
     }
 }

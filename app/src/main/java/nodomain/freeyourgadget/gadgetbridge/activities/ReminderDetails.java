@@ -1,4 +1,5 @@
-/*  Copyright (C) 2021-2024 Arjan Schrijver, Daniel Dakhno, José Rebelo
+/*  Copyright (C) 2021-2024 Arjan Schrijver, Daniel Dakhno, José Rebelo,
+    Johannes Krude
 
     This file is part of Gadgetbridge.
 
@@ -40,6 +41,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
@@ -121,18 +123,22 @@ public class ReminderDetails extends AbstractGBActivity implements TimePickerDia
         });
 
         final View cardTime = findViewById(R.id.card_time);
-        cardTime.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                new TimePickerDialog(
-                        ReminderDetails.this,
-                        ReminderDetails.this,
-                        reminder.getDate().getHours(),
-                        reminder.getDate().getMinutes(),
-                        DateFormat.is24HourFormat(GBApplication.getContext())
-                ).show();
-            }
-        });
+        if (coordinator.getRemindersHaveTime()) {
+            cardTime.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    new TimePickerDialog(
+                            ReminderDetails.this,
+                            ReminderDetails.this,
+                            reminder.getDate().getHours(),
+                            reminder.getDate().getMinutes(),
+                            DateFormat.is24HourFormat(GBApplication.getContext())
+                    ).show();
+                }
+            });
+        } else {
+            cardTime.setVisibility(View.GONE);
+        }
 
         reminderText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(coordinator.getMaximumReminderMessageLength())});
         reminderText.addTextChangedListener(new TextWatcher() {
@@ -201,8 +207,16 @@ public class ReminderDetails extends AbstractGBActivity implements TimePickerDia
 
     @Override
     public void onDateSet(DatePicker datePicker, int year, int month, int dayOfMonth) {
-        final Calendar date = new GregorianCalendar(year, month, dayOfMonth);
-        reminder.setDate(new Date(date.getTimeInMillis()));
+        final DeviceCoordinator coordinator = device.getDeviceCoordinator();
+
+        if (coordinator.getRemindersHaveTime()) {
+            final Calendar date = new GregorianCalendar(year, month, dayOfMonth);
+            reminder.setDate(new Date(date.getTimeInMillis()));
+        } else {
+            Calendar noonUTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            noonUTC.set(year, month, dayOfMonth, 12, 0);
+            reminder.setDate(noonUTC.getTime());
+        }
         updateUiFromReminder();
     }
 

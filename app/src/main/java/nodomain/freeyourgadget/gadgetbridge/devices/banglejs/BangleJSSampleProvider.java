@@ -40,8 +40,6 @@ public class BangleJSSampleProvider extends AbstractSampleProvider<BangleJSActiv
         super(device, session);
     }
 
-    public static final int TYPE_ACTIVITY = 0;
-
     @Override
     public AbstractDao<BangleJSActivitySample, ?> getSampleDao() {
         return getSession().getBangleJSActivitySampleDao();
@@ -66,18 +64,13 @@ public class BangleJSSampleProvider extends AbstractSampleProvider<BangleJSActiv
     }
 
     @Override
-    public int normalizeType(int rawType) {
-        switch (rawType) {
-            case TYPE_ACTIVITY:
-                return ActivityKind.TYPE_ACTIVITY;
-            default: // fall through
-                return ActivityKind.TYPE_UNKNOWN;
-        }
+    public ActivityKind normalizeType(int rawType) {
+        return ActivityKind.fromCode(rawType);
     }
 
     @Override
-    public int toRawActivityKind(int activityKind) {
-        return TYPE_ACTIVITY;
+    public int toRawActivityKind(ActivityKind activityKind) {
+        return activityKind.getCode();
     }
 
     @Override
@@ -97,8 +90,7 @@ public class BangleJSSampleProvider extends AbstractSampleProvider<BangleJSActiv
     public void upsertSample(final BangleJSActivitySample sample) {
         final List<BangleJSActivitySample> nearSamples = getGBActivitySamples(
                 sample.getTimestamp() - 60 * 2,
-                sample.getTimestamp() + 60 * 2,
-                normalizeType(sample.getRawKind())
+                sample.getTimestamp() + 60 * 2
         );
 
         if (nearSamples.isEmpty()) {

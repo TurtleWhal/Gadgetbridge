@@ -37,7 +37,6 @@ import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.devices.hplus.HPlusConstants;
-import nodomain.freeyourgadget.gadgetbridge.devices.hplus.HPlusCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.hplus.HPlusHealthSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.HPlusHealthActivityOverlay;
@@ -98,7 +97,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
                     try {
                         waitObject.wait(waitTime);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        LOG.warn("exception in run", e);
                     }
                 }
             }
@@ -265,6 +264,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
         if (mDaySlotRecords.size() > 0) {
             //Sort the samples
             Collections.sort(mDaySlotRecords, new Comparator<HPlusDataRecordDaySlot>() {
+                @Override
                 public int compare(HPlusDataRecordDaySlot one, HPlusDataRecordDaySlot other) {
                     return one.timestamp - other.timestamp;
                 }
@@ -293,7 +293,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
                     sample.setProvider(provider);
                     samples.add(sample);
 
-                    if (HPlusCoordinator.getAllDayHR(gbDevice.getAddress()) == HPlusConstants.ARG_HEARTRATE_ALLDAY_ON && storedRecord.heartRate == ActivitySample.NOT_MEASURED && storedRecord.steps <= 0) {
+                    if (mHPlusSupport.getAllDayHR() == HPlusConstants.ARG_HEARTRATE_ALLDAY_ON && storedRecord.heartRate == ActivitySample.NOT_MEASURED && storedRecord.steps <= 0) {
                         notWornSlots.add(sample.getTimestamp());
                         notWornSlots.add(sample.getTimestamp() + 10 * 60);
 
@@ -321,7 +321,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
 
                         //If it is the last of the samples or of the interruption period
                         if (timestamp - lastSlotTimestamp > 10 * 60) {
-                            overlayList.add(new HPlusHealthActivityOverlay(firstSlotTimestamp, lastSlotTimestamp, ActivityKind.TYPE_NOT_WORN, deviceId, userId, null));
+                            overlayList.add(new HPlusHealthActivityOverlay(firstSlotTimestamp, lastSlotTimestamp, ActivityKind.NOT_WORN.getCode(), deviceId, userId, null));
                             firstSlotTimestamp = timestamp;
                         }
 
@@ -330,7 +330,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
                     }
 
                     if (firstSlotTimestamp != lastSlotTimestamp)
-                        overlayList.add(new HPlusHealthActivityOverlay(firstSlotTimestamp, lastSlotTimestamp, ActivityKind.TYPE_NOT_WORN, deviceId, userId, null));
+                        overlayList.add(new HPlusHealthActivityOverlay(firstSlotTimestamp, lastSlotTimestamp, ActivityKind.NOT_WORN.getCode(), deviceId, userId, null));
 
                     overlayDao.insertOrReplaceInTx(overlayList);
                 }
@@ -379,7 +379,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
             List<HPlusDataRecord.RecordInterval> intervals = record.getIntervals();
 
             for (HPlusDataRecord.RecordInterval interval : intervals) {
-                overlayList.add(new HPlusHealthActivityOverlay(interval.timestampFrom, interval.timestampTo, interval.activityKind, deviceId, userId, null));
+                overlayList.add(new HPlusHealthActivityOverlay(interval.timestampFrom, interval.timestampTo, interval.activityKind.getCode(), deviceId, userId, null));
             }
 
             overlayDao.insertOrReplaceInTx(overlayList);
@@ -387,7 +387,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
             //Store the data
             HPlusHealthActivitySample sample = createSample(dbHandler, record.timestamp);
             sample.setRawHPlusHealthData(record.getRawData());
-            sample.setRawKind(record.activityKind);
+            sample.setRawKind(record.activityKindRaw);
 
             sample.setProvider(provider);
 
@@ -446,6 +446,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
             sample.setSteps(sample.getSteps() - prevRealTimeRecord.steps);
 
             Intent intent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES)
+                    .putExtra(GBDevice.EXTRA_DEVICE, getDevice())
                     .putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample)
                     .putExtra(DeviceService.EXTRA_TIMESTAMP, System.currentTimeMillis());
             LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
@@ -631,7 +632,7 @@ class HPlusHandlerThread extends GBDeviceIoThread {
                 timestamp,                      // ts
                 deviceId, userId,               // User id
                 null,            // Raw Data
-                ActivityKind.TYPE_UNKNOWN,
+                ActivityKind.UNKNOWN.getCode(),
                 0,                              // Intensity
                 ActivitySample.NOT_MEASURED,     // Steps
                 ActivitySample.NOT_MEASURED,    // HR

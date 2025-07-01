@@ -28,6 +28,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.json.JSONException;
@@ -54,6 +55,7 @@ import nodomain.freeyourgadget.gadgetbridge.externalevents.NotificationListener;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
+import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem;
@@ -63,9 +65,9 @@ import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.WatchAdapter;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.WatchAdapterFactory;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil.FossilWatchAdapter;
@@ -393,7 +395,7 @@ public class QHybridSupport extends QHybridBaseSupport {
                 }
             }
         };
-        GBApplication.getContext().registerReceiver(globalCommandReceiver, globalFilter);
+        ContextCompat.registerReceiver(GBApplication.getContext(), globalCommandReceiver, globalFilter, ContextCompat.RECEIVER_EXPORTED);
     }
 
     private void handleConfigSetIntent(Intent intent) {
@@ -463,6 +465,9 @@ public class QHybridSupport extends QHybridBaseSupport {
     public void dispose() {
         LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(commandReceiver);
         GBApplication.getContext().unregisterReceiver(globalCommandReceiver);
+        if (watchAdapter != null) {
+            watchAdapter.dispose();
+        }
         super.dispose();
     }
 
@@ -498,7 +503,7 @@ public class QHybridSupport extends QHybridBaseSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
 
         this.useActivityHand = GBApplication.getPrefs().getBoolean("QHYBRID_USE_ACTIVITY_HAND", false);
         getDevice().addDeviceInfo(new GenericItem(ITEM_USE_ACTIVITY_HAND, String.valueOf(this.useActivityHand)));
@@ -661,7 +666,8 @@ public class QHybridSupport extends QHybridBaseSupport {
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
         super.onConnectionStateChange(gatt, status, newState);
-        watchAdapter.onConnectionStateChange(gatt, status, newState);
+        if (watchAdapter != null)
+            watchAdapter.onConnectionStateChange(gatt, status, newState);
     }
 
     //TODO toggle "Notifications when screen on" options on this check
@@ -674,6 +680,9 @@ public class QHybridSupport extends QHybridBaseSupport {
     @Override
     public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
         super.onMtuChanged(gatt, mtu, status);
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            return;
+        }
         if(watchAdapter == null) return;
         watchAdapter.onMtuChanged(gatt, mtu, status);
     }
@@ -737,21 +746,16 @@ public class QHybridSupport extends QHybridBaseSupport {
     }
 
     @Override
-    public void handleGBDeviceEvent(GBDeviceEventBatteryInfo deviceEvent){
-        super.handleGBDeviceEvent(deviceEvent);
-    }
-
-    @Override
     public boolean onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         watchAdapter.onCharacteristicWrite(gatt, characteristic, status);
         return super.onCharacteristicWrite(gatt, characteristic, status);
     }
 
     @Override
-    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
         switch (characteristic.getUuid().toString()) {
             case "00002a26-0000-1000-8000-00805f9b34fb": {
-                String firmwareVersion = characteristic.getStringValue(0);
+                String firmwareVersion = BLETypeConversions.getStringValue(value, 0);
                 gbDevice.setFirmwareVersion(firmwareVersion);
 
                 Matcher matcher = Pattern
@@ -767,7 +771,7 @@ public class QHybridSupport extends QHybridBaseSupport {
                 break;
             }
             case "00002a24-0000-1000-8000-00805f9b34fb": {
-                String modelNumber = characteristic.getStringValue(0);
+                String modelNumber = BLETypeConversions.getStringValue(value, 0);
                 gbDevice.setModel(modelNumber);
                 gbDevice.setName(watchAdapter.getModelName());
                 try {
@@ -780,7 +784,7 @@ public class QHybridSupport extends QHybridBaseSupport {
                 break;
             }
             case "00002a19-0000-1000-8000-00805f9b34fb": {
-                short level = characteristic.getValue()[0];
+                short level = value[0];
                 gbDevice.setBatteryLevel(level);
 
                 GBDeviceEventBatteryInfo batteryInfo = new GBDeviceEventBatteryInfo();
@@ -797,9 +801,9 @@ public class QHybridSupport extends QHybridBaseSupport {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic
-            characteristic) {
-        if(watchAdapter == null) return super.onCharacteristicChanged(gatt, characteristic);
-        return watchAdapter.onCharacteristicChanged(gatt, characteristic);
+            characteristic, byte[] value) {
+        if(watchAdapter == null) return super.onCharacteristicChanged(gatt, characteristic, value);
+        return watchAdapter.onCharacteristicChanged(gatt, characteristic, value);
     }
 
     @Override
@@ -846,5 +850,15 @@ public class QHybridSupport extends QHybridBaseSupport {
     @Override
     public void onSetNavigationInfo(NavigationInfoSpec navigationInfoSpec) {
         ((FossilHRWatchAdapter) watchAdapter).onSetNavigationInfo(navigationInfoSpec);
+    }
+
+    @Override
+    public void onAddCalendarEvent(CalendarEventSpec calendarEventSpec) {
+        ((FossilHRWatchAdapter) watchAdapter).onSendCalendar();
+    }
+
+    @Override
+    public void onDeleteCalendarEvent(byte type, long id) {
+        ((FossilHRWatchAdapter) watchAdapter).onSendCalendar();
     }
 }

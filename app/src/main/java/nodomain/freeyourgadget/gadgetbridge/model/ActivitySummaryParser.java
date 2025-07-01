@@ -16,8 +16,61 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
 
+import java.util.Date;
+import java.util.List;
+
+import de.greenrobot.dao.query.QueryBuilder;
+import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummary;
+import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummaryDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
+import nodomain.freeyourgadget.gadgetbridge.entities.Device;
+import nodomain.freeyourgadget.gadgetbridge.entities.User;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public interface ActivitySummaryParser {
-    BaseActivitySummary parseBinaryData(BaseActivitySummary summary);
+    /**
+     * Re-parse an existing {@link BaseActivitySummary}, updating it from the existing binary data.
+     *
+     * @param summary    the existing {@link BaseActivitySummary}. It's not guaranteed that it
+     *                   contains any raw binary data.
+     * @param forDetails whether the parsing is for the details page. If this is false, the parser
+     *                   should avoid slow operations such as reading and parsing raw files from
+     *                   storage.
+     * @return the update {@link BaseActivitySummary}
+     */
+    BaseActivitySummary parseBinaryData(BaseActivitySummary summary, final boolean forDetails);
+
+    static BaseActivitySummary findOrCreateBaseActivitySummary(final DaoSession session,
+                                                               final GBDevice gbDevice,
+                                                               final int timestampSeconds) {
+        final Device device = DBHelper.getDevice(gbDevice, session);
+        return findOrCreateBaseActivitySummary(session, device.getId(), timestampSeconds);
+    }
+
+    static BaseActivitySummary findOrCreateBaseActivitySummary(final DaoSession session,
+                                                               final long deviceId,
+                                                               final int timestampSeconds) {
+        final User user = DBHelper.getUser(session);
+        final BaseActivitySummaryDao summaryDao = session.getBaseActivitySummaryDao();
+        final QueryBuilder<BaseActivitySummary> qb = summaryDao.queryBuilder();
+        qb.where(BaseActivitySummaryDao.Properties.StartTime.eq(new Date(timestampSeconds * 1000L)));
+        qb.where(BaseActivitySummaryDao.Properties.DeviceId.eq(deviceId));
+        qb.where(BaseActivitySummaryDao.Properties.UserId.eq(user.getId()));
+        final List<BaseActivitySummary> summaries = qb.build().list();
+        if (summaries.isEmpty()) {
+            final BaseActivitySummary summary = new BaseActivitySummary();
+            summary.setStartTime(new Date(timestampSeconds * 1000L));
+            summary.setDeviceId(deviceId);
+            summary.setUser(user);
+
+            // These will be set later, once we parse the summary
+            summary.setEndTime(new Date(timestampSeconds * 1000L));
+            summary.setActivityKind(ActivityKind.UNKNOWN.getCode());
+
+            return summary;
+        }
+
+        return summaries.get(0);
+    }
 }

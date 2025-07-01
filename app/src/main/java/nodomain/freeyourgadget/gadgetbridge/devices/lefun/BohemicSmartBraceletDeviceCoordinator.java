@@ -21,6 +21,7 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 
 public class BohemicSmartBraceletDeviceCoordinator extends LefunDeviceCoordinator {
+    @Override
     public boolean supports(GBDeviceCandidate candidate) {
         // Since the Lefun coordinator overrides supports, we also need to
         return ".bohemic".equals(candidate.getName());
@@ -48,16 +49,5 @@ public class BohemicSmartBraceletDeviceCoordinator extends LefunDeviceCoordinato
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_bohemic_smart_bracelet;
-    }
-
-
-    @Override
-    public int getDefaultIconResource() {
-        return R.drawable.ic_device_h30_h10;
-    }
-
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_h30_h10_disabled;
     }
 }

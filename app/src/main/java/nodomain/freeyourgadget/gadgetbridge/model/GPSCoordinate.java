@@ -16,16 +16,28 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
 
+import android.location.Location;
+import android.os.Parcel;
+import android.os.Parcelable;
+
+import androidx.annotation.NonNull;
+
+import androidx.annotation.NonNull;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
 
-public class GPSCoordinate {
+public class GPSCoordinate implements Parcelable {
     private final double latitude;
     private final double longitude;
     private final double altitude;
+    private double hdop;
+    private double vdop;
+    private double pdop;
 
     public static final double UNKNOWN_ALTITUDE = -20000d;
+    public static final double UNKNOWN_DOP = -1d;
 
     public static final int GPS_DECIMAL_DEGREES_SCALE = 6; // precise to 111.132mm at equator: https://en.wikipedia.org/wiki/Decimal_degrees
 
@@ -33,10 +45,19 @@ public class GPSCoordinate {
         this.longitude = longitude;
         this.latitude = latitude;
         this.altitude = altitude;
+        this.hdop = UNKNOWN_DOP;
+        this.vdop = UNKNOWN_DOP;
+        this.pdop = UNKNOWN_DOP;
     }
 
     public GPSCoordinate(double longitude, double latitude) {
         this(longitude, latitude, UNKNOWN_ALTITUDE);
+    }
+
+    protected GPSCoordinate(Parcel in) {
+        latitude = in.readDouble();
+        longitude = in.readDouble();
+        altitude = in.readDouble();
     }
 
     public double getLatitude() {
@@ -49,6 +70,64 @@ public class GPSCoordinate {
 
     public double getAltitude() {
         return altitude;
+    }
+
+    public void setHdop(double hdop) {
+        this.hdop = hdop;
+    }
+
+    public boolean hasHdop() {
+        return (Double.compare(hdop, UNKNOWN_DOP) > 0);
+    }
+
+    public double getHdop() { return hdop; }
+
+    public void setVdop(double vdop) {
+        this.vdop = vdop;
+    }
+
+    public boolean hasVdop() {
+        return (Double.compare(vdop, UNKNOWN_DOP) > 0);
+    }
+
+    public double getVdop() { return vdop; }
+
+    public void setPdop(double pdop) {
+        this.pdop = pdop;
+    }
+
+    public boolean hasPdop() {
+        return (Double.compare(pdop, UNKNOWN_DOP) > 0);
+    }
+
+    public double getPdop() { return pdop; }
+
+    public double getDistance(GPSCoordinate source) {
+        final Location end = new Location("end");
+        end.setLatitude(this.getLatitude());
+        end.setLongitude(this.getLongitude());
+
+        final Location start = new Location("start");
+        start.setLatitude(source.getLatitude());
+        start.setLongitude(source.getLongitude());
+
+        return end.distanceTo(start);
+    }
+
+    public double getAltitudeDifference(GPSCoordinate source) {
+        if (this.getAltitude() == UNKNOWN_ALTITUDE)
+            return 0;
+        if (source.getAltitude() == UNKNOWN_ALTITUDE)
+            return 0;
+        return this.getAltitude() - source.getAltitude();
+    }
+
+    public double getAscent(GPSCoordinate source) {
+        return Math.max(0, this.getAltitudeDifference(source));
+    }
+
+    public double getDescent(GPSCoordinate source) {
+        return Math.max(0, -this.getAltitudeDifference(source));
     }
 
     @Override
@@ -81,10 +160,35 @@ public class GPSCoordinate {
         return new BigDecimal(value).setScale(8, RoundingMode.HALF_UP).toPlainString();
     }
 
+    @NonNull
     @Override
     public String toString() {
         return "lon: " + formatLocation(longitude) + ", lat: " + formatLocation(latitude) + ", alt: " + formatLocation(altitude) + "m";
     }
+
+    @Override
+    public void writeToParcel(@NonNull final Parcel dest, final int flags) {
+        dest.writeDouble(latitude);
+        dest.writeDouble(longitude);
+        dest.writeDouble(altitude);
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    public static final Creator<GPSCoordinate> CREATOR = new Creator<GPSCoordinate>() {
+        @Override
+        public GPSCoordinate createFromParcel(Parcel in) {
+            return new GPSCoordinate(in);
+        }
+
+        @Override
+        public GPSCoordinate[] newArray(int size) {
+            return new GPSCoordinate[size];
+        }
+    };
 
     public static class compareLatitude implements Comparator<GPSCoordinate> {
         @Override

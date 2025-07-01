@@ -23,6 +23,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,8 +37,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
-import androidx.annotation.Nullable;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
@@ -73,6 +75,9 @@ public class DeviceManager {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
+            if (action == null) {
+                return;
+            }
             switch (action) {
                 case ACTION_REFRESH_DEVICELIST: // fall through
                 case BluetoothDevice.ACTION_BOND_STATE_CHANGED:
@@ -87,7 +92,7 @@ public class DeviceManager {
                     break;
                 case GBDevice.ACTION_DEVICE_CHANGED:
                     GBDevice dev = intent.getParcelableExtra(GBDevice.EXTRA_DEVICE);
-                    if (dev.getAddress() != null) {
+                    if (dev != null && dev.getAddress() != null) {
                         int index = deviceList.indexOf(dev); // search by address
                         if (index >= 0) {
                             deviceList.get(index).copyFromDevice(dev);
@@ -120,7 +125,7 @@ public class DeviceManager {
         filterGlobal.addAction(BluetoothDevice.ACTION_NAME_CHANGED);
         filterGlobal.addAction(BLUETOOTH_DEVICE_ACTION_ALIAS_CHANGED);
         filterGlobal.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-        context.registerReceiver(mReceiver, filterGlobal);
+        ContextCompat.registerReceiver(context, mReceiver, filterGlobal, ContextCompat.RECEIVER_EXPORTED);
 
         refreshPairedDevices();
     }
@@ -176,6 +181,7 @@ public class DeviceManager {
         return Collections.unmodifiableList(deviceList);
     }
 
+    @Nullable
     public GBDevice getDeviceByAddress(String address){
         for(GBDevice device : deviceList){
             if(device.getAddress().compareToIgnoreCase(address) == 0){

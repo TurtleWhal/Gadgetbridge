@@ -64,11 +64,6 @@
 # Keep Nordic DFU library
 -keep class no.nordicsemi.android.dfu.** { *; }
 
-# For android-emojify - we are not using moshi, so ignore these
--dontwarn com.squareup.moshi.**
--dontwarn kotlinx.serialization.**
--dontwarn okio.**
-
 # Keep logback classes
 -keep class ch.qos.** { *; }
 -keep class org.slf4j.** { *; }
@@ -77,6 +72,7 @@
 -keepclassmembers,allowobfuscation class * {
   @com.google.gson.annotations.SerializedName <fields>;
 }
+-keep class nodomain.freeyourgadget.gadgetbridge.service.devices.gree.messages.** {*; }
 # Somehow the rule above was not enough for some
 -keep class nodomain.freeyourgadget.gadgetbridge.devices.pinetime.InfiniTimeDFU* { *; }
 

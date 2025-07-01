@@ -29,10 +29,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -194,6 +193,11 @@ public class XiaomiHealthService extends AbstractXiaomiService {
 
     @Override
     public void initialize() {
+        gpsStarted = false;
+        gpsFixAcquired = false;
+        workoutStarted = false;
+        gpsTimeoutHandler.removeCallbacksAndMessages(null);
+
         setUserInfo();
         getSupport().sendCommand("get spo2 config", COMMAND_TYPE, CMD_CONFIG_SPO2_GET);
         getSupport().sendCommand("get heart rate config", COMMAND_TYPE, CMD_CONFIG_HEART_RATE_GET);
@@ -205,11 +209,17 @@ public class XiaomiHealthService extends AbstractXiaomiService {
     }
 
     @Override
+    public void dispose() {
+        gpsTimeoutHandler.removeCallbacksAndMessages(null);
+        activityFetcher.dispose();
+    }
+
+    @Override
     public boolean onSendConfiguration(final String config, final Prefs prefs) {
         switch (config) {
             case ActivityUser.PREF_USER_HEIGHT_CM:
             case ActivityUser.PREF_USER_WEIGHT_KG:
-            case ActivityUser.PREF_USER_YEAR_OF_BIRTH:
+            case ActivityUser.PREF_USER_DATE_OF_BIRTH:
             case ActivityUser.PREF_USER_GENDER:
             case ActivityUser.PREF_USER_CALORIES_BURNT:
             case ActivityUser.PREF_USER_STEPS_GOAL:
@@ -260,14 +270,14 @@ public class XiaomiHealthService extends AbstractXiaomiService {
         LOG.debug("Setting user info");
 
         final ActivityUser activityUser = new ActivityUser();
-        final int birthYear = activityUser.getYearOfBirth();
-        final byte birthMonth = 7; // not in user attributes
-        final byte birthDay = 1; // not in user attributes
+        final LocalDate dateOfBirth = activityUser.getDateOfBirth();
+        final int birthYear = dateOfBirth.getYear();
+        final byte birthMonth = (byte) dateOfBirth.getMonthValue();
+        final byte birthDay = (byte) dateOfBirth.getDayOfMonth();
 
         final int genderInt = activityUser.getGender() != ActivityUser.GENDER_FEMALE ? GENDER_MALE : GENDER_FEMALE;  // TODO other gender?
 
-        final Calendar now = GregorianCalendar.getInstance();
-        final int age = now.get(Calendar.YEAR) - birthYear;
+        final int age = activityUser.getAge();
         // Compute the approximate max heart rate from the user age
         // TODO max heart rate should be input by the user
         int maxHeartRate = (int) Math.round(age <= 40 ? 220 - age : 207 - 0.7 * age);
@@ -668,6 +678,7 @@ public class XiaomiHealthService extends AbstractXiaomiService {
             GBLocationService.start(getSupport().getContext(), getSupport().getDevice(), GBLocationProviderType.GPS, 1000);
         }
 
+        final int timeout = getDevicePrefs().getInt(DeviceSettingsPreferenceConst.PREF_WORKOUT_SEND_GPS_TO_BAND_TIMEOUT, 5000);
         gpsTimeoutHandler.removeCallbacksAndMessages(null);
         // Timeout if the watch stops sending workout open
         gpsTimeoutHandler.postDelayed(() -> {
@@ -675,7 +686,7 @@ public class XiaomiHealthService extends AbstractXiaomiService {
             gpsStarted = false;
             gpsFixAcquired = false;
             GBLocationService.stop(getSupport().getContext(), getSupport().getDevice());
-        }, 5000);
+        }, timeout);
     }
 
     private void handleWorkoutStatus(final XiaomiProto.WorkoutStatusWatch workoutStatus) {
@@ -752,23 +763,23 @@ public class XiaomiHealthService extends AbstractXiaomiService {
         }
     }
 
-    private int sportToActivityKind(final int sport) {
+    private ActivityKind sportToActivityKind(final int sport) {
         switch (sport) {
             case 1: // outdoor run
             case 5: // trail run
-                return ActivityKind.TYPE_RUNNING;
+                return ActivityKind.RUNNING;
             case 2:
-                return ActivityKind.TYPE_WALKING;
+                return ActivityKind.WALKING;
             case 3: // hiking
             case 4: // trekking
-                return ActivityKind.TYPE_HIKING;
+                return ActivityKind.HIKING;
             case 6:
-                return ActivityKind.TYPE_CYCLING;
+                return ActivityKind.CYCLING;
         }
 
         LOG.warn("Unknown sport {}", sport);
 
-        return ActivityKind.TYPE_UNKNOWN;
+        return ActivityKind.UNKNOWN;
     }
 
     public XiaomiActivityFileFetcher getActivityFetcher() {
@@ -931,10 +942,8 @@ public class XiaomiHealthService extends AbstractXiaomiService {
             sample.setTimestamp(ts);
             sample.setHeartRate(realTimeStats.getHeartRate());
             sample.setSteps(realTimeStats.getSteps() - previousSteps);
-            sample.setRawKind(ActivityKind.TYPE_UNKNOWN);
-            sample.setHeartRate(realTimeStats.getHeartRate());
+            sample.setRawKind(ActivityKind.UNKNOWN.getCode());
             sample.setRawIntensity(ActivitySample.NOT_MEASURED);
-            sample.setRawKind(ActivityKind.TYPE_UNKNOWN);
         } catch (final Exception e) {
             LOG.error("Error creating activity sample", e);
             return;
@@ -943,6 +952,7 @@ public class XiaomiHealthService extends AbstractXiaomiService {
         previousSteps = realTimeStats.getSteps();
 
         final Intent intent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES)
+                .putExtra(GBDevice.EXTRA_DEVICE, getSupport().getDevice())
                 .putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample);
         LocalBroadcastManager.getInstance(getSupport().getContext()).sendBroadcast(intent);
     }

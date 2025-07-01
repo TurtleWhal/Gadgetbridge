@@ -28,8 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -55,6 +53,7 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventScreenshot
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.pebble.GBDeviceEventDataLogging;
+import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleIconID;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
@@ -69,7 +68,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
-import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class PebbleProtocol extends GBDeviceProtocol {
@@ -423,7 +422,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
         super(device);
         mAppMessageHandlers.put(UUID_MORPHEUZ, new AppMessageHandlerMorpheuz(UUID_MORPHEUZ, PebbleProtocol.this));
         mAppMessageHandlers.put(UUID_MISFIT, new AppMessageHandlerMisfit(UUID_MISFIT, PebbleProtocol.this));
-        if (!GBApplication.getPrefs().isBackgroundJsEnabled()) {
+        if (!((PebbleCoordinator) device.getDeviceCoordinator()).isBackgroundJsEnabled(device)) {
             mAppMessageHandlers.put(UUID_PEBBLE_TIMESTYLE, new AppMessageHandlerTimeStylePebble(UUID_PEBBLE_TIMESTYLE, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_PEBSTYLE, new AppMessageHandlerPebStyle(UUID_PEBSTYLE, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_MARIOTIME, new AppMessageHandlerMarioTime(UUID_MARIOTIME, PebbleProtocol.this));
@@ -557,7 +556,17 @@ public class PebbleProtocol extends GBDeviceProtocol {
                 attributes.add(new Pair<>(11, (Object) calendarEventSpec.location));
         }
 
-        return encodeTimelinePin(new UUID(GB_UUID_MASK | calendarEventSpec.type, id), calendarEventSpec.timestamp, (short) (calendarEventSpec.durationInSeconds / 60), iconId, attributes);
+
+        int startTimestamp = calendarEventSpec.timestamp;
+        if (calendarEventSpec.allDay) {
+            // For all-day events, Pebble expects the start date to match the midnight boundaries
+            // in the user's timezone. However, the calendar event will have them in the UTC timezone,
+            // so we need to convert it
+            long startTimestampMs = ((long)startTimestamp) * 1000;
+            startTimestamp = (int) (DateTimeUtils.utcDateTimeToLocal(startTimestampMs) / 1000);
+        }
+
+        return encodeTimelinePin(new UUID(GB_UUID_MASK | calendarEventSpec.type, id), startTimestamp, (short) (calendarEventSpec.durationInSeconds / 60), iconId, attributes);
     }
 
     @Override
@@ -842,7 +851,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
             for (Action act : attachedActions) {
                 actions_count++;
                 actions_length += (short) (ACTION_LENGTH_MIN + act.title.getBytes().length);
-                if (act.type == Action.TYPE_WEARABLE_REPLY || act.type == Action.TYPE_SYNTECTIC_REPLY_PHONENR) {
+                if (act.isReply()) {
                     actions_length += (short) replies_length + 3;  // 3 = attribute id (byte) + length(short)
                 }
             }
@@ -957,7 +966,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
                         buf.put((byte) (0x05 + ai));
                 }
 
-                if (act.type == Action.TYPE_WEARABLE_REPLY || act.type == Action.TYPE_SYNTECTIC_REPLY_PHONENR) {
+                if (act.isReply()) {
                     buf.put((byte) 0x03); // reply action
                     buf.put((byte) 0x02); // number attributes
                 } else {
@@ -972,7 +981,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
                 buf.put((byte) 0x01); // attribute id (title)
                 buf.putShort((short) act.title.getBytes().length);
                 buf.put(act.title.getBytes());
-                if (act.type == Action.TYPE_WEARABLE_REPLY || act.type == Action.TYPE_SYNTECTIC_REPLY_PHONENR) {
+                if (act.isReply()) {
                     buf.put((byte) 0x08); // canned replies
                     buf.putShort((short) replies_length);
                     if (cannedReplies != null && cannedReplies.length > 0) {
@@ -1293,6 +1302,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
         return encodeMessage(ENDPOINT_PHONECONTROL, pebbleCmd, 0, parts);
     }
 
+    @Override
     public byte[] encodeSetMusicState(byte state, int position, int playRate, byte shuffle, byte repeat) {
         if (mFwMajor < 3) {
             return null;
@@ -2322,7 +2332,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
                         devEvtsDataLogging = new GBDeviceEvent[]{dataLogging, null};
                     }
                     if (datalogSession.uuid.equals(UUID_ZERO) && (datalogSession.tag == 81 || datalogSession.tag == 83 || datalogSession.tag == 84)) {
-                        GB.signalActivityDataFinish();
+                        GB.signalActivityDataFinish(getDevice());
                     }
                     mDatalogSessions.remove(id);
                 }

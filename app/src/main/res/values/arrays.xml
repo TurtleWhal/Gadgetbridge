@@ -17,44 +17,121 @@
         <item>@string/pref_theme_value_dynamic</item>
     </string-array>
 
+    <!--
+    These must match nodomain.freeyourgadget.gadgetbridge.util.maps.MapTheme
+    -->
+    <string-array name="maps_themes_names">
+        <item>@string/pref_default</item>
+        <item>@string/map_theme_osmarender</item>
+        <item>@string/map_theme_motorider</item>
+    </string-array>
+    <string-array name="maps_themes_values">
+        <item>default</item>
+        <item>osmarender</item>
+        <item>motorider</item>
+    </string-array>
+
+    <!-- https://meta.wikimedia.org/wiki/Template:List_of_language_names_ordered_by_code -->
     <string-array name="pref_language_options">
         <item name="default">System Default</item>
+        <item name="id">Bahasa Indonesia</item>
         <item name="ca">Català</item>
         <item name="cs">Čeština</item>
         <item name="de">Deutsch</item>
+        <item name="et">Eesti</item>
         <item name="en">English</item>
+        <item name="en_GB">English (United Kingdom)</item>
         <item name="es">Español</item>
+        <item name="eu">Euskara</item>
         <item name="fr">Français</item>
+        <item name="fr_CA">Français (Canadien)</item>
+        <item name="gl">Galego</item>
+        <item name="hr">Hrvatski</item>
+        <item name="ia">Interlingua</item>
+        <item name="it">Italiano</item>
+        <item name="lv">Latviešu</item>
+        <item name="lt">Lietuvių</item>
+        <item name="hu">Magyar</item>
+        <item name="my">Myanmasa</item>
+        <item name="nl">Nederlands</item>
+        <item name="nb_NO">Norsk (bokmål)</item>
         <item name="pl">Polski</item>
         <item name="pt">Português</item>
-        <item name="ru">Русский</item>
+        <item name="pt_BR">Português (Brasil)</item>
+        <item name="ro">Română</item>
+        <item name="sk">Slovenčina</item>
+        <item name="fi">Suomi</item>
+        <item name="sv">Svenska</item>
         <item name="vi">Tiếng Việt</item>
         <item name="tr">Türkçe</item>
+        <item name="el">Ελληνικά</item>
+        <item name="bg">Български</item>
+        <item name="ru">Русский</item>
+        <item name="sr">Српски</item>
         <item name="uk">Українська</item>
+        <item name="ka">ქართული</item>
+        <item name="he">עברית</item>
+        <item name="ar">العربية</item>
+        <item name="fa">فارسی</item>
+        <item name="hi">हिन्दी</item>
+        <item name="ta">தமிழ்</item>
+        <item name="ml">മലയാളം</item>
+        <item name="th">ไทย / Phasa Thai</item>
         <item name="ko">한국어</item>
         <item name="ja">日本語</item>
-        <item name="hu">Magyar</item>
-        <item name="sk">Slovenčina</item>
+        <item name="zh_CN">简体中文</item>
+        <item name="zh_TW">繁體中文</item>
     </string-array>
 
     <string-array name="pref_language_values">
         <item>default</item>
+        <item>id</item>
         <item>ca</item>
         <item>cs</item>
         <item>de</item>
+        <item>et</item>
         <item>en</item>
+        <item>en_GB</item>
         <item>es</item>
+        <item>eu</item>
         <item>fr</item>
+        <item>fr_CA</item>
+        <item>gl</item>
+        <item>hr</item>
+        <item>ia</item>
+        <item>it</item>
+        <item>lv</item>
+        <item>lt</item>
+        <item>hu</item>
+        <item>my</item>
+        <item>nl</item>
+        <item>nb_NO</item>
         <item>pl</item>
         <item>pt</item>
-        <item>ru</item>
+        <item>pt_BR</item>
+        <item>ro</item>
+        <item>sk</item>
+        <item>fi</item>
+        <item>sv</item>
         <item>vi</item>
         <item>tr</item>
+        <item>el</item>
+        <item>bg</item>
+        <item>ru</item>
+        <item>sr</item>
         <item>uk</item>
+        <item>ka</item>
+        <item>he</item>
+        <item>ar</item>
+        <item>fa</item>
+        <item>hi</item>
+        <item>ta</item>
+        <item>ml</item>
+        <item>th</item>
         <item>ko</item>
         <item>ja</item>
-        <item>hu</item>
-        <item>sk</item>
+        <item>zh_CN</item>
+        <item>zh_TW</item>
     </string-array>
 
     <string-array name="pref_fitpro_language_options">
@@ -105,14 +182,6 @@
         <item>never</item>
     </string-array>
 
-    <string-array name="language_only_EN_CH">
-        <item name="0">@string/simplified_chinese</item>
-        <item name="1">@string/english</item>
-    </string-array>
-    <string-array name="language_only_EN_CH_values">
-        <item>0</item>
-        <item>1</item>
-    </string-array>
     <string-array name="sensors_bp_cal">
         <item name="0">@string/prefs_sensors_button_bp_calibration</item>
         <item name="1">@string/Cancel</item>
@@ -159,6 +228,95 @@
     <string-array name="weardirection_values">
         <item>buttons_on_left</item>
         <item>buttons_on_right</item>
+    </string-array>
+
+    <string-array name="wifi_frequency_names">
+        <item>@string/wifi_frequency_2_4_ghz</item>
+        <item>@string/wifi_frequency_5_ghz</item>
+    </string-array>
+    <string-array name="wifi_frequency_values">
+        <item>2.4</item>
+        <item>5</item>
+    </string-array>
+
+    <string-array name="aawireless_audio_stutter_fix_names">
+        <item>@string/off</item>
+        <item>@string/pref_aawireless_audio_stutter_fix_low</item>
+        <item>@string/pref_aawireless_audio_stutter_fix_high</item>
+        <item>@string/pref_aawireless_audio_stutter_fix_unlimited</item>
+    </string-array>
+    <string-array name="aawireless_audio_stutter_fix_values">
+        <item>off</item>
+        <item>low</item>
+        <item>high</item>
+        <item>unlimited</item>
+    </string-array>
+
+    <string-array name="aawireless_click_names">
+        <item>@string/none</item>
+        <item>@string/switch_to_next_phone</item>
+        <item>@string/toggle_standby_on_off</item>
+    </string-array>
+    <string-array name="aawireless_click_values">
+        <item>none</item>
+        <item>next_phone</item>
+        <item>standby_on_off</item>
+    </string-array>
+
+    <string-array name="wifi_channels_2_4_ghz">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>11</item>
+        <item>12</item>
+        <item>13</item>
+    </string-array>
+
+    <string-array name="wifi_channels_5_ghz">
+        <item>32</item>
+        <item>36</item>
+        <item>40</item>
+        <item>44</item>
+        <item>48</item>
+        <item>52</item>
+        <item>56</item>
+        <item>60</item>
+        <item>64</item>
+        <item>68</item>
+        <item>72</item>
+        <item>76</item>
+        <item>80</item>
+        <item>84</item>
+        <item>88</item>
+        <item>92</item>
+        <item>96</item>
+        <item>100</item>
+        <item>104</item>
+        <item>108</item>
+        <item>112</item>
+        <item>116</item>
+        <item>120</item>
+        <item>124</item>
+        <item>128</item>
+        <item>132</item>
+        <item>136</item>
+        <item>140</item>
+        <item>144</item>
+        <item>149</item>
+        <item>153</item>
+        <item>157</item>
+        <item>161</item>
+        <item>165</item>
+        <item>169</item>
+        <item>173</item>
+        <item>177</item>
     </string-array>
 
     <string-array name="wearmode">
@@ -283,6 +441,17 @@
         <item>MM/DD/YYYY</item>
     </string-array>
 
+    <string-array name="dateformat_day_month_order_entries">
+        <item>@string/automatic</item>
+        <item>@string/dateformat_day_month</item>
+        <item>@string/dateformat_month_day</item>
+    </string-array>
+    <string-array name="dateformat_day_month_order_values">
+        <item>@string/p_dateformat_auto</item>
+        <item>@string/p_dateformat_day_month</item>
+        <item>@string/p_dateformat_month_day</item>
+    </string-array>
+
     <string-array name="do_not_disturb_no_auto">
         <item>@string/mi2_dnd_off</item>
         <item>@string/mi2_dnd_scheduled</item>
@@ -290,6 +459,16 @@
     <string-array name="do_not_disturb_no_auto_values">
         <item>@string/p_off</item>
         <item>@string/p_scheduled</item>
+    </string-array>
+
+    <string-array name="sedentary_reminder">
+        <item>@string/off</item>
+        <item>@string/on</item>
+    </string-array>
+
+    <string-array name="sedentary_reminder_values">
+        <item>@string/p_off</item>
+        <item>@string/p_on</item>
     </string-array>
 
     <string-array name="mi2_do_not_disturb">
@@ -720,6 +899,7 @@
         <item>@string/yesterdays_activity</item>
         <item>@string/menuitem_zepp_coach</item>
         <item>@string/menuitem_cycles</item>
+        <item>@string/menuitem_readiness</item>
     </string-array>
     <string-array name="pref_morning_updates_categories_values">
         <item>weather</item>
@@ -730,6 +910,7 @@
         <item>yesterdays_activity</item>
         <item>zepp_coach</item>
         <item>cycle_tracking</item>
+        <item>readiness</item>
     </string-array>
 
     <string-array name="pref_gps_mode_preset">
@@ -758,7 +939,7 @@
         <item>@string/low_power_gps</item>
         <item>@string/gps</item>
         <item>@string/gps_bds</item>
-        <item>@string/gps_gnolass</item>
+        <item>@string/gps_glonass</item>
         <item>@string/gps_galileo</item>
         <item>@string/all_satellites</item>
     </string-array>
@@ -766,7 +947,7 @@
         <item>low_power_gps</item>
         <item>gps</item>
         <item>gps_bds</item>
-        <item>gps_gnolass</item>
+        <item>gps_glonass</item>
         <item>gps_galileo</item>
         <item>all_satellites</item>
     </string-array>
@@ -791,6 +972,15 @@
         <item>low</item>
     </string-array>
 
+    <string-array name="vibration_intensity">
+        <item>@string/normal</item>
+        <item>@string/enhanced</item>
+    </string-array>
+    <string-array name="vibration_intensity_values">
+        <item>normal</item>
+        <item>enhanced</item>
+    </string-array>
+
     <string-array name="pref_zepp_os_watchfaces">
         <!-- GTR 4 -->
         <item>@string/zepp_os_watchface_red_fantasy</item>
@@ -812,6 +1002,14 @@
         <item>@string/zepp_os_watchface_city_of_speed</item>
         <item>@string/zepp_os_watchface_starry_sky</item>
         <item>@string/zepp_os_watchface_the_ultima</item>
+        <!-- Active 2 -->
+        <item>@string/zepp_os_watchface_elegant</item>
+        <item>@string/zepp_os_watchface_deep_space</item>
+        <item>@string/zepp_os_watchface_silver_shadows</item>
+        <item>@string/zepp_os_watchface_rhythm</item>
+        <item>@string/zepp_os_watchface_digital_wraith</item>
+        <item>@string/zepp_os_watchface_vital_orange</item>
+        <item>@string/zepp_os_watchface_vital</item>
 
     </string-array>
 
@@ -827,6 +1025,7 @@
         <item>emerald_moonlight</item>
         <item>rotating_earth</item>
         <item>superposition</item>
+        <!-- Balance -->
         <item>vast_sky</item>
         <item>lightning_flash</item>
         <item>free_combination</item>
@@ -835,6 +1034,14 @@
         <item>city_of_speed</item>
         <item>starry_sky</item>
         <item>the_ultima</item>
+        <!-- Active 2 -->
+        <item>elegant</item>
+        <item>deep_space</item>
+        <item>silver_shadows</item>
+        <item>rhythm</item>
+        <item>digital_wraith</item>
+        <item>vital_orange</item>
+        <item>vital</item>
     </string-array>
 
     <string-array name="pref_zepp_os_apps">
@@ -887,6 +1094,17 @@
         <item>@string/menuitem_thermometer</item>
         <item>@string/menuitem_workout_shortcuts</item>
         <item>@string/menuitem_apps_shortcuts</item>
+        <item>@string/hrv</item>
+        <item>@string/menuitem_map</item>
+        <item>@string/menuitem_heart_rate_push</item>
+        <item>@string/menuitem_bluetooth_scale_assistant</item>
+        <item>@string/menuitem_calculator</item>
+        <item>@string/menuitem_running_calculator</item>
+        <item>@string/menuitem_real_time_heart_rate</item>
+        <item>@string/menuitem_watch_storage_space</item>
+        <item>@string/menuitem_water_time</item>
+        <item>@string/activity_type_meditation</item>
+        <item>@string/menuitem_zepp_flow</item>
         <!-- dummy item -->
         <item>@string/menuitem_more</item>
     </string-array>
@@ -941,6 +1159,17 @@
         <item>thermometer</item>
         <item>workout_shortcuts</item>
         <item>apps_shortcuts</item>
+        <item>hrv</item>
+        <item>map</item>
+        <item>heart_rate_push</item>
+        <item>bluetooth_scale_assistant</item>
+        <item>calculator</item>
+        <item>running_calculator</item>
+        <item>real_time_heart_rate</item>
+        <item>watch_storage_space</item>
+        <item>water_time</item>
+        <item>meditation</item>
+        <item>zepp_flow</item>
         <!-- dummy item -->
         <item>more</item>
     </string-array>
@@ -954,6 +1183,7 @@
         <item>@string/menuitem_sleep</item>
         <item>@string/menuitem_hr</item>
         <item>@string/menuitem_activity</item>
+        <item>@string/calories</item>
         <item>@string/menuitem_spo2</item>
         <item>@string/menuitem_phone</item>
         <item>@string/menuitem_events</item>
@@ -973,12 +1203,14 @@
         <item>@string/menuitem_recommendation</item>
         <item>@string/menuitem_zepp_coach</item>
         <item>@string/menuitem_zepp_pay</item>
+        <item>@string/hrv</item>
         <item>@string/menuitem_readiness</item>
         <item>@string/menuitem_body_composition</item>
         <item>@string/menuitem_thermometer</item>
         <item>@string/menuitem_workout_shortcuts</item>
         <item>@string/menuitem_apps_shortcuts</item>
         <item>@string/menuitem_alexa</item>
+        <item>@string/menuitem_zepp_flow</item>
     </string-array>
 
     <string-array name="pref_zepp_os_shortcut_cards_values">
@@ -990,6 +1222,7 @@
         <item>sleep</item>
         <item>heartrate</item>
         <item>activity</item>
+        <item>calories</item>
         <item>spo2</item>
         <item>phone</item>
         <item>events</item>
@@ -1009,12 +1242,14 @@
         <item>recommendation</item>
         <item>zepp_coach</item>
         <item>zepp_pay</item>
+        <item>hrv</item>
         <item>readiness</item>
         <item>body_composition</item>
         <item>thermometer</item>
         <item>workout_shortcuts</item>
         <item>apps_shortcuts</item>
         <item>alexa</item>
+        <item>zepp_flow</item>
     </string-array>
 
     <string-array name="pref_huami2021_control_center">
@@ -1035,6 +1270,14 @@
         <item>@string/menuitem_eject_water</item>
         <item>@string/menuitem_headphone</item>
         <item>@string/menuitem_buzzer_intensity</item>
+        <item>@string/menuitem_night_display</item>
+        <item>@string/prefs_always_on_display</item>
+        <item>@string/menuitem_music</item>
+        <item>@string/menuitem_barometer</item>
+        <item>@string/menuitem_compass</item>
+        <item>@string/menuitem_countdown</item>
+        <item>@string/menuitem_stopwatch</item>
+        <item>@string/menuitem_alarm</item>
     </string-array>
 
     <string-array name="pref_huami2021_control_center_values">
@@ -1055,6 +1298,14 @@
         <item>eject_water</item>
         <item>headphone</item>
         <item>buzzer_intensity</item>
+        <item>night_display</item>
+        <item>always_on_display</item>
+        <item>music</item>
+        <item>barometer</item>
+        <item>compass</item>
+        <item>countdown</item>
+        <item>stopwatch</item>
+        <item>alarm</item>
     </string-array>
 
     <string-array name="pref_miband5_workout_activity_types">
@@ -1314,6 +1565,16 @@
         <item>@string/activity_type_skateboarding</item>
         <item>@string/activity_type_rock_climbing</item>
         <item>@string/activity_type_hunting</item>
+        <item>@string/activity_type_kickboxing</item>
+        <item>@string/activity_type_tae_bo</item>
+        <item>@string/activity_type_beach_soccer</item>
+        <item>@string/activity_type_beach_volleyball</item>
+        <item>@string/activity_type_gateball</item>
+        <item>@string/activity_type_sepak_takraw</item>
+        <item>@string/activity_type_luge</item>
+        <item>@string/activity_type_parachuting</item>
+        <item>@string/activity_type_auto_racing</item>
+        <item>@string/activity_type_parkour</item>
     </string-array>
 
     <string-array name="pref_workout_activity_types_values">
@@ -1427,6 +1688,16 @@
         <item>skateboarding</item>
         <item>rock_climbing</item>
         <item>hunting</item>
+        <item>kickboxing</item>
+        <item>tae_bo</item>
+        <item>beach_soccer</item>
+        <item>beach_volleyball</item>
+        <item>gateball</item>
+        <item>sepak_takraw</item>
+        <item>luge</item>
+        <item>parachuting</item>
+        <item>auto_racing</item>
+        <item>parkour</item>
     </string-array>
 
     <string-array name="pref_workout_activity_types_default">
@@ -2430,6 +2701,11 @@
         <item name="nb_NO">@string/norwegian_bokmal</item>
         <item name="ro_RO">@string/romanian</item>
         <item name="sv_SE">@string/swedish</item>
+        <item name="sh_SP">@string/serbian_latin</item>
+        <item name="ca_ES">@string/catalan</item>
+        <item name="fi_FI">@string/finnish</item>
+        <item name="hu_HU">@string/hungarian</item>
+        <item name="ms_MY">@string/bahasa_melayu</item>
     </string-array>
 
     <string-array name="pref_language_all_values">
@@ -2468,6 +2744,11 @@
         <item>nb_NO</item>
         <item>ro_RO</item>
         <item>sv_SE</item>
+        <item>sh_SP</item>
+        <item>ca_ES</item>
+        <item>fi_FI</item>
+        <item>hu_HU</item>
+        <item>ms_MY</item>
     </string-array>
 
     <string-array name="pref_amazfitbip_language">
@@ -2518,50 +2799,42 @@
         <item>ru_RU</item>
     </string-array>
 
-    <string-array name="pref_zetime_language">
-        <item name="auto">@string/automatic</item>
-        <item name="zh_CN">@string/simplified_chinese</item>
-        <item name="zh_TW">@string/traditional_chinese</item>
-        <item name="en_US">@string/english</item>
-        <item name="es_ES">@string/spanish</item>
-        <item name="de_DE">@string/german</item>
-        <item name="it_IT">@string/italian</item>
-        <item name="fr_FR">@string/french</item>
-        <item name="pt_PT">@string/portuguese</item>
-        <item name="nl_NL">@string/dutch</item>
-        <item name="sv_SE">@string/swedish</item>
-        <item name="pl_PL">@string/polish</item>
-        <item name="cs_CZ">@string/czesh</item>
-        <item name="el_GR">@string/greek</item>
-        <item name="ru_RU">@string/russian</item>
-        <item name="he_IL">@string/hebrew</item>
-        <item name="ar_SA">@string/arabic</item>
-        <item name="ja_JP">@string/japanese</item>
-        <item name="ko_KO">@string/korean</item>
-        <item name="th_TH">@string/thai</item>
+    <string-array name="pref_moyoung_watch_face">
+        <item>Watch face 1</item>
+        <item>Watch face 2</item>
+        <item>Watch face 3</item>
+        <item>Watch face 4</item>
+        <item>Watch face 5</item>
+        <item>Watch face 6</item>
+        <item>Watch face 7</item>
+        <item>Watch face 8</item>
+        <item>Watch face 9</item>
+        <item>Watch face 10</item>
+        <item>Watch face 11</item>
     </string-array>
 
-    <string-array name="pref_zetime_language_values">
-        <item>auto</item>
-        <item>zh_CN</item>
-        <item>zh_TW</item>
-        <item>en_US</item>
-        <item>es_ES</item>
-        <item>de_DE</item>
-        <item>it_IT</item>
-        <item>fr_FR</item>
-        <item>pt_PT</item>
-        <item>nl_NL</item>
-        <item>sv_SE</item>
-        <item>pl_PL</item>
-        <item>cs_CZ</item>
-        <item>el_GR</item>
-        <item>ru_RU</item>
-        <item>he_IL</item>
-        <item>ar_SA</item>
-        <item>ja_JP</item>
-        <item>ko_KO</item>
-        <item>th_TH</item>
+    <string-array name="pref_moyoung_watch_face_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>11</item>
+    </string-array>
+
+    <string-array name="pref_moyoung_device_version">
+        <item>Chinese edition</item>
+        <item>International edition</item>
+    </string-array>
+
+    <string-array name="pref_moyoung_device_version_values">
+        <item>0</item>
+        <item>1</item>
     </string-array>
 
     <string-array name="prefs_heartrate_measurement_interval">
@@ -2688,6 +2961,58 @@
         <item>1800</item>
         <item>2700</item>
         <item>3600</item>
+    </string-array>
+
+    <string-array name="pref_casio_connection_duration">
+        <item name="1">@string/minutes_1</item>
+        <item name="2">@string/minutes_2</item>
+        <item name="3">@string/minutes_3</item>
+        <item name="4">@string/minutes_4</item>
+        <item name="5">@string/minutes_5</item>
+        <item name="6">@string/minutes_6</item>
+        <item name="7">@string/minutes_7</item>
+        <item name="8">@string/minutes_8</item>
+        <item name="9">@string/minutes_9</item>
+        <item name="10">@string/minutes_10</item>
+        <item name="15">@string/minutes_15</item>
+        <item name="20">@string/minutes_20</item>
+        <item name="30">@string/minutes_30</item>
+        <item name="45">@string/minutes_45</item>
+        <item name="60">@string/minutes_60</item>
+        <item name="75">@string/minutes_75</item>
+        <item name="90">@string/minutes_90</item>
+        <item name="120">@string/minutes_120</item>
+        <item name="150">@string/minutes_150</item>
+        <item name="180">@string/minutes_180</item>
+        <item name="210">@string/minutes_210</item>
+        <item name="240">@string/minutes_240</item>
+        <item name="255">@string/minutes_255</item>
+    </string-array>
+
+    <string-array name="pref_casio_connection_duration_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>15</item>
+        <item>20</item>
+        <item>30</item>
+        <item>45</item>
+        <item>60</item>
+        <item>75</item>
+        <item>90</item>
+        <item>120</item>
+        <item>150</item>
+        <item>180</item>
+        <item>210</item>
+        <item>240</item>
+        <item>255</item>
     </string-array>
 
     <string-array name="notifications_timeout">
@@ -2989,28 +3314,40 @@
         <item>@string/activity_sleepchart_activity_and_sleep</item>
         <item>@string/charts_activity_list</item>
         <item>@string/sleepchart_your_sleep</item>
-        <item>@string/weeksleepchart_sleep_a_week_or_month</item>
         <item>@string/weekstepschart_steps_a_week_or_month</item>
+        <item>@string/pref_header_hrv_status</item>
+        <item>@string/body_energy</item>
+        <item>@string/menuitem_vo2_max</item>
+        <item>@string/menuitem_hr</item>
         <item>@string/menuitem_stress</item>
         <item>@string/menuitem_pai</item>
         <item>@string/stats_title</item>
         <item>@string/liveactivity_live_activity</item>
         <item>@string/pref_header_spo2</item>
         <item>@string/menuitem_temperature</item>
+        <item>@string/menuitem_weight</item>
+        <item>@string/watchface_widget_type_calories</item>
+        <item>@string/respiratoryrate</item>
     </string-array>
 
     <string-array name="pref_charts_tabs_values">
         <item>@string/p_activity</item>
         <item>@string/p_activity_list</item>
         <item>@string/p_sleep</item>
-        <item>@string/p_sleep_week</item>
         <item>@string/p_steps_week</item>
+        <item>@string/p_hrv_status</item>
+        <item>@string/p_body_energy</item>
+        <item>@string/p_vo2max</item>
+        <item>@string/p_heartrate</item>
         <item>@string/p_stress</item>
         <item>@string/p_pai</item>
         <item>@string/p_speed_zones</item>
         <item>@string/p_live_stats</item>
         <item>@string/p_spo2</item>
         <item>@string/p_temperature</item>
+        <item>@string/p_weight</item>
+        <item>@string/p_calories</item>
+        <item>@string/p_respiratory_rate</item>
     </string-array>
 
     <string-array name="pref_charts_tabs_items_default">
@@ -3018,7 +3355,10 @@
         <item>@string/p_activity</item>
         <item>@string/p_activity_list</item>
         <item>@string/p_sleep</item>
-        <item>@string/p_sleep_week</item>
+        <item>@string/p_hrv_status</item>
+        <item>@string/p_body_energy</item>
+        <item>@string/p_vo2max</item>
+        <item>@string/p_heartrate</item>
         <item>@string/p_steps_week</item>
         <item>@string/p_stress</item>
         <item>@string/p_pai</item>
@@ -3026,6 +3366,9 @@
         <item>@string/p_live_stats</item>
         <item>@string/p_spo2</item>
         <item>@string/p_temperature</item>
+        <item>@string/p_weight</item>
+        <item>@string/p_calories</item>
+        <item>@string/p_respiratory_rate</item>
     </string-array>
 
 
@@ -3250,6 +3593,356 @@
         <item>3</item>
     </string-array>
 
+    <string-array name="onemore_noise_control_modes">
+        <item>@string/off</item>
+        <item>@string/prefs_active_noise_cancelling</item>
+        <item>@string/prefs_active_noise_cancelling_transparency</item>
+    </string-array>
+
+    <string-array name="onemore_noise_control_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="redmi_buds_3_pro_equalizer_presets_names">
+        <item>@string/redmi_buds_5_pro_equalizer_preset_standard</item>
+        <item>@string/redmi_buds_5_pro_equalizer_preset_treble</item>
+        <item>@string/redmi_buds_5_pro_equalizer_preset_bass</item>
+        <item>@string/redmi_buds_5_pro_equalizer_preset_voice</item>
+    </string-array>
+
+    <string-array name="redmi_buds_3_pro_equalizer_presets_values">
+        <item>0</item>
+        <item>6</item>
+        <item>5</item>
+        <item>1</item>
+    </string-array>
+
+    <string-array name="redmi_buds_3_pro_noise_cancelling_strength_names">
+        <item>@string/redmi_buds_5_pro_anc_balanced</item>
+        <item>@string/redmi_buds_5_pro_anc_light</item>
+        <item>@string/redmi_buds_5_pro_anc_deep</item>
+        <item>@string/pref_adaptive_noise_cancelling_title</item>
+    </string-array>
+
+    <string-array name="redmi_buds_3_pro_noise_cancelling_strength_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+
+    <string-array name="redmi_buds_3_pro_transparency_strength_names">
+        <item>@string/redmi_buds_5_pro_transparency_regular</item>
+        <item>@string/redmi_buds_5_pro_transparency_voice</item>
+    </string-array>
+
+    <string-array name="redmi_buds_3_pro_transparency_strength_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_ambient_sound_control_names">
+        <item>@string/sony_ambient_sound_off</item>
+        <item>@string/sony_ambient_sound_noise_cancelling</item>
+        <item>@string/prefs_active_noise_cancelling_transparency</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_ambient_sound_control_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_noise_cancelling_strength_names">
+        <item>@string/redmi_buds_5_pro_anc_balanced</item>
+        <item>@string/redmi_buds_5_pro_anc_light</item>
+        <item>@string/redmi_buds_5_pro_anc_deep</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_noise_cancelling_strength_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_transparency_strength_names">
+        <item>@string/redmi_buds_5_pro_transparency_regular</item>
+        <item>@string/redmi_buds_5_pro_transparency_voice</item>
+        <item>@string/redmi_buds_5_pro_transparency_ambient</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_transparency_strength_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_single_button_function_names">
+        <item>@string/none</item>
+        <item>@string/pref_media_playpause</item>
+        <item>@string/pref_media_previous</item>
+        <item>@string/pref_media_next</item>
+        <item>@string/pref_media_volumeup</item>
+        <item>@string/pref_media_volumedown</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_single_button_function_values">
+        <item>8</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_button_function_names">
+        <item>@string/pref_media_playpause</item>
+        <item>@string/pref_media_previous</item>
+        <item>@string/pref_media_next</item>
+        <item>@string/pref_media_volumeup</item>
+        <item>@string/pref_media_volumedown</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_button_function_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_long_button_mode_names">
+        <item>@string/pref_title_touch_voice_assistant</item>
+        <item>@string/pref_header_sony_ambient_sound_control</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_long_button_mode_values">
+        <item>0</item>
+        <item>6</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_long_button_settings_names">
+        <item>@string/redmi_buds_5_pro_combo_anc_off</item>
+        <item>@string/redmi_buds_5_pro_combo_transparency_off</item>
+        <item>@string/redmi_buds_5_pro_combo_anc_transparency</item>
+        <item>@string/redmi_buds_5_pro_combo_all</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_long_button_settings_values">
+        <item>3</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+    </string-array>
+
+<!--    <string-array name="redmi_buds_5_pro_surround_sound_mode_names">-->
+<!--        <item>Standard</item>-->
+<!--        <item>Music</item>-->
+<!--        <item>Video</item>-->
+<!--    </string-array>-->
+
+<!--    <string-array name="redmi_buds_5_pro_surround_sound_mode_values">-->
+<!--        <item>1</item>-->
+<!--        <item>2</item>-->
+<!--        <item>3</item>-->
+<!--    </string-array>-->
+
+    <string-array name="redmi_buds_5_pro_equalizer_presets_names">
+        <item>@string/redmi_buds_5_pro_equalizer_preset_standard</item>
+        <item>@string/redmi_buds_5_pro_equalizer_preset_treble</item>
+        <item>@string/redmi_buds_5_pro_equalizer_preset_bass</item>
+        <item>@string/redmi_buds_5_pro_equalizer_preset_voice</item>
+        <item>@string/redmi_buds_5_pro_equalizer_preset_custom</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_equalizer_presets_values">
+        <item>0</item>
+        <item>6</item>
+        <item>5</item>
+        <item>1</item>
+        <item>10</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_equalizer_offsets_names">
+        <item>@string/redmi_buds_5_pro_equalizer_neg6</item>
+        <item>@string/redmi_buds_5_pro_equalizer_neg5</item>
+        <item>@string/redmi_buds_5_pro_equalizer_neg4</item>
+        <item>@string/redmi_buds_5_pro_equalizer_neg3</item>
+        <item>@string/redmi_buds_5_pro_equalizer_neg2</item>
+        <item>@string/redmi_buds_5_pro_equalizer_neg1</item>
+        <item>@string/redmi_buds_5_pro_equalizer_zero</item>
+        <item>@string/redmi_buds_5_pro_equalizer_1</item>
+        <item>@string/redmi_buds_5_pro_equalizer_2</item>
+        <item>@string/redmi_buds_5_pro_equalizer_3</item>
+        <item>@string/redmi_buds_5_pro_equalizer_4</item>
+        <item>@string/redmi_buds_5_pro_equalizer_5</item>
+        <item>@string/redmi_buds_5_pro_equalizer_6</item>
+    </string-array>
+
+    <string-array name="redmi_buds_5_pro_equalizer_offsets_values">
+        <item>134</item>
+        <item>133</item>
+        <item>132</item>
+        <item>131</item>
+        <item>130</item>
+        <item>129</item>
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string-array>
+
+    <string-array name="earfun_ambient_sound_control_names">
+        <item>@string/sony_ambient_sound_off</item>
+        <item>@string/sony_ambient_sound_noise_cancelling</item>
+        <item>@string/prefs_active_noise_cancelling_transparency</item>
+    </string-array>
+
+    <string-array name="earfun_ambient_sound_control_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="earfun_transparency_mode_names">
+        <item>@string/pref_default</item>
+        <item>@string/pref_title_equalizer_natural</item>
+    </string-array>
+
+    <string-array name="earfun_transparency_mode_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <string-array name="earfun_anc_mode_names">
+        <item>@string/earfun_anc_mode_strong</item>
+        <item>@string/earfun_anc_mode_balanced</item>
+        <item>@string/earfun_anc_mode_ai_environment_adaptive</item>
+        <item>@string/earfun_anc_mode_ai_ear_adaptive</item>
+        <item>@string/earfun_anc_mode_wind_noise_cancelling</item>
+    </string-array>
+
+    <string-array name="earfun_anc_mode_values">
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <string-array name="earfun_microphone_mode_names">
+        <item>@string/earfun_earbud_mode_automatic</item>
+        <item>@string/earfun_earbud_mode_left</item>
+        <item>@string/earfun_earbud_mode_right</item>
+    </string-array>
+
+    <string-array name="earfun_microphone_mode_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="earfun_audio_codec_names">
+        <item>@string/pref_title_stable_connection</item>
+        <item>aptX</item>
+        <item>aptX Adaptive</item>
+        <item>aptX Adaptive Lossless</item>
+        <item>LDAC</item>
+    </string-array>
+
+    <string-array name="earfun_audio_codec_values">
+        <item>0</item>
+        <item>1</item>
+        <item>3</item>
+        <item>19</item>
+        <item>8</item>
+    </string-array>
+
+    <string-array name="earfun_advanced_audio_mode_names">
+        <item>Google Fast Pair</item>
+        <item>LE Audio</item>
+    </string-array>
+
+    <string-array name="earfun_advanced_audio_mode_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <string-array name="earfun_find_device_names">
+        <item>@string/off</item>
+        <item>@string/earfun_earbud_mode_left</item>
+        <item>@string/earfun_earbud_mode_right</item>
+        <item>@string/earfun_earbud_mode_both</item>
+    </string-array>
+
+    <string-array name="earfun_find_device_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+
+    <string-array name="earfun_air_s_tap_action_names">
+        <item>@string/none</item>
+        <item>@string/pref_media_volumeup</item>
+        <item>@string/pref_media_volumedown</item>
+        <item>@string/pref_media_next</item>
+        <item>@string/pref_media_previous</item>
+        <item>@string/pref_media_playpause</item>
+        <item>@string/prefs_game_mode</item>
+        <item>@string/pref_title_touch_voice_assistant</item>
+        <item>@string/prefs_ambient_mode</item>
+    </string-array>
+
+    <string-array name="earfun_air_s_tap_action_values">
+        <item>16</item>
+        <item>2</item>
+        <item>3</item>
+        <item>5</item>
+        <item>4</item>
+        <item>1</item>
+        <item>7</item>
+        <item>6</item>
+        <item>8</item>
+    </string-array>
+
+    <string-array name="earfun_air_pro_4_tap_action_names">
+        <item>@string/none</item>
+        <item>@string/pref_media_volumeup</item>
+        <item>@string/pref_media_volumedown</item>
+        <item>@string/pref_media_next</item>
+        <item>@string/pref_media_previous</item>
+        <item>@string/pref_media_playpause</item>
+        <item>@string/prefs_game_mode</item>
+        <item>@string/pref_title_touch_voice_assistant</item>
+        <item>@string/earfun_tap_action_noise_control_all_modes</item>
+        <item>@string/earfun_tap_action_noise_control_normal_wind</item>
+        <item>@string/earfun_tap_action_noise_control_normal_ambient</item>
+        <item>@string/earfun_tap_action_noise_control_wind_ambient</item>
+        <item>@string/earfun_tap_action_redial</item>
+    </string-array>
+
+    <string-array name="earfun_air_pro_4_tap_action_values">
+        <item>16</item>
+        <item>2</item>
+        <item>3</item>
+        <item>5</item>
+        <item>4</item>
+        <item>1</item>
+        <item>7</item>
+        <item>6</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>11</item>
+        <item>13</item>
+    </string-array>
+
     <string-array name="sony_ambient_sound_control_wind_noise_reduction_names">
         <item>@string/sony_ambient_sound_off</item>
         <item>@string/sony_ambient_sound_noise_cancelling</item>
@@ -3273,6 +3966,16 @@
     <string-array name="sony_ambient_sound_control_values">
         <item>off</item>
         <item>noise_cancelling</item>
+        <item>ambient_sound</item>
+    </string-array>
+
+    <string-array name="sony_ambient_sound_control_no_noise_cancelling_names">
+        <item>@string/sony_ambient_sound_off</item>
+        <item>@string/sony_ambient_sound_ambient_sound</item>
+    </string-array>
+
+    <string-array name="sony_ambient_sound_control_no_noise_cancelling_values">
+        <item>off</item>
         <item>ambient_sound</item>
     </string-array>
 
@@ -3442,6 +4145,44 @@
         <item>as_off</item>
     </string-array>
 
+    <string-array name="oppo_touch_tap_names">
+        <!-- superset of values, unsupported are hidden by the coordinator -->
+        <item>@string/sony_button_mode_off</item>
+        <item>@string/moondrop_touch_action_play_pause</item>
+        <item>@string/pref_media_previous</item>
+        <item>@string/pref_media_next</item>
+        <item>@string/pref_media_volumeup</item>
+        <item>@string/pref_media_volumedown</item>
+        <item>@string/pref_title_touch_voice_assistant</item>
+        <item>@string/pref_title_touch_voice_assistant</item>
+        <item>@string/prefs_game_mode</item>
+    </string-array>
+
+    <string-array name="oppo_touch_tap_values">
+        <!-- superset of values, unsupported are hidden by the coordinator -->
+        <item>off</item>
+        <item>play_pause</item>
+        <item>previous</item>
+        <item>next</item>
+        <item>volume_up</item>
+        <item>volume_down</item>
+        <item>voice_assistant</item>
+        <item>voice_assistant_realme</item>
+        <item>game_mode</item>
+    </string-array>
+
+    <string-array name="soundcore_anc_mode_names">
+        <item>@string/prefs_active_noise_cancelling_transport</item>
+        <item>@string/prefs_active_noise_cancelling_indoor</item>
+        <item>@string/prefs_active_noise_cancelling_outdoor</item>
+    </string-array>
+
+    <string-array name="soundcore_anc_mode_values">
+        <item>transport</item>
+        <item>indoor</item>
+        <item>outdoor</item>
+    </string-array>
+
     <string-array name="soundcore_button_function_names">
         <item>@string/pref_media_volumedown</item>
         <item>@string/pref_media_volumeup</item>
@@ -3460,6 +4201,192 @@
         <item>PLAYPAUSE</item>
         <item>VOICE_ASSISTANT</item>
         <item>AMBIENT_SOUND_CONTROL</item>
+    </string-array>
+
+    <string-array name="soundcore_button_brightness_names">
+        <item>@string/off</item>
+        <item>@string/soundcore_button_brightness_low</item>
+        <item>@string/soundcore_button_brightness_medium</item>
+        <item>@string/soundcore_button_brightness_high</item>
+    </string-array>
+
+    <string-array name="soundcore_button_brightness_values">
+        <item>0</item>
+        <item>20</item>
+        <item>70</item>
+        <item>100</item>
+    </string-array>
+
+    <string-array name="soundcore_auto_power_off_names">
+        <item>@string/pref_button_action_disabled</item>
+        <item>@string/minutes_5</item>
+        <item>@string/minutes_10</item>
+        <item>@string/minutes_20</item>
+        <item>@string/minutes_60</item>
+    </string-array>
+
+    <string-array name="soundcore_auto_power_off_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_preset_names">
+        <item>@string/soundcore_equalizer_preset_signature</item>
+        <item>@string/soundcore_equalizer_preset_xtra_bass</item>
+        <item>@string/soundcore_equalizer_preset_voice</item>
+        <item>@string/soundcore_equalizer_preset_balanced</item>
+        <item>@string/custom</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_preset_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>254</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_direction_names">
+        <item>@string/soundcore_equalizer_direction_standing</item>
+        <item>@string/soundcore_equalizer_direction_lying</item>
+        <item>@string/soundcore_equalizer_direction_hanging</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_direction_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band1_freq_names">
+        <item>48 Hz</item>
+        <item>51 Hz</item>
+        <item>55 Hz</item>
+        <item>59 Hz</item>
+        <item>63 Hz</item>
+        <item>68 Hz</item>
+        <item>72 Hz</item>
+        <item>80 Hz</item>
+        <item>83 Hz</item>
+        <item>89 Hz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band2_freq_names">
+        <item>95 Hz</item>
+        <item>102 Hz</item>
+        <item>109 Hz</item>
+        <item>117 Hz</item>
+        <item>125 Hz</item>
+        <item>134 Hz</item>
+        <item>144 Hz</item>
+        <item>150 Hz</item>
+        <item>165 Hz</item>
+        <item>177 Hz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band3_freq_names">
+        <item>190 Hz</item>
+        <item>203 Hz</item>
+        <item>218 Hz</item>
+        <item>233 Hz</item>
+        <item>250 Hz</item>
+        <item>268 Hz</item>
+        <item>287 Hz</item>
+        <item>300 Hz</item>
+        <item>330 Hz</item>
+        <item>353 Hz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band4_freq_names">
+        <item>379 Hz</item>
+        <item>406 Hz</item>
+        <item>435 Hz</item>
+        <item>467 Hz</item>
+        <item>500 Hz</item>
+        <item>536 Hz</item>
+        <item>574 Hz</item>
+        <item>600 Hz</item>
+        <item>659 Hz</item>
+        <item>706 Hz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band5_freq_names">
+        <item>759 Hz</item>
+        <item>813 Hz</item>
+        <item>871 Hz</item>
+        <item>933 Hz</item>
+        <item>1.0 kHz</item>
+        <item>1.07 kHz</item>
+        <item>1.1 kHz</item>
+        <item>1.2 kHz</item>
+        <item>1.3 kHz</item>
+        <item>1.4 kHz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band6_freq_names">
+        <item>1.5 kHz</item>
+        <item>1.6 kHz</item>
+        <item>1.75 kHz</item>
+        <item>1.86 kHz</item>
+        <item>2.0 kHz</item>
+        <item>2.15 kHz</item>
+        <item>2.3 kHz</item>
+        <item>2.5 kHz</item>
+        <item>2.6 kHz</item>
+        <item>2.8 kHz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band7_freq_names">
+        <item>3.0 kHz</item>
+        <item>3.2 kHz</item>
+        <item>3.5 kHz</item>
+        <item>3.7 kHz</item>
+        <item>4.0 kHz</item>
+        <item>4.3 kHz</item>
+        <item>4.6 kHz</item>
+        <item>5.0 kHz</item>
+        <item>5.3 kHz</item>
+        <item>5.6 kHz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band8_freq_names">
+        <item>6.0 kHz</item>
+        <item>6.5 kHz</item>
+        <item>7.0 kHz</item>
+        <item>7.5 kHz</item>
+        <item>8.0 kHz</item>
+        <item>8.5 kHz</item>
+        <item>9.0 kHz</item>
+        <item>9.8 kHz</item>
+        <item>10.5 kHz</item>
+        <item>11.3 kHz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_band9_freq_names">
+        <item>12.1 kHz</item>
+        <item>13.0 kHz</item>
+        <item>14.0 kHz</item>
+        <item>15.0 kHz</item>
+        <item>16.0 kHz</item>
+        <item>17.1 kHz</item>
+        <item>18.3 kHz</item>
+        <item>20.0 kHz</item>
+    </string-array>
+
+    <string-array name="soundcore_equalizer_freq_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
     </string-array>
 
     <string-array name="moondrop_equalizer_preset_names">
@@ -3504,9 +4431,21 @@
         <item>5</item>
     </string-array>
 
+    <string-array name="miscale_weight_unit_names">
+        <item>@string/miscale_weight_unit_metric</item>
+        <item>@string/miscale_weight_unit_imperial</item>
+        <item>@string/miscale_weight_unit_chinese</item>
+    </string-array>
+
+    <string-array name="miscale_weight_unit_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
     <string-array name="fitness_tracking_apps_package_names">
         <item>de.dennisguse.opentracks</item>
-        <item>de.dennisguse.opentracks.playStore</item>
+        <item>de.dennisguse.opentracks.playstore</item>
         <item>de.dennisguse.opentracks.debug</item>
         <item>de.dennisguse.opentracks.nightly</item>
     </string-array>
@@ -3920,6 +4859,17 @@
         <item>@string/distance</item>
         <item>@string/active_time</item>
         <item>@string/menuitem_sleep</item>
+        <item>@string/sleep_score</item>
+        <item>@string/body_energy</item>
+        <item>@string/menuitem_stress_simple</item>
+        <item>@string/menuitem_stress_segmented</item>
+        <item>@string/menuitem_stress_breakdown</item>
+        <item>@string/hrv</item>
+        <item>@string/menuitem_vo2_max</item>
+        <item>@string/vo2max_running</item>
+        <item>@string/vo2max_cycling</item>
+        <item>@string/menuitem_calories_active_goal</item>
+        <item>@string/menuitem_calories_segmented</item>
     </string-array>
 
     <string-array name="pref_dashboard_widgets_order_values">
@@ -3929,5 +4879,110 @@
         <item>distance</item>
         <item>activetime</item>
         <item>sleep</item>
+        <item>sleepscore</item>
+        <item>bodyenergy</item>
+        <item>stress_simple</item>
+        <item>stress_segmented</item>
+        <item>stress_breakdown</item>
+        <item>hrv</item>
+        <item>vo2max</item>
+        <item>vo2max_running</item>
+        <item>vo2max_cycling</item>
+        <item>calories_active</item>
+        <item>calories_segmented</item>
     </string-array>
+
+    <string-array name="pref_dashboard_widgets_order_default">
+        <item>today</item>
+        <item>goals</item>
+        <item>steps</item>
+        <item>distance</item>
+        <item>activetime</item>
+        <item>sleep</item>
+        <item>bodyenergy</item>
+        <item>stress_segmented</item>
+        <item>hrv</item>
+        <item>vo2max</item>
+        <item>calories_active</item>
+        <item>calories_segmented</item>
+    </string-array>
+
+    <string-array name="huawei_freebuds_audio_mode_names">
+        <item>@string/prefs_active_noise_cancelling</item>
+        <item>@string/prefs_active_noise_cancelling_transparency</item>
+        <item>@string/off</item>
+    </string-array>
+
+    <string-array name="huawei_freebuds_audio_mode_values">
+        <item>anc</item>
+        <item>transparency</item>
+        <item>off</item>
+    </string-array>
+
+    <string-array name="huawei_freebuds_anc_mode_names">
+        <item>@string/prefs_active_noise_cancelling_level_normal</item>
+        <item>@string/prefs_active_noise_cancelling_level_comfort</item>
+        <item>@string/prefs_active_noise_cancelling_level_ultra</item>
+        <item>@string/prefs_active_noise_cancelling_level_dynamic</item>
+    </string-array>
+
+    <string-array name="huawei_freebuds_anc_mode_values">
+        <item>normal</item>
+        <item>comfort</item>
+        <item>ultra</item>
+        <item>dynamic</item>
+    </string-array>
+
+
+    <string-array name="prefs_huawei_heart_rate_high_alert_names">
+        <item name="0">@string/off</item>
+        <item name="100">@string/heartrate_bpm_100</item>
+        <item name="110">@string/heartrate_bpm_110</item>
+        <item name="120">@string/heartrate_bpm_120</item>
+        <item name="130">@string/heartrate_bpm_130</item>
+        <item name="140">@string/heartrate_bpm_140</item>
+        <item name="150">@string/heartrate_bpm_150</item>
+    </string-array>
+
+    <string-array name="prefs_huawei_heart_rate_high_alert_values">
+        <item>0</item>
+        <item>100</item>
+        <item>110</item>
+        <item>120</item>
+        <item>130</item>
+        <item>140</item>
+        <item>150</item>
+    </string-array>
+
+
+    <string-array name="prefs_huawei_heart_rate_low_alert_names">
+        <item name="0">@string/off</item>
+        <item name="40">@string/heartrate_bpm_40</item>
+        <item name="45">@string/heartrate_bpm_45</item>
+        <item name="50">@string/heartrate_bpm_50</item>
+    </string-array>
+
+    <string-array name="prefs_huawei_heart_rate_low_alert_values">
+        <item>0</item>
+        <item>40</item>
+        <item>45</item>
+        <item>50</item>
+    </string-array>
+
+    <string-array name="prefs_huawei_spo_low_alert_names">
+        <item name="0">@string/spo2_off</item>
+        <item name="75">@string/spo2_perc_75</item>
+        <item name="80">@string/spo2_perc_80</item>
+        <item name="85">@string/spo2_perc_85</item>
+        <item name="90">@string/spo2_perc_90</item>
+    </string-array>
+
+    <string-array name="prefs_huawei_spo_low_alert_values">
+        <item>0</item>
+        <item>75</item>
+        <item>80</item>
+        <item>85</item>
+        <item>90</item>
+    </string-array>
+
 </resources>

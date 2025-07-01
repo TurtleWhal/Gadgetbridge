@@ -17,6 +17,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
+import androidx.annotation.Nullable;
+
 import java.util.Collection;
 
 public class ArrayUtils {
@@ -58,6 +60,7 @@ public class ArrayUtils {
      * @return null if the given collection is null, otherwise an array of the same size as the collection
      * @throws NullPointerException when an element of the collection is null
      */
+    @Nullable
     public static int[] toIntArray(Collection<Integer> values) {
         if (values == null) {
             return null;
@@ -119,5 +122,32 @@ public class ArrayUtils {
             if (array[i] == value) return i;
         }
         return -1;
+    }
+
+    /**
+     * Check if a byte array contains all zeros
+     * @param array The array to check
+     * @param startIndex The starting position
+     * @param length Number of elements to check
+     * @return true if all checked elements were == 0, false otherwise
+     */
+    public static boolean isAllZeros(byte[] array, int startIndex, int length)
+    {
+        for(int i = startIndex; i < startIndex + length; i++)
+        {
+            if (array[i] != 0)
+                return false;
+        }
+        return true;
+    }
+
+    /**
+     * Check if a byte array contains all zeros
+     * @param array The array to check
+     * @return true if all checked elements were == 0, false otherwise
+     */
+    public static boolean isAllZeros(byte[] array)
+    {
+        return isAllZeros(array, 0, array.length);
     }
 }

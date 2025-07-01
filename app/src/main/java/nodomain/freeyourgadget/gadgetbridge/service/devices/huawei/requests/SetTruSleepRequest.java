@@ -37,10 +37,15 @@ public class SetTruSleepRequest extends Request {
     }
 
     @Override
+    protected boolean requestSupported() {
+        return supportProvider.getHuaweiCoordinator().supportsTruSleep();
+    }
+
+    @Override
     protected List<byte[]> createRequest() throws RequestCreationException {
         boolean truSleepSwitch = GBApplication
-            .getDeviceSpecificSharedPrefs(supportProvider.getDevice().getAddress())
-            .getBoolean(HuaweiConstants.PREF_HUAWEI_TRUSLEEP, false);
+                .getDeviceSpecificSharedPrefs(this.getDevice().getAddress())
+                .getBoolean(HuaweiConstants.PREF_HUAWEI_TRUSLEEP, false);
         try {
             return new FitnessData.TruSleep.Request(paramsProvider, truSleepSwitch).serialize();
         } catch (HuaweiPacket.CryptoException e) {

@@ -26,7 +26,13 @@ public class RecordData {
     private final List<FieldData> fieldDataList;
     protected ByteBuffer valueHolder;
 
-    private Long computedTimestamp = null;
+    /**
+     * The computed timestamp consists of the running timestamp for this record, which may come from
+     *  a timestamp field 253, or from a compressed timestamp, or simply be the same timestamp as the
+     *  previously seen sample. This does not take into account sample-specific timestamps such as
+     *  timestamp16.
+     */
+    public Long computedTimestamp = null;
 
     public RecordData(final RecordDefinition recordDefinition, final RecordHeader recordHeader) {
         if (null == recordDefinition.getFieldDefinitions())
@@ -71,6 +77,10 @@ public class RecordData {
 
     public RecordDefinition getRecordDefinition() {
         return recordDefinition;
+    }
+
+    public List<FieldData> getFieldDataList() {
+        return fieldDataList;
     }
 
     public Long parseDataMessage(final GarminByteBufferReader garminByteBufferReader, final Long currentTimestamp) {
@@ -190,7 +200,7 @@ public class RecordData {
         return tsb.build();
     }
 
-    private class FieldData {
+    public class FieldData {
         private final FieldDefinition fieldDefinition;
         private final int position;
         private final int size;
@@ -203,11 +213,11 @@ public class RecordData {
             this.baseSize = fieldDefinition.getBaseType().getSize();
         }
 
-        private String getName() {
+        public String getName() {
             return fieldDefinition.getName();
         }
 
-        private int getNumber() {
+        public int getNumber() {
             return fieldDefinition.getNumber();
         }
 
@@ -257,7 +267,7 @@ public class RecordData {
             }
         }
 
-        private Object decode() {
+        public Object decode() {
             goToPosition();
             if (STRING.equals(fieldDefinition.getBaseType())) {
                 final byte[] bytes = new byte[size];

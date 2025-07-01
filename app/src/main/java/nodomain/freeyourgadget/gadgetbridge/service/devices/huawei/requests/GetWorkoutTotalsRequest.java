@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests;
 
+import android.widget.Toast;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +27,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Workout;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiSupportProvider;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiWorkoutGbParser;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class GetWorkoutTotalsRequest extends Request {
     private static final Logger LOG = LoggerFactory.getLogger(GetWorkoutTotalsRequest.class);
@@ -34,9 +37,10 @@ public class GetWorkoutTotalsRequest extends Request {
 
     /**
      * Request to get workout totals
-     * @param support The support
+     *
+     * @param support        The support
      * @param workoutNumbers The numbers of the current workout
-     * @param remainder The numbers of the remainder of the workouts to get
+     * @param remainder      The numbers of the remainder of the workouts to get
      */
     public GetWorkoutTotalsRequest(HuaweiSupportProvider support, Workout.WorkoutCount.Response.WorkoutNumbers workoutNumbers, List<Workout.WorkoutCount.Response.WorkoutNumbers> remainder) {
         super(support);
@@ -64,20 +68,28 @@ public class GetWorkoutTotalsRequest extends Request {
 
         Workout.WorkoutTotals.Response packet = (Workout.WorkoutTotals.Response) receivedPacket;
 
+        if (packet.error != null) {
+            LOG.warn("Error {} occurred during workout pace sync. ignoring", packet.error);
+            GB.toast("Error occurred during workout sync", Toast.LENGTH_LONG, GB.WARN);
+            supportProvider.nextWorkoutSync(remainder, GetWorkoutTotalsRequest.this.finalizeReq);
+            return;
+        }
+
         if (packet.number != this.workoutNumbers.workoutNumber)
             throw new WorkoutParseException("Incorrect workout number!");
 
+
         LOG.info("Workout {} totals:", this.workoutNumbers.workoutNumber);
-        LOG.info("Number  : " + packet.number);
-        LOG.info("Status  : " + packet.status);
-        LOG.info("Start   : " + packet.startTime);
-        LOG.info("End     : " + packet.endTime);
-        LOG.info("Calories: " + packet.calories);
-        LOG.info("Distance: " + packet.distance);
-        LOG.info("Steps   : " + packet.stepCount);
-        LOG.info("Time    : " + packet.totalTime);
-        LOG.info("Duration: " + packet.duration);
-        LOG.info("Type    : " + packet.type);
+        LOG.info("Number  : {}", packet.number);
+        LOG.info("Status  : {}", packet.status);
+        LOG.info("Start   : {}", packet.startTime);
+        LOG.info("End     : {}", packet.endTime);
+        LOG.info("Calories: {}", packet.calories);
+        LOG.info("Distance: {}", packet.distance);
+        LOG.info("Steps   : {}", packet.stepCount);
+        LOG.info("Time    : {}", packet.totalTime);
+        LOG.info("Duration: {}", packet.duration);
+        LOG.info("Type    : {}", packet.type);
 
         Long databaseId = this.supportProvider.addWorkoutTotalsData(packet);
 
@@ -102,18 +114,39 @@ public class GetWorkoutTotalsRequest extends Request {
             );
             nextRequest.setFinalizeReq(this.finalizeReq);
             this.nextRequest(nextRequest);
+        } else if (this.workoutNumbers.segmentsCount > 0) {
+            GetWorkoutSwimSegmentsRequest nextRequest = new GetWorkoutSwimSegmentsRequest(
+                    this.supportProvider,
+                    this.workoutNumbers,
+                    this.remainder,
+                    (short) 0,
+                    databaseId
+            );
+            nextRequest.setFinalizeReq(this.finalizeReq);
+            this.nextRequest(nextRequest);
+        } else if (this.workoutNumbers.spO2Count > 0) {
+            GetWorkoutSpO2Request nextRequest = new GetWorkoutSpO2Request(
+                    this.supportProvider,
+                    this.workoutNumbers,
+                    this.remainder,
+                    (short) 0,
+                    databaseId
+            );
+            nextRequest.setFinalizeReq(this.finalizeReq);
+            this.nextRequest(nextRequest);
+        } else if (this.workoutNumbers.sectionsCount > 0) {
+            GetWorkoutSectionsRequest nextRequest = new GetWorkoutSectionsRequest(
+                    this.supportProvider,
+                    this.workoutNumbers,
+                    this.remainder,
+                    (short) 0,
+                    databaseId
+            );
+            nextRequest.setFinalizeReq(this.finalizeReq);
+            this.nextRequest(nextRequest);
         } else {
-            HuaweiWorkoutGbParser.parseWorkout(databaseId);
-
-            if (remainder.size() > 0) {
-                GetWorkoutTotalsRequest nextRequest = new GetWorkoutTotalsRequest(
-                        this.supportProvider,
-                        remainder.remove(0),
-                        remainder
-                );
-                nextRequest.setFinalizeReq(this.finalizeReq);
-                this.nextRequest(nextRequest);
-            }
+            new HuaweiWorkoutGbParser(getDevice(), getContext()).parseWorkout(databaseId);
+            supportProvider.downloadWorkoutGpsFiles(this.workoutNumbers.workoutNumber, databaseId, () -> supportProvider.nextWorkoutSync(remainder, GetWorkoutTotalsRequest.this.finalizeReq));
         }
     }
 }

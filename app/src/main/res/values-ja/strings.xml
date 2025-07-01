@@ -189,7 +189,6 @@
     <string name="pairing_already_bonded">既に %1$s (%2$s) と紐付けられています。接続中…</string>
     <string name="message_cannot_pair_no_mac">MACアドレスが渡されていないためペアリングできません。</string>
     <string name="preferences_category_device_specific_settings">デバイス固有の設定</string>
-    <string name="preferences_miband_settings">Mi Band/Amazfitの設定</string>
     <string name="male">男性</string>
     <string name="female">女性</string>
     <string name="other">その他</string>
@@ -625,15 +624,7 @@
     <string name="mode_configuration">モード設定</string>
     <string name="save_configuration">設定を保存</string>
     <string name="appwidget_not_connected">接続されていないためアラームは設定されません。</string>
-    <string name="fw_upgrade_notice_amazfitcor2">Amazfit Cor 2 に %s ファームウェアをインストールしようとしています。
-\n 
-\n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールした後、バンドが再起動します。
-\n 
-\n注: .res ファイルが前回にインストールしたものと同じ場合、新たに.res ファイルをインストールする必要はありません。
-\n 
-\n自己責任の下で行ってください！
-\n 
-\n完全にはテストされていません。デバイス名が \"Amazfit Band 2\" の場合、おそらく BEATS_W ファームウェアをフラッシュする必要があります</string>
+    <string name="fw_upgrade_notice_amazfitcor2">Amazfit Cor 2 に %s ファームウェアをインストールしようとしています。 \n \n.fw ファイルをインストールしてから、.res ファイルをインストールしてください。 .fw ファイルをインストールした後、バンドが再起動します。 \n \n注: .res ファイルが前回にインストールしたものと同じ場合、新たに.res ファイルをインストールする必要はありません。 \n \n自己責任の下で行ってください！ \n \n完全にはテストされていません。デバイス名が \"Amazfit Band 2\" の場合、おそらく BEATS_W ファームウェアをフラッシュする必要があります</string>
     <string name="pref_title_support_voip_calls">VoIP アプリの通話を有効にする</string>
     <string name="fw_upgrade_notice_miband4">Mi Band 4 に %s ファームウェアをインストールしようとしています。
 \n
@@ -980,7 +971,6 @@
     <string name="controlcenter_set_alias">デバイスに名前を付ける</string>
     <string name="gps">GPS</string>
     <string name="gps_bds">GPS + BDS</string>
-    <string name="gps_gnolass">GPS + GNOLASS</string>
     <string name="prefs_activity_in_device_card_sleep_title">睡眠</string>
     <string name="prefs_activity_in_device_card_steps_title_summary">歩数の合計を表示</string>
     <string name="calendar_two_weeks">2週間</string>
@@ -1026,11 +1016,7 @@
 \n
 \n自己責任の下で行ってください！</string>
     <string name="pref_header_time">時間</string>
-    <string name="fw_upgrade_notice_zepp_os">%sに %s ファームウェアをインストールしようとしています。
-\n
-\n.zipファイルをインストールすると、バンドが再起動します。
-\n
-\n自己責任の下で行ってください！</string>
+    <string name="fw_upgrade_notice_zepp_os">%sに %s ファームウェアをインストールしようとしています。 \n \n.zipファイルをインストールすると、バンドが再起動します。 \n \n自己責任の下で行ってください！</string>
     <string name="pref_header_workout">ワークアウト</string>
     <string name="pref_title_message_privacy_mode">メッセージのプライバシー設定</string>
     <string name="pref_message_privacy_mode_off">すべての内容を表示</string>
@@ -1358,9 +1344,7 @@
     <string name="chart_no_active_data">アクティビティが検出されませんでした。</string>
     <string name="activity_list_summary_distance">距離</string>
     <string name="devicestatus_upload_starting">アップロード開始中</string>
-    <string name="firmware_update_progress">アップロード中です
-\n%1d%% at %.2fkbps (average %.2fkbps)
-\nPart %1d of %1d</string>
+    <string name="firmware_update_progress">アップロード中です \n%1d%% at %.2fkbps (average %.2fkbps) \nPart %1d of %1d</string>
     <string name="updatefirmwareoperation_updateproblem_free_space">デバイスに十分な空き容量がありません</string>
     <string name="devicestatus_connected">デバイスは接続済みです</string>
     <string name="gpx_route_upload_failed">GPX ルートのアップロードに失敗しました</string>
@@ -1665,7 +1649,6 @@
     <string name="devicetype_sony_wf_1000xm5">SONY WF-1000XM5</string>
     <string name="devicetype_sony_linkbuds_s">SONY LinkBuds S</string>
     <string name="devicetype_casiogmwb5000">CASIO GMW-B5000</string>
-    <string name="devicetype_miscale2">Mi Scale 2</string>
     <string name="devicetype_itag">iTag</string>
     <string name="devicetype_bfh16">BFH-16</string>
     <string name="devicetype_mijia_lywsd02">Mijia Smart Clock</string>
@@ -1799,7 +1782,6 @@
     <string name="devicetype_amazfit_gts2_mini">Amazfit GTS 2 Mini</string>
     <string name="devicetype_amazfit_x">Amazfit X</string>
     <string name="devicetype_zepp_e">Zepp E</string>
-    <string name="devicetype_vivomove_hr">Garmin Vivomove HR</string>
     <string name="menuitem_temperature">温度</string>
     <string name="menuitem_calendar">カレンダー</string>
     <string name="menuitem_flashlight">懐中電灯</string>
@@ -1903,9 +1885,7 @@
 \n動作に必要なアクセス許可を要求するダイアログが表示されます。
 \n
 \n\'%2$s\' をタップして進みます。</string>
-    <string name="permission_location">%1$s は、画面がオフの状態でもウォッチとの接続を維持するためにバックグラウンドで位置情報にアクセスする権限が必要です。
-\n
-\n\'%2$s\' をタップして同意します。</string>
+    <string name="permission_location">%1$s は、画面がオフの状態でもウォッチとの接続を維持するためにバックグラウンドで位置情報にアクセスする権限が必要です。 \n \n\'%2$s\' をタップして同意します。</string>
     <string name="permission_granting_mandatory">これらすべての許可がなければ、アプリが正しく動作しない可能性があります</string>
     <string name="gadgetbridge_running_banglejs_main">Bangle.js は動作中です</string>
     <string name="about_description_banglejs_nightly">Gadgetbridge プロジェクト上に構築された Bangle.js の Android コンパニオン アプリ。インターネット アクセスが追加されています。
@@ -2502,8 +2482,7 @@
     <string name="title_cycling">サイクリング</string>
     <string name="pref_summary_wheel_diameter">タイヤの直径(インチ)。一般的には26, 27, 27.5, 29などです。</string>
     <string name="pref_title_wheel_diameter">タイヤの直径</string>
-    <string name="chart_cycling_point_label_distance">今日: %.1f km
-\n合計: %.1f km</string>
+    <string name="chart_cycling_point_label_distance">今日: %.1f km \n合計: %.1f km</string>
     <string name="chart_cycling_point_label_speed">%.1f km/h</string>
     <string name="devicetype_nut_mini">Nut mini</string>
     <string name="pref_dashboard_widgets_order_summary">有効にするウィジェットと、ダッシュボードに表示するウィジェットの順番を選択します</string>
@@ -2706,4 +2685,87 @@
     <string name="devicetype_garmin_fenix_7_pro">Garmin Fenix 7 Pro</string>
     <string name="devicetype_garmin_fenix_7s">Garmin Fenix 7S</string>
     <string name="devicetype_garmin_forerunner_255">Garmin Forerunner 255</string>
+    <string name="pref_title_notification_times_enabled">通知の時間</string>
+    <string name="search">探す</string>
+    <string name="gps_glonass">GPS + GLONASS</string>
+    <string name="title_activity_musicmanager">ミュージック マネージャー</string>
+    <string name="prefs_activity_in_device_card_title_summary">歩数、移動距離、睡眠情報をデバイスカードに表示する</string>
+    <string name="proprietary_app_warning">この機能にはプロプライエタリなアプリのインストールが必要です</string>
+    <string name="pref_header_sound">サウンド</string>
+    <string name="pref_description_user_interface">テーマ、メイン画面</string>
+    <string name="pref_description_dashboard">ウィジェット、統合するデバイスの選択</string>
+    <string name="pref_description_automations">自動エクスポート、自動取得</string>
+    <string name="pref_description_deprecated_functionalities">将来的に削除される予定の設定</string>
+    <string name="pref_header_main_screen">メイン画面</string>
+    <string name="pref_title_user_interface">ユーザーインターフェース</string>
+    <string name="pref_description_about_you">誕生日、性別、身長、体重、目標</string>
+    <string name="pref_description_developer_options">ログ、Intent API</string>
+    <string name="pref_header_external_integrations">外部アプリとの連携</string>
+    <string name="pref_header_automations">オートメーション</string>
+    <string name="pref_description_general">スタートアップ、言語、地域、位置情報</string>
+    <string name="pref_description_notifications">アプリの通知、ホワイトリスト/ブラックリスト</string>
+    <string name="pref_title_nagivation_apps">ナビゲーションアプリ</string>
+    <string name="pref_summary_notification_times_enabled">設定した時刻の間にのみ通知を送信します</string>
+    <string name="pref_time_sync">時刻の自動同期</string>
+    <string name="devicetype_miband9active">Xiaomi Smart Band 9 Active</string>
+    <string name="spo2_perc_75">75%</string>
+    <string name="notif_battery_full">%1$s バッテリー 満充電</string>
+    <string name="hr_minimum">最小</string>
+    <string name="minutes_7">7 分</string>
+    <string name="minutes_75">75 分</string>
+    <string name="minutes_90">90 分</string>
+    <string name="minutes_240">240 分</string>
+    <string name="devicetype_miband9">Xiaomi Smart Band 9</string>
+    <string name="music_upload_info">次の音楽ファイルを転送しようとしています:\n\n%1$s\n曲名: %2$s\nアルバム: %3$s\n</string>
+    <string name="minutes_255">255 分</string>
+    <string name="remote_control">リモートコントロール</string>
+    <string name="user_feedback_set_settings_ok">設定がデバイスに送信されました。</string>
+    <string name="hr_average">平均</string>
+    <string name="minutes_9">9 分</string>
+    <string name="minutes_20">20 分</string>
+    <string name="minutes_60">60 分</string>
+    <string name="minutes_180">180 分</string>
+    <string name="minutes_120">120 分</string>
+    <string name="minutes_210">210 分</string>
+    <string name="minutes_150">150 分</string>
+    <string name="stress_average">平均</string>
+    <string name="busy_task_fetch_hrv_data">HRV のデータを取得中</string>
+    <string name="devicetype_miband9pro">Xiaomi Smart Band 9 Pro</string>
+    <string name="activity_prefs_height_inches">身長（in）</string>
+    <string name="devicetype_garmin_venu">Garmin Venu</string>
+    <string name="devicetype_garmin_lily_2_active">Garmin Lily 2 Active</string>
+    <string name="devicetype_garmin_vivomove_trend">Garmin Vívomove Trend</string>
+    <string name="devicetype_garmin_venu_sq_2">Garmin Venu Sq 2</string>
+    <string name="pref_title_sync_birthdays">誕生日の同期</string>
+    <string name="devicetype_garmin_venu_2s">Garmin Venu 2S</string>
+    <string name="devicetype_amazfit_trex_3">Amazfit T-Rex 3</string>
+    <string name="notif_battery_full_title">ガジェットのバッテリーは満タンです！</string>
+    <string name="minutes_15">15 分</string>
+    <string name="minutes_45">45 分</string>
+    <string name="minutes_3">3 分</string>
+    <string name="minutes_4">4 分</string>
+    <string name="minutes_6">6 分</string>
+    <string name="range_percentage">%1$d%% - %2$d%%</string>
+    <string name="range_degrees">%1$dº - %2$dº</string>
+    <string name="pref_summary_sync_birthdays">連絡先の誕生日をカレンダーのイベントと同様に同期します</string>
+    <string name="minutes_2">2 分</string>
+    <string name="activity_prefs_date_birth">誕生日</string>
+    <string name="range_percentage_float">%.1f%% - %.1f%%</string>
+    <string name="hr_maximum">最大</string>
+    <string name="busy_task_fetch_sleep_data">睡眠のデータを取得中</string>
+    <string name="minutes_8">8 分</string>
+    <string name="devicetype_garmin_venu_sq">Garmin Venu Sq</string>
+    <string name="devicetype_garmin_enduro_3">Garmin Enduro 3</string>
+    <string name="devicetype_amazfit_active_2">Amazfit Active 2</string>
+    <string name="fw_upgrade_notice_huawei">ファームウェア %s を %s に転送しようとしています。\n\n現在のファームウェアは %s です\n\n転送後、デバイスは再起動します.\n\n自己責任で進めてください！</string>
+    <string name="open_source_licenses">ライセンス</string>
+    <string name="audio_recordings">オーディオ録音</string>
+    <string name="dialog_close">閉じる</string>
+    <string name="dialog_open_url">URLを開く</string>
+    <string name="zepp_os_install_map_instructions">スマートフォンでインストールが始まり次第、ウォッチでも承認が必要です。</string>
+    <string name="pref_summary_notification_media_ignores_application_list">メディア通知をアプリ一覧より先に処理します。この設定がオフの場合、デバイスでメディアコントールを利用するには、メディアアプリをアプリ一覧で許可する必要があります。</string>
+    <string name="pref_summary_calendar_lookahead">最大%1s日分のカレンダーのイベントを同期する</string>
+    <string name="pref_title_stable_connection">安定接続</string>
+    <string name="pref_title_notification_media_ignores_application_list">メディア通知を無視するアプリ一覧</string>
+    <string name="pref_title_calendar_lookahead">先の日数</string>
 </resources>

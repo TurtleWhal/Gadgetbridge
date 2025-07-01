@@ -45,15 +45,14 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfoProfile;
 
-public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
+public class AsteroidOSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(AsteroidOSDeviceSupport.class);
     private final BatteryInfoProfile<AsteroidOSDeviceSupport> batteryInfoProfile;
     private final GBDeviceEventBatteryInfo batteryCmd = new GBDeviceEventBatteryInfo();
@@ -84,34 +83,38 @@ public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
         handleGBDeviceEvent(batteryCmd);
     }
 
+    @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        super.onCharacteristicChanged(gatt, characteristic);
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] value) {
+        super.onCharacteristicChanged(gatt, characteristic, value);
 
         UUID characteristicUUID = characteristic.getUuid();
 
         if (characteristicUUID.equals(AsteroidOSConstants.MEDIA_COMMANDS_CHAR)) {
-            handleMediaCommand(characteristic);
+            handleMediaCommand(characteristic, value);
             return true;
         }
 
         LOG.info("Characteristic changed UUID: " + characteristicUUID);
-        LOG.info("Characteristic changed value: " + Arrays.toString(characteristic.getValue()));
+        LOG.info("Characteristic changed value: " + Arrays.toString(value));
         return false;
     }
 
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
         getDevice().setFirmwareVersion("N/A");
         getDevice().setFirmwareVersion2("N/A");
 
         builder.notify(getCharacteristic(AsteroidOSConstants.MEDIA_COMMANDS_CHAR), true);
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
 
         batteryInfoProfile.requestBatteryInfo(builder);
         batteryInfoProfile.enableNotify(builder, true);
+        // Gadgetbridge doesn't seem to do this itself, so we force it to set its time
+        onSetTime();
         return builder;
     }
 
@@ -254,8 +257,9 @@ public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public boolean onCharacteristicRead(BluetoothGatt gatt,
-                                        BluetoothGattCharacteristic characteristic, int status) {
-        if (super.onCharacteristicRead(gatt, characteristic, status)) {
+                                        BluetoothGattCharacteristic characteristic, byte[] value,
+                                        int status) {
+        if (super.onCharacteristicRead(gatt, characteristic, value, status)) {
             return true;
         }
         UUID characteristicUUID = characteristic.getUuid();
@@ -269,11 +273,21 @@ public class AsteroidOSDeviceSupport extends AbstractBTLEDeviceSupport {
      * Handles a media command sent from the AsteroidOS device
      * @param characteristic The Characteristic information
      */
-    public void handleMediaCommand (BluetoothGattCharacteristic characteristic) {
+    public void handleMediaCommand (BluetoothGattCharacteristic characteristic, byte[] value) {
         LOG.info("handle media command");
-        AsteroidOSMediaCommand command = new AsteroidOSMediaCommand(characteristic.getValue()[0]);
+        AsteroidOSMediaCommand command = new AsteroidOSMediaCommand(value, getContext());
         GBDeviceEventMusicControl event = command.toMusicControlEvent();
-        evaluateGBDeviceEvent(event);
+        if (event != null)
+            evaluateGBDeviceEvent(event);
     }
 
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
+    }
 }

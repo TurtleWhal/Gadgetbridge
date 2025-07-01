@@ -54,14 +54,18 @@ public class HuamiConst {
     public static final String MI_BAND5_NAME = "Mi Smart Band 5";
     public static final String MI_BAND6_NAME = "Mi Smart Band 6";
     public static final String AMAZFIT_ACTIVE_NAME = "Amazfit Active";
+    public static final String AMAZFIT_ACTIVE_2_NAME = "Active 2 (Round)";
+    public static final String AMAZFIT_ACTIVE_2_NFC_NAME = "Active 2 NFC (Round)";
     public static final String AMAZFIT_ACTIVE_EDGE_NAME = "Amazfit Active Edge";
     public static final String AMAZFIT_BALANCE_NAME = "Amazfit Balance";
+    public static final String AMAZFIT_BALANCE_2_NAME = "Amazfit Balance 2";
     public static final String AMAZFIT_BAND5_NAME = "Amazfit Band 5";
     public static final String AMAZFIT_BAND7_NAME = "Amazfit Band 7";
     public static final String AMAZFIT_NEO_NAME = "Amazfit Neo";
     public static final String AMAZFIT_X = "Amazfit X";
     public static final String AMAZFIT_BIP5_NAME = "Amazfit Bip 5";
     public static final String AMAZFIT_BIP5_UNITY_NAME = "Amazfit Bip 5 Unity";
+    public static final String AMAZFIT_BIP6_NAME = "Amazfit Bip 6";
     public static final String AMAZFIT_GTS3_NAME = "Amazfit GTS 3";
     public static final String AMAZFIT_GTS4_NAME = "Amazfit GTS 4";
     public static final String AMAZFIT_GTS4_MINI_NAME = "Amazfit GTS 4 Mini";
@@ -70,6 +74,7 @@ public class HuamiConst {
     public static final String AMAZFIT_GTR4_NAME = "Amazfit GTR 4";
     public static final String AMAZFIT_GTR_MINI_NAME = "Amazfit GTR Mini";
     public static final String AMAZFIT_TREX_2_NAME = "Amazfit T-Rex 2";
+    public static final String AMAZFIT_TREX_3_NAME = "Amazfit T-Rex 3";
     public static final String AMAZFIT_TREX_ULTRA = "Amazfit T-Rex Ultra";
     public static final String AMAZFIT_CHEETAH_PRO_NAME = "Amazfit Cheetah Pro";
     public static final String AMAZFIT_CHEETAH_SQUARE_NAME = "Amazfit Cheetah S";
@@ -142,39 +147,39 @@ public class HuamiConst {
     public static final String PREF_HUAMI_VIBRATION_TRY_TODO_LIST = PREF_HUAMI_VIBRATION_TRY_PREFIX + "todo_list";
     public static final String PREF_HUAMI_VIBRATION_TRY_SCHEDULE = PREF_HUAMI_VIBRATION_TRY_PREFIX + "schedule";
 
-    public static int toActivityKind(int rawType) {
+    public static ActivityKind toActivityKind(int rawType) {
         switch (rawType) {
             case TYPE_DEEP_SLEEP:
-                return ActivityKind.TYPE_DEEP_SLEEP;
+                return ActivityKind.DEEP_SLEEP;
             case TYPE_LIGHT_SLEEP:
-                return ActivityKind.TYPE_LIGHT_SLEEP;
+                return ActivityKind.LIGHT_SLEEP;
             case TYPE_ACTIVITY:
             case TYPE_RUNNING:
             case TYPE_WAKE_UP:
-                return ActivityKind.TYPE_ACTIVITY;
+                return ActivityKind.ACTIVITY;
             case TYPE_NONWEAR:
-                return ActivityKind.TYPE_NOT_WORN;
+                return ActivityKind.NOT_WORN;
             case TYPE_CHARGING:
-                return ActivityKind.TYPE_NOT_WORN; //I believe it's a safe assumption
+                return ActivityKind.NOT_WORN; //I believe it's a safe assumption
             case TYPE_RIDE_BIKE:
-                return ActivityKind.TYPE_CYCLING;
+                return ActivityKind.CYCLING;
             default:
             case TYPE_UNSET: // fall through
-                return ActivityKind.TYPE_UNKNOWN;
+                return ActivityKind.UNKNOWN;
         }
     }
 
-    public static int toRawActivityType(int activityKind) {
+    public static int toRawActivityType(ActivityKind activityKind) {
         switch (activityKind) {
-            case ActivityKind.TYPE_ACTIVITY:
+            case ACTIVITY:
                 return TYPE_ACTIVITY;
-            case ActivityKind.TYPE_DEEP_SLEEP:
+            case DEEP_SLEEP:
                 return TYPE_DEEP_SLEEP;
-            case ActivityKind.TYPE_LIGHT_SLEEP:
+            case LIGHT_SLEEP:
                 return TYPE_LIGHT_SLEEP;
-            case ActivityKind.TYPE_NOT_WORN:
+            case NOT_WORN:
                 return TYPE_NONWEAR;
-            case ActivityKind.TYPE_UNKNOWN: // fall through
+            case UNKNOWN: // fall through
             default:
                 return TYPE_UNSET;
         }

@@ -34,7 +34,6 @@ import nodomain.freeyourgadget.gadgetbridge.entities.CasioGBX100ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEOperation;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.gbx100.CasioGBX100DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.operations.OperationStatus;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -56,7 +55,7 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
             builder.notify(getCharacteristic(CasioConstants.CASIO_CONVOY_CHARACTERISTIC_UUID), enable);
             builder.queue(getQueue());
         } catch(IOException e) {
-            LOG.info("Error enabling required notifications" + e.getMessage());
+            LOG.error("Error enabling required notifications", e);
         }
     }
 
@@ -69,7 +68,7 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
             builder.write(getCharacteristic(CasioConstants.CASIO_DATA_REQUEST_SP_CHARACTERISTIC_UUID), command);
             builder.queue(getQueue());
         } catch(IOException e) {
-            LOG.info("Error requesting step count data: " + e.getMessage());
+            LOG.error("Error requesting step count data", e);
         }
     }
 
@@ -82,7 +81,7 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
             builder.write(getCharacteristic(CasioConstants.CASIO_DATA_REQUEST_SP_CHARACTERISTIC_UUID), command);
             builder.queue(getQueue());
         } catch(IOException e) {
-            LOG.info("Error requesting step count data: " + e.getMessage());
+            LOG.error("Error writing step count ack", e);
         }
     }
 
@@ -101,10 +100,10 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
 
     @Override
     protected void operationFinished() {
-        LOG.info("SetConfigurationOperation finished");
+        LOG.info("FetchStepCountDataOperation finished");
         unsetBusy();
         GB.updateTransferNotification(null, getContext().getString(R.string.busy_task_fetch_activity_data), false, 100, getContext());
-
+        GB.signalActivityDataFinish(getDevice());
 
         operationStatus = OperationStatus.FINISHED;
         if (getDevice() != null) {
@@ -114,16 +113,16 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
                 builder.wait(0);
                 builder.queue(getQueue());
             } catch (IOException ex) {
-                LOG.info("Error resetting Gatt callback: " + ex.getMessage());
+                LOG.error("Error resetting Gatt callback", ex);
             }
         }
     }
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] data) {
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] data = characteristic.getValue();
 
         if (data.length == 0)
             return true;
@@ -133,7 +132,7 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
             if (data.length > 3) {
                 length = (data[2] & 0xff) | ((data[3] & 0xff) << 8);
             }
-            LOG.debug("Response is going to be " + length + " bytes long");
+            LOG.debug("Response is going to be {} bytes long", length);
             GB.updateTransferNotification(null, getContext().getString(R.string.busy_task_fetch_activity_data), true, 10, getContext());
 
             return true;
@@ -149,7 +148,7 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
                 if(data.length == (payloadLength + 2)) {
                     LOG.debug("Payload length and data length match.");
                 } else {
-                    LOG.debug("Payload length and data length do not match: " + payloadLength + " vs. " + data.length);
+                    LOG.warn("Payload length and data length do not match: {} vs. {}", payloadLength, data.length);
                 }
 
                 Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
@@ -172,8 +171,8 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
                 int yearOfBirth = ((data[13] & 0xff) | ((data[14] & 0xff) << 8));
                 int monthOfBirth = data[15];
                 int dayOfBirth = data[16];
-                LOG.debug("Current step count value: " + stepCount);
-                LOG.debug("Current calories: " + calories);
+                LOG.debug("Current step count value: {}", stepCount);
+                LOG.debug("Current calories: {}", calories);
                 // data[17]:
                 // 0x01 probably means finished.
                 // 0x00 probably means more data.
@@ -207,12 +206,12 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
                             packetIndex = 0;
                             inPacket = true;
                             index = index + 3;
-                            LOG.debug("Decoding packet with type: " + type + " and length: " + packetLength);
+                            LOG.debug("Decoding packet with type: {} and length: {}", type, packetLength);
                         }
                         int count = ((data[index] & 0xff) | ((data[index + 1] & 0xff) << 8));
                         if(count == 0xfffe)
                             count = 0;
-                        LOG.debug("Got count " + count);
+                        LOG.debug("Got count {}", count);
 
                         index = index+2;
                         if(index >= data.length) {
@@ -225,9 +224,9 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
                             stepCountData.get(packetIndex/2).setSteps(count);
                             stepCountData.get(packetIndex/2).setTimestamp(ts);
                             if(count > 0) {
-                                stepCountData.get(packetIndex / 2).setRawKind(ActivityKind.TYPE_ACTIVITY);
+                                stepCountData.get(packetIndex / 2).setRawKind(ActivityKind.ACTIVITY.getCode());
                             } else {
-                                stepCountData.get(packetIndex / 2).setRawKind(ActivityKind.TYPE_NOT_MEASURED);
+                                stepCountData.get(packetIndex / 2).setRawKind(ActivityKind.NOT_MEASURED.getCode());
                             }
                             if(ts > ts_from && ts < ts_to) {
                                 stepsToday += count;
@@ -263,15 +262,15 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
                     cal.set(year + 2000, month, day, hour, 30, 0);
                     int ts = (int) (cal.getTimeInMillis() / 1000);
 
-                    LOG.debug("Artificial timestamp: " + cals + " calories and " + steps + " steps");
+                    LOG.debug("Artificial timestamp: {} calories and {} steps", cals, steps);
                     CasioGBX100ActivitySample sample = new CasioGBX100ActivitySample();
                     sample.setSteps(steps);
                     sample.setCalories(cals);
                     sample.setTimestamp(ts);
                     if (steps > 0)
-                        sample.setRawKind(ActivityKind.TYPE_ACTIVITY);
+                        sample.setRawKind(ActivityKind.ACTIVITY.getCode());
                     else
-                        sample.setRawKind(ActivityKind.TYPE_NOT_MEASURED);
+                        sample.setRawKind(ActivityKind.NOT_MEASURED.getCode());
                     stepCountData.add(0, sample);
                 }
 
@@ -282,8 +281,8 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
             writeStepCountAck();
             return true;
         } else {
-            LOG.info("Unhandled characteristic changed: " + characteristicUUID);
-            return super.onCharacteristicChanged(gatt, characteristic);
+            LOG.warn("Unhandled characteristic changed: {}", characteristicUUID);
+            return super.onCharacteristicChanged(gatt, characteristic, data);
         }
     }
 

@@ -28,7 +28,7 @@ public class SleepAnalysis {
     public static final long MIN_SESSION_LENGTH = 5 * 60;
     public static final long MAX_WAKE_PHASE_LENGTH = 2 * 60 * 60;
 
-    public List<SleepSession> calculateSleepSessions(List<? extends ActivitySample> samples) {
+    public List<SleepSession> calculateSleepSessions(Iterable<? extends ActivitySample> samples) {
         List<SleepSession> result = new ArrayList<>();
 
         ActivitySample previousSample = null;
@@ -37,6 +37,7 @@ public class SleepAnalysis {
         long lightSleepDuration = 0;
         long deepSleepDuration = 0;
         long remSleepDuration = 0;
+        long awakeSleepDuration = 0;
         long durationSinceLastSleep = 0;
 
         for (ActivitySample sample : samples) {
@@ -48,49 +49,54 @@ public class SleepAnalysis {
                 durationSinceLastSleep = 0;
             } else {
                 //exclude "not worn" times from sleep sessions as this makes a discrepancy with the charts
-                if (lightSleepDuration + deepSleepDuration + remSleepDuration > MIN_SESSION_LENGTH)
-                    result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration));
+                if (lightSleepDuration + deepSleepDuration + remSleepDuration + awakeSleepDuration > MIN_SESSION_LENGTH)
+                    result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration, awakeSleepDuration));
                 sleepStart = null;
                 sleepEnd = null;
                 lightSleepDuration = 0;
                 deepSleepDuration = 0;
                 remSleepDuration = 0;
+                awakeSleepDuration = 0;
             }
 
             if (previousSample != null) {
                 long durationSinceLastSample = sample.getTimestamp() - previousSample.getTimestamp();
-                if (sample.getKind() == ActivityKind.TYPE_LIGHT_SLEEP) {
+                if (sample.getKind() == ActivityKind.LIGHT_SLEEP) {
                     lightSleepDuration += durationSinceLastSample;
-                } else if (sample.getKind() == ActivityKind.TYPE_DEEP_SLEEP) {
+                } else if (sample.getKind() == ActivityKind.DEEP_SLEEP) {
                     deepSleepDuration += durationSinceLastSample;
-                } else if (sample.getKind() == ActivityKind.TYPE_REM_SLEEP) {
+                } else if (sample.getKind() == ActivityKind.REM_SLEEP) {
                     remSleepDuration += durationSinceLastSample;
+                } else if (sample.getKind() == ActivityKind.AWAKE_SLEEP) {
+                    awakeSleepDuration += durationSinceLastSample;
                 } else {
                     durationSinceLastSleep += durationSinceLastSample;
                     if (sleepStart != null && durationSinceLastSleep > MAX_WAKE_PHASE_LENGTH) {
-                        if (lightSleepDuration + deepSleepDuration + remSleepDuration > MIN_SESSION_LENGTH)
-                            result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration));
+                        if (lightSleepDuration + deepSleepDuration + remSleepDuration + awakeSleepDuration > MIN_SESSION_LENGTH)
+                            result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration, awakeSleepDuration));
                         sleepStart = null;
                         sleepEnd = null;
                         lightSleepDuration = 0;
                         deepSleepDuration = 0;
                         remSleepDuration = 0;
+                        awakeSleepDuration = 0;
                     }
                 }
             }
 
             previousSample = sample;
         }
-        if (lightSleepDuration + deepSleepDuration + remSleepDuration > MIN_SESSION_LENGTH) {
-            result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration));
+        if (lightSleepDuration + deepSleepDuration + remSleepDuration + awakeSleepDuration > MIN_SESSION_LENGTH) {
+            result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration, awakeSleepDuration));
         }
         return result;
     }
 
     private boolean isSleep(ActivitySample sample) {
-        return sample.getKind() == ActivityKind.TYPE_DEEP_SLEEP ||
-                sample.getKind() == ActivityKind.TYPE_LIGHT_SLEEP ||
-                sample.getKind() == ActivityKind.TYPE_REM_SLEEP;
+        return sample.getKind() == ActivityKind.DEEP_SLEEP ||
+                sample.getKind() == ActivityKind.LIGHT_SLEEP ||
+                sample.getKind() == ActivityKind.REM_SLEEP ||
+                sample.getKind() == ActivityKind.AWAKE_SLEEP;
     }
 
     private Date getDateFromSample(ActivitySample sample) {
@@ -104,17 +110,20 @@ public class SleepAnalysis {
         private final long lightSleepDuration;
         private final long deepSleepDuration;
         private final long remSleepDuration;
+        private final long awakeSleepDuration;
 
         private SleepSession(Date sleepStart,
                              Date sleepEnd,
                              long lightSleepDuration,
                              long deepSleepDuration,
-                             long remSleepDuration) {
+                             long remSleepDuration,
+                             long awakeSleepDuration) {
             this.sleepStart = sleepStart;
             this.sleepEnd = sleepEnd;
             this.lightSleepDuration = lightSleepDuration;
             this.deepSleepDuration = deepSleepDuration;
             this.remSleepDuration = remSleepDuration;
+            this.awakeSleepDuration = awakeSleepDuration;
         }
 
         public Date getSleepStart() {
@@ -135,6 +144,10 @@ public class SleepAnalysis {
 
         public long getRemSleepDuration() {
             return remSleepDuration;
+        }
+
+        public long getAwakeSleepDuration() {
+            return awakeSleepDuration;
         }
     }
 }

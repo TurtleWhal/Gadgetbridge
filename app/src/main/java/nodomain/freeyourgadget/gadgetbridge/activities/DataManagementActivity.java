@@ -28,12 +28,12 @@ import android.preference.PreferenceManager;
 import android.provider.DocumentsContract;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.app.NavUtils;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -43,11 +43,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.files.FileManagerActivity;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.database.PeriodicExporter;
@@ -70,6 +73,58 @@ public class DataManagementActivity extends AbstractGBActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_data_management);
 
+        final ActivityResultLauncher<String> backupZipFileChooser = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/zip"),
+                uri -> {
+                    LOG.info("Got target backup file: {}", uri);
+                    if (uri != null) {
+                        final Intent startBackupIntent = new Intent(DataManagementActivity.this, BackupRestoreProgressActivity.class);
+                        startBackupIntent.putExtra(BackupRestoreProgressActivity.EXTRA_URI, uri);
+                        startBackupIntent.putExtra(BackupRestoreProgressActivity.EXTRA_ACTION, "export");
+                        startActivity(startBackupIntent);
+                    }
+                }
+        );
+
+        final Button backupToZipButton = findViewById(R.id.backupToZipButton);
+        backupToZipButton.setOnClickListener(v -> {
+            final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault());
+            final String defaultFilename = String.format(Locale.ROOT, "gadgetbridge_%s.zip", sdf.format(new Date()));
+            backupZipFileChooser.launch(defaultFilename);
+        });
+
+        final ActivityResultLauncher<String[]> restoreFileChooser = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                uri -> {
+                    LOG.info("Got restore file: {}", uri);
+
+                    if (uri == null) {
+                        return;
+                    }
+
+                    new MaterialAlertDialogBuilder(this)
+                            .setCancelable(true)
+                            .setIcon(R.drawable.ic_warning)
+                            .setTitle(R.string.dbmanagementactivity_import_data_title)
+                            .setMessage(R.string.dbmanagementactivity_overwrite_database_confirmation)
+                            .setPositiveButton(R.string.dbmanagementactivity_overwrite, (dialog, which) -> {
+                                // Disconnect from all devices right away
+                                GBApplication.deviceService().disconnect();
+
+                                final Intent startBackupIntent = new Intent(DataManagementActivity.this, BackupRestoreProgressActivity.class);
+                                startBackupIntent.putExtra(BackupRestoreProgressActivity.EXTRA_URI, uri);
+                                startBackupIntent.putExtra(BackupRestoreProgressActivity.EXTRA_ACTION, "import");
+                                startActivity(startBackupIntent);
+                            })
+                            .setNegativeButton(R.string.Cancel, (dialog, which) -> {
+                            })
+                            .show();
+                }
+        );
+
+        final Button restoreFromZipButton = findViewById(R.id.restoreFromZipButton);
+        restoreFromZipButton.setOnClickListener(v -> restoreFileChooser.launch(new String[]{"application/zip"}));
+
         TextView dbPath = findViewById(R.id.activity_data_management_path);
         dbPath.setText(getExternalPath());
 
@@ -89,31 +144,9 @@ public class DataManagementActivity extends AbstractGBActivity {
         });
 
         Button showContentDataButton = findViewById(R.id.showContentDataButton);
-        showContentDataButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                File export_path = null;
-                try {
-                    export_path = FileUtils.getExternalFilesDir();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(DataManagementActivity.this);
-                builder.setTitle("Export/Import directory content:");
-
-                ArrayAdapter<String> directory_listing = new ArrayAdapter<String>(DataManagementActivity.this, android.R.layout.simple_list_item_1, export_path.list());
-
-                builder.setSingleChoiceItems(directory_listing, 0, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                    }
-                });
-
-                AlertDialog dialog = builder.create();
-                dialog.show();
-
-            }
+        showContentDataButton.setOnClickListener(v -> {
+            final Intent fileManagerIntent = new Intent(DataManagementActivity.this, FileManagerActivity.class);
+            startActivity(fileManagerIntent);
         });
 
         int oldDBVisibility = hasOldActivityDatabase() ? View.VISIBLE : View.GONE;
@@ -269,7 +302,7 @@ public class DataManagementActivity extends AbstractGBActivity {
         try {
             File myPath = FileUtils.getExternalFilesDir();
             File myFile = new File(myPath, "Export_preference");
-            ImportExportSharedPreferences.exportToFile(sharedPrefs, myFile, null);
+            ImportExportSharedPreferences.exportToFile(sharedPrefs, myFile);
         } catch (IOException ex) {
             GB.toast(this, getString(R.string.dbmanagementactivity_error_exporting_shared, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
         }
@@ -281,7 +314,7 @@ public class DataManagementActivity extends AbstractGBActivity {
                     File myPath = FileUtils.getExternalFilesDir();
                     File myFile = new File(myPath, "Export_preference_" + FileUtils.makeValidFileName(dbDevice.getIdentifier()));
                     try {
-                        ImportExportSharedPreferences.exportToFile(deviceSharedPrefs, myFile, null);
+                        ImportExportSharedPreferences.exportToFile(deviceSharedPrefs, myFile);
                     } catch (Exception ignore) {
                         // some devices no not have device specific preferences
                     }

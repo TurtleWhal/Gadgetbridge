@@ -18,33 +18,28 @@ package nodomain.freeyourgadget.gadgetbridge.service.btbr;
 
 import org.slf4j.Logger;
 
-import android.location.Location;
-
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.UUID;
 
-import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
-import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
 
 /**
  * Abstract base class for devices connected through a serial protocol, like RFCOMM BT or TCP socket.
  * <p/>
- * The connection to the device and all communication is made with a generic {@link BtClassicIo}.
+ * The connection to the device and all communication is made with a generic
+ * {@link nodomain.freeyourgadget.gadgetbridge.service.btclassic.BtClassicIoThread}.
  * Messages to the device are encoded
- * sent via {@link BtClassicIo}.
+ * sent via {@link nodomain.freeyourgadget.gadgetbridge.service.btclassic.BtClassicIoThread}.
  *
- * @see BtClassicIo
+ * @see nodomain.freeyourgadget.gadgetbridge.service.btclassic.BtClassicIoThread
  */
 public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport implements SocketCallback {
     private BtBRQueue mQueue;
     private UUID mSupportedService = null;
     private int mBufferSize = 1024;
-    private Logger logger;
+    private final Logger logger;
 
     public AbstractBTBRDeviceSupport(Logger logger) {
         this.logger = logger;
@@ -55,8 +50,13 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
 
     @Override
     public boolean connect() {
+        final UUID supportedService = getSupportedService();
+        if (supportedService == null) {
+            throw new NullPointerException("No supported service UUID specified");
+        }
+
         if (mQueue == null) {
-            mQueue = new BtBRQueue(getBluetoothAdapter(), getDevice(), getContext(), this, getSupportedService(), getBufferSize());
+            mQueue = new BtBRQueue(getBluetoothAdapter(), getDevice(), getContext(), this, supportedService, getBufferSize());
         }
         return mQueue.connect();
     }
@@ -68,7 +68,9 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
     }
 
     /**
-     * Subclasses should populate the given builder to initialize the device (if necessary).
+     * Subclasses should populate the given builder to initialize the device (if necessary). This
+     * function might be called multiple times for the same support instance (eg. in the case of a
+     * reconnection), and should ensure that any state is also reset as required.
      *
      * @return the same builder as passed as the argument
      */
@@ -88,15 +90,22 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
         return new TransactionBuilder(taskName);
     }
 
+    @Override
+    public boolean isConnected(){
+        // in a multi-threaded environment the queue knows
+        // best about the up-to-date connection status
+        return (mQueue != null) && mQueue.isConnected();
+    }
+
     /**
      * Ensures that the device is connected and (only then) performs the actions of the given
      * transaction builder.
-     *
+     * <p>
      * In contrast to {@link #performInitialized(String)}, no initialization sequence is performed
      * with the device, only the actions of the given builder are executed.
      * @param transaction
-     * @throws IOException
-     * @see {@link #performInitialized(String)}
+     * @throws IOException if connection to the device fails
+     * @see #performInitialized(String)
      */
     public void performConnected(Transaction transaction) throws IOException {
         if (!isConnected()) {
@@ -115,7 +124,7 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
      * Subclasses should call this method to add services they support.
      * Only supported services will be queried for characteristics.
      *
-     * @param aSupportedService
+     * @param aSupportedService the supported service uuid
      */
     protected void addSupportedService(UUID aSupportedService) {
         mSupportedService = aSupportedService;
@@ -135,11 +144,9 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
 
     /**
      * Utility method that may be used to log incoming messages when we don't know how to deal with them yet.
-     *
-     * @param value
      */
     public void logMessageContent(byte[] value) {
-        logger.info("RECEIVED DATA WITH LENGTH: " + ((value != null) ? value.length : "(null)"));
+        logger.info("RECEIVED DATA WITH LENGTH: {}", (value != null) ? value.length : "(null)");
         Logging.logBytes(logger, value);
     }
 
@@ -158,29 +165,4 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
             }
         }
     }
-
-    @Override
-    public void onFindPhone(boolean start) {}
-
-    @Override
-    public void onSetFmFrequency(float frequency) {}
-
-    @Override
-    public void onSetLedColor(int color) {}
-
-    @Override
-    public void onSetGpsLocation(Location location) {}
-
-    @Override
-    public void onSetWorldClocks(ArrayList<? extends WorldClock> clocks) {}
-
-    @Override
-    public void onPowerOff() {}
-
-    @Override
-    public void onSetPhoneVolume(final float volume) {}
-
-    @Override
-    public void onSetReminders(ArrayList<? extends Reminder> reminders) {}
-
 }

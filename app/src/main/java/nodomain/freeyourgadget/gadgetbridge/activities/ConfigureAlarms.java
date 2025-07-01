@@ -125,8 +125,6 @@ public class ConfigureAlarms extends AbstractGBActivity {
         if (supportedNumAlarms > alarms.size()) {
             try (DBHandler db = GBApplication.acquireDB()) {
                 DaoSession daoSession = db.getDaoSession();
-                Device device = DBHelper.getDevice(getGbDevice(), daoSession);
-                User user = DBHelper.getUser(daoSession);
                 for (int position = 0; position < supportedNumAlarms; position++) {
                     boolean found = false;
                     for (Alarm alarm : alarms) {
@@ -137,17 +135,13 @@ public class ConfigureAlarms extends AbstractGBActivity {
                     }
                     if (!found) {
                         LOG.info("adding missing alarm at position " + position);
-                        alarms.add(position, createDefaultAlarm(device, user, position));
+                        alarms.add(position, AlarmUtils.createDefaultAlarm(daoSession, getGbDevice(), position));
                     }
                 }
             } catch (Exception e) {
                 LOG.error("Error accessing database", e);
             }
         }
-    }
-
-    private Alarm createDefaultAlarm(@NonNull Device device, @NonNull User user, int position) {
-        return new Alarm(device.getId(), user.getId(), position, false, false, null, false, 0, 6, 30, false, null, null);
     }
 
     @Override

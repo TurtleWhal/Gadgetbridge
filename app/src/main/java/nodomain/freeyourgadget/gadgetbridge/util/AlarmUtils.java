@@ -18,6 +18,7 @@
 package nodomain.freeyourgadget.gadgetbridge.util;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -53,6 +54,33 @@ public class AlarmUtils {
     public static nodomain.freeyourgadget.gadgetbridge.model.Alarm createSingleShot(int index, boolean smartWakeup, boolean snooze, Calendar calendar) {
         // TODO: add interval setting?
         return new Alarm(-1, -1, index, true, smartWakeup, null, snooze, Alarm.ALARM_ONCE, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), false, GBApplication.getContext().getString(R.string.quick_alarm), GBApplication.getContext().getString(R.string.quick_alarm_description));
+    }
+
+    /**
+     * Creates a default Alarm
+     * @param device
+     * @param position
+     */
+    @Nullable
+    public static Alarm createDefaultAlarm(GBDevice gbDevice, int position) {
+        try (DBHandler db = GBApplication.acquireDB()) {
+            DaoSession daoSession = db.getDaoSession();
+            return createDefaultAlarm(daoSession, gbDevice, position);
+        } catch (Exception e) {
+            GB.log("Error accessing database", GB.ERROR, e);
+            return null;
+        }
+    }
+
+    /**
+     * Creates a default Alarm
+     * @param daoSession
+     * @param position
+     */
+    public static Alarm createDefaultAlarm(DaoSession daoSession, GBDevice gbDevice, int position) {
+        Device device = DBHelper.getDevice(gbDevice, daoSession);
+        User user = DBHelper.getUser(daoSession);
+        return new Alarm(device.getId(), user.getId(), position, false, false, null, false, 0, 6, 30, false, null, null);
     }
 
     /**
@@ -102,6 +130,7 @@ public class AlarmUtils {
      * @deprecated use {@link DBHelper#getAlarms(GBDevice)} instead
      */
     @NonNull
+    @Deprecated
     public static List<Alarm> readAlarmsFromPrefs(GBDevice gbDevice) {
         Prefs prefs = GBApplication.getPrefs();
         Set<String> stringAlarms = prefs.getStringSet(MiBandConst.PREF_MIBAND_ALARMS, new HashSet<String>());

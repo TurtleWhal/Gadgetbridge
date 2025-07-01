@@ -138,14 +138,9 @@ public class CmfWatchProCoordinator extends AbstractBLEDeviceCoordinator {
         return R.drawable.ic_device_amazfit_bip;
     }
 
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_amazfit_bip_disabled;
-    }
-
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return CmfWatchProSupport.class;
     }
 
@@ -191,8 +186,8 @@ public class CmfWatchProCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Nullable
     @Override
-    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device) {
-        return new CmfWorkoutSummaryParser(device);
+    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
+        return new CmfWorkoutSummaryParser(device, context);
     }
 
     @Override
@@ -323,6 +318,7 @@ public class CmfWatchProCoordinator extends AbstractBLEDeviceCoordinator {
 
         settings.add(R.xml.devicesettings_header_notifications);
         settings.add(R.xml.devicesettings_send_app_notifications);
+        settings.add(R.xml.devicesettings_bluetooth_calls);
         settings.add(R.xml.devicesettings_transliteration);
 
         settings.add(R.xml.devicesettings_header_other);
@@ -369,5 +365,9 @@ public class CmfWatchProCoordinator extends AbstractBLEDeviceCoordinator {
 
     protected static Prefs getPrefs(final GBDevice device) {
         return new Prefs(GBApplication.getDeviceSpecificSharedPrefs(device.getAddress()));
+    }
+
+    public boolean supportsSunriseSunset() {
+        return false;
     }
 }

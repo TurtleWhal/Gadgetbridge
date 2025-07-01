@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -43,10 +44,11 @@ import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public final class BtBRQueue {
     private static final Logger LOG = LoggerFactory.getLogger(BtBRQueue.class);
+    private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
     public static final int HANDLER_SUBJECT_CONNECT = 0;
     public static final int HANDLER_SUBJECT_PERFORM_TRANSACTION = 1;
 
-    private BluetoothAdapter mBtAdapter = null;
+    private final BluetoothAdapter mBtAdapter;
     private BluetoothSocket mBtSocket = null;
     private final GBDevice mGbDevice;
     private final SocketCallback mCallback;
@@ -57,91 +59,22 @@ public final class BtBRQueue {
     private final Context mContext;
     private final int mBufferSize;
 
-    private Handler mWriteHandler;
+    private final Handler mWriteHandler;
+    private final HandlerThread mWriteHandlerThread = new HandlerThread("BtBRQueue_write_" + THREAD_COUNTER.getAndIncrement(), Process.THREAD_PRIORITY_BACKGROUND);
 
-    private final HandlerThread mWriteHandlerThread = new HandlerThread("Write Thread", Process.THREAD_PRIORITY_BACKGROUND) {
-        @Override
-        protected void onLooperPrepared() {
-            LOG.debug("Write handler thread's looper prepared, creating write handler");
-            mWriteHandler = new Handler(mWriteHandlerThread.getLooper()) {
-                @SuppressLint("MissingPermission")
-                @Override
-                public void handleMessage(@NonNull Message msg) {
-                    switch (msg.what) {
-                        case HANDLER_SUBJECT_CONNECT: {
-                            try {
-                                mBtSocket.connect();
-
-                                LOG.info("Connected to RFCOMM socket for {}", mGbDevice.getName());
-                                setDeviceConnectionState(GBDevice.State.CONNECTED);
-
-                                // update thread names to show device names in logs
-                                readThread.setName(String.format(Locale.ENGLISH,
-                                        "Read Thread for %s", mGbDevice.getName()));
-                                mWriteHandlerThread.setName(String.format(Locale.ENGLISH,
-                                        "Write Thread for %s", mGbDevice.getName()));
-
-                                // now that connect has been created, start the threads
-                                readThread.start();
-                                onConnectionEstablished();
-                            } catch (IOException e) {
-                                LOG.error("IO exception while establishing socket connection: ", e);
-                                setDeviceConnectionState(GBDevice.State.NOT_CONNECTED);
-                            }
-
-                            return;
-                        }
-                        case HANDLER_SUBJECT_PERFORM_TRANSACTION: {
-                            try {
-                                if (!isConnected()) {
-                                    LOG.debug("Not connected, updating device state to WAITING_FOR_RECONNECT");
-                                    setDeviceConnectionState(GBDevice.State.WAITING_FOR_RECONNECT);
-                                    return;
-                                }
-
-                                if (!(msg.obj instanceof Transaction)) {
-                                    LOG.error("msg.obj is not an instance of Transaction");
-                                    return;
-                                }
-
-                                Transaction transaction = (Transaction) msg.obj;
-
-                                for (BtBRAction action : transaction.getActions()) {
-                                    if (LOG.isDebugEnabled()) {
-                                        LOG.debug("About to run action: {}", action);
-                                    }
-
-                                    if (action.run(mBtSocket)) {
-                                        LOG.debug("Action ok: {}", action);
-                                    } else {
-                                        LOG.error("Action returned false, cancelling further actions in transaction: {}", action);
-                                        break;
-                                    }
-                                }
-                            } catch (Throwable ex) {
-                                LOG.error("IO Write Thread died: " + ex.getMessage(), ex);
-                            }
-
-                            return;
-                        }
-                    }
-
-                    LOG.warn("Unhandled write handler message {}", msg.what);
-                }
-            };
-        }
-    };
-
-    private Thread readThread = new Thread("Read Thread") {
+    private Thread readThread = new Thread("BtBRQueue_read_" + THREAD_COUNTER.getAndIncrement()) {
         @Override
         public void run() {
-            byte[] buffer = new byte[mBufferSize];
-            int nRead;
+            final byte[] buffer = new byte[mBufferSize];
+            int nRead = 0;
 
             LOG.debug("Read thread started, entering loop");
 
             while (!mDisposed) {
                 try {
+                    if (mBtSocket == null)
+                        throw new IOException("mBtSocket was null");
+
                     nRead = mBtSocket.getInputStream().read(buffer);
 
                     // safety measure
@@ -167,7 +100,7 @@ public final class BtBRQueue {
         }
     };
 
-    public BtBRQueue(BluetoothAdapter btAdapter, GBDevice gbDevice, Context context, SocketCallback socketCallback, UUID supportedService, int bufferSize) {
+    public BtBRQueue(BluetoothAdapter btAdapter, GBDevice gbDevice, Context context, SocketCallback socketCallback, @NonNull UUID supportedService, int bufferSize) {
         mBtAdapter = btAdapter;
         mGbDevice = gbDevice;
         mContext = context;
@@ -176,6 +109,77 @@ public final class BtBRQueue {
         mBufferSize = bufferSize;
 
         mWriteHandlerThread.start();
+
+        LOG.debug("Write handler thread is prepared, creating write handler");
+        mWriteHandler = new Handler(mWriteHandlerThread.getLooper()) {
+            @SuppressLint("MissingPermission")
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                switch (msg.what) {
+                    case HANDLER_SUBJECT_CONNECT: {
+                        try {
+                            mBtSocket.connect();
+
+                            LOG.info("Connected to RFCOMM socket for {}", mGbDevice.getName());
+                            setDeviceConnectionState(GBDevice.State.CONNECTED);
+
+                            // update thread names to show device names in logs
+                            readThread.setName(String.format(Locale.ENGLISH,
+                                    "Read Thread for %s", mGbDevice.getName()));
+                            mWriteHandlerThread.setName(String.format(Locale.ENGLISH,
+                                    "Write Thread for %s", mGbDevice.getName()));
+
+                            // now that connect has been created, start the threads
+                            readThread.start();
+                            onConnectionEstablished();
+                        } catch (IOException e) {
+                            LOG.error("IO exception while establishing socket connection: ", e);
+                            setDeviceConnectionState(GBDevice.State.NOT_CONNECTED);
+                        } catch (SecurityException e) {
+                            LOG.error("Security exception while establishing socket connection: ", e);
+                            setDeviceConnectionState(GBDevice.State.NOT_CONNECTED);
+                        }
+
+                        return;
+                    }
+                    case HANDLER_SUBJECT_PERFORM_TRANSACTION: {
+                        try {
+                            if (!isConnected()) {
+                                LOG.debug("Not connected, updating device state to WAITING_FOR_RECONNECT");
+                                setDeviceConnectionState(GBDevice.State.WAITING_FOR_RECONNECT);
+                                return;
+                            }
+
+                            if (!(msg.obj instanceof Transaction)) {
+                                LOG.error("msg.obj is not an instance of Transaction");
+                                return;
+                            }
+
+                            Transaction transaction = (Transaction) msg.obj;
+
+                            for (BtBRAction action : transaction.getActions()) {
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debug("About to run action: {}", action);
+                                }
+
+                                if (action.run(mBtSocket)) {
+                                    LOG.debug("Action ok: {}", action);
+                                } else {
+                                    LOG.error("Action returned false, cancelling further actions in transaction: {}", action);
+                                    break;
+                                }
+                            }
+                        } catch (Throwable ex) {
+                            LOG.error("IO Write Thread died: " + ex.getMessage(), ex);
+                        }
+
+                        return;
+                    }
+                }
+
+                LOG.warn("Unhandled write handler message {}", msg.what);
+            }
+        };
     }
 
     /**
@@ -216,7 +220,7 @@ public final class BtBRQueue {
         return true;
     }
 
-    protected void onConnectionEstablished() {
+    private void onConnectionEstablished() {
         mCallback.onConnectionEstablished();
     }
 
@@ -242,7 +246,7 @@ public final class BtBRQueue {
      * initialized and connected
      * @return true if the Bluetooth device is connected and the socket is ready, false otherwise
      */
-    private boolean isConnected() {
+    boolean isConnected() {
         return mGbDevice.isConnected() &&
                 mBtSocket != null &&
                 mBtSocket.isConnected();

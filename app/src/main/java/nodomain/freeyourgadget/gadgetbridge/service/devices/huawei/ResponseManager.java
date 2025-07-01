@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -63,6 +64,16 @@ public class ResponseManager {
     }
 
     /**
+     * Remove all requests with specified class from the response handler list
+     * @param handlerClass The class of which the requests are removed
+     */
+    public void removeHandler(Class<?> handlerClass) {
+        synchronized (handlers) {
+            handlers.removeIf(request -> request.getClass() == handlerClass);
+        }
+    }
+
+    /**
      * Parses the data into a Huawei Packet.
      * If the packet is complete, it will be handled by the first request that accepts it,
      * or as an asynchronous request otherwise.
@@ -70,45 +81,57 @@ public class ResponseManager {
      * @param data The received data
      */
     public void handleData(byte[] data) {
-        try {
-            if (receivedPacket == null)
-                receivedPacket = new HuaweiPacket(support.getParamsProvider()).parse(data);
-            else
-                receivedPacket = receivedPacket.parse(data);
-        } catch (HuaweiPacket.ParseException e) {
-            LOG.error("Packet parse exception", e);
+        //NOTE: This is a quick fix issue with concatenated packets.
+        //TODO: Extract transport related code from packet.
+        int left = 0;
+        do {
+            if(left > 0)
+                data = Arrays.copyOfRange(data, data.length - left, data.length);
 
-            // Clean up so the next message may be parsed correctly
-            this.receivedPacket = null;
-            return;
-        }
+            try {
+                if (receivedPacket == null)
+                    receivedPacket = new HuaweiPacket(support.getParamsProvider()).parse(data);
+                else
+                    receivedPacket = receivedPacket.parse(data);
 
-        if (receivedPacket.complete) {
-            Request handler = null;
-            synchronized (handlers) {
-                for (Request req : handlers) {
-                    if (req.handleResponse(receivedPacket)) {
-                        handler = req;
-                        break;
+                left = receivedPacket.getLeft();
+            } catch (HuaweiPacket.ParseException e) {
+                LOG.error("Packet parse exception", e);
+
+                // Clean up so the next message may be parsed correctly
+                this.receivedPacket = null;
+                return;
+            }
+
+            if (receivedPacket.complete) {
+                Request handler = null;
+                synchronized (handlers) {
+                    for (Request req : handlers) {
+                        if (req.handleResponse(receivedPacket)) {
+                            handler = req;
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (handler == null) {
-                LOG.debug("Service: " + Integer.toHexString(receivedPacket.serviceId & 0xff) + ", command: " + Integer.toHexString(receivedPacket.commandId & 0xff)  + ", asynchronous response.");
+                if (handler == null) {
+                    LOG.debug("Service: " + Integer.toHexString(receivedPacket.serviceId & 0xff) + ", command: " + Integer.toHexString(receivedPacket.commandId & 0xff) + ", asynchronous response.");
 
-                // Asynchronous response
-                asynchronousResponse.handleResponse(receivedPacket);
-            } else {
-                LOG.debug("Service: " + Integer.toHexString(receivedPacket.serviceId & 0xff)  + ", command: " + Integer.toHexString(receivedPacket.commandId & 0xff)  + ", handled by: " + handler.getClass());
+                    // Asynchronous response
+                    asynchronousResponse.handleResponse(receivedPacket);
+                } else {
+                    LOG.debug("Service: " + Integer.toHexString(receivedPacket.serviceId & 0xff) + ", command: " + Integer.toHexString(receivedPacket.commandId & 0xff) + ", handled by: " + handler.getClass());
 
-                synchronized (handlers) {
-                    handlers.remove(handler);
+                    if (handler.autoRemoveFromResponseHandler()) {
+                        synchronized (handlers) {
+                            handlers.remove(handler);
+                        }
+                    }
+
+                    handler.handleResponse();
                 }
-
-                handler.handleResponse();
+                receivedPacket = null;
             }
-            receivedPacket = null;
-        }
+        } while (left > 0);
     }
 }

@@ -66,31 +66,43 @@ public class DevicesFragment extends Fragment {
     private RecyclerView deviceListView;
     private FloatingActionButton fab;
     List<GBDevice> deviceList;
-    private  HashMap<String,long[]> deviceActivityHashMap = new HashMap();
+    private  HashMap<String, DailyTotals> deviceActivityHashMap = new HashMap();
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
+            final GBDevice device = intent.getParcelableExtra(GBDevice.EXTRA_DEVICE);
             switch (Objects.requireNonNull(action)) {
                 case DeviceManager.ACTION_DEVICES_CHANGED:
                 case GBApplication.ACTION_NEW_DATA:
-                    createRefreshTask("get activity data", requireContext()).execute();
-                    mGBDeviceAdapter.rebuildFolders();
-                    refreshPairedDevices();
+                    if (action.equals(GBApplication.ACTION_NEW_DATA)) {
+                        createRefreshTask("get activity data", requireContext(), device).execute();
+                    }
+                    if (device != null) {
+                        // Refresh only this device
+                        refreshSingleDevice(device);
+                    } else {
+                        refreshPairedDevices();
+                    }
+
                     break;
                 case DeviceService.ACTION_REALTIME_SAMPLES:
-                    handleRealtimeSample(intent.getSerializableExtra(DeviceService.EXTRA_REALTIME_SAMPLE));
+                    handleRealtimeSample(device, intent.getSerializableExtra(DeviceService.EXTRA_REALTIME_SAMPLE));
                     break;
             }
         }
     };
 
-    private void handleRealtimeSample(Serializable extra) {
+    private void handleRealtimeSample(GBDevice device, Serializable extra) {
         if (extra instanceof ActivitySample) {
             ActivitySample sample = (ActivitySample) extra;
             if (HeartRateUtils.getInstance().isValidHeartRateValue(sample.getHeartRate())) {
-                refreshPairedDevices();
+                if (device != null) {
+                    refreshSingleDevice(device);
+                } else {
+                    refreshPairedDevices();
+                }
             }
         }
     }
@@ -117,7 +129,7 @@ public class DevicesFragment extends Fragment {
             @Override
             public void run() {
                 if (getContext() != null) {
-                    createRefreshTask("get activity data", getContext()).execute();
+                    createRefreshTask("get activity data", getContext(), null).execute();
                 }
             }
         });
@@ -207,45 +219,64 @@ public class DevicesFragment extends Fragment {
         super.onDestroy();
     }
 
-    private long[] getSteps(GBDevice device, DBHandler db) {
+    private DailyTotals getSteps(GBDevice device, DBHandler db) {
         Calendar day = GregorianCalendar.getInstance();
 
-        DailyTotals ds = new DailyTotals();
-        return ds.getDailyTotalsForDevice(device, day, db);
+        return DailyTotals.getDailyTotalsForDevice(device, day, db);
     }
 
     public void refreshPairedDevices() {
         if (mGBDeviceAdapter != null) {
-            mGBDeviceAdapter.notifyDataSetChanged();
             mGBDeviceAdapter.rebuildFolders();
+            mGBDeviceAdapter.notifyDataSetChanged();
         }
     }
 
-    public RefreshTask createRefreshTask(String task, Context context) {
-        return new RefreshTask(task, context);
+    public void refreshSingleDevice(final GBDevice device) {
+        if (mGBDeviceAdapter != null) {
+            mGBDeviceAdapter.refreshSingleDevice(device);
+        }
+    }
+
+    public RefreshTask createRefreshTask(String task, Context context, GBDevice device) {
+        return new RefreshTask(task, context, device);
     }
 
     public class RefreshTask extends DBAccess {
-        public RefreshTask(String task, Context context) {
+        private final GBDevice device;
+
+        public RefreshTask(final String task, final Context context, final GBDevice device) {
             super(task, context);
+            this.device = device;
         }
 
         @Override
-        protected void doInBackground(DBHandler db) {
-            for (GBDevice gbDevice : deviceList) {
-                final DeviceCoordinator coordinator = gbDevice.getDeviceCoordinator();
-                boolean showActivityCard = GBApplication.getDevicePrefs(gbDevice.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREFS_ACTIVITY_IN_DEVICE_CARD, true);
-                if (coordinator.supportsActivityTracking() && showActivityCard) {
-                    long[] stepsAndSleepData = getSteps(gbDevice, db);
-                    deviceActivityHashMap.put(gbDevice.getAddress(), stepsAndSleepData);
+        protected void doInBackground(final DBHandler db) {
+            if (device != null) {
+                updateDevice(db, device);
+            } else {
+                for (GBDevice gbDevice : deviceList) {
+                    updateDevice(db, gbDevice);
                 }
             }
         }
 
-        @Override
-        protected void onPostExecute(Object o) {
-            refreshPairedDevices();
+        private void updateDevice(final DBHandler db, final GBDevice gbDevice) {
+            final DeviceCoordinator coordinator = gbDevice.getDeviceCoordinator();
+            final boolean showActivityCard = GBApplication.getDevicePrefs(gbDevice).getBoolean(DeviceSettingsPreferenceConst.PREFS_ACTIVITY_IN_DEVICE_CARD, true);
+            if ((coordinator.supportsStepCounter() || coordinator.supportsSleepMeasurement()) && showActivityCard) {
+                final DailyTotals stepsAndSleepData = getSteps(gbDevice, db);
+                deviceActivityHashMap.put(gbDevice.getAddress(), stepsAndSleepData);
+            }
         }
 
+        @Override
+        protected void onPostExecute(final Object o) {
+            if (device != null) {
+                refreshSingleDevice(device);
+            } else {
+                refreshPairedDevices();
+            }
+        }
     }
 }

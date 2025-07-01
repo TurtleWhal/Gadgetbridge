@@ -1,7 +1,12 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin;
 
+import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.net.Uri;
 import android.widget.Toast;
@@ -14,9 +19,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -26,23 +31,25 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
-import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppInfo;
+import nodomain.freeyourgadget.gadgetbridge.devices.PendingFileProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminFitFileInstallHandler;
+import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminGpxRouteInstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminPreferences;
+import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminPrgFileInstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.vivomovehr.GarminCapability;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
@@ -53,11 +60,11 @@ import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiCore;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiDeviceStatus;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiFindMyWatch;
+import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiInstalledAppsService;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSettingsService;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.communicator.ICommunicator;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.communicator.v1.CommunicatorV1;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.communicator.v2.CommunicatorV2;
@@ -80,15 +87,16 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.SetF
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.SupportedFileTypesMessage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.SystemEventMessage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.status.NotificationSubscriptionStatusMessage;
+import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
+import nodomain.freeyourgadget.gadgetbridge.util.MediaManager;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
-import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_ALLOW_HIGH_MTU;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_SEND_APP_NOTIFICATIONS;
 
 
-public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommunicator.Callback {
+public class GarminSupport extends AbstractBTLESingleDeviceSupport implements ICommunicator.Callback {
     private static final Logger LOG = LoggerFactory.getLogger(GarminSupport.class);
     private final ProtocolBufferHandler protocolBufferHandler;
     private final NotificationsHandler notificationsHandler;
@@ -96,16 +104,17 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
     private final Queue<FileTransferHandler.DirectoryEntry> filesToDownload;
     private final List<MessageHandler> messageHandlers;
     private final List<FileType> supportedFileTypeList = new ArrayList<>();
-    private final List<File> filesToProcess = new ArrayList<>();
     private ICommunicator communicator;
-    private MusicStateSpec musicStateSpec;
-    private Timer musicStateTimer;
+    private MediaManager mediaManager;
     private boolean mFirstConnect = false;
     private boolean isBusyFetching;
 
+    final Map<UUID, GdiInstalledAppsService.InstalledAppsService.InstalledApp> installedApps = new HashMap<>();
+
     public GarminSupport() {
         super(LOG);
-        addSupportedService(CommunicatorV1.UUID_SERVICE_GARMIN_GFDI);
+        addSupportedService(CommunicatorV1.UUID_SERVICE_GARMIN_GFDI_V0);
+        addSupportedService(CommunicatorV1.UUID_SERVICE_GARMIN_GFDI_V1);
         addSupportedService(CommunicatorV2.UUID_SERVICE_GARMIN_ML_GFDI);
         protocolBufferHandler = new ProtocolBufferHandler(this);
         fileTransferHandler = new FileTransferHandler(this);
@@ -118,19 +127,16 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
     }
 
     @Override
+    public void setContext(final GBDevice gbDevice, final BluetoothAdapter btAdapter, final Context context) {
+        super.setContext(gbDevice, btAdapter, context);
+        this.mediaManager = new MediaManager(context);
+    }
+
+    @Override
     public void dispose() {
         LOG.info("Garmin dispose()");
         GBLocationService.stop(getContext(), getDevice());
-        stopMusicTimer();
         super.dispose();
-    }
-
-    private void stopMusicTimer() {
-        if (musicStateTimer != null) {
-            musicStateTimer.cancel();
-            musicStateTimer.purge();
-            musicStateTimer = null;
-        }
     }
 
     public void addFileToDownloadList(FileTransferHandler.DirectoryEntry directoryEntry) {
@@ -143,30 +149,44 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
     }
 
     @Override
-    protected TransactionBuilder initializeDevice(final TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+    public GarminPrefs getDevicePrefs() {
+        return new GarminPrefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()), gbDevice);
+    }
 
-        if (getSupportedServices().contains(CommunicatorV2.UUID_SERVICE_GARMIN_ML_GFDI)) {
-            communicator = new CommunicatorV2(this);
-        } else if (getSupportedServices().contains(CommunicatorV1.UUID_SERVICE_GARMIN_GFDI)) {
-            communicator = new CommunicatorV1(this);
-        } else {
-            LOG.warn("Failed to find a known Garmin service");
-            builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.NOT_CONNECTED, getContext()));
-            return builder;
-        }
+    @Override
+    protected TransactionBuilder initializeDevice(final TransactionBuilder builder) {
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
 
         if (getDevicePrefs().getBoolean(PREF_ALLOW_HIGH_MTU, true)) {
             builder.requestMtu(515);
         }
 
-        communicator.initializeDevice(builder);
+        final CommunicatorV2 communicatorV2 = new CommunicatorV2(this);
+        if (communicatorV2.initializeDevice(builder)) {
+            communicator = communicatorV2;
+        } else {
+            // V2 did not manage to initialize, attempt V1
+            final CommunicatorV1 communicatorV1 = new CommunicatorV1(this);
+            if (!communicatorV1.initializeDevice(builder)) {
+                // Neither V1 nor V2 worked, not a Garmin device?
+                LOG.warn("Failed to find a known Garmin service");
+                builder.setUpdateState(getDevice(), GBDevice.State.NOT_CONNECTED, getContext());
+                return builder;
+            }
+
+            communicator = communicatorV1;
+        }
 
         return builder;
     }
 
     @Override
     public void onMtuChanged(final BluetoothGatt gatt, final int mtu, final int status) {
+        super.onMtuChanged(gatt, mtu, status);
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            return;
+        }
+
         if (mtu < 23) {
             LOG.warn("Ignoring mtu of {}, too low", mtu);
             return;
@@ -180,14 +200,14 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
     }
 
     @Override
-    public boolean onCharacteristicChanged(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic) {
+    public boolean onCharacteristicChanged(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic, final byte[] value) {
         final UUID characteristicUUID = characteristic.getUuid();
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+        if (super.onCharacteristicChanged(gatt, characteristic, value)) {
             LOG.debug("Change of characteristic {} handled by parent", characteristicUUID);
             return true;
         }
 
-        return communicator.onCharacteristicChanged(gatt, characteristic);
+        return communicator.onCharacteristicChanged(gatt, characteristic, value);
     }
 
     @Override
@@ -236,6 +256,19 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
 
         processDownloadQueue();
 
+    }
+
+    protected String getNotificationAttachmentPath(int notificationId) {
+        return notificationsHandler.getNotificationAttachmentPath(notificationId);
+    }
+
+    protected Bitmap getNotificationAttachmentBitmap(int notificationId) {
+        final String picturePath = getNotificationAttachmentPath(notificationId);
+        final Bitmap bitmap = BitmapFactory.decodeFile(picturePath);
+        if (bitmap == null) {
+            LOG.warn("Failed to load bitmap for {} from {}", notificationId, picturePath);
+        }
+        return bitmap;
     }
 
     @Override
@@ -297,17 +330,26 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
             LOG.debug("FILE DOWNLOAD COMPLETE {}", filename);
 
             if (entry.getFiletype().isFitFile()) {
-                filesToProcess.add(new File(((FileDownloadedDeviceEvent) deviceEvent).localPath));
+                try (DBHandler handler = GBApplication.acquireDB()) {
+                    final DaoSession session = handler.getDaoSession();
+
+                    final PendingFileProvider pendingFileProvider = new PendingFileProvider(gbDevice, session);
+
+                    pendingFileProvider.addPendingFile(((FileDownloadedDeviceEvent) deviceEvent).localPath);
+                } catch (final Exception e) {
+                    GB.toast(getContext(), "Error saving pending file", Toast.LENGTH_LONG, GB.ERROR, e);
+                }
             }
 
             if (!getKeepActivityDataOnDevice()) { // delete file from watch upon successful download
                 sendOutgoingMessage("archive file " + entry.getFileIndex(), new SetFileFlagsMessage(entry.getFileIndex(), SetFileFlagsMessage.FileFlags.ARCHIVE));
             }
+        } else {
+            super.evaluateGBDeviceEvent(deviceEvent);
         }
-
-        super.evaluateGBDeviceEvent(deviceEvent);
     }
 
+    /** @noinspection BooleanMethodIsAlwaysInverted*/
     private boolean getKeepActivityDataOnDevice() {
         return getDevicePrefs().getBoolean("keep_activity_data_on_device", false);
     }
@@ -332,6 +374,87 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
     @Override
     public void onDeleteNotification(int id) {
         sendOutgoingMessage("delete notification " + id, notificationsHandler.onDeleteNotification(id));
+    }
+
+    @Override
+    public void onAppInfoReq() {
+        sendOutgoingMessage(
+                "request apps",
+                protocolBufferHandler.prepareProtobufRequest(
+                        GdiSmartProto.Smart.newBuilder().setInstalledAppsService(
+                                GdiInstalledAppsService.InstalledAppsService.newBuilder().setGetInstalledAppsRequest(
+                                        GdiInstalledAppsService.InstalledAppsService.GetInstalledAppsRequest.newBuilder()
+                                                .setAppType(GdiInstalledAppsService.InstalledAppsService.AppType.ALL)
+                                )
+                        ).build()
+                )
+        );
+    }
+
+    @Override
+    public void onAppStart(final UUID uuid, final boolean start) {
+
+    }
+
+    @Override
+    public void onAppDelete(final UUID uuid) {
+        final GdiInstalledAppsService.InstalledAppsService.InstalledApp app = installedApps.get(uuid);
+
+        if (app == null) {
+            LOG.warn("Unknown app {}", uuid);
+            return;
+        }
+
+        sendOutgoingMessage(
+                "delete app",
+                protocolBufferHandler.prepareProtobufRequest(
+                        GdiSmartProto.Smart.newBuilder().setInstalledAppsService(
+                                GdiInstalledAppsService.InstalledAppsService.newBuilder().setDeleteAppRequest(
+                                        GdiInstalledAppsService.InstalledAppsService.DeleteAppRequest.newBuilder()
+                                                .setStoreAppId(app.getStoreAppId())
+                                                .setAppType(app.getType())
+                                )
+                        ).build()
+                )
+        );
+    }
+
+    public void onAppListReceived(final List<GdiInstalledAppsService.InstalledAppsService.InstalledApp> apps) {
+        installedApps.clear();
+
+        final List<GBDeviceApp> gbApps = new ArrayList<>(apps.size());
+
+        for (final GdiInstalledAppsService.InstalledAppsService.InstalledApp installedApp : apps) {
+            GBDeviceApp.Type type;
+
+            switch (installedApp.getType()) {
+                case WATCH_FACE:
+                    type = GBDeviceApp.Type.WATCHFACE;
+                    break;
+                case DATA_FIELD:
+                case ACTIVITY:
+                    type = GBDeviceApp.Type.APP_ACTIVITYTRACKER;
+                    break;
+                default:
+                    // FIXME we set everything else as app generic otherwise they get filtered, add new types
+                    type = GBDeviceApp.Type.APP_GENERIC;
+            }
+
+            final UUID uuid = UUID.nameUUIDFromBytes(installedApp.getStoreAppId().toByteArray());
+            installedApps.put(uuid, installedApp);
+            gbApps.add(new GBDeviceApp(
+                    uuid,
+                    installedApp.getName() + " (" + installedApp.getType() + ")",
+                    "",
+                    String.valueOf(installedApp.getVersion()),
+                    type
+            ));
+            gbApps.sort(Comparator.comparing(GBDeviceApp::getName));
+        }
+
+        final GBDeviceEventAppInfo appInfoCmd = new GBDeviceEventAppInfo();
+        appInfoCmd.apps = gbApps.toArray(new GBDeviceApp[0]);
+        evaluateGBDeviceEvent(appInfoCmd);
     }
 
     @Override
@@ -422,6 +545,7 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
 
         for (int day = 0; day < 4; day++) {
             if (day < weather.forecasts.size()) {
+                //noinspection ExtractMethodRecommender
                 WeatherSpec.Daily daily = weather.forecasts.get(day);
                 int ts = weather.timestamp + (day + 1) * 24 * 60 * 60;
                 RecordData weatherDailyForecast = new RecordData(recordDefinitionDaily, recordDefinitionDaily.getRecordHeader());
@@ -452,8 +576,7 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
 
         enableBatteryLevelUpdate();
 
-        gbDevice.setState(GBDevice.State.INITIALIZED);
-        gbDevice.sendDeviceUpdateIntent(getContext());
+        gbDevice.setUpdateState(GBDevice.State.INITIALIZED, getContext());
 
         sendOutgoingMessage("request supported file types", new SupportedFileTypesMessage());
 
@@ -476,6 +599,7 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
             return;
         }
 
+        //noinspection SwitchStatementWithTooFewBranches
         switch (config) {
             case PREF_SEND_APP_NOTIFICATIONS:
                 NotificationSubscriptionDeviceEvent notificationSubscriptionDeviceEvent = new NotificationSubscriptionDeviceEvent();
@@ -483,8 +607,6 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
                 evaluateGBDeviceEvent(notificationSubscriptionDeviceEvent);
                 return;
         }
-
-
     }
 
     private void processDownloadQueue() {
@@ -507,18 +629,34 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
                 }
 
                 final DownloadRequestMessage downloadRequestMessage = fileTransferHandler.downloadDirectoryEntry(directoryEntry);
-                LOG.debug("Will download file: {}", directoryEntry.getFileName());
+                LOG.debug("Will download file: {}", directoryEntry.getOutputPath());
                 sendOutgoingMessage("download file " + directoryEntry.getFileIndex(), downloadRequestMessage);
                 return;
             }
         }
 
         if (filesToDownload.isEmpty() && !fileTransferHandler.isDownloading() && isBusyFetching) {
+            final List<File> filesToProcess;
+            try (DBHandler handler = GBApplication.acquireDB()) {
+                final DaoSession session = handler.getDaoSession();
+
+                final PendingFileProvider pendingFileProvider = new PendingFileProvider(gbDevice, session);
+
+                filesToProcess = pendingFileProvider.getAllPendingFiles()
+                        .stream()
+                        .map(pf -> new File(pf.getPath()))
+                        .collect(Collectors.toList());
+            } catch (final Exception e) {
+                LOG.error("Failed to get pending files", e);
+                return;
+            }
+
             if (filesToProcess.isEmpty()) {
+                LOG.debug("No pending files to process");
                 // No downloaded fit files to process
                 if (gbDevice.isBusy() && isBusyFetching) {
-                    GB.signalActivityDataFinish();
                     getDevice().unsetBusyTask();
+                    GB.signalActivityDataFinish(getDevice());
                     GB.updateTransferNotification(null, "", false, 100, getContext());
                     getDevice().sendDeviceUpdateIntent(getContext());
                 }
@@ -526,33 +664,32 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
                 return;
             }
 
-            // Keep the device marked as busy while we process the files asynchronously
+            // Keep the device marked as busy while we process the files asynchronously, but unset
+            // isBusyFetching so we do not start multiple processors
+            isBusyFetching = false;
 
             final FitAsyncProcessor fitAsyncProcessor = new FitAsyncProcessor(getContext(), getDevice());
-            final List<File> filesToProcessClone = new ArrayList<>(filesToProcess);
-            filesToProcess.clear();
             final long[] lastNotificationUpdateTs = new long[]{System.currentTimeMillis()};
-            fitAsyncProcessor.process(filesToProcessClone, new FitAsyncProcessor.Callback() {
+            fitAsyncProcessor.process(filesToProcess, new FitAsyncProcessor.Callback() {
                 @Override
                 public void onProgress(final int i) {
                     final long now = System.currentTimeMillis();
                     if (now - lastNotificationUpdateTs[0] > 1500L) {
                         lastNotificationUpdateTs[0] = now;
                         GB.updateTransferNotification(
-                                "Parsing fit files", "File " + i + " of " + filesToProcessClone.size(),
+                                "Parsing fit files", "File " + i + " of " + filesToProcess.size(),
                                 true,
-                                (i * 100) / filesToProcessClone.size(), getContext()
+                                (i * 100) / filesToProcess.size(), getContext()
                         );
                     }
                 }
 
                 @Override
                 public void onFinish() {
-                    GB.signalActivityDataFinish();
                     getDevice().unsetBusyTask();
+                    GB.signalActivityDataFinish(getDevice());
                     GB.updateTransferNotification(null, "", false, 100, getContext());
                     getDevice().sendDeviceUpdateIntent(getContext());
-                    isBusyFetching = false;
                 }
             });
         }
@@ -610,6 +747,11 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
 
     @Override
     public void onSetMusicInfo(MusicSpec musicSpec) {
+        if (!mediaManager.onSetMusicInfo(musicSpec)) {
+            return;
+        }
+
+        LOG.debug("onSetMusicInfo: {}", musicSpec.toString());
 
         Map<MusicControlEntityUpdateMessage.MusicEntity, String> attributes = new HashMap<>();
 
@@ -619,42 +761,41 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
         attributes.put(MusicControlEntityUpdateMessage.TRACK.DURATION, String.valueOf(musicSpec.duration));
 
         sendOutgoingMessage("set music info", new MusicControlEntityUpdateMessage(attributes));
+
+        // Update the music state spec as well
+        final MusicStateSpec bufferMusicStateSpec = mediaManager.getBufferMusicStateSpec();
+        if (bufferMusicStateSpec != null) {
+            sendMusicState(bufferMusicStateSpec, bufferMusicStateSpec.position);
+        }
     }
 
     @Override
     public void onSetMusicState(MusicStateSpec stateSpec) {
-        musicStateSpec = stateSpec;
+        if (!mediaManager.onSetMusicState(stateSpec)) {
+            return;
+        }
 
-        stopMusicTimer();
-
-        musicStateTimer = new Timer();
-        int updatePeriod = 29000; //milliseconds
         LOG.debug("onSetMusicState: {}", stateSpec.toString());
 
+        sendMusicState(stateSpec, stateSpec.position);
+    }
+
+    private void sendMusicState(final MusicStateSpec stateSpec, final int progress) {
+        final int playing;
+        final float playRate;
         if (stateSpec.state == MusicStateSpec.STATE_PLAYING) {
-            musicStateTimer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    String playing = "1";
-                    String playRate = "1.0";
-                    String position = new DecimalFormat("#.000").format(musicStateSpec.position);
-                    musicStateSpec.position += updatePeriod / 1000;
-
-                    Map<MusicControlEntityUpdateMessage.MusicEntity, String> attributes = new HashMap<>();
-                    attributes.put(MusicControlEntityUpdateMessage.PLAYER.PLAYBACK_INFO, StringUtils.join(",", playing, playRate, position).toString());
-                    sendOutgoingMessage("music state timer", new MusicControlEntityUpdateMessage(attributes));
-
-                }
-            }, 0, updatePeriod);
+            playing = 1;
+            playRate = stateSpec.playRate > 0 ? stateSpec.playRate / 100f : 1.0f;
         } else {
-            String playing = "0";
-            String playRate = "0.0";
-            String position = new DecimalFormat("#.###").format(stateSpec.position);
-
-            Map<MusicControlEntityUpdateMessage.MusicEntity, String> attributes = new HashMap<>();
-            attributes.put(MusicControlEntityUpdateMessage.PLAYER.PLAYBACK_INFO, StringUtils.join(",", playing, playRate, position).toString());
-            sendOutgoingMessage("music stopped", new MusicControlEntityUpdateMessage(attributes));
+            playing = 0;
+            playRate = 0;
         }
+        final Map<MusicControlEntityUpdateMessage.MusicEntity, String> attributes = new HashMap<>();
+        attributes.put(
+                MusicControlEntityUpdateMessage.PLAYER.PLAYBACK_INFO,
+                String.format(Locale.ROOT, "%d,%.1f,%.3f", playing, playRate, (float) progress)
+        );
+        sendOutgoingMessage("set music state", new MusicControlEntityUpdateMessage(attributes));
     }
 
     @Override
@@ -667,19 +808,42 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
     }
 
     private boolean alreadyDownloaded(final FileTransferHandler.DirectoryEntry entry) {
-        final Optional<File> file = getFile(entry.getFileName());
+        // Current filename
+        final Optional<File> file = getFile(entry.getOutputPath());
         if (file.isPresent()) {
             if (file.get().length() == 0) {
-                LOG.warn("File {} is empty", entry.getFileName());
+                LOG.warn("File {} is empty", entry.getOutputPath());
                 return false;
             }
             return true;
         }
 
-        final Optional<File> legacyFile = getFile(entry.getLegacyFileName());
-        if (legacyFile.isPresent()) {
-            if (legacyFile.get().length() == 0) {
-                LOG.warn("Legacy file {} is empty", entry.getFileName());
+        // Legacy filename 1, before we had per-type/year folder
+        @SuppressLint("SimpleDateFormat") final SimpleDateFormat legacyDateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT);
+        final StringBuilder sbLegacy1 = new StringBuilder(entry.getFiletype().name());
+        if (entry.getFileDate().getTime() != GarminTimeUtils.GARMIN_TIME_EPOCH * 1000L) {
+            sbLegacy1.append("_").append(legacyDateFormat.format(entry.getFileDate()));
+        }
+        sbLegacy1.append("_").append(entry.getFileIndex()).append(entry.getFiletype().isFitFile() ? ".fit" : ".bin");
+        final String legacyName1 = sbLegacy1.toString();
+        final Optional<File> legacyFile1 = getFile(legacyName1);
+        if (legacyFile1.isPresent()) {
+            if (legacyFile1.get().length() == 0) {
+                LOG.warn("Legacy file 1 {} is empty", legacyName1);
+                return false;
+            }
+            return true;
+        }
+
+        // Legacy filename 2
+        final String legacyName2 = entry.getFiletype().name() + "_" +
+                entry.getFileIndex() + "_" +
+                legacyDateFormat.format(entry.getFileDate()) +
+                (entry.getFiletype().isFitFile() ? ".fit" : ".bin");
+        final Optional<File> legacyFile2 = getFile(legacyName2);
+        if (legacyFile2.isPresent()) {
+            if (legacyFile2.get().length() == 0) {
+                LOG.warn("Legacy file 2 {} is empty", legacyName2);
                 return false;
             }
             return true;
@@ -798,72 +962,124 @@ public class GarminSupport extends AbstractBTLEDeviceSupport implements ICommuni
     }
 
     @Override
+    public void onInstallApp(Uri uri) {
+        final GarminFitFileInstallHandler fitFileInstallHandler = new GarminFitFileInstallHandler(uri, getContext());
+        if (fitFileInstallHandler.isValid()) {
+            communicator.sendMessage(
+                    "upload fit file",
+                    fileTransferHandler.initiateUpload(
+                            fitFileInstallHandler.getRawBytes(),
+                            fitFileInstallHandler.getFileType()
+                    ).getOutgoingMessage()
+            );
+        }
+
+        final GarminGpxRouteInstallHandler garminGpxRouteInstallHandler = new GarminGpxRouteInstallHandler(uri, getContext());
+        if (garminGpxRouteInstallHandler.isValid()) {
+            communicator.sendMessage("upload course file", fileTransferHandler.initiateUpload(garminGpxRouteInstallHandler.getGpxRouteFileConverter().getConvertedFile().getOutgoingMessage(), FileType.FILETYPE.DOWNLOAD_COURSE).getOutgoingMessage());
+        }
+
+        final GarminPrgFileInstallHandler prgFileInstallHandler = new GarminPrgFileInstallHandler(uri, getContext());
+        if (prgFileInstallHandler.isValid()) {
+            communicator.sendMessage(
+                    "upload prg file",
+                    fileTransferHandler.initiateUpload(
+                            prgFileInstallHandler.getRawBytes(),
+                            FileType.FILETYPE.PRG
+                    ).getOutgoingMessage()
+            );
+        }
+    }
+
+    @Override
+    public void onHeartRateTest() {
+        communicator.onHeartRateTest();
+    }
+
+    @Override
+    public void onEnableRealtimeHeartRateMeasurement(final boolean enable) {
+        communicator.onEnableRealtimeHeartRateMeasurement(enable);
+    }
+
+    @Override
+    public void onEnableRealtimeSteps(final boolean enable) {
+        communicator.onEnableRealtimeSteps(enable);
+    }
+
+    @Override
     public void onTestNewFunction() {
         parseAllFitFilesFromStorage();
     }
 
+    boolean parsingFitFilesFromStorage = false;
+
     private void parseAllFitFilesFromStorage() {
-        // This function as-is should only be used for debug purposes
-        if (!BuildConfig.DEBUG) {
-            LOG.error("This should never be used in release builds");
+        if (parsingFitFilesFromStorage) {
+            GB.toast(getContext(), "Already parsing!", Toast.LENGTH_LONG, GB.ERROR);
             return;
         }
 
+        parsingFitFilesFromStorage = true;
+
         LOG.info("Parsing all fit files from storage");
 
-        final File[] fitFiles;
+        final List<File> fitFiles;
         try {
             final File exportDir = getWritableExportDirectory();
 
             if (!exportDir.exists() || !exportDir.isDirectory()) {
                 LOG.error("export directory {} not found", exportDir);
+                GB.toast(getContext(), "export directory " + exportDir + " not found", Toast.LENGTH_LONG, GB.ERROR);
                 return;
             }
 
-            fitFiles = exportDir.listFiles((dir, name) -> name.endsWith(".fit"));
-            if (fitFiles == null) {
-                LOG.error("fitFiles is null for {}", exportDir);
-                return;
-            }
-            if (fitFiles.length == 0) {
+            fitFiles = FileUtils.listRecursive(exportDir, (dir, name) -> name.endsWith(".fit"));
+            if (fitFiles.isEmpty()) {
                 LOG.error("No fit files found in {}", exportDir);
+                GB.toast(getContext(), "No fit files found in " + exportDir, Toast.LENGTH_LONG, GB.ERROR);
                 return;
             }
         } catch (final Exception e) {
             LOG.error("Failed to parse from storage", e);
+            GB.toast(getContext(), "Failed to parse from storage", Toast.LENGTH_LONG, GB.ERROR, e);
             return;
         }
 
+        LOG.debug("Got {} fit files to parse", fitFiles.size());
+
+        GB.toast(getContext(), "Check notification for progress", Toast.LENGTH_LONG, GB.INFO);
+
         GB.updateTransferNotification("Parsing fit files", "...", true, 0, getContext());
 
-        try (DBHandler handler = GBApplication.acquireDB()) {
-            final DaoSession session = handler.getDaoSession();
-            final Device device = DBHelper.getDevice(gbDevice, session);
-            getCoordinator().deleteAllActivityData(device, session);
-        } catch (final Exception e) {
-            GB.toast(getContext(), "Error deleting activity data", Toast.LENGTH_LONG, GB.ERROR, e);
-        }
+        //try (DBHandler handler = GBApplication.acquireDB()) {
+        //    final DaoSession session = handler.getDaoSession();
+        //    final Device device = DBHelper.getDevice(gbDevice, session);
+        //    //getCoordinator().deleteAllActivityData(device, session);
+        //} catch (final Exception e) {
+        //    GB.toast(getContext(), "Error deleting activity data", Toast.LENGTH_LONG, GB.ERROR, e);
+        //}
 
         final long[] lastNotificationUpdateTs = new long[]{System.currentTimeMillis()};
         final FitAsyncProcessor fitAsyncProcessor = new FitAsyncProcessor(getContext(), getDevice());
-        fitAsyncProcessor.process(Arrays.asList(fitFiles), new FitAsyncProcessor.Callback() {
+        fitAsyncProcessor.process(fitFiles, new FitAsyncProcessor.Callback() {
             @Override
             public void onProgress(final int i) {
                 final long now = System.currentTimeMillis();
                 if (now - lastNotificationUpdateTs[0] > 1500L) {
                     lastNotificationUpdateTs[0] = now;
                     GB.updateTransferNotification(
-                            "Parsing fit files", "File " + i + " of " + fitFiles.length,
+                            "Parsing fit files", "File " + i + " of " + fitFiles.size(),
                             true,
-                            (i * 100) / fitFiles.length, getContext()
+                            (i * 100) / fitFiles.size(), getContext()
                     );
                 }
             }
 
             @Override
             public void onFinish() {
+                parsingFitFilesFromStorage = false;
                 GB.updateTransferNotification("", "", false, 100, getContext());
-                GB.signalActivityDataFinish();
+                GB.signalActivityDataFinish(getDevice());
             }
         });
     }

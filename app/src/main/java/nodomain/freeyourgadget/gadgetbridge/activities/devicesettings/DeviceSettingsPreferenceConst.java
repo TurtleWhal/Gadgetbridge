@@ -40,10 +40,14 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_BATTERY_NOTIFY_FULL_ENABLED = "battery_notify_full_enabled_";
     public static final String PREF_BATTERY_NOTIFY_FULL_THRESHOLD = "battery_notify_full_threshold_";
 
+    public static final String PREF_BATTERY_POLLING_ENABLE = "pref_battery_polling_enabled";
+    public static final String PREF_BATTERY_POLLING_INTERVAL = "pref_battery_polling_interval";
+
     public static final String PREF_SCREEN_NIGHT_MODE = "pref_screen_night_mode";
     public static final String PREF_SCREEN_SLEEP_MODE = "pref_screen_sleep_mode";
     public static final String PREF_SCREEN_LIFT_WRIST = "pref_screen_lift_wrist";
     public static final String PREF_SCREEN_PASSWORD = "pref_screen_password";
+    public static final String PREF_SCREEN_GPS = "pref_screen_gps";
     public static final String PREF_SCREEN_ALWAYS_ON_DISPLAY = "pref_screen_always_on_display";
     public static final String PREF_SCREEN_HEARTRATE_MONITORING = "pref_screen_heartrate_monitoring";
     public static final String PREF_SCREEN_INACTIVITY_EXTENDED = "pref_screen_inactivity_extended";
@@ -59,6 +63,9 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_DEVICE_REGION = "device_region";
     public static final String PREF_DEVICE_NAME = "pref_device_name";
     public static final String PREF_DATEFORMAT = "dateformat";
+    public static final String PREF_DATEFORMAT_AUTO = "auto";
+    public static final String PREF_DATEFORMAT_DAY_MONTH = "day_month";
+    public static final String PREF_DATEFORMAT_MONTH_DAY = "month_day";
     public static final String PREF_TIMEFORMAT = "timeformat";
     public static final String PREF_TIMEFORMAT_24H = "24h";
     public static final String PREF_TIMEFORMAT_12H = "am/pm";
@@ -73,9 +80,16 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_SCREEN_ORIENTATION = "screen_orientation";
     public static final String PREF_SCREEN_TIMEOUT = "screen_timeout";
     public static final String PREF_RESERVER_ALARMS_CALENDAR = "reserve_alarms_calendar";
-    public static final String PREF_RESERVER_REMINDERS_CALENDAR = "reserve_reminders_calendar";
+    public static final String PREF_RESERVE_REMINDERS_CALENDAR = "reserve_reminders_calendar";
     public static final String PREF_ALLOW_HIGH_MTU = "allow_high_mtu";
     public static final String PREF_SYNC_CALENDAR = "sync_calendar";
+    public static final String PREF_SYNC_BIRTHDAYS = "sync_birthdays";
+    public static final String PREF_CALENDAR_LOOKAHEAD_DAYS = "calendar_lookahead_days";
+    public static final String PREF_CALENDAR_SYNC_EVENTS_AMOUNT = "calendar_sync_events_amount";
+    public static final String PREF_CALENDAR_MAX_TITLE_LENGTH = "calendar_sync_event_title_length";
+    public static final String PREF_CALENDAR_MAX_DESC_LENGTH = "calendar_sync_event_desc_length";
+    public static final String PREF_CALENDAR_TARGET_APP = "calendar_sync_target_app";
+    public static final String PREF_TIME_SYNC = "time_sync";
     public static final String PREF_USE_CUSTOM_DEVICEICON = "use_custom_deviceicon";
     public static final String PREF_BUTTON_1_FUNCTION_SHORT = "button_1_function_short";
     public static final String PREF_BUTTON_2_FUNCTION_SHORT = "button_2_function_short";
@@ -97,6 +111,13 @@ public class DeviceSettingsPreferenceConst {
 
     public static final String PREF_DEVICE_INTERNET_ACCESS = "device_internet_access";
     public static final String PREF_DEVICE_INTENTS = "device_intents";
+
+    public static final String PREF_ACTIVE_NOISE_CANCELLING_TOGGLE = "active_noise_cancelling_toggle";
+    public static final String PREF_NOISE_CONTROL_SELECTOR = "noise_control_selector";
+    public static final String PREF_WEAR_SENSOR_TOGGLE = "wear_sensor_toggle";
+    public static final String PREF_BANDW_PSERIES_VPT_ENABLED = "bandw_pseries_vpt_enabled";
+    public static final String PREF_BANDW_PSERIES_VPT_LEVEL = "bandw_pseries_vpt_level";
+    public static final String PREF_BANDW_PSERIES_GUI_VPT_LEVEL = "bandw_pseries_gui_vpt_level";
 
     public static final String PREF_BANGLEJS_TEXT_BITMAP = "banglejs_text_bitmap";
     public static final String PREF_BANGLEJS_TEXT_BITMAP_SIZE = "banglejs_txt_bitmap_size";
@@ -143,6 +164,7 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_ALERT_TONE = "alert_tone";
     public static final String PREF_COVER_TO_MUTE = "cover_to_mute";
     public static final String PREF_VIBRATE_FOR_ALERT = "vibrate_for_alert";
+    public static final String PREF_VIBRATION_INTENSITY = "vibration_intensity";
     public static final String PREF_TEXT_TO_SPEECH = "text_to_speech";
 
     public static final String PREF_OFFLINE_VOICE_RESPOND_TURN_WRIST = "offline_voice_respond_turn_wrist";
@@ -178,6 +200,7 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_INACTIVITY_DND = "inactivity_warnings_dnd";
     public static final String PREF_INACTIVITY_DND_START = "inactivity_warnings_dnd_start";
     public static final String PREF_INACTIVITY_DND_END = "inactivity_warnings_dnd_end";
+    public static final String PREF_INACTIVITY_STEPS = "inactivity_warnings_steps";
 
     public static final String PREF_HEARTRATE_USE_FOR_SLEEP_DETECTION = "heartrate_sleep_detection";
     public static final String PREF_HEARTRATE_MEASUREMENT_INTERVAL = "heartrate_measurement_interval";
@@ -191,6 +214,8 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_HEARTRATE_SLEEP_BREATHING_QUALITY_MONITORING = "heartrate_sleep_breathing_quality_monitoring";
     public static final String PREF_SPO2_ALL_DAY_MONITORING = "spo2_all_day_monitoring_enabled";
     public static final String PREF_SPO2_LOW_ALERT_THRESHOLD = "spo2_low_alert_threshold";
+    public static final String PREF_HRV_ALL_DAY_MONITORING = "hrv_all_day_monitoring_enabled";
+    public static final String PREF_TEMPERATURE_ALL_DAY_MONITORING = "continuous_skin_temperature_measurement";
 
     public static final String PREF_AUTOHEARTRATE_SWITCH = "pref_autoheartrate_switch";
     public static final String PREF_AUTOHEARTRATE_SLEEP = "pref_autoheartrate_sleep";
@@ -199,6 +224,7 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_AUTOHEARTRATE_END = "pref_autoheartrate_end";
 
     public static final String PREF_POWER_MODE = "power_mode";
+    public static final String PREF_CONNECTION_DURATION = "connection_duration";
     public static final String PREF_BUTTON_BP_CALIBRATE = "prefs_sensors_button_bp_calibration";
     public static final String PREF_ALTITUDE_CALIBRATE = "pref_sensors_altitude";
     public static final String PREF_DO_NOT_DISTURB_NOAUTO = "do_not_disturb_no_auto";
@@ -209,6 +235,8 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_DO_NOT_DISTURB_END = "do_not_disturb_end";
     public static final String PREF_DO_NOT_DISTURB_LIFT_WRIST = "do_not_disturb_lift_wrist";
     public static final String PREF_DO_NOT_DISTURB_NOT_WEAR = "do_not_disturb_not_wear";
+    public static final String PREF_DO_NOT_DISTURB_BOOL = "do_not_disturb_on_off";
+    public static final String PREF_DO_NOT_DISTURB_FOLLOW_PHONE = "do_not_disturb_follow_phone";
     public static final String PREF_DO_NOT_DISTURB_OFF = "off";
     public static final String PREF_DO_NOT_DISTURB_AUTOMATIC = "automatic";
     public static final String PREF_DO_NOT_DISTURB_ALWAYS = "always";
@@ -225,6 +253,7 @@ public class DeviceSettingsPreferenceConst {
 
     public static final String PREF_WORKOUT_START_ON_PHONE = "workout_start_on_phone";
     public static final String PREF_WORKOUT_SEND_GPS_TO_BAND = "workout_send_gps_to_band";
+    public static final String PREF_WORKOUT_SEND_GPS_TO_BAND_TIMEOUT = "workout_send_gps_to_band_timeout";
     public static final String PREF_WORKOUT_DETECTION_CATEGORIES = "workout_detection_categories";
     public static final String PREF_WORKOUT_DETECTION_ALERT = "workout_detection_alert";
     public static final String PREF_WORKOUT_DETECTION_SENSITIVITY = "workout_detection_sensitivity";
@@ -254,6 +283,7 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_CASIO_ALERT_OTHER = "casio_alert_other";
 
     public static final String PREF_CASIO_ALERT_SMS = "casio_alert_sms";
+    public static final String PREF_LIGHT_DURATION_LONGER = "light_duration_longer";
     public static final String PREF_AUTOREMOVE_MESSAGE = "autoremove_message";
     public static final String PREF_SEND_APP_NOTIFICATIONS = "send_app_notifications";
     public static final String PREF_NOTIFICATION_WAKE_ON_OPEN = "notification_wake_on_open";
@@ -267,6 +297,10 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_WORLD_CLOCKS = "pref_world_clocks";
     public static final String PREF_CONTACTS = "pref_contacts";
     public static final String PREF_WIDGETS = "pref_widgets";
+
+    public static final String PREF_MUSIC_MANAGEMENT = "pref_music_management";
+
+    public static final String PREF_UPLOAD_NOTIFICATIONS_APP_ICON = "pref_upload_notifications_app_icon";
 
     public static final String PREF_ANTILOST_ENABLED = "pref_antilost_enabled";
     public static final String PREF_HYDRATION_SWITCH = "pref_hydration_switch";
@@ -295,8 +329,15 @@ public class DeviceSettingsPreferenceConst {
     public static final String WIFI_HOTSPOT_STOP = "wifi_hotspot_stop";
     public static final String WIFI_HOTSPOT_STATUS = "wifi_hotspot_status";
 
+    public static final String PREF_WIFI_FREQUENCY = "wifi_frequency";
+    public static final String PREF_WIFI_CHANNEL_2_4 = "wifi_channel_2_4";
+    public static final String PREF_WIFI_CHANNEL_5 = "wifi_channel_5";
+
+    public static final String PREF_COUNTRY = "country";
+
     public static final String PREF_APP_LOGS_START = "pref_app_logs_start";
     public static final String PREF_APP_LOGS_STOP = "pref_app_logs_stop";
+    public static final String PREF_DEVICE_LOGS_TOGGLE = "device_logs_enabled";
 
     public static final String MORNING_UPDATES_ENABLED = "morning_updates_enabled";
     public static final String MORNING_UPDATES_CATEGORIES_SORTABLE = "morning_updates_categories";
@@ -314,6 +355,13 @@ public class DeviceSettingsPreferenceConst {
 
     public static final String PREF_NOTHING_EAR1_INEAR = "pref_nothing_inear_detection";
     public static final String PREF_NOTHING_EAR1_AUDIOMODE = "pref_nothing_audiomode";
+
+
+    public static final String PREF_HUAWEI_FREEBUDS_INEAR = "pref_freebuds_inear_detection";
+    public static final String PREF_HUAWEI_FREEBUDS_AUDIOMODE = "pref_freebuds_audiomode";
+    public static final String PREF_HUAWEI_FREEBUDS_ANC_MODE = "pref_freebuds_anc_mode";
+    public static final String PREF_HUAWEI_FREEBUDS_VOICE_BOOST = "pref_freebuds_voice_boost";
+    public static final String PREF_HUAWEI_FREEBUDS_BETTER_AUDIO_QUALITY = "pref_freebuds_better_audio_quality";
 
     public static final String PREF_GALAXY_BUDS_AMBIENT_MODE = "pref_galaxy_buds_ambient_mode";
     public static final String PREF_GALAXY_BUDS_AMBIENT_VOICE_FOCUS = "pref_galaxy_buds_ambient_voice_focus";
@@ -346,6 +394,39 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_GALAXY_BUDS_PRO_ANC_LEVEL="pref_galaxy_buds_pro_anc_level";
     public static final String PREFS_GALAXY_BUDS_SEAMLESS_CONNECTION="prefs_galaxy_buds_seamless_connection";
 
+    public static final String PREF_REDMI_BUDS_5_PRO_AMBIENT_SOUND_CONTROL="pref_redmi_buds_5_pro_ambient_sound_control";
+    public static final String PREF_REDMI_BUDS_5_PRO_NOISE_CANCELLING_STRENGTH="pref_redmi_buds_5_pro_noise_cancelling_strength";
+    public static final String PREF_REDMI_BUDS_5_PRO_TRANSPARENCY_STRENGTH="pref_redmi_buds_5_pro_transparency_strength";
+    public static final String PREF_REDMI_BUDS_5_PRO_ADAPTIVE_NOISE_CANCELLING="pref_redmi_buds_5_pro_adaptive_noise_cancelling";
+//    public static final String PREF_REDMI_BUDS_5_PRO_PERSONALIZED_NOISE_CANCELLING="pref_redmi_buds_5_pro_personalized_noise_cancelling";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_SINGLE_TAP_LEFT="pref_redmi_buds_5_pro_control_single_tap_left";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_SINGLE_TAP_RIGHT="pref_redmi_buds_5_pro_control_single_tap_right";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_DOUBLE_TAP_LEFT="pref_redmi_buds_5_pro_control_double_tap_left";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_DOUBLE_TAP_RIGHT="pref_redmi_buds_5_pro_control_double_tap_right";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_TRIPLE_TAP_LEFT="pref_redmi_buds_5_pro_control_triple_tap_left";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_TRIPLE_TAP_RIGHT="pref_redmi_buds_5_pro_control_triple_tap_right";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_LONG_TAP_MODE_LEFT ="pref_redmi_buds_5_pro_control_long_tap_mode_left";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_LONG_TAP_MODE_RIGHT ="pref_redmi_buds_5_pro_control_long_tap_mode_right";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_LONG_TAP_SETTINGS_LEFT ="pref_redmi_buds_5_pro_control_long_tap_settings_left";
+    public static final String PREF_REDMI_BUDS_5_PRO_CONTROL_LONG_TAP_SETTINGS_RIGHT ="pref_redmi_buds_5_pro_control_long_tap_settings_right";
+    public static final String PREF_REDMI_BUDS_5_PRO_WEARING_DETECTION="pref_redmi_buds_5_pro_wearing_detection";
+    public static final String PREF_REDMI_BUDS_5_PRO_AUTO_REPLY_PHONECALL="pref_redmi_buds_5_pro_auto_reply_phonecall";
+    public static final String PREF_REDMI_BUDS_5_PRO_DOUBLE_CONNECTION="pref_redmi_buds_5_pro_double_connection";
+//    public static final String PREF_REDMI_BUDS_5_PRO_SURROUND_SOUND="pref_redmi_buds_5_pro_surround_sound";
+//    public static final String PREF_REDMI_BUDS_5_PRO_SURROUND_SOUND_MODE="pref_redmi_buds_5_pro_surround_sound_mode";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_PRESET="pref_redmi_buds_5_pro_equalizer_preset";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_62="pref_redmi_buds_5_pro_equalizer_band_62";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_125="pref_redmi_buds_5_pro_equalizer_band_125";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_250="pref_redmi_buds_5_pro_equalizer_band_250";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_500="pref_redmi_buds_5_pro_equalizer_band_500";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_1k="pref_redmi_buds_5_pro_equalizer_band_1k";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_2k="pref_redmi_buds_5_pro_equalizer_band_2k";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_4k="pref_redmi_buds_5_pro_equalizer_band_4k";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_8k="pref_redmi_buds_5_pro_equalizer_band_8k";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_12k="pref_redmi_buds_5_pro_equalizer_band_12k";
+    public static final String PREF_REDMI_BUDS_5_PRO_EQUALIZER_BAND_16k="pref_redmi_buds_5_pro_equalizer_band_16k";
+    public static final String PREF_REDMI_BUDS_5_PRO_ADAPTIVE_SOUND="pref_redmi_buds_5_pro_adaptive_sound";
+
     public static final String PREF_SONY_AUDIO_CODEC = "pref_sony_audio_codec";
     public static final String PREF_SONY_PROTOCOL_VERSION = "pref_protocol_version";
     public static final String PREF_SONY_ACTUAL_PROTOCOL_VERSION = "pref_actual_protocol_version";
@@ -354,6 +435,7 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_SOUNDCORE_ADAPTIVE_NOISE_CANCELLING = "pref_adaptive_noise_cancelling";
     public static final String PREF_SOUNDCORE_WIND_NOISE_REDUCTION= "pref_soundcore_wind_noise_reduction";
     public static final String PREF_SOUNDCORE_TRANSPARENCY_VOCAL_MODE = "pref_soundcore_transparency_vocal_mode";
+    public static final String PREF_SOUNDCORE_ANC_MODE = "pref_soundcore_anc_mode";
     public static final String PREF_SOUNDCORE_WEARING_DETECTION = "pref_soundcore_wearing_detection";
     public static final String PREF_SOUNDCORE_WEARING_TONE = "pref_soundcore_wearing_tone";
     public static final String PREF_SOUNDCORE_TOUCH_TONE = "pref_soundcore_touch_tone";
@@ -369,6 +451,33 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_SOUNDCORE_CONTROL_DOUBLE_TAP_ACTION_RIGHT = "pref_soundcore_control_double_tap_action_right";
     public static final String PREF_SOUNDCORE_CONTROL_TRIPLE_TAP_ACTION_RIGHT = "pref_soundcore_control_triple_tap_action_right";
     public static final String PREF_SOUNDCORE_CONTROL_LONG_PRESS_ACTION_RIGHT = "pref_soundcore_control_long_press_action_right";
+    public static final String PREF_SOUNDCORE_VOICE_PROMPTS = "pref_soundcore_voice_prompts";
+    public static final String PREF_SOUNDCORE_BUTTON_BRIGHTNESS = "pref_soundcore_button_brightness";
+    public static final String PREF_SOUNDCORE_AUTO_POWER_OFF = "pref_soundcore_auto_power_off";
+    public static final String PREF_SOUNDCORE_LDAC_MODE = "pref_soundcore_ldac_mode";
+    public static final String PREF_SOUNDCORE_ADAPTIVE_DIRECTION = "pref_soundcore_adaptive_direction";
+    public static final String PREF_SOUNDCORE_EQUALIZER_PRESET = "pref_soundcore_equalizer_preset";
+    public static final String PREF_SOUNDCORE_EQUALIZER_CUSTOM = "pref_soundcore_equalizer_custom";
+    public static final String PREF_SOUNDCORE_EQUALIZER_DIRECTION = "pref_soundcore_equalizer_direction";
+    public static final String PREF_SOUNDCORE_EQUALIZER_RESET = "pref_soundcore_equalizer_reset";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND1_FREQ = "pref_soundcore_equalizer_band1_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND1_VALUE = "pref_soundcore_equalizer_band1_value";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND2_FREQ = "pref_soundcore_equalizer_band2_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND2_VALUE = "pref_soundcore_equalizer_band2_value";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND3_FREQ = "pref_soundcore_equalizer_band3_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND3_VALUE = "pref_soundcore_equalizer_band3_value";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND4_FREQ = "pref_soundcore_equalizer_band4_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND4_VALUE = "pref_soundcore_equalizer_band4_value";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND5_FREQ = "pref_soundcore_equalizer_band5_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND5_VALUE = "pref_soundcore_equalizer_band5_value";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND6_FREQ = "pref_soundcore_equalizer_band6_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND6_VALUE = "pref_soundcore_equalizer_band6_value";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND7_FREQ = "pref_soundcore_equalizer_band7_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND7_VALUE = "pref_soundcore_equalizer_band7_value";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND8_FREQ = "pref_soundcore_equalizer_band8_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND8_VALUE = "pref_soundcore_equalizer_band8_value";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND9_FREQ = "pref_soundcore_equalizer_band9_freq";
+    public static final String PREF_SOUNDCORE_EQUALIZER_BAND9_VALUE = "pref_soundcore_equalizer_band9_value";
     public static final String PREF_SONY_AMBIENT_SOUND_CONTROL_BUTTON_MODE = "pref_sony_ambient_sound_control_button_mode";
     public static final String PREF_SONY_FOCUS_VOICE = "pref_sony_focus_voice";
     public static final String PREF_SONY_AMBIENT_SOUND_LEVEL = "pref_sony_ambient_sound_level";
@@ -403,6 +512,9 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_SONY_ADAPTIVE_VOLUME_CONTROL = "pref_adaptive_volume_control";
     public static final String PREF_SONY_WIDE_AREA_TAP = "pref_wide_area_tap";
 
+    public static final String PREF_OVERRIDE_FEATURES_ENABLED = "override_features_enabled";
+    public static final String PREF_OVERRIDE_FEATURES_LIST = "override_features_list";
+
     public static final String PREF_MOONDROP_EQUALIZER_PRESET = "pref_moondrop_equalizer_preset";
     public static final String PREF_MOONDROP_TOUCH_PLAY_PAUSE_EARBUD = "pref_moondrop_touch_play_pause_earbud";
     public static final String PREF_MOONDROP_TOUCH_PLAY_PAUSE_TRIGGER = "pref_moondrop_touch_play_pause_trigger";
@@ -419,7 +531,19 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_MOONDROP_TOUCH_ANC_MODE_EARBUD = "pref_moondrop_touch_anc_mode_earbud";
     public static final String PREF_MOONDROP_TOUCH_ANC_MODE_TRIGGER = "pref_moondrop_touch_anc_mode_trigger";
 
+    public static final String PREF_MISCALE_WEIGHT_UNIT = "pref_miscale_weight_unit";
+    public static final String PREF_MISCALE_SMALL_OBJECTS = "pref_miscale_small_objects";
+
+    public static final String PREF_MIJIA_LYWSD_COMFORT_CHARACTERISTIC_LENGTH = "pref_mijia_lywsd_comfort_characteristic_length";
+    public static final String PREF_MIJIA_LYWSD_COMFORT_LEVEL = "pref_mijia_lywsd_comfort_level";
+    public static final String PREF_MIJIA_LYWSD_COMFORT_TEMPERATURE_LOWER = "pref_mijia_lywsd_comfort_temperature_lower";
+    public static final String PREF_MIJIA_LYWSD_COMFORT_TEMPERATURE_UPPER = "pref_mijia_lywsd_comfort_temperature_upper";
+    public static final String PREF_MIJIA_LYWSD_COMFORT_HUMIDITY_LOWER = "pref_mijia_lywsd_comfort_humidity_lower";
+    public static final String PREF_MIJIA_LYWSD_COMFORT_HUMIDITY_UPPER = "pref_mijia_lywsd_comfort_humidity_upper";
+
     public static final String PREF_QC35_NOISE_CANCELLING_LEVEL = "qc35_noise_cancelling_level";
+
+    public static final String PREF_DUAL_DEVICE_SUPPORT = "dual_device_support";
 
     public static final String PREFS_ACTIVITY_IN_DEVICE_CARD = "prefs_activity_in_device_card";
     public static final String PREFS_ACTIVITY_IN_DEVICE_CARD_STEPS = "prefs_activity_in_device_card_steps";
@@ -433,6 +557,10 @@ public class DeviceSettingsPreferenceConst {
 
     public static final String PREF_VESC_MINIMUM_VOLTAGE = "vesc_minimum_battery_voltage";
     public static final String PREF_VESC_MAXIMUM_VOLTAGE = "vesc_maximum_battery_voltage";
+
+    public static final String PREF_IDASEN_SIT_HEIGHT = "idasen_sit_height";
+    public static final String PREF_IDASEN_MID_HEIGHT = "idasen_mid_height";
+    public static final String PREF_IDASEN_STAND_HEIGHT = "idasen_stand_height";
 
     public static final String PREF_SOUNDS = "sounds";
     public static final String PREF_AUTH_KEY = "authkey";
@@ -471,11 +599,14 @@ public class DeviceSettingsPreferenceConst {
     public static final String PREF_PREFIX_NOTIFICATION_WITH_APP = "pref_prefix_notification_with_app";
     public static final String PREF_DEVICE_ACTION_SELECTION_BROADCAST = "BROADCAST";
     public static final String PREF_DEVICE_ACTION_FELL_SLEEP_SELECTIONS = "events_forwarding_fellsleep_action_selections";
-    public static final String PREF_DEVICE_ACTION_FELL_SLEEP_BROADCAST = "prefs_events_forwarding_fellsleep_broadcast";
+    public static final String PREF_DEVICE_ACTION_FELL_SLEEP_BROADCAST_ACTION = "prefs_events_forwarding_fellsleep_broadcast";
+    public static final String PREF_DEVICE_ACTION_FELL_SLEEP_BROADCAST_PACKAGE = "prefs_events_forwarding_fellsleep_broadcast_package";
     public static final String PREF_DEVICE_ACTION_WOKE_UP_SELECTIONS = "events_forwarding_wokeup_action_selections";
-    public static final String PREF_DEVICE_ACTION_WOKE_UP_BROADCAST = "prefs_events_forwarding_wokeup_broadcast";
+    public static final String PREF_DEVICE_ACTION_WOKE_UP_BROADCAST_ACTION = "prefs_events_forwarding_wokeup_broadcast";
+    public static final String PREF_DEVICE_ACTION_WOKE_UP_BROADCAST_PACKAGE = "prefs_events_forwarding_wokeup_broadcast_package";
     public static final String PREF_DEVICE_ACTION_START_NON_WEAR_SELECTIONS = "events_forwarding_startnonwear_action_selections";
-    public static final String PREF_DEVICE_ACTION_START_NON_WEAR_BROADCAST = "prefs_events_forwarding_startnonwear_broadcast";
+    public static final String PREF_DEVICE_ACTION_START_NON_WEAR_BROADCAST_ACTION = "prefs_events_forwarding_startnonwear_broadcast";
+    public static final String PREF_DEVICE_ACTION_START_NON_WEAR_BROADCAST_PACKAGE = "prefs_events_forwarding_startnonwear_broadcast_package";
     public static final String PREF_CLAP_HANDS_TO_WAKEUP_DEVICE = "pref_key_clap_hands_to_wakeup_device";
     public static final String PREF_POWER_SAVING = "pref_key_power_saving";
     public static final String PREF_FORCE_CONNECTION_TYPE = "pref_force_connection_type";
@@ -487,4 +618,35 @@ public class DeviceSettingsPreferenceConst {
 
     public static final String PREF_CYCLING_SENSOR_PERSISTENCE_INTERVAL = "pref_cycling_persistence_interval";
     public static final String PREF_CYCLING_SENSOR_WHEEL_DIAMETER = "pref_cycling_wheel_diameter";
+
+    public static final String PREFS_KEY_DEVICE_BLE_API_DEVICE_STATE = "prefs_device_ble_api_state";
+    public static final String PREFS_KEY_DEVICE_BLE_API_DEVICE_READ_WRITE = "prefs_device_ble_api_characteristic_read_write";
+    public static final String PREFS_KEY_DEVICE_BLE_API_DEVICE_NOTIFY = "prefs_device_ble_api_characteristic_notify";
+    public static final String PREFS_KEY_DEVICE_BLE_API_CHARACTERISTIC = "prefs_device_ble_api_filter_char";
+    public static final String PREFS_KEY_DEVICE_BLE_API_PACKAGE = "prefs_device_ble_api_package";
+
+    public static final String PREFS_DEVICE_SUPPORT_CAN_RECONNECT = "prefs_device_support_can_reconnect";
+    public static final String PREFS_DEVICE_GATT_SYNCHRONOUS_WRITES = "prefs_device_gatt_synchronous_writes";
+    public static final String PREF_BATTERY_DISCHARGE_INTERVAL1_WATT = "battery_discharge_interval1_watt";
+    public static final String PREF_BATTERY_DISCHARGE_INTERVAL2_WATT = "battery_discharge_interval2_watt";
+    public static final String PREF_BATTERY_DISCHARGE_INTERVAL3_WATT = "battery_discharge_interval3_watt";
+    public static final String PREF_BATTERY_DISCHARGE_INTERVAL4_WATT = "battery_discharge_interval4_watt";
+    public static final String PREF_BATTERY_DISCHARGE_INTERVAL5_WATT = "battery_discharge_interval5_watt";
+    public static final String PREF_BATTERY_DISCHARGE_INTERVALS_SET = "battery_discharge_intervals_set";
+    public static final String PREF_BATTERY_DISCHARGE_MANUAL = "battery_discharge_manual";
+    public static final String PREF_BATTERY_MINIMUM_CHARGE = "battery_minimum_charge";
+    public static final String PREF_BATTERY_ALLOW_PASS_THROUGH = "battery_allow_pass_through";
+
+    public static final String PREF_DISPLAY_ENABLED = "display_enabled";
+    public static final String PREF_DISPLAY_ENABLED_ALL_DAY = "display_all_day";
+    public static final String PREF_DISPLAY_ON_START = "display_on_start";
+    public static final String PREF_DISPLAY_ON_END = "display_on_end";
+    public static final String PREF_CONNECTION_PRIORITY_LOW_POWER = "connection_priority_low_power";
+    public static final String PREF_EVEN_REALITIES_SCREEN_HEIGHT = "pref_even_realities_g1_screen_height";
+    public static final String PREF_EVEN_REALITIES_SCREEN_DEPTH = "pref_even_realities_g1_screen_depth";
+    public static final String PREF_EVEN_REALITIES_SCREEN_ACTIVATION_ANGLE = "pref_even_realities_g1_screen_activation_angle";
+
+    public static final String PREF_DEVICE_STRESS_TEST_CONNECT_COUNT = "pref_device_stress_test_connect_count";
+    public static final String PREF_DEVICE_STRESS_TEST_CONNECT_PARALLEL = "pref_device_stress_test_connect_parallel";
+    public static final String PREF_DEVICE_STRESS_TEST_DISPOSE = "pref_device_stress_test_dispose";
 }

@@ -20,7 +20,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HeartRateZonesConfig;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiReportThreshold;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiRunPaceConfig;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiTLV;
 
 public class FitnessData {
@@ -48,7 +51,7 @@ public class FitnessData {
                         .put(0x04, frameType);
                 stepGoal = ((Type.data & 0x01) != 0x00) ? stepGoal : 0xffffffff;
                 if (stepGoal != 0xffffffff)
-                        subTlv.put(0x05, stepGoal);
+                    subTlv.put(0x05, stepGoal);
                 int calorieGoalFinal = ((Type.data & 0x02) != 0x00) ? calorieGoal : 0xffffffff;
                 if (calorieGoalFinal != 0xffffffff) {
                     subTlv.put(0x06, calorieGoalFinal);
@@ -74,31 +77,139 @@ public class FitnessData {
 
     public static class UserInfo {
         public static final byte id = 0x02;
+
+        public static class UserInfoData {
+            public static final int GENDER_MALE = 1;
+            public static final int GENDER_FEMALE = 2;
+            public static final int GENDER_UNKNOWN = 3;
+
+            private static final float RUN_CF = 0.83f;
+            private static final float WALK_CF = 0.42f;
+
+            public static final int DEFAULT_HEIGHT = 175;
+            public static final int DEFAULT_WEIGHT = 65;
+
+            private final int height;
+            private final float weight;
+            private final int age;
+            private final int birthday;
+            private final byte gender;
+
+            private final boolean unknownGenderSupported;
+
+            private final boolean vo2Supported;
+            private final int vo2Max;
+            private final int vo2Time;
+
+            private final boolean precisionWeightSupported;
+
+            public UserInfoData(int height, float weight, int age, int birthday, byte gender, boolean unknownGenderSupported, boolean vo2Supported, int vo2Max, int vo2Time, boolean precisionWeightSupported) {
+                this.height = height;
+                this.weight = weight;
+                this.age = age;
+                this.birthday = birthday;
+                this.gender = gender;
+                this.unknownGenderSupported = unknownGenderSupported;
+                this.vo2Supported = vo2Supported;
+                this.vo2Max = vo2Max;
+                this.vo2Time = vo2Time;
+                this.precisionWeightSupported = precisionWeightSupported;
+            }
+
+            public int getHeight() {
+                if (this.height > 0)
+                    return this.height;
+                return DEFAULT_HEIGHT;
+            }
+
+            public float getWeight() {
+                if (this.weight > 0)
+                    return this.weight;
+                return DEFAULT_WEIGHT;
+            }
+
+            public int getAge() {
+                return age;
+            }
+
+            public int getBirthday() {
+                return birthday;
+            }
+
+            public byte getGender() {
+                return gender;
+            }
+
+            public boolean isUnknownGenderSupported() {
+                return unknownGenderSupported;
+            }
+
+            public boolean isVo2Supported() {
+                return vo2Supported;
+            }
+
+            public int getVo2Max() {
+                return vo2Max;
+            }
+
+            public int getVo2Time() {
+                return vo2Time;
+            }
+
+            public boolean isPrecisionWeightSupported() {
+                return precisionWeightSupported;
+            }
+
+            public boolean isGenderValid() {
+                return this.gender == GENDER_MALE || this.gender == GENDER_FEMALE || this.gender == GENDER_UNKNOWN;
+            }
+
+            public boolean isBirthdayValid() {
+                return this.birthday > 0;
+            }
+
+        }
+
         public static class Request extends HuaweiPacket {
-            public Request(ParamsProvider paramsProvider,
-                           int height,
-                           int weight,
-                           int age,
-                           int birthdayEncoded,
-                           byte gender) {
+            public Request(ParamsProvider paramsProvider, UserInfoData info) {
                 super(paramsProvider);
+
                 this.serviceId = FitnessData.id;
                 this.commandId = id;
 
-                byte bmi1 = (byte)Math.round(0.42f * height);
-                byte bmi2 = (byte)Math.round(0.83f * height);
+                int height = info.getHeight();
+                float weight = info.getWeight();
+
+                byte bmiWalk = (byte) Math.round(UserInfoData.WALK_CF * height);
+                byte bmiRun = (byte) Math.round(UserInfoData.RUN_CF * height);
 
                 this.tlv = new HuaweiTLV()
-                        .put(0x01, (byte)height)
-                        .put(0x02, (byte)weight)
-                        .put(0x03, (byte)age)
-                        .put(0x04, birthdayEncoded)
-                        .put(0x05, gender)
-                        .put(0x06, bmi1)
-                        .put(0x07, bmi2);
+                        .put(0x01, (byte) height)
+                        .put(0x02, (byte) weight)
+                        .put(0x03, (byte) info.getAge());
+                if (info.isBirthdayValid())
+                    this.tlv.put(0x04, info.getBirthday());
+                if (info.isGenderValid()) {
+                    if (info.unknownGenderSupported || info.gender != UserInfoData.GENDER_UNKNOWN)
+                        this.tlv.put(0x05, info.gender);
+                }
+                this.tlv.put(0x06, bmiWalk);
+                this.tlv.put(0x07, bmiRun);
+
+                if (info.vo2Supported) {
+                    this.tlv.put(0x08, info.getVo2Max());
+                    this.tlv.put(0x09, info.getVo2Time());
+                }
+
+                if (info.precisionWeightSupported) {
+                    int precisionWeight = Math.round(weight * 100f);
+                    this.tlv.put(0x0b, precisionWeight);
+                }
+
             }
         }
     }
+
     public static class MessageCount {
         public static final byte sleepId = 0x0C;
         public static final byte stepId = 0x0A;
@@ -267,6 +378,7 @@ public class FitnessData {
             public List<SubContainer> containers;
 
             private static final List<Byte> singleByteTagListBitmap1 = new ArrayList<>();
+
             static {
                 singleByteTagListBitmap1.add((byte) 0x20);
                 singleByteTagListBitmap1.add((byte) 0x40);
@@ -466,6 +578,92 @@ public class FitnessData {
         }
     }
 
+    public static class DeviceReportThreshold {
+        public static final byte id = 0xe;
+
+        public static class Request extends HuaweiPacket {
+            public Request(ParamsProvider paramsProvider, List<HuaweiReportThreshold> thresholds) {
+                super(paramsProvider);
+
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+
+
+                HuaweiTLV subTlv = new HuaweiTLV();
+                for (HuaweiReportThreshold th : thresholds) {
+                    subTlv.put(0x02, th.getBytes());
+                }
+                this.tlv = new HuaweiTLV().put(0x81, subTlv);
+                this.complete = true;
+            }
+        }
+    }
+
+    public static class HeartRateZoneConfigPacket {
+        // It can use two IDs with basically the same format.
+        public static final byte id_simple = 0x13;
+        public static final byte id_extended = 0x21;
+
+        public static class Request extends HuaweiPacket {
+            private Request(
+                    ParamsProvider paramsProvider,
+                    byte id,
+                    HeartRateZonesConfig heartRateZonesConfig
+            ) {
+                super(paramsProvider);
+
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+
+                HuaweiTLV subTlv = new HuaweiTLV().
+                        put(0x08, heartRateZonesConfig.getWarningEnable());
+
+                if (
+                        heartRateZonesConfig.hasValidMHRData() &&
+                        heartRateZonesConfig.getWarningHRLimit() > 0 &&
+                        heartRateZonesConfig.getMaxHRThreshold() > 0
+                ) {
+                    subTlv
+                            .put(0x09, (byte) heartRateZonesConfig.getWarningHRLimit())
+                            .put(0x02, (byte) heartRateZonesConfig.getMHRWarmUp())
+                            .put(0x03, (byte) heartRateZonesConfig.getMHRFatBurning())
+                            .put(0x04, (byte) heartRateZonesConfig.getMHRAerobic())
+                            .put(0x05, (byte) heartRateZonesConfig.getMHRAnaerobic())
+                            .put(0x06, (byte) heartRateZonesConfig.getMHRExtreme())
+                            .put(0x07, (byte) heartRateZonesConfig.getMaxHRThreshold())
+                            .put(0x0b, (byte) heartRateZonesConfig.getMaxHRThreshold());
+                }
+
+                if (id == id_extended && heartRateZonesConfig.hasValidHRRData()) {
+                    subTlv
+                            .put(0x0d, (byte) heartRateZonesConfig.getHRRBasicAerobic())
+                            .put(0x0e, (byte) heartRateZonesConfig.getHRRAdvancedAerobic())
+                            .put(0x0f, (byte) heartRateZonesConfig.getHRRLactate())
+                            .put(0x10, (byte) heartRateZonesConfig.getHRRBasicAnaerobic())
+                            .put(0x11, (byte) heartRateZonesConfig.getHRRAdvancedAnaerobic());
+                }
+
+                if (id == id_extended && heartRateZonesConfig.getRestHeartRate() > 0) {
+                    subTlv
+                            .put(0x0a, (byte) heartRateZonesConfig.getCalculateMethod())
+                            .put(0x0c, (byte) heartRateZonesConfig.getRestHeartRate());
+                }
+
+                this.tlv = new HuaweiTLV().put(0x81, subTlv);
+
+                this.complete = true;
+            }
+
+            public static Request requestSimple(ParamsProvider paramsProvider, HeartRateZonesConfig heartRateZonesConfig) {
+                return new Request(paramsProvider, id_simple, heartRateZonesConfig);
+            }
+
+            public static Request requestExtended(ParamsProvider paramsProvider, HeartRateZonesConfig heartRateZonesConfig) {
+                return new Request(paramsProvider, id_extended, heartRateZonesConfig);
+            }
+        }
+    }
+
     public static class TruSleep {
         public static final byte id = 0x16;
 
@@ -496,6 +694,67 @@ public class FitnessData {
 
                 this.tlv = new HuaweiTLV()
                         .put(0x01, enableAutomaticHeartrate);
+
+                this.isEncrypted = true;
+                this.complete = true;
+            }
+        }
+    }
+
+    public static class EnableRealtimeHeartRate {
+        public static final byte id = 0x1c;
+
+        public static class Request extends HuaweiPacket {
+            public Request(ParamsProvider paramsProvider, boolean enableRealtimeHeartRate) {
+                super(paramsProvider);
+
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+
+                this.tlv = new HuaweiTLV()
+                        .put(0x01, enableRealtimeHeartRate);
+
+                this.isEncrypted = true;
+                this.complete = true;
+            }
+        }
+    }
+
+    public static class HighHeartRateAlert {
+        public static final byte id = 0x1d;
+
+        public static class Request extends HuaweiPacket {
+            public Request(ParamsProvider paramsProvider, boolean enabled, byte highHeartRateAlert) {
+                super(paramsProvider);
+
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+
+                this.tlv = new HuaweiTLV()
+                        .put(0x01, enabled);
+                if(enabled)
+                        this.tlv.put(0x02, highHeartRateAlert);
+
+                this.isEncrypted = true;
+                this.complete = true;
+            }
+        }
+    }
+
+    public static class LowHeartRateAlert {
+        public static final byte id = 0x22;
+
+        public static class Request extends HuaweiPacket {
+            public Request(ParamsProvider paramsProvider, boolean enabled, byte lowHeartRateAlert) {
+                super(paramsProvider);
+
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+
+                this.tlv = new HuaweiTLV()
+                        .put(0x01, enabled);
+                if(enabled)
+                    this.tlv.put(0x02, lowHeartRateAlert);
 
                 this.isEncrypted = true;
                 this.complete = true;
@@ -540,6 +799,66 @@ public class FitnessData {
         }
     }
 
+    public static class LowSpoAlert {
+        public static final byte id = 0x25;
+
+        public static class Request extends HuaweiPacket {
+            public Request(ParamsProvider paramsProvider, boolean enabled, byte lowHeartRateAlert) {
+                super(paramsProvider);
+
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+
+                this.tlv = new HuaweiTLV()
+                        .put(0x01, enabled);
+                if(enabled)
+                    this.tlv.put(0x02, lowHeartRateAlert);
+
+                this.isEncrypted = true;
+                this.complete = true;
+            }
+        }
+    }
+
+    public static class RunPaceConfig {
+        public static final byte id = 0x28;
+
+        public static class Request extends HuaweiPacket {
+            public Request(ParamsProvider paramsProvider, final HuaweiRunPaceConfig runPaceConfig) {
+                super(paramsProvider);
+
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+
+                this.tlv = new HuaweiTLV()
+                        .put(0x01, (short) runPaceConfig.getZone1JogMin())
+                        .put(0x02, (short) runPaceConfig.getZone2MarathonMin())
+                        .put(0x03, (short) runPaceConfig.getZone3LactateThresholdMin())
+                        .put(0x04, (short) runPaceConfig.getZone4AnaerobicMin())
+                        .put(0x05, (short) runPaceConfig.getZone5HIITRunMin())
+                        .put(0x06, (short) runPaceConfig.getZone5HIITRunMax());
+                this.complete = true;
+            }
+        }
+
+        public static class Response extends HuaweiPacket {
+
+            public boolean isOk;
+
+            public Response(ParamsProvider paramsProvider) {
+                super(paramsProvider);
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+            }
+
+            @Override
+            public void parseTlv() throws ParseException {
+                isOk = this.tlv.getInteger(0x7f) == 0x000186A0;
+            }
+        }
+
+    }
+
     public static class MediumToStrengthThreshold {
         public static final byte id = 0x29;
 
@@ -550,14 +869,16 @@ public class FitnessData {
                            byte heartRate,
                            byte cycleSpeed,
                            byte sample,
-                           byte countLength) {
+                           byte countLength,
+                           int walkRunSpeed,
+                           int walkRunWithHeartRate) {
                 super(paramsProvider);
 
                 this.serviceId = FitnessData.id;
                 this.commandId = id;
 
                 if (walkRun < 0x00 || walkRun > 0xc8) walkRun = 0x6E;
-                if (climb < 0x0 || climb > 0xc8)  climb = 0x3c;
+                if (climb < 0x0 || climb > 0xc8) climb = 0x3c;
                 if (heartRate < 0x0 || heartRate > 0x64) heartRate = 0x40;
                 if (cycleSpeed < 0x0 || cycleSpeed > 0xff) cycleSpeed = 0x50;
                 if (sample < 0x1 || sample > 0xa) sample = 0x3;
@@ -571,6 +892,30 @@ public class FitnessData {
                         .put(0x04, cycleSpeed)
                         .put(0x05, sample)
                         .put(0x06, countLength);
+                if (walkRunSpeed != -1) {
+                    this.tlv.put(0x07, (byte) walkRunSpeed);
+                }
+                if (walkRunWithHeartRate != -1) {
+                    this.tlv.put(0x08, (byte) walkRunWithHeartRate);
+                }
+                this.complete = true;
+            }
+        }
+    }
+
+    public static class SkinTemperatureMeasurement {
+        public static final byte id = 0x2a;
+
+        public static class Request extends HuaweiPacket {
+            public Request(ParamsProvider paramsProvider, boolean temperatureSwitch) {
+                super(paramsProvider);
+
+                this.serviceId = FitnessData.id;
+                this.commandId = id;
+
+                this.tlv = new HuaweiTLV()
+                        .put(0x01, (byte) 0x01)
+                        .put(0x02, temperatureSwitch);
 
                 this.complete = true;
             }
@@ -580,8 +925,8 @@ public class FitnessData {
     public static class Type {
         // TODO: enum?
 
-        public static final byte  goal = 0x01;
-        public static final byte  motion = 0x00;
-        public static final byte  data = 0x01;
+        public static final byte goal = 0x01;
+        public static final byte motion = 0x00;
+        public static final byte data = 0x01;
     }
 }

@@ -16,13 +16,13 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiNotificationsManager.getNotificationKey;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Notifications;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
@@ -31,7 +31,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiSupportProvider;
 
 public class SendNotificationRequest extends Request {
-
     private static final Logger LOG = LoggerFactory.getLogger(SendNotificationRequest.class);
 
     private HuaweiPacket packet;
@@ -54,8 +53,7 @@ public class SendNotificationRequest extends Request {
                 return Notifications.NotificationType.sms;
         }
     }
-
-
+    
     public void buildNotificationTLVFromNotificationSpec(NotificationSpec notificationSpec) {
         String title;
         if (notificationSpec.title != null)
@@ -64,10 +62,40 @@ public class SendNotificationRequest extends Request {
             title = notificationSpec.sourceName;
 
         String body = notificationSpec.body;
-        if (body.length() > supportProvider.getHuaweiCoordinator().getContentLength()) {
+        if (body != null && body.length() > supportProvider.getHuaweiCoordinator().getContentLength()) {
             body = notificationSpec.body.substring(0x0, supportProvider.getHuaweiCoordinator().getContentLength() - 0xD);
             body += "...";
         }
+
+        String replyKey = "";
+        final boolean hasActions = (null != notificationSpec.attachedActions && !notificationSpec.attachedActions.isEmpty());
+        if (hasActions) {
+            for (int i = 0; i < notificationSpec.attachedActions.size(); i++) {
+                final NotificationSpec.Action action = notificationSpec.attachedActions.get(i);
+                if (action.isReply()) {
+                    //NOTE: store notification key instead action key. The watch returns this key so it is more easier to find action by notification key
+                    replyKey = getNotificationKey(notificationSpec);
+                    break;
+                }
+            }
+        }
+
+        Notifications.NotificationActionRequest.AdditionalParams params = new Notifications.NotificationActionRequest.AdditionalParams();
+
+        params.supportsReply = supportProvider.getHuaweiCoordinator().supportsNotificationsReply();
+        params.supportsRepeatedNotify = supportProvider.getHuaweiCoordinator().supportsNotificationsRepeatedNotify();
+        params.supportsRemoveSingle = supportProvider.getHuaweiCoordinator().supportsNotificationsRemoveSingle();
+        params.supportsReplyActions = supportProvider.getHuaweiCoordinator().supportsNotificationsReplyActions();
+        params.supportsTimestamp = supportProvider.getHuaweiCoordinator().supportsNotificationsAddIconTimestamp();
+
+        params.notificationId = notificationSpec.getId();
+        params.notificationKey = getNotificationKey(notificationSpec);
+        params.replyKey = replyKey;
+        params.channelId = notificationSpec.channelId;
+        params.category = notificationSpec.category;
+        params.address = notificationSpec.phoneNumber;
+
+
         this.packet = new Notifications.NotificationActionRequest(
                 paramsProvider,
                 supportProvider.getNotificationId(),
@@ -76,12 +104,12 @@ public class SendNotificationRequest extends Request {
                 title,
                 notificationSpec.sender,
                 body,
-                notificationSpec.sourceAppId
+                notificationSpec.sourceAppId,
+                params
         );
     }
 
     public void buildNotificationTLVFromCallSpec(CallSpec callSpec) {
-
         this.packet = new Notifications.NotificationActionRequest(
                 paramsProvider,
                 supportProvider.getNotificationId(),
@@ -90,6 +118,7 @@ public class SendNotificationRequest extends Request {
                 callSpec.name,
                 callSpec.name,
                 callSpec.name,
+                null,
                 null
         );
     }

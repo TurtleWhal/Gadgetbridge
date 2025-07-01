@@ -17,12 +17,12 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi;
 
 
-import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_FORCE_CONNECTION_TYPE;
-
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.location.Location;
 import android.net.Uri;
+import android.os.Handler;
+import android.widget.Toast;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -38,10 +38,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
-import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.XiaomiCoordinator;
@@ -79,6 +78,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class XiaomiSupport extends AbstractDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(XiaomiSupport.class);
+    private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
 
     private final XiaomiAuthService authService = new XiaomiAuthService(this);
     private final XiaomiMusicService musicService = new XiaomiMusicService(this);
@@ -95,7 +95,7 @@ public class XiaomiSupport extends AbstractDeviceSupport {
     private String cachedFirmwareVersion = null;
     private XiaomiConnectionSupport connectionSupport = null;
 
-    private final Map<Integer, AbstractXiaomiService> mServiceMap = new LinkedHashMap<Integer, AbstractXiaomiService>() {{
+    private final Map<Integer, AbstractXiaomiService> mServiceMap = new LinkedHashMap<>() {{
         put(XiaomiAuthService.COMMAND_TYPE, authService);
         put(XiaomiMusicService.COMMAND_TYPE, musicService);
         put(XiaomiHealthService.COMMAND_TYPE, healthService);
@@ -122,30 +122,11 @@ public class XiaomiSupport extends AbstractDeviceSupport {
         }
     }
 
-    @Override
-    public boolean getImplicitCallbackModify() {
-        return false;
-    }
-
-    private DeviceCoordinator.ConnectionType getForcedConnectionTypeFromPrefs() {
-        final String connTypeAuto = getContext().getString(R.string.pref_force_connection_type_auto_value);
-        String connTypePref = getDevicePrefs().getString(PREF_FORCE_CONNECTION_TYPE, connTypeAuto);
-
-        if (getContext().getString(R.string.pref_force_connection_type_ble_value).equals(connTypePref))
-            return DeviceCoordinator.ConnectionType.BLE;
-
-        if (getContext().getString(R.string.pref_force_connection_type_bt_classic_value).equals(connTypePref))
-            return DeviceCoordinator.ConnectionType.BT_CLASSIC;
-
-        // either set to default, unknown option selected, or has not been set
-        return DeviceCoordinator.ConnectionType.BOTH;
-    }
-
     private XiaomiConnectionSupport createConnectionSpecificSupport() {
         DeviceCoordinator.ConnectionType connType = getCoordinator().getConnectionType();
 
         if (connType == DeviceCoordinator.ConnectionType.BOTH) {
-            connType = getForcedConnectionTypeFromPrefs();
+            connType = getDevicePrefs().getForcedConnectionTypeFromPrefs();
         }
 
         switch (connType) {
@@ -179,6 +160,10 @@ public class XiaomiSupport extends AbstractDeviceSupport {
 
     @Override
     public void dispose() {
+        for (final AbstractXiaomiService service : mServiceMap.values()) {
+            service.dispose();
+        }
+
         if (this.connectionSupport != null) {
             XiaomiConnectionSupport connectionSupport = this.connectionSupport;
             this.connectionSupport = null;
@@ -186,6 +171,7 @@ public class XiaomiSupport extends AbstractDeviceSupport {
         }
     }
 
+    @Override
     public void setContext(final GBDevice device, final BluetoothAdapter adapter, final Context context) {
         // FIXME unsetDynamicState unsets the fw version, which causes problems..
         if (device.getFirmwareVersion() != null) {
@@ -415,6 +401,7 @@ public class XiaomiSupport extends AbstractDeviceSupport {
 
     @Override
     public void onSetContacts(ArrayList<? extends Contact> contacts) {
+        //noinspection unchecked
         phonebookService.setContacts((List<Contact>) contacts);
     }
 
@@ -427,7 +414,7 @@ public class XiaomiSupport extends AbstractDeviceSupport {
 
         getConnectionSpecificSupport().onAuthSuccess();
 
-        if (GBApplication.getPrefs().getBoolean("datetime_synconconnect", true)) {
+        if (GBApplication.getPrefs().syncTime()) {
             systemService.setCurrentTime();
         }
 
@@ -467,67 +454,111 @@ public class XiaomiSupport extends AbstractDeviceSupport {
         return StringUtils.replaceEach(inputString, EMOJI_SOURCE, EMOJI_TARGET);
     }
 
+    boolean parsingActivityFilesFromStorage = false;
+
     private void parseAllActivityFilesFromStorage() {
-        // This function as-is should only be used for debug purposes
-        if (!BuildConfig.DEBUG) {
-            LOG.error("This should never be used in release builds");
+        if (parsingActivityFilesFromStorage) {
+            GB.toast(getContext(), "Already parsing!", Toast.LENGTH_LONG, GB.ERROR);
             return;
         }
 
+        parsingActivityFilesFromStorage = true;
+
         LOG.info("Parsing all activity files from storage");
 
+        final File[] activityFiles;
         try {
-            final File externalFilesDir = FileUtils.getExternalFilesDir();
-            final File targetDir = new File(externalFilesDir, "rawFetchOperations");
+            final File externalFilesDir = getCoordinator().getWritableExportDirectory(getDevice());
+            final File exportDir = new File(externalFilesDir, "rawFetchOperations");
 
-            if (!targetDir.exists()) {
-                LOG.warn("rawFetchOperations not found");
+            if (!exportDir.exists() || !exportDir.isDirectory()) {
+                LOG.error("export directory {} not found", exportDir);
+                GB.toast(getContext(), "export directory " + exportDir + " not found", Toast.LENGTH_LONG, GB.ERROR);
                 return;
             }
 
-            final File[] activityFiles = targetDir.listFiles((dir, name) -> name.startsWith("xiaomi_"));
-
+            activityFiles = exportDir.listFiles((dir, name) -> name.startsWith("xiaomi_"));
             if (activityFiles == null) {
-                LOG.warn("activityFiles is null");
+                LOG.error("activityFiles is null for {}", exportDir);
+                GB.toast(getContext(), "activityFiles is null for " + exportDir, Toast.LENGTH_LONG, GB.ERROR);
                 return;
             }
-
-            for (final File activityFile : activityFiles) {
-                LOG.debug("Parsing {}", activityFile);
-
-                // The logic below just replicates XiaomiActivityFileFetcher
-
-                final byte[] data;
-                try (InputStream in = new FileInputStream(activityFile)) {
-                    data = FileUtils.readAll(in, 999999);
-                } catch (final IOException ioe) {
-                    LOG.error("Failed to read " + activityFile, ioe);
-                    continue;
-                }
-
-                final byte[] fileIdBytes = Arrays.copyOfRange(data, 0, 7);
-                final byte[] activityData = Arrays.copyOfRange(data, 8, data.length - 4);
-                final XiaomiActivityFileId fileId = XiaomiActivityFileId.from(fileIdBytes);
-
-                final XiaomiActivityParser activityParser = XiaomiActivityParser.create(fileId);
-                if (activityParser == null) {
-                    LOG.warn("Failed to find parser for {}", fileId);
-                    continue;
-                }
-
-                try {
-                    if (activityParser.parse(this, fileId, activityData)) {
-                        LOG.info("Successfully parsed {}", fileId);
-                    } else {
-                        LOG.warn("Failed to parse {}", fileId);
-                    }
-                } catch (final Exception ex) {
-                    LOG.error("Exception while parsing " + fileId, ex);
-                }
+            if (activityFiles.length == 0) {
+                LOG.error("No activity files found in {}", exportDir);
+                GB.toast(getContext(), "No activity files found in " + exportDir, Toast.LENGTH_LONG, GB.ERROR);
+                return;
             }
         } catch (final Exception e) {
             LOG.error("Failed to parse from storage", e);
+            GB.toast(getContext(), "Failed to parse from storage", Toast.LENGTH_LONG, GB.ERROR, e);
+            return;
         }
+
+        GB.toast(getContext(), "Check notification for progress", Toast.LENGTH_LONG, GB.INFO);
+        GB.updateTransferNotification("Parsing activity files", "...", true, 0, getContext());
+        final long[] lastNotificationUpdateTs = new long[]{System.currentTimeMillis()};
+
+        final Handler handler = new Handler(getContext().getMainLooper());
+        new Thread(() -> {
+            try {
+                int[] i = new int[]{0};
+                for (final File activityFile : activityFiles) {
+                    i[0]++;
+
+                    LOG.debug("Parsing {}", activityFile);
+
+                    final long now = System.currentTimeMillis();
+                    if (now - lastNotificationUpdateTs[0] > 1500L) {
+                        lastNotificationUpdateTs[0] = now;
+                        handler.post(() -> {
+                            GB.updateTransferNotification(
+                                    "Parsing activity files", "File " + i[0] + " of " + activityFiles.length,
+                                    true,
+                                    (i[0] * 100) / activityFiles.length, getContext()
+                            );
+                            ;
+                        });
+                    }
+
+                    // The logic below just replicates XiaomiActivityFileFetcher
+
+                    final byte[] data;
+                    try (InputStream in = new FileInputStream(activityFile)) {
+                        data = FileUtils.readAll(in, 999999);
+                    } catch (final IOException ioe) {
+                        LOG.error("Failed to read {}", activityFile, ioe);
+                        continue;
+                    }
+
+                    final byte[] fileIdBytes = Arrays.copyOfRange(data, 0, 7);
+                    final XiaomiActivityFileId fileId = XiaomiActivityFileId.from(fileIdBytes);
+
+                    final XiaomiActivityParser activityParser = XiaomiActivityParser.create(fileId);
+                    if (activityParser == null) {
+                        LOG.warn("Failed to find parser for {}", fileId);
+                        continue;
+                    }
+
+                    try {
+                        if (activityParser.parse(this, fileId, data)) {
+                            LOG.info("Successfully parsed {}", fileId);
+                        } else {
+                            LOG.warn("Failed to parse {}", fileId);
+                        }
+                    } catch (final Exception ex) {
+                        LOG.error("Exception while parsing {}", fileId, ex);
+                    }
+                }
+            } catch (final Exception e) {
+                LOG.error("Failed to parse from storage", e);
+            }
+
+            handler.post(() -> {
+                parsingActivityFilesFromStorage = false;
+                GB.updateTransferNotification("", "", false, 100, getContext());
+                GB.signalActivityDataFinish(getDevice());
+            });
+        }, "XiaomiSupport_" + THREAD_COUNTER.getAndIncrement()).start();
     }
 
     public void setFeatureSupported(final String featureKey, final boolean supported) {

@@ -16,26 +16,32 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.casio.gwb5600;
 
-import java.util.UUID;
-import java.io.IOException;
-
-import android.widget.Toast;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.BasicCasio2C2DSupport;
 
-import nodomain.freeyourgadget.gadgetbridge.devices.casio.CasioConstants;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.Casio2C2DSupport;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.gwb5600.InitOperation;
-
-public class CasioGWB5600DeviceSupport extends Casio2C2DSupport {
+public class CasioGWB5600DeviceSupport extends BasicCasio2C2DSupport {
     private static final Logger LOG = LoggerFactory.getLogger(CasioGWB5600DeviceSupport.class);
 
     public CasioGWB5600DeviceSupport() {
         super(LOG);
+    }
+
+    @Override
+    public DevicePreference[] supportedDevicePreferences() {
+        return new DevicePreference[] {
+            new LanguagePreference(),
+            new TimeFormatPreference(),
+            new DayMonthOrderPreference(),
+            new OperatingSoundPreference(),
+            new HourlyChimePreference(),
+            new AutoLightPreference(),
+            new LongerLightDurationPreference(),
+            new PowerSavingPreference(),
+            new ConnectionDurationPreference(),
+            new TimeSyncPreference(),
+        };
     }
 
     @Override
@@ -49,24 +55,5 @@ public class CasioGWB5600DeviceSupport extends Casio2C2DSupport {
     // https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/3216
         setAutoReconnect(true);
         return connect();
-    }
-
-    @Override
-    protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        // remove this workaround once Gadgetbridge does discovery on initial pairing
-        if (getCharacteristic(CasioConstants.CASIO_READ_REQUEST_FOR_ALL_FEATURES_CHARACTERISTIC_UUID) == null ||
-           getCharacteristic(CasioConstants.CASIO_ALL_FEATURES_CHARACTERISTIC_UUID) == null) {
-            LOG.info("Reconnecting to discover characteristics");
-            disconnect();
-            connect();
-            return builder;
-        }
-        try {
-            new InitOperation(this, builder).perform();
-        } catch (IOException e) {
-            GB.toast(getContext(), "Initializing watch failed", Toast.LENGTH_SHORT, GB.ERROR, e);
-        }
-
-        return builder;
     }
 }

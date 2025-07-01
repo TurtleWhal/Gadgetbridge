@@ -27,9 +27,11 @@
         <item name="chart_deep_sleep">@color/chart_deep_sleep_light</item>
         <item name="chart_light_sleep">@color/chart_light_sleep_light</item>
         <item name="chart_rem_sleep">@color/chart_rem_sleep_light</item>
+        <item name="chart_awake_sleep">@color/chart_awake_sleep_light</item>
         <item name="chart_activity">@color/chart_activity_light</item>
         <item name="chart_not_worn">@color/chart_not_worn_light</item>
         <item name="alternate_row_background">@color/alternate_row_background_light</item>
+        <item name="row_separator">@color/row_separator_light</item>
         <item name="sports_activity_summary_background">@color/chart_heartrate_fill</item>
 
         <item name="deviceIconPrimary">#2196f3</item>
@@ -38,6 +40,8 @@
         <item name="deviceIconDark">#4dabf5</item>
 
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <!-- FIXME: SDK 21 to 27 has light navbar on light background -->
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
     </style>
 
     <!-- dark theme -->
@@ -68,9 +72,11 @@
         <item name="chart_deep_sleep">@color/chart_deep_sleep_dark</item>
         <item name="chart_light_sleep">@color/chart_light_sleep_dark</item>
         <item name="chart_rem_sleep">@color/chart_rem_sleep_dark</item>
+        <item name="chart_awake_sleep">@color/chart_awake_sleep_dark</item>
         <item name="chart_activity">@color/chart_activity_dark</item>
         <item name="chart_not_worn">@color/chart_not_worn_dark</item>
         <item name="alternate_row_background">@color/alternate_row_background_dark</item>
+        <item name="row_separator">@color/row_separator_dark</item>
         <item name="sports_activity_summary_background">@color/alternate_row_background_dark</item>
 
         <item name="deviceIconPrimary">#2196f3</item>
@@ -79,12 +85,14 @@
         <item name="deviceIconDark">#4dabf5</item>
 
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
     </style>
 
     <!-- black theme -->
     <style name="GadgetbridgeThemeBlack" parent="GadgetbridgeThemeDark">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
     </style>
 
     <!-- Material 3 dynamic color (Material You) themes -->
@@ -99,9 +107,12 @@
         <item name="cardview_background_color">?attr/colorSurface</item>
         <item name="actionmenu_icon_color">?attr/colorOnSurface</item>
         <item name="alternate_row_background">?attr/colorSecondaryContainer</item>
+        <item name="row_separator">@color/row_separator_light</item>
         <item name="sports_activity_summary_background">?attr/colorSurface</item>
         <item name="preferenceTheme">@style/AppPreferenceThemeOverlay</item>
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <!-- FIXME: SDK 21 to 27 has light navbar on light background -->
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
         <item name="deviceIconPrimary">?attr/colorPrimary</item>
         <item name="deviceIconOnPrimary">?attr/colorOnPrimary</item>
         <item name="deviceIconLight">?attr/colorPrimaryVariant</item>
@@ -118,9 +129,11 @@
         <item name="cardview_background_color">?attr/colorSurface</item>
         <item name="actionmenu_icon_color">?attr/colorOnSurface</item>
         <item name="alternate_row_background">?attr/colorSecondaryContainer</item>
+        <item name="row_separator">@color/row_separator_dark</item>
         <item name="sports_activity_summary_background">?attr/colorSurface</item>
         <item name="preferenceTheme">@style/AppPreferenceThemeOverlay</item>
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
         <item name="deviceIconPrimary">?attr/colorPrimary</item>
         <item name="deviceIconOnPrimary">?attr/colorOnPrimary</item>
         <item name="deviceIconLight">?attr/colorPrimaryVariant</item>
@@ -187,6 +200,7 @@
     <style name="SplashTheme" parent="GadgetbridgeTheme.NoActionBar">
         <item name="android:statusBarColor">@color/primarydark_dark</item>
         <item name="android:navigationBarColor">@color/primarydark_dark</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
         <item name="android:windowBackground">@drawable/splash</item>
     </style>
 
@@ -196,5 +210,15 @@
     </style>
     <style name="AppSwitchPreference" parent="@style/Preference.SwitchPreferenceCompat.Material">
         <item name="widgetLayout">@layout/preference_material_switch</item>
+    </style>
+    <style name="GridTile">
+        <item name="android:background">?android:attr/windowBackground</item>
+        <item name="android:padding">15dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:layout_marginBottom">2dp</item>
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_rowWeight">1</item>
     </style>
 </resources>

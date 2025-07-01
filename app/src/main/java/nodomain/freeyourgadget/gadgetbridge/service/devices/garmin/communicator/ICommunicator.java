@@ -10,9 +10,15 @@ public interface ICommunicator {
 
     void onMtuChanged(final int mtu);
 
-    void initializeDevice(TransactionBuilder builder);
+    boolean initializeDevice(TransactionBuilder builder);
 
-    boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic);
+    boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value);
+
+    void onHeartRateTest();
+
+    void onEnableRealtimeHeartRateMeasurement(final boolean enable);
+
+    void onEnableRealtimeSteps(final boolean enable);
 
     interface Callback {
         void onMessage(byte[] message);

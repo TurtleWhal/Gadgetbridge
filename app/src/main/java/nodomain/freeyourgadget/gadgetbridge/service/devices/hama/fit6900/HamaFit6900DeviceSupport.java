@@ -57,15 +57,13 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
-import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
-public final class HamaFit6900DeviceSupport extends AbstractBTLEDeviceSupport {
+public final class HamaFit6900DeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(HamaFit6900DeviceSupport.class);
 
     private BluetoothGattCharacteristic writeCharacteristic;
@@ -81,7 +79,7 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
 
         writeCharacteristic = getCharacteristic(HamaFit6900Constants.UUID_CHARACTERISTIC_TX);
 
@@ -104,7 +102,7 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLEDeviceSupport {
         builder.write(writeCharacteristic, makeSetLiftWristMessage());
         builder.write(writeCharacteristic, Message.encodeSetAlarms(new ArrayList(DBHelper.getAlarms(gbDevice))));
 
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
 
         return builder;
     }
@@ -124,7 +122,7 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLEDeviceSupport {
             case ActivityUser.PREF_USER_WEIGHT_KG:
             case ActivityUser.PREF_USER_GENDER:
             case ActivityUser.PREF_USER_HEIGHT_CM:
-            case ActivityUser.PREF_USER_YEAR_OF_BIRTH:
+            case ActivityUser.PREF_USER_DATE_OF_BIRTH:
             case DeviceSettingsPreferenceConst.PREF_USER_FITNESS_GOAL:
                 sendMessage("update-user-info", makeSetUserInfoMessage());
                 return;
@@ -165,16 +163,15 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] receivedData) {
+        if (super.onCharacteristicChanged(gatt, characteristic, receivedData)) {
             return true;
         }
 
         if (!characteristic.getUuid().equals(HamaFit6900Constants.UUID_CHARACTERISTIC_RX)) {
             return false;
         }
-
-        byte[] receivedData = characteristic.getValue();
 
         Message.CommandMessage cmdMsg = Message.decodeCommandMessage(receivedData);
         if (cmdMsg == null) {
@@ -393,9 +390,8 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     private Message.TimeFormat getDevicePrefsTimeFormat() {
-        GBPrefs gbPrefs = new GBPrefs(new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress())));
         Message.TimeFormat timeFormat = null;
-        switch (gbPrefs.getTimeFormat()) {
+        switch (getDevicePrefs().getTimeFormat()) {
             case DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_24H:
                 timeFormat = Message.TimeFormat.Format24H;
                 break;
@@ -621,5 +617,15 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLEDeviceSupport {
         GBDeviceEventBatteryInfo event = new GBDeviceEventBatteryInfo();
         event.level = level;
         evaluateGBDeviceEvent(event); */
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

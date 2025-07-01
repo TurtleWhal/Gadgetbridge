@@ -43,7 +43,7 @@ public interface ActivitySample extends TimeStamped {
      *
      * @return who created the sample data
      */
-    SampleProvider getProvider();
+    SampleProvider<?> getProvider();
 
     /**
      * Returns the raw activity kind value as recorded by the SampleProvider
@@ -55,7 +55,7 @@ public interface ActivitySample extends TimeStamped {
      *
      * @see ActivityKind
      */
-    int getKind();
+    ActivityKind getKind();
 
     /**
      * Returns the raw intensity value as recorded by the SampleProvider
@@ -71,6 +71,16 @@ public interface ActivitySample extends TimeStamped {
      * Returns the number of steps performed during the period of this sample
      */
     int getSteps();
+
+    /**
+     * Returns the distance moved during the period of this sample, in cm. -1 if unknown.
+     */
+    int getDistanceCm();
+
+    /**
+     * Returns the calories burned during the period of this sample, in calories. -1 if unknown.
+     */
+    int getActiveCalories();
 
     /**
      * Returns the heart rate measured at the corresponding timestamp.

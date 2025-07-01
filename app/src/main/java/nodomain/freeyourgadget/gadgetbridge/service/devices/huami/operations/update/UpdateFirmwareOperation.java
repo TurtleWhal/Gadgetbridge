@@ -39,13 +39,13 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetProgressAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.AbstractHuamiFirmwareInfo;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.AbstractHuamiOperation;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiFirmwareType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.operations.AbstractMiBandOperation;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
-public class UpdateFirmwareOperation extends AbstractHuamiOperation {
+public class UpdateFirmwareOperation extends AbstractMiBandOperation<HuamiSupport> {
     private static final Logger LOG = LoggerFactory.getLogger(UpdateFirmwareOperation.class);
 
     protected final Uri uri;
@@ -57,13 +57,18 @@ public class UpdateFirmwareOperation extends AbstractHuamiOperation {
     public UpdateFirmwareOperation(Uri uri, HuamiSupport support) {
         super(support);
         this.uri = uri;
-        fwCControlChar = getCharacteristic(HuamiService.UUID_CHARACTERISTIC_FIRMWARE);
+        fwCControlChar = getCharacteristic(HuamiService.UUID_CHARACTERISTIC_FIRMWARE_CONTROL);
         fwCDataChar = getCharacteristic(HuamiService.UUID_CHARACTERISTIC_FIRMWARE_DATA);
     }
 
     @Override
     protected void enableNeededNotifications(TransactionBuilder builder, boolean enable) {
         builder.notify(fwCControlChar, enable);
+    }
+
+    @Override
+    protected void enableOtherNotifications(final TransactionBuilder builder, final boolean enable) {
+        // Nothing to do
     }
 
     @Override
@@ -105,13 +110,14 @@ public class UpdateFirmwareOperation extends AbstractHuamiOperation {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] value) {
         UUID characteristicUUID = characteristic.getUuid();
         if (fwCControlChar.getUuid().equals(characteristicUUID)) {
-            handleNotificationNotif(characteristic.getValue());
+            handleNotificationNotif(value);
             return true; // don't let anyone else handle it
         } else {
-            super.onCharacteristicChanged(gatt, characteristic);
+            super.onCharacteristicChanged(gatt, characteristic, value);
         }
         return false;
     }

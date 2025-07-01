@@ -21,6 +21,7 @@ import androidx.annotation.XmlRes;
 import nodomain.freeyourgadget.gadgetbridge.R;
 
 public enum DeviceSpecificSettingsScreen {
+    ADVANCED_SETTINGS("pref_screen_advanced_settings", R.xml.devicesettings_root_advanced_settings),
     ACTIVITY_INFO("pref_screen_activity_info", R.xml.devicesettings_root_activity_info),
     AUDIO("pref_screen_audio", R.xml.devicesettings_root_audio),
     AUTHENTICATION("pref_screen_authentication", R.xml.devicesettings_root_authentication),
@@ -37,6 +38,7 @@ public enum DeviceSpecificSettingsScreen {
     WORKOUT("pref_screen_workout", R.xml.devicesettings_root_workout),
     HEALTH("pref_screen_health", R.xml.devicesettings_root_health),
     TOUCH_OPTIONS("pref_screen_touch_options", R.xml.devicesettings_root_touch_options),
+    SOUND("pref_screen_sound", R.xml.devicesettings_root_sound),
     ;
 
     private final String key;

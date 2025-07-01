@@ -42,11 +42,10 @@ import nodomain.freeyourgadget.gadgetbridge.model.DailyTotals;
 public class DashboardUtils {
     private static final Logger LOG = LoggerFactory.getLogger(DashboardUtils.class);
 
-    public static long getSteps(GBDevice device, DBHandler db, int timeTo) {
+    public static DailyTotals getDailyTotals(GBDevice device, DBHandler db, int timeTo) {
         Calendar day = GregorianCalendar.getInstance();
         day.setTimeInMillis(timeTo * 1000L);
-        DailyTotals ds = new DailyTotals();
-        return ds.getDailyTotalsForDevice(device, day, db)[0];
+        return DailyTotals.getDailyTotalsForDevice(device, day, db);
     }
 
     public static int getStepsTotal(DashboardFragment.DashboardData dashboardData) {
@@ -55,13 +54,52 @@ public class DashboardUtils {
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             for (GBDevice dev : devices) {
                 if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking()) {
-                    totalSteps += getSteps(dev, dbHandler, dashboardData.timeTo);
+                    totalSteps += (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getSteps();
                 }
             }
         } catch (Exception e) {
             LOG.warn("Could not calculate total amount of steps: ", e);
         }
         return totalSteps;
+    }
+
+    public static int getActiveCaloriesTotal(DashboardFragment.DashboardData dashboardData) {
+        List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
+        int totalActiveCalories = 0;
+        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+            for (GBDevice dev : devices) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActiveCalories()) {
+                    totalActiveCalories += (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getActiveCalories();
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not calculate total amount of active calories: ", e);
+        }
+        // Convert calories to kcal
+        return totalActiveCalories / 1000;
+    }
+
+    public static int getRestingCaloriesTotal(DashboardFragment.DashboardData dashboardData) {
+        List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
+        int totalRestingCalories = 0;
+        int totalRestingCaloriesDevices = 0;
+        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+            for (GBDevice dev : devices) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActiveCalories()) {
+                    final int restingCalories = (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getRestingCalories();
+                    if (restingCalories > 0) {
+                        totalRestingCalories += restingCalories;
+                        totalRestingCaloriesDevices++;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not calculate total amount of resting calories: ", e);
+        }
+        if (totalRestingCaloriesDevices == 0) {
+            return 0;
+        }
+        return Math.round(totalRestingCalories / (float) totalRestingCaloriesDevices);
     }
 
     public static float getStepsGoalFactor(DashboardFragment.DashboardData dashboardData) {
@@ -76,8 +114,7 @@ public class DashboardUtils {
     public static long getSleep(GBDevice device, DBHandler db, int timeTo) {
         Calendar day = GregorianCalendar.getInstance();
         day.setTimeInMillis(timeTo * 1000L);
-        DailyTotals ds = new DailyTotals();
-        return ds.getDailyTotalsForDevice(device, day, db)[1];
+        return DailyTotals.getDailyTotalsForDevice(device, day, db).getSleep();
     }
 
     public static long getSleepMinutesTotal(DashboardFragment.DashboardData dashboardData) {
@@ -105,26 +142,41 @@ public class DashboardUtils {
     }
 
     public static float getDistanceTotal(DashboardFragment.DashboardData dashboardData) {
+        ActivityUser activityUser = new ActivityUser();
+        int stepLength = activityUser.getStepLengthCm();
+
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
-        long totalSteps = 0;
+        long totalDistanceCm = 0;
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             for (GBDevice dev : devices) {
                 if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking()) {
-                    totalSteps += getSteps(dev, dbHandler, dashboardData.timeTo);
+                    final DailyTotals dailyTotals = getDailyTotals(dev, dbHandler, dashboardData.timeTo);
+                    if (dailyTotals.getSteps() > 0 && dailyTotals.getDistance() > 0) {
+                        totalDistanceCm += dailyTotals.getDistance();
+                    } else {
+                        totalDistanceCm += dailyTotals.getSteps() * stepLength;
+                    }
                 }
             }
         } catch (Exception e) {
             LOG.warn("Could not calculate total distance: ", e);
         }
-        ActivityUser activityUser = new ActivityUser();
-        int stepLength = activityUser.getStepLengthCm();
-        return totalSteps * stepLength * 0.01f;
+        return totalDistanceCm * 0.01f;
     }
 
     public static float getDistanceGoalFactor(DashboardFragment.DashboardData dashboardData) {
         ActivityUser activityUser = new ActivityUser();
         int distanceGoal = activityUser.getDistanceGoalMeters();
         float goalFactor = getDistanceTotal(dashboardData) / distanceGoal;
+        if (goalFactor > 1) goalFactor = 1;
+
+        return goalFactor;
+    }
+
+    public static float getActiveCaloriesGoalFactor(DashboardFragment.DashboardData dashboardData) {
+        ActivityUser activityUser = new ActivityUser();
+        int caloriesGoal = activityUser.getCaloriesBurntGoal();
+        float goalFactor = (float) getActiveCaloriesTotal(dashboardData) / caloriesGoal;
         if (goalFactor > 1) goalFactor = 1;
 
         return goalFactor;
@@ -163,7 +215,7 @@ public class DashboardUtils {
         boolean isEmptySummary = false;
         if (activitySamples != null) {
             stepSessions = stepAnalysis.calculateStepSessions(activitySamples);
-            if (stepSessions.toArray().length == 0) {
+            if (stepSessions.size() == 0) {
                 isEmptySummary = true;
             }
             stepSessionsSummary = stepAnalysis.calculateSummary(stepSessions, isEmptySummary);

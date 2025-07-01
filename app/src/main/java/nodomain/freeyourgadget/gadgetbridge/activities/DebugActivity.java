@@ -47,6 +47,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.text.Editable;
+import android.text.InputFilter;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Pair;
@@ -71,6 +72,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NavUtils;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.RemoteInput;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
@@ -98,6 +100,7 @@ import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.Widget;
+import nodomain.freeyourgadget.gadgetbridge.activities.welcome.WelcomeActivity;
 import nodomain.freeyourgadget.gadgetbridge.adapter.SpinnerWithIconAdapter;
 import nodomain.freeyourgadget.gadgetbridge.adapter.SpinnerWithIconItem;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
@@ -181,7 +184,7 @@ public class DebugActivity extends AbstractGBActivity {
         filter.addAction(ACTION_REPLY);
         filter.addAction(DeviceService.ACTION_REALTIME_SAMPLES);
         LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, filter);
-        registerReceiver(mReceiver, filter); // for ACTION_REPLY
+        ContextCompat.registerReceiver(this, mReceiver, filter, ContextCompat.RECEIVER_EXPORTED); // for ACTION_REPLY
 
         editContent = findViewById(R.id.editContent);
 
@@ -215,16 +218,22 @@ public class DebugActivity extends AbstractGBActivity {
                 notificationSpec.pebbleColor = notificationSpec.type.color;
                 notificationSpec.attachedActions = new ArrayList<>();
 
+                // DISMISS action
+                NotificationSpec.Action dismissAction = new NotificationSpec.Action();
+                dismissAction.title = getString(R.string.dismiss);
+                dismissAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_DISMISS;
+                notificationSpec.attachedActions.add(dismissAction);
+
                 if (notificationSpec.type == NotificationType.GENERIC_SMS) {
                     // REPLY action
                     NotificationSpec.Action replyAction = new NotificationSpec.Action();
-                    replyAction.title = "Reply";
+                    replyAction.title = getString(R.string._pebble_watch_reply);
                     replyAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_REPLY_PHONENR;
                     notificationSpec.attachedActions.add(replyAction);
                 } else if (notificationSpec.type == NotificationType.CONVERSATIONS) {
                     // REPLY action
                     NotificationSpec.Action replyAction = new NotificationSpec.Action();
-                    replyAction.title = "Reply";
+                    replyAction.title = getString(R.string._pebble_watch_reply);
                     replyAction.type = NotificationSpec.Action.TYPE_WEARABLE_REPLY;
                     notificationSpec.attachedActions.add(replyAction);
                 }
@@ -361,7 +370,7 @@ public class DebugActivity extends AbstractGBActivity {
 
                     weatherSpec.location = "Green Hill";
                     weatherSpec.currentConditionCode = 601; // snow
-                    weatherSpec.currentCondition = Weather.getConditionString(weatherSpec.currentConditionCode);
+                    weatherSpec.currentCondition = Weather.getConditionString(DebugActivity.this, weatherSpec.currentConditionCode);
 
                     weatherSpec.currentTemp = 15 + 273;
                     weatherSpec.currentHumidity = 30;
@@ -577,6 +586,25 @@ public class DebugActivity extends AbstractGBActivity {
                 final TextView textView = new TextView(DebugActivity.this);
                 textView.setText("MAC Address: ");
                 final EditText editText = new EditText(DebugActivity.this);
+                // help the user to input a properly formated MAC - see BluetoothAdapter.checkBluetoothAddress
+                // for banglejs builds: also support pebble emulator addresses
+                editText.setFilters(new InputFilter[]{(source, start, end, dest, dstart, dend) -> {
+                    StringBuilder builder = new StringBuilder();
+
+                    for (int i = start; i < end; i++) {
+                        char c = source.charAt(i);
+                        if (('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || c == ':') {
+                            builder.append(c);
+                        } else if ('a' <= c && c <= 'f') {
+                            builder.append((char) (c - 'a' + 'A'));
+                        } else if (BuildConfig.INTERNET_ACCESS) {
+                            builder.append(c);
+                        } else if (c == '-') {
+                            builder.append(':');
+                        }
+                    }
+                    return builder;
+                }});
                 selectedTestDeviceMAC = randomMac();
                 editText.setText(selectedTestDeviceMAC);
                 editText.addTextChangedListener(new TextWatcher() {
@@ -620,7 +648,7 @@ public class DebugActivity extends AbstractGBActivity {
                         .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                createTestDevice(DebugActivity.this, selectedTestDeviceKey, selectedTestDeviceMAC);
+                                createTestDevice(DebugActivity.this, selectedTestDeviceKey, selectedTestDeviceMAC, null);
                             }
                         })
                         .setNegativeButton(R.string.Cancel, new DialogInterface.OnClickListener() {
@@ -683,19 +711,27 @@ public class DebugActivity extends AbstractGBActivity {
                 final CompanionDeviceManager manager = (CompanionDeviceManager) GBApplication.getContext().getSystemService(Context.COMPANION_DEVICE_SERVICE);
                 final List<String> associations = new ArrayList<>(manager.getAssociations());
                 Collections.sort(associations);
-                String companionDevicesList = String.format(Locale.ROOT, "%d companion devices", associations.size());
+                final StringBuilder sb = new StringBuilder(String.format(Locale.ROOT, "%d companion devices", associations.size()));
                 if (!associations.isEmpty()) {
-                    companionDevicesList += "\n\n" + StringUtils.join("\n", associations.toArray(new String[0]));
+                    sb.append("\n");
+                    for (final String association : associations) {
+                        sb.append("\n").append(association);
+                        final GBDevice device = GBApplication.app()
+                                .getDeviceManager()
+                                .getDeviceByAddress(association);
+                        if (device == null) {
+                            sb.append(" (Unknown)");
+                        } else {
+                            sb.append(" (").append(device.getAliasOrName()).append(")");
+                        }
+                    }
                 }
 
                 new MaterialAlertDialogBuilder(DebugActivity.this)
                         .setCancelable(false)
                         .setTitle("Companion Devices")
-                        .setMessage(companionDevicesList)
-                        .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                            }
+                        .setMessage(sb.toString())
+                        .setPositiveButton(R.string.ok, (dialog, which) -> {
                         })
                         .show();
             }
@@ -770,6 +806,16 @@ public class DebugActivity extends AbstractGBActivity {
                 cameraIntent.putExtra(CameraActivity.intentExtraEvent, GBDeviceEventCameraRemote.eventToInt(GBDeviceEventCameraRemote.Event.OPEN_CAMERA));
                 getApplicationContext().startActivity(cameraIntent);
             }
+        });
+
+        Button startWelcomeActivity = findViewById(R.id.startWelcomeActivity);
+        startWelcomeActivity.setOnClickListener(view -> {
+            startActivity(new Intent(this, WelcomeActivity.class));
+        });
+
+        Button startPermissionsActivity = findViewById(R.id.startPermissionsActivity);
+        startPermissionsActivity.setOnClickListener(view -> {
+            startActivity(new Intent(this, PermissionsActivity.class));
         });
     }
 
@@ -942,6 +988,12 @@ public class DebugActivity extends AbstractGBActivity {
 
     private void testNewFunctionality() {
         GBApplication.deviceService().onTestNewFunction();
+
+        //try (DBHandler db = GBApplication.acquireDB()) {
+        //    db.getDatabase().execSQL("DROP TABLE IF EXISTS TABLE_NAME_TO_DROP_HERE");
+        //} catch (final Exception e) {
+        //    GB.log("Error accessing database", GB.ERROR, e);
+        //}
     }
 
     private void shareLog() {
@@ -975,6 +1027,7 @@ public class DebugActivity extends AbstractGBActivity {
 
     private void testNotification() {
         Intent notificationIntent = new Intent(getApplicationContext(), DebugActivity.class);
+        notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntentUtils.getActivity(getApplicationContext(), 0,
@@ -984,6 +1037,7 @@ public class DebugActivity extends AbstractGBActivity {
                 .build();
 
         Intent replyIntent = new Intent(ACTION_REPLY);
+        replyIntent.setPackage(BuildConfig.APPLICATION_ID);
 
         PendingIntent replyPendingIntent = PendingIntentUtils.getBroadcast(this, 0, replyIntent, 0, true);
 
@@ -1034,16 +1088,19 @@ public class DebugActivity extends AbstractGBActivity {
         spinner.setOnItemSelectedListener(new CustomOnDeviceSelectedListener());
     }
 
-    public static void createTestDevice(Context context, long deviceKey, String deviceMac) {
+    public static void createTestDevice(Context context, long deviceKey, String deviceMac, String deviceName) {
         if (deviceKey == SELECT_DEVICE) {
             return;
         }
         DeviceType deviceType = DeviceType.values()[(int) deviceKey];
-        String deviceName = deviceType.name();
-        int deviceNameResource = deviceType.getDeviceCoordinator().getDeviceNameResource();
-        if(deviceNameResource != 0){
-            deviceName = context.getString(deviceNameResource);
-        }
+        if(deviceName == null) {
+            int deviceNameResource = deviceType.getDeviceCoordinator().getDeviceNameResource();
+            if(deviceNameResource == 0){
+                deviceName = deviceType.name();
+            }else {
+                deviceName = context.getString(deviceNameResource);
+            }
+        };
         try (
             DBHandler db = GBApplication.acquireDB()) {
             DaoSession daoSession = db.getDaoSession();
@@ -1213,11 +1270,15 @@ public class DebugActivity extends AbstractGBActivity {
                 name += " (" + coordinator.getManufacturer() + ")";
             }
             long deviceId = deviceType.ordinal();
-            newMap.put(name, new Pair(deviceId, icon));
+            newMap.put(name, new Pair<>(deviceId, icon));
         }
-        TreeMap <String, Pair<Long, Integer>> sortedMap = new TreeMap<>(newMap);
+        TreeMap <String, Pair<Long, Integer>> sortedMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        sortedMap.putAll(newMap);
         newMap = new LinkedHashMap<>(1);
-        newMap.put(app.getString(R.string.widget_settings_select_device_title), new Pair(SELECT_DEVICE, R.drawable.ic_device_unknown));
+        newMap.put(app.getString(R.string.widget_settings_select_device_title), new Pair<>(SELECT_DEVICE, R.drawable.ic_device_unknown));
+        newMap.put(app.getString(R.string.devicetype_scannable), new Pair<>((long) DeviceType.SCANNABLE.ordinal(), R.drawable.ic_device_scannable));
+        newMap.put(app.getString(R.string.devicetype_ble_gatt_client), new Pair<>((long) DeviceType.BLE_GATT_CLIENT.ordinal(), R.drawable.ic_device_scannable));
+
         newMap.putAll(sortedMap);
 
         return newMap;

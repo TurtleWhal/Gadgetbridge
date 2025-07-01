@@ -35,6 +35,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiActivitySampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.User;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class HuaweiSpo2SampleProvider extends AbstractTimeSampleProvider<HuaweiSpo2SampleProvider.HuaweiSpo2Sample> {
@@ -66,7 +67,8 @@ public class HuaweiSpo2SampleProvider extends AbstractTimeSampleProvider<HuaweiS
     @NonNull
     @Override
     public List<HuaweiSpo2Sample> getAllSamples(long timestampFrom, long timestampTo) {
-        List<HuaweiActivitySample> activitySamples = huaweiSampleProvider.getAllActivitySamples((int) (timestampFrom / 1000L), (int) (timestampTo / 1000L));
+        // Using high res data is fine for the SpO2 sample provider at the time of writing
+        List<HuaweiActivitySample> activitySamples = huaweiSampleProvider.getAllActivitySamplesHighRes((int) (timestampFrom / 1000L), (int) (timestampTo / 1000L));
         List<HuaweiSpo2Sample> spo2Samples = new ArrayList<>(activitySamples.size());
         for (HuaweiActivitySample sample : activitySamples) {
             if (sample.getSpo() == -1)
@@ -203,6 +205,16 @@ public class HuaweiSpo2SampleProvider extends AbstractTimeSampleProvider<HuaweiS
         @Override
         public void setDeviceId(long deviceId) {
             this.deviceId = deviceId;
+        }
+
+        @Override
+        public void setDevice(final Device device) {
+
+        }
+
+        @Override
+        public void setUser(final User user) {
+
         }
 
         @Override

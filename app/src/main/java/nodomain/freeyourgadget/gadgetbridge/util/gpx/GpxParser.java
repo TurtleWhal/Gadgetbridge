@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util.gpx;
 
+import androidx.annotation.Nullable;
+
 import com.google.gson.internal.bind.util.ISO8601Utils;
 
 import org.slf4j.Logger;
@@ -24,12 +26,13 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParsePosition;
 import java.util.Date;
 
-import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
+import nodomain.freeyourgadget.gadgetbridge.util.ArrayUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxFile;
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxTrack;
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxTrackPoint;
@@ -39,10 +42,43 @@ import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxWaypoint;
 public class GpxParser {
     private static final Logger LOG = LoggerFactory.getLogger(GpxParser.class);
 
+    public static final byte[] XML_HEADER = new byte[]{
+            '<', '?', 'x', 'm', 'l'
+    };
+
+    // Some gpx files start with "<gpx" directly.. this needs to be improved
+    public static final byte[] GPX_START = new byte[]{
+            '<', 'g', 'p', 'x'
+    };
+
     private final XmlPullParser parser;
     private int eventType;
 
     private final GpxFile.Builder fileBuilder;
+
+
+    @Nullable
+    public static GpxFile parseGpx(final byte[] xmlBytes) {
+        if (!isGpxFile(xmlBytes)) {
+            return null;
+        }
+
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(xmlBytes)) {
+            final GpxParser gpxParser = new GpxParser(bais);
+            return gpxParser.getGpxFile();
+        } catch (final IOException e) {
+            LOG.error("Failed to read xml", e);
+        } catch (final GpxParseException e) {
+            LOG.error("Failed to parse gpx", e);
+        }
+
+        return null;
+    }
+
+    public static boolean isGpxFile(final byte[] data) {
+        // TODO improve this
+        return ArrayUtils.equals(data, XML_HEADER, 0) || ArrayUtils.equals(data, GPX_START, 0);
+    }
 
     public GpxParser(final InputStream stream) throws GpxParseException {
         this.fileBuilder = new GpxFile.Builder();
@@ -98,6 +134,12 @@ public class GpxParser {
         while (eventType != XmlPullParser.END_TAG || !parser.getName().equals("trk")) {
             if (eventType == XmlPullParser.START_TAG) {
                 switch (parser.getName()) {
+                    case "name":
+                        trackBuilder.withName(parseStringContent("name"));
+                        continue;
+                    case "type":
+                        trackBuilder.withType(parseStringContent("type"));
+                        continue;
                     case "trkseg":
                         final GpxTrackSegment segment = parseTrackSegment();
                         if (!segment.getTrackPoints().isEmpty()) {
@@ -168,6 +210,9 @@ public class GpxParser {
                     case "time":
                         trackPointBuilder.withTime(parseTime());
                         continue;
+                    case "extensions":
+                        parseExtensions(trackPointBuilder);
+                        continue;
                 }
             } 
 
@@ -175,6 +220,34 @@ public class GpxParser {
         }
 
         return trackPointBuilder.build();
+    }
+
+    private void parseExtensions(final GpxTrackPoint.Builder trackPointBuilder) throws Exception {
+        while (eventType != XmlPullParser.END_TAG || !parser.getName().equals("extensions")) {
+            if (parser.getEventType() == XmlPullParser.START_TAG) {
+                switch (parser.getName()) {
+                    case "TrackPointExtension":
+                        parseTrackPointExtensions(trackPointBuilder);
+                        continue;
+                }
+            }
+
+            eventType = parser.next();
+        }
+    }
+
+    private void parseTrackPointExtensions(final GpxTrackPoint.Builder trackPointBuilder) throws Exception {
+        while (eventType != XmlPullParser.END_TAG || !parser.getName().equals("TrackPointExtension")) {
+            if (parser.getEventType() == XmlPullParser.START_TAG) {
+                switch (parser.getName()) {
+                    case "hr":
+                        trackPointBuilder.withHeartRate(Integer.parseInt(parseStringContent("hr")));
+                        continue;
+                }
+            }
+
+            eventType = parser.next();
+        }
     }
 
     private GpxWaypoint parseWaypoint() throws Exception {

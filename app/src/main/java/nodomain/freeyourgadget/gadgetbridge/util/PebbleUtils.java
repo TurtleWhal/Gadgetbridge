@@ -20,6 +20,8 @@ package nodomain.freeyourgadget.gadgetbridge.util;
 import android.graphics.Color;
 import android.util.SparseArray;
 
+import androidx.annotation.Nullable;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,36 +37,39 @@ public class PebbleUtils {
     private static final Logger LOG = LoggerFactory.getLogger(PebbleUtils.class);
 
     public static String getPlatformName(String hwRev) {
-        String platformName;
-        if (hwRev.startsWith("snowy")) {
-            platformName = "basalt";
-        } else if (hwRev.startsWith("spalding")) {
-            platformName = "chalk";
-        } else if (hwRev.startsWith("silk")) {
-            platformName = "diorite";
-        } else if (hwRev.startsWith("robert")) {
-            platformName = "emery";
-        } else {
-            platformName = "aplite";
+        final String DEFAULT_PLATFORM = "aplite";
+        if (hwRev == null || hwRev.isEmpty()) {
+            return DEFAULT_PLATFORM;
         }
-        return platformName;
+
+        if (hwRev.startsWith("snowy")) {
+            return "basalt";
+        } else if (hwRev.startsWith("spalding")) {
+            return "chalk";
+        } else if (hwRev.startsWith("silk")) {
+            return "diorite";
+        } else if (hwRev.startsWith("robert")) {
+            return "emery";
+        }
+        return DEFAULT_PLATFORM;
     }
 
     public static String getModel(String hwRev) {
         //TODO: get real data?
-        String model;
-        if (hwRev.startsWith("snowy")) {
-            model = "pebble_time_black";
-        } else if (hwRev.startsWith("spalding")) {
-            model = "pebble_time_round_black_20mm";
-        } else if (hwRev.startsWith("silk")) {
-            model = "pebble2_black";
-        } else if (hwRev.startsWith("robert")) {
-            model = "pebble_time2_black";
-        } else {
-            model = "pebble_black";
+        final String DEFAULT_MODEL = "pebble_black";
+        if (hwRev == null || hwRev.isEmpty()) {
+            return DEFAULT_MODEL;
         }
-        return model;
+        if (hwRev.startsWith("snowy")) {
+            return "pebble_time_black";
+        } else if (hwRev.startsWith("spalding")) {
+            return "pebble_time_round_black_20mm";
+        } else if (hwRev.startsWith("silk")) {
+            return "pebble2_black";
+        } else if (hwRev.startsWith("robert")) {
+            return "pebble_time2_black";
+        }
+        return DEFAULT_MODEL;
     }
 
     public static int getFwMajor(String fwString) {
@@ -115,6 +120,7 @@ public class PebbleUtils {
         return new File(FileUtils.getExternalFilesDir(), "pbw-cache");
     }
 
+    @Nullable
     public static JSONObject getAppConfigurationKeys(UUID uuid) {
         try {
             File destDir = getPbwCacheDir();

@@ -17,6 +17,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.pebble;
 
+import androidx.annotation.NonNull;
+
 import java.util.Collections;
 import java.util.List;
 
@@ -50,9 +52,10 @@ public class PebbleHealthSampleProvider extends AbstractSampleProvider<PebbleHea
         super(device, session);
     }
 
+    @NonNull
     @Override
     public List<PebbleHealthActivitySample> getAllActivitySamples(int timestamp_from, int timestamp_to) {
-        List<PebbleHealthActivitySample> samples = super.getGBActivitySamples(timestamp_from, timestamp_to, ActivityKind.TYPE_ALL);
+        List<PebbleHealthActivitySample> samples = super.getGBActivitySamples(timestamp_from, timestamp_to);
 
         Device dbDevice = DBHelper.findDevice(getDevice(), getSession());
         if (dbDevice == null) {
@@ -84,6 +87,7 @@ public class PebbleHealthSampleProvider extends AbstractSampleProvider<PebbleHea
         return getSession().getPebbleHealthActivitySampleDao();
     }
 
+    @NonNull
     @Override
     protected Property getTimestampSampleProperty() {
         return PebbleHealthActivitySampleDao.Properties.Timestamp;
@@ -96,6 +100,7 @@ public class PebbleHealthSampleProvider extends AbstractSampleProvider<PebbleHea
         //return PebbleHealthActivitySampleDao.Properties.RawKind;
     }
 
+    @NonNull
     @Override
     protected Property getDeviceIdentifierSampleProperty() {
         return PebbleHealthActivitySampleDao.Properties.DeviceId;
@@ -107,32 +112,31 @@ public class PebbleHealthSampleProvider extends AbstractSampleProvider<PebbleHea
     }
 
     @Override
-    public int normalizeType(int rawType) {
+    public ActivityKind normalizeType(int rawType) {
         switch (rawType) {
             case TYPE_DEEP_NAP:
             case TYPE_DEEP_SLEEP:
-                return ActivityKind.TYPE_DEEP_SLEEP;
+                return ActivityKind.DEEP_SLEEP;
             case TYPE_LIGHT_NAP:
             case TYPE_LIGHT_SLEEP:
-                return ActivityKind.TYPE_LIGHT_SLEEP;
+                return ActivityKind.LIGHT_SLEEP;
             case TYPE_ACTIVITY:
             case TYPE_WALK:
             case TYPE_RUN:
-                return ActivityKind.TYPE_ACTIVITY;
+                return ActivityKind.ACTIVITY;
             default:
-                return ActivityKind.TYPE_UNKNOWN;
+                return ActivityKind.UNKNOWN;
         }
     }
 
     @Override
-    public int toRawActivityKind(int activityKind) {
+    public int toRawActivityKind(ActivityKind activityKind) {
         switch (activityKind) {
-            case ActivityKind.TYPE_ACTIVITY:
-                return TYPE_ACTIVITY;
-            case ActivityKind.TYPE_DEEP_SLEEP:
+            case DEEP_SLEEP:
                 return TYPE_DEEP_SLEEP;
-            case ActivityKind.TYPE_LIGHT_SLEEP:
+            case LIGHT_SLEEP:
                 return TYPE_LIGHT_SLEEP;
+            case ACTIVITY:
             default:
                 return TYPE_ACTIVITY;
         }

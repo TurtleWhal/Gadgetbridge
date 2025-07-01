@@ -36,8 +36,12 @@ public abstract class GFDIMessage {
     public static GFDIMessage parseIncoming(byte[] message) {
         final MessageReader messageReader = new MessageReader(message);
 
-        final int messageType = messageReader.readShort();
+        int messageType = messageReader.readShort();
         try {
+            if ((messageType & 0x8000) != 0) {
+                // final int sequenceNumber = (messageType >> 8) & 0x7f;
+                messageType = (messageType & 0xff) + 5000;
+            }
             final GarminMessage garminMessage = GarminMessage.fromId(messageType);
             if (garminMessage == null) {
                 LOG.warn("Unknown message type {}, message {}", messageType, message);
@@ -116,6 +120,7 @@ public abstract class GFDIMessage {
         MUSIC_CONTROL_ENTITY_UPDATE(5049, MusicControlEntityUpdateMessage.class),
         CONFIGURATION(5050, ConfigurationMessage.class),
         CURRENT_TIME_REQUEST(5052, CurrentTimeRequestMessage.class),
+        AUTH_NEGOTIATION(5101, AuthNegotiationMessage.class)
         ;
         private final Class<? extends GFDIMessage> objectClass;
         private final int id;

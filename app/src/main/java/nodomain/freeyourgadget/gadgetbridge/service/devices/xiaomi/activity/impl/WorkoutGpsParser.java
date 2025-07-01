@@ -58,6 +58,9 @@ public class WorkoutGpsParser extends XiaomiActivityParser {
         final int sampleSize;
         switch (version) {
             case 1:
+                headerSize = 1;
+                sampleSize = 12;
+                break;
             case 2:
                 headerSize = 1;
                 sampleSize = 18;
@@ -68,6 +71,12 @@ public class WorkoutGpsParser extends XiaomiActivityParser {
         }
 
         final ByteBuffer buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+        buf.limit(buf.limit() - 4); // discard crc at the end
+        buf.get(new byte[7]); // skip fileId bytes
+        final byte fileIdPadding = buf.get();
+        if (fileIdPadding != 0) {
+            LOG.warn("Expected 0 padding after fileId, got {} - parsing might fail", fileIdPadding);
+        }
         final byte[] header = new byte[headerSize];
         buf.get(header);
 
@@ -75,26 +84,41 @@ public class WorkoutGpsParser extends XiaomiActivityParser {
 
         if ((buf.limit() - buf.position()) % sampleSize != 0) {
             LOG.warn("Remaining data in the buffer is not a multiple of {}", sampleSize);
-            return false;
         }
 
         final ActivityTrack activityTrack = new ActivityTrack();
 
-        while (buf.position() < buf.limit()) {
-            final int ts = buf.getInt();
-            final float longitude = buf.getFloat();
-            final float latitude = buf.getFloat();
-            final int unk1 = buf.getInt(); // 0
-            final float speed = (buf.getShort() >> 2) / 10.0f;
+        // GPS V1 contains no speed data, therefore second while loop to avoid too many ifs within the loop
+        if (version == 1) {
+            while (buf.position() < buf.limit()) {
+                final int ts = buf.getInt();
+                final float longitude = buf.getFloat();
+                final float latitude = buf.getFloat();
 
-            final ActivityPoint ap = new ActivityPoint(new Date(ts * 1000L));
-            ap.setLocation(new GPSCoordinate(longitude, latitude, 0));
-            activityTrack.addTrackPoint(ap);
+                final ActivityPoint ap = new ActivityPoint(new Date(ts * 1000L));
+                ap.setLocation(new GPSCoordinate(longitude, latitude, 0));
+                activityTrack.addTrackPoint(ap);
+                LOG.trace("ActivityPoint V1: ts={} lon={} lat={}", ts, longitude, latitude);
+            }
+        } else { 
+            while (buf.position() < buf.limit()) {
+                final int ts = buf.getInt();
+                final float longitude = buf.getFloat();
+                final float latitude = buf.getFloat();
+                final float hdop = buf.getFloat() / 4.8f;
+                final float speed = (buf.getShort() >> 2) / 10.0f;
 
-            LOG.trace("ActivityPoint: ts={} lon={} lat={} unk1={} speed={}", ts, longitude, latitude, unk1, speed);
+                final ActivityPoint ap = new ActivityPoint(new Date(ts * 1000L));
+                final GPSCoordinate gpsc = new GPSCoordinate(longitude, latitude);
+                gpsc.setHdop(hdop);
+                ap.setLocation(gpsc);
+
+                activityTrack.addTrackPoint(ap);
+                LOG.trace("ActivityPoint: ts={} lon={} lat={} hdop={} speed={}", ts, longitude, latitude, hdop, speed);
+            }
         }
 
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+       try (DBHandler dbHandler = GBApplication.acquireDB()) {
             final DaoSession session = dbHandler.getDaoSession();
             final Device device = DBHelper.getDevice(support.getDevice(), session);
             final User user = DBHelper.getUser(session);
@@ -105,14 +129,13 @@ public class WorkoutGpsParser extends XiaomiActivityParser {
             // Set the info on the activity track
             activityTrack.setUser(user);
             activityTrack.setDevice(device);
-            activityTrack.setName(ActivityKind.asString(summary.getActivityKind(), support.getContext()));
+            activityTrack.setName(ActivityKind.fromCode(summary.getActivityKind()).getLabel(support.getContext()));
 
             // Save the raw bytes
             final String rawBytesPath = saveRawBytes(fileId, bytes);
 
             // Save the gpx file
             final GPXExporter exporter = new GPXExporter();
-            exporter.setCreator(GBApplication.app().getNameAndVersion());
 
             final String gpxFileName = FileUtils.makeValidFileName("gadgetbridge-" + DateTimeUtils.formatIso8601(fileId.getTimestamp()) + ".gpx");
             final File gpxTargetFile = new File(FileUtils.getExternalFilesDir(), gpxFileName);
@@ -143,6 +166,7 @@ public class WorkoutGpsParser extends XiaomiActivityParser {
     private String saveRawBytes(final XiaomiActivityFileId fileId, final byte[] bytes) {
         try {
             final File targetFolder = new File(FileUtils.getExternalFilesDir(), "rawDetails");
+            //noinspection ResultOfMethodCallIgnored
             targetFolder.mkdirs();
             final File targetFile = new File(targetFolder, fileId.getFilename());
             FileOutputStream outputStream = new FileOutputStream(targetFile);

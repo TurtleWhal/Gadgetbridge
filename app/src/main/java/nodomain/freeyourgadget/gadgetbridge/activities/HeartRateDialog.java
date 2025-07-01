@@ -19,7 +19,6 @@ package nodomain.freeyourgadget.gadgetbridge.activities;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
@@ -39,10 +38,14 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
+import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
 
 public class HeartRateDialog extends Dialog {
+    private final GBDevice device;
+
     protected static final Logger LOG = LoggerFactory.getLogger(HeartRateDialog.class);
     LinearLayout heart_rate_dialog_results_layout;
     RelativeLayout heart_rate_dialog_loading_layout;
@@ -62,17 +65,21 @@ public class HeartRateDialog extends Dialog {
         public void onReceive(Context context, Intent intent) {
             switch (Objects.requireNonNull(intent.getAction())) {
                 case DeviceService.ACTION_REALTIME_SAMPLES:
-                    setMeasurementResults(intent.getSerializableExtra(DeviceService.EXTRA_REALTIME_SAMPLE));
+                    final GBDevice incomingDevice = intent.getParcelableExtra(GBDevice.EXTRA_DEVICE);
+                    if (device.equals(incomingDevice)) {
+                        setMeasurementResults(intent.getSerializableExtra(DeviceService.EXTRA_REALTIME_SAMPLE));
+                    }
                     break;
                 default:
-                    LOG.info("ignoring intent action " + intent.getAction());
+                    LOG.info("ignoring intent action {}", intent.getAction());
                     break;
             }
         }
     };
 
-    public HeartRateDialog(@NonNull Context context) {
+    public HeartRateDialog(final GBDevice device, @NonNull Context context) {
         super(context);
+        this.device = device;
     }
 
     private void setMeasurementResults(Serializable result) {
@@ -80,11 +87,18 @@ public class HeartRateDialog extends Dialog {
         heart_rate_dialog_loading_layout.setVisibility(View.GONE);
         heart_rate_dialog_label.setText(getContext().getString(R.string.heart_rate_result));
 
+        int heartRate = 0;
         if (result instanceof ActivitySample) {
             ActivitySample sample = (ActivitySample) result;
+            heartRate = sample.getHeartRate();
+        }
+        if (result instanceof HeartRateSample) {
+            HeartRateSample sample = (HeartRateSample) result;
+            heartRate = sample.getHeartRate();
+        }
+        if (HeartRateUtils.getInstance().isValidHeartRateValue(heartRate)) {
             heart_rate_hr.setVisibility(View.VISIBLE);
-            if (HeartRateUtils.getInstance().isValidHeartRateValue(sample.getHeartRate()))
-                heart_rate_widget_hr_value.setText(String.valueOf(sample.getHeartRate()));
+            heart_rate_widget_hr_value.setText(String.valueOf(heartRate));
         }
     }
 
@@ -95,7 +109,6 @@ public class HeartRateDialog extends Dialog {
         IntentFilter filter = new IntentFilter();
         filter.addAction(DeviceService.ACTION_REALTIME_SAMPLES);
         LocalBroadcastManager.getInstance(getContext()).registerReceiver(mReceiver, filter);
-        getContext().registerReceiver(mReceiver, filter);
 
         setContentView(R.layout.heart_rate_dialog);
         heart_rate_dialog_results_layout = findViewById(R.id.heart_rate_dialog_results_layout);
@@ -133,12 +146,8 @@ public class HeartRateDialog extends Dialog {
         heart_rate_dialog_results_layout.setVisibility(View.GONE);
         heart_rate_dialog_loading_layout.setVisibility(View.VISIBLE);
 
-        setOnCancelListener(new DialogInterface.OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialogInterface) {
-                LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mReceiver);
-                getContext().unregisterReceiver(mReceiver);
-            }
+        setOnCancelListener(dialogInterface -> {
+            LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mReceiver);
         });
     }
 }

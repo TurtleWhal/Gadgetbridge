@@ -21,6 +21,7 @@ package nodomain.freeyourgadget.gadgetbridge.adapter;
 
 import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_CONNECT;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -30,6 +31,8 @@ import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.Icon;
 import android.os.Build;
@@ -112,6 +115,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSett
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCardAction;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceManager;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
@@ -121,10 +125,11 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceFolder;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
+import nodomain.freeyourgadget.gadgetbridge.model.DailyTotals;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
+import nodomain.freeyourgadget.gadgetbridge.util.BondingUtil;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.FormatUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
@@ -142,10 +147,10 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
     private String expandedDeviceAddress = "";
     private String expandedFolderName = "";
     private ViewGroup parent;
-    private HashMap<String, long[]> deviceActivityMap = new HashMap();
-    private StableIdGenerator idGenerator = new StableIdGenerator();
+    private HashMap<String, DailyTotals> deviceActivityMap = new HashMap<>();
+    private final StableIdGenerator idGenerator = new StableIdGenerator();
 
-    public GBDeviceAdapterv2(Context context, List<GBDevice> deviceList, HashMap<String,long[]> deviceMap) {
+    public GBDeviceAdapterv2(Context context, List<GBDevice> deviceList, HashMap<String, DailyTotals> deviceMap) {
         super(new GBDeviceDiffUtil());
         this.context = context;
         this.deviceList = deviceList;
@@ -153,8 +158,20 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         this.deviceActivityMap = deviceMap;
     }
 
-    public void rebuildFolders(){
+    public void rebuildFolders() {
         this.devicesListWithFolders = enrichDeviceListWithFolder(deviceList);
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    public final void refreshSingleDevice(final GBDevice device) {
+        final int i = devicesListWithFolders.indexOf(device);
+        if (i > 0) {
+            notifyItemChanged(i);
+        } else {
+            // Somehow the device was not on the list - rebuild everything
+            rebuildFolders();
+            notifyDataSetChanged();
+        }
     }
 
     private List<GBDevice> enrichDeviceListWithFolder(List<GBDevice> deviceList) {
@@ -207,11 +224,14 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         holder.infoIcons.setVisibility(View.GONE);
         holder.deviceInfoBox.setVisibility(View.GONE);
         holder.cardViewActivityCardLayout.setVisibility(View.GONE);
-        if(countDevicesInFolder(folder.getName(), true) == 0){
-            holder.deviceImageView.setImageResource(R.drawable.ic_device_folder_disabled);
-        }else{
+        holder.deviceImageView.setImageResource(R.drawable.ic_device_folder);
 
-            holder.deviceImageView.setImageResource(R.drawable.ic_device_folder);
+        if (countDevicesInFolder(folder.getName(), true) == 0) {
+            final ColorMatrix colorMatrix = new ColorMatrix();
+            colorMatrix.setSaturation(0);
+            holder.deviceImageView.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
+        } else {
+            holder.deviceImageView.setColorFilter(null);
         }
         holder.deviceInfoView.setVisibility(View.GONE);
         int countInFolder = countDevicesInFolder(folder.getName(), false);
@@ -221,10 +241,10 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         holder.container.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(expandedFolderName.equals(folder.getName())){
+                if (expandedFolderName.equals(folder.getName())){
                     // collapse open folder
                     expandedFolderName = "";
-                }else {
+                } else {
                     expandedFolderName = folder.getName();
                 }
                 rebuildFolders();
@@ -260,7 +280,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
     }
 
     void handleDeviceConnect(GBDevice device){
-        if(!device.getDeviceCoordinator().isConnectable()){
+        if (!device.getDeviceCoordinator().isConnectable()){
             device.setState(GBDevice.State.WAITING_FOR_SCAN);
             device.sendDeviceUpdateIntent(GBApplication.getContext(), GBDevice.DeviceUpdateSubject.CONNECTION_STATE);
             return;
@@ -291,7 +311,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             holder.container.setVisibility(View.VISIBLE);
         }
 
-        long[] dailyTotals = new long[]{0, 0};
+        DailyTotals dailyTotals = new DailyTotals();
         if (deviceActivityMap.containsKey(device.getAddress())) {
             dailyTotals = deviceActivityMap.get(device.getAddress());
         }
@@ -322,7 +342,15 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             }
         });
 
-        holder.deviceImageView.setImageResource(device.getEnabledDisabledIconResource());
+        holder.deviceImageView.setImageResource(device.getDeviceCoordinator().getDefaultIconResource());
+        if (device.isInitialized()) {
+            holder.deviceImageView.setColorFilter(null);
+        } else {
+            final ColorMatrix colorMatrix = new ColorMatrix();
+            colorMatrix.setSaturation(0);
+
+            holder.deviceImageView.setColorFilter(new ColorMatrixColorFilter(colorMatrix));
+        }
 
         holder.deviceNameLabel.setText(getUniqueDeviceName(device));
 
@@ -330,7 +358,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             holder.deviceStatusLabel.setText(device.getBusyTask());
             holder.busyIndicator.setVisibility(View.VISIBLE);
         } else {
-            holder.deviceStatusLabel.setText(device.getStateString());
+            holder.deviceStatusLabel.setText(device.getStateString(context));
             holder.busyIndicator.setVisibility(View.INVISIBLE);
         }
 
@@ -339,15 +367,15 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         // multiple battery support: at this point we support up to three batteries
         // to support more batteries, the battery UI would need to be extended
 
-        holder.batteryStatusBox0.setVisibility(coordinator.getBatteryCount() > 0 ? View.VISIBLE : View.GONE);
-        holder.batteryStatusBox1.setVisibility(coordinator.getBatteryCount() > 1 ? View.VISIBLE : View.GONE);
-        holder.batteryStatusBox2.setVisibility(coordinator.getBatteryCount() > 2 ? View.VISIBLE : View.GONE);
+        holder.batteryStatusBox0.setVisibility(coordinator.getBatteryCount(device) > 0 ? View.VISIBLE : View.GONE);
+        holder.batteryStatusBox1.setVisibility(coordinator.getBatteryCount(device) > 1 ? View.VISIBLE : View.GONE);
+        holder.batteryStatusBox2.setVisibility(coordinator.getBatteryCount(device) > 2 ? View.VISIBLE : View.GONE);
 
         LinearLayout[] batteryStatusBoxes = {holder.batteryStatusBox0, holder.batteryStatusBox1, holder.batteryStatusBox2};
         TextView[] batteryStatusLabels = {holder.batteryStatusLabel0, holder.batteryStatusLabel1, holder.batteryStatusLabel2};
         ImageView[] batteryIcons = {holder.batteryIcon0, holder.batteryIcon1, holder.batteryIcon2};
 
-        for (int batteryIndex = 0; batteryIndex < coordinator.getBatteryCount(); batteryIndex++) {
+        for (int batteryIndex = 0; batteryIndex < coordinator.getBatteryCount(device); batteryIndex++) {
 
             int batteryLevel = device.getBatteryLevel(batteryIndex);
             float batteryVoltage = device.getBatteryVoltage(batteryIndex);
@@ -355,6 +383,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             int batteryIcon = device.getBatteryIcon(batteryIndex);
             int batteryLabel = device.getBatteryLabel(batteryIndex); //unused for now
             batteryIcons[batteryIndex].setImageResource(R.drawable.level_list_battery);
+            batteryStatusLabels[batteryIndex].setAlpha(1.0f);
 
             if (batteryIcon != GBDevice.BATTERY_ICON_DEFAULT){
                 batteryIcons[batteryIndex].setImageResource(batteryIcon);
@@ -366,7 +395,16 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                         BatteryState.BATTERY_CHARGING_FULL.equals(batteryState)) {
                     batteryIcons[batteryIndex].setImageLevel(device.getBatteryLevel(batteryIndex) + 100);
                 } else {
-                    batteryIcons[batteryIndex].setImageLevel(device.getBatteryLevel(batteryIndex));
+                    if (BatteryState.NO_BATTERY.equals(batteryState)) {
+                        // There is a level to show, but the device has indicated that it does not
+                        // know the status of the battery. This can be used to indicate the last
+                        // known state of charge for things like a headphones case that is not
+                        // actively connected but there is a previously known level.
+                        batteryStatusLabels[batteryIndex].setAlpha(0.3f);
+                        batteryIcons[batteryIndex].setImageLevel(300);
+                    } else {
+                        batteryIcons[batteryIndex].setImageLevel(device.getBatteryLevel(batteryIndex));
+                    }
                 }
             } else if (BatteryState.NO_BATTERY.equals(batteryState) && batteryVoltage != GBDevice.BATTERY_UNKNOWN) {
                 batteryStatusLabels[batteryIndex].setText(String.format(Locale.getDefault(), "%.2f", batteryVoltage));
@@ -374,7 +412,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             } else {
                 //should be the "default" status, shown when the device is not connected
                 batteryStatusLabels[batteryIndex].setText("");
-                batteryIcons[batteryIndex].setImageLevel(50);
+                batteryIcons[batteryIndex].setImageLevel(300);
             }
             final int finalBatteryIndex = batteryIndex;
             batteryStatusBoxes[batteryIndex].setOnClickListener(new View.OnClickListener() {
@@ -398,7 +436,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         }
         holder.heartRateStatusBox.setVisibility((device.isInitialized() && coordinator.supportsRealtimeData() && coordinator.supportsManualHeartRateMeasurement(device)) ? View.VISIBLE : View.GONE);
         if (parent.getContext() instanceof ControlCenterv2) {
-            ActivitySample sample = ((ControlCenterv2) parent.getContext()).getCurrentHRSample();
+            ActivitySample sample = ((ControlCenterv2) parent.getContext()).getCurrentHRSample(device);
             if (sample != null) {
                 holder.heartRateStatusLabel.setText(String.valueOf(sample.getHeartRate()));
             } else {
@@ -417,7 +455,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                                                          @Override
                                                          public void onClick(View v) {
                                                              GBApplication.deviceService(device).onHeartRateTest();
-                                                             HeartRateDialog dialog = new HeartRateDialog(context);
+                                                             HeartRateDialog dialog = new HeartRateDialog(device, context);
                                                              dialog.show();
                                                          }
                                                      }
@@ -809,7 +847,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         }
 
         holder.powerOff.setVisibility(View.GONE);
-        if (device.isInitialized() && coordinator.supportsPowerOff()) {
+        if (device.isInitialized() && coordinator.supportsPowerOff(device)) {
             holder.powerOff.setVisibility(View.VISIBLE);
             holder.powerOff.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -831,6 +869,35 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
 
         holder.cardViewActivityCardLayout.setVisibility(coordinator.supportsActivityTracking() ? View.VISIBLE : View.GONE);
         holder.cardViewActivityCardLayout.setMinimumWidth(coordinator.supportsActivityTracking() ? View.VISIBLE : View.GONE);
+
+        // custom actions
+        final List<DeviceCardAction> customActions = coordinator.getCustomActions();
+        if (customActions.size() > holder.customActions.length) {
+            LOG.error("{} has more than {} actions!", device, holder.customActions.length);
+        }
+        for (int i = 0; i < Math.min(customActions.size(), holder.customActions.length); i++) {
+            final DeviceCardAction action = customActions.get(i);
+            holder.customActions[i].layout.setVisibility(action.isVisible(device) ? View.VISIBLE : View.GONE);
+            holder.customActions[i].image.setImageResource(action.getIcon(device));
+            final String description = action.getDescription(device, context);
+            holder.customActions[i].layout.setContentDescription(description);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                holder.customActions[i].layout.setTooltipText(description);
+            }
+
+            final String label = action.getLabel(device, context);
+            if (!StringUtils.isEmpty(label)) {
+                holder.customActions[i].label.setVisibility(View.VISIBLE);
+                holder.customActions[i].label.setText(label);
+            } else {
+                holder.customActions[i].label.setVisibility(View.GONE);
+            }
+
+            holder.customActions[i].layout.setOnClickListener(v -> action.onClick(device, context));
+        }
+        for (int i = Math.min(customActions.size(), holder.customActions.length); i < holder.customActions.length; i++) {
+            holder.customActions[i].layout.setVisibility(View.GONE);
+        }
 
         if (coordinator.supportsActivityTracking()) {
             setActivityCard(holder, device, dailyTotals);
@@ -923,10 +990,11 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                     public void onClick(DialogInterface dialog, int which) {
                         try {
                             DeviceCoordinator coordinator = device.getDeviceCoordinator();
-                            if (coordinator != null) {
-                                coordinator.deleteDevice(device);
+                            coordinator.deleteDevice(device);
+                            BondingUtil.Unpair(context, device.getAddress());
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                removeDynamicShortcut(device);
                             }
-                            DeviceHelper.getInstance().removeBond(device);
                         } catch (Exception ex) {
                             GB.toast(context, context.getString(R.string.error_deleting_device, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
                         } finally {
@@ -998,7 +1066,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         }
 
         foldersList.add(new SpinnerWithIconItem(context.getString(R.string.controlcenter_add_new_folder), 0L, R.drawable.ic_create_new_folder));
-        if (foldersList.toArray().length > 1) {
+        if (foldersList.size() > 1) {
             foldersList.add(new SpinnerWithIconItem(context.getString(R.string.controlcenter_unset_folder), 1L, R.drawable.ic_folder_delete));
         }
 
@@ -1191,6 +1259,9 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         ImageView ledColor;
         ImageView powerOff;
 
+        // Custom actions
+        CustomActionHolder[] customActions;
+
         //activity card
         LinearLayout cardViewActivityCardLayout;
         PieChart TotalStepsChart;
@@ -1247,6 +1318,24 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             heartRateIcon = view.findViewById(R.id.device_heart_rate_status);
             infoIcons = view.findViewById(R.id.device_info_icons);
 
+            customActions = new CustomActionHolder[]{
+                    new CustomActionHolder(
+                            view.findViewById(R.id.device_custom_action_0_box),
+                            view.findViewById(R.id.device_custom_action_0_image),
+                            view.findViewById(R.id.device_custom_action_0_label)
+                    ),
+                    new CustomActionHolder(
+                            view.findViewById(R.id.device_custom_action_1_box),
+                            view.findViewById(R.id.device_custom_action_1_image),
+                            view.findViewById(R.id.device_custom_action_1_label)
+                    ),
+                    new CustomActionHolder(
+                            view.findViewById(R.id.device_custom_action_2_box),
+                            view.findViewById(R.id.device_custom_action_2_image),
+                            view.findViewById(R.id.device_custom_action_2_label)
+                    )
+            };
+
             cardViewActivityCardLayout = view.findViewById(R.id.card_view_activity_card_layout);
 
             TotalStepsChart = view.findViewById(R.id.activity_dashboard_piechart1);
@@ -1254,6 +1343,17 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             SleepTimeChart = view.findViewById(R.id.activity_dashboard_piechart3);
         }
 
+        static class CustomActionHolder {
+            private final LinearLayout layout;
+            private final ImageView image;
+            private final TextView label;
+
+            CustomActionHolder(final LinearLayout layout, final ImageView image, final TextView label) {
+                this.layout = layout;
+                this.image = image;
+                this.label = label;
+            }
+        }
     }
 
     private void justifyListViewHeightBasedOnChildren(ListView listView) {
@@ -1317,7 +1417,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         snackbar.show();
     }
 
-    private void setActivityCard(ViewHolder holder, final GBDevice device, long[] dailyTotals) {
+    private void setActivityCard(ViewHolder holder, final GBDevice device, DailyTotals dailyTotals) {
         boolean showActivityCard = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREFS_ACTIVITY_IN_DEVICE_CARD, true);
         holder.cardViewActivityCardLayout.setVisibility(showActivityCard ? View.VISIBLE : View.GONE);
 
@@ -1325,15 +1425,16 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             return;
         }
 
-        int steps = (int) dailyTotals[0];
-        int sleep = (int) dailyTotals[1];
+        int steps = (int) dailyTotals.getSteps();
+        int sleep = (int) dailyTotals.getSleep();
+        int distanceCm = (int) dailyTotals.getDistance();
         ActivityUser activityUser = new ActivityUser();
         int stepGoal = activityUser.getStepsGoal();
         int sleepGoal = activityUser.getSleepDurationGoal();
         int sleepGoalMinutes = sleepGoal * 60;
         int distanceGoal = activityUser.getDistanceGoalMeters() * 100;
         int stepLength = activityUser.getStepLengthCm();
-        double distanceMeters = dailyTotals[0] * stepLength * 0.01;
+        double distanceMeters = (distanceCm > 0 ? distanceCm : steps * stepLength) * 0.01;
         String distanceFormatted = FormatUtils.getFormattedDistanceLabel(distanceMeters);
 
         setUpChart(holder.TotalStepsChart);
@@ -1459,6 +1560,13 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                 .setIcon(Icon.createWithResource(context, coordinator.getDefaultIconResource()))
                 .build()
         );
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    void removeDynamicShortcut(GBDevice device) {
+        final ShortcutManager shortcutManager = (ShortcutManager) context.getApplicationContext().getSystemService(Context.SHORTCUT_SERVICE);
+
+        shortcutManager.removeDynamicShortcuts(Collections.singletonList(device.getAddress()));
     }
 
     private static class GBDeviceDiffUtil extends DiffUtil.ItemCallback<GBDevice> {

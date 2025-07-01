@@ -20,26 +20,24 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppInfo;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Watchface;
-import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Watchface.WatchfaceDeviceParams;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetWatchfacesList;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetWatchfacesNames;
@@ -48,25 +46,38 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.Send
 
 public class HuaweiWatchfaceManager
 {
-    Logger LOG = LoggerFactory.getLogger(HuaweiCoordinator.class);
+    static Logger LOG = LoggerFactory.getLogger(HuaweiCoordinator.class);
 
     public static class Resolution {
 
         Map<String, Object> map = new HashMap<>();
         public Resolution() {
-            map.put("HWHD09", "466*466");
-            map.put("HWHD08", "320*320");
-            map.put("HWHD10", "360*320");
-            map.put("HWHD02", "454*454");
+            // Huawei sizes    "height*width"
             map.put("HWHD01", "390*390");
-            map.put("HWHD05", "460*188");
+            map.put("HWHD02", "454*454");
             map.put("HWHD03", "240*120");
             map.put("HWHD04", "160*80");
+            map.put("HWHD05", "460*188");
             map.put("HWHD06", "456*280");
             map.put("HWHD07", "368*194");
+            map.put("HWHD08", "320*320");
+            map.put("HWHD09", "466*466");
+            map.put("HWHD10", "360*320");
+            map.put("HWHD11", "480*336");
+            map.put("HWHD12", "240*240");
+            map.put("HWHD13", "480*408");
+            //Honor sizes
+            map.put("HNHD01", "466*466");
+            map.put("HNHD02","368*194");
+            map.put("HNHD03","450*390");
+            map.put("HNHD04","454*454");
+            map.put("QXHD01","402*256");
+            map.put("QXHD02","502*410");
         }
 
         public boolean  isValid(String themeVersion, String screenResolution) {
+            if(!map.containsKey(themeVersion))
+                return false;
             String screen = map.get(themeVersion).toString();
             if (screenResolution.equals(screen)) {
                 return true;
@@ -76,6 +87,8 @@ public class HuaweiWatchfaceManager
         }
 
         public String screenByThemeVersion(String themeVersion) {
+            if(!map.containsKey(themeVersion))
+                return "0x0";
             String screen = map.get(themeVersion).toString();
             return screen;
         }
@@ -92,7 +105,16 @@ public class HuaweiWatchfaceManager
         public String version;
         public String font;
         public String font_cn;
+        public Boolean isHonor;
 
+        private String parseElement(Document doc, String tag) {
+            NodeList tagNodes = doc.getElementsByTagName(tag);
+            if (tagNodes.getLength() > 0) {
+                return tagNodes.item(0).getTextContent().trim();
+            } else {
+                return "";
+            }
+        }
         public WatchfaceDescription(String xmlStr) {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder;
@@ -101,17 +123,26 @@ public class HuaweiWatchfaceManager
                 Document doc = builder.parse(new InputSource(new StringReader(
                         xmlStr)));
 
-                this.title = doc.getElementsByTagName("title").item(0).getTextContent();
-                this.title_cn = doc.getElementsByTagName("title-cn").item(0).getTextContent();
-                this.author = doc.getElementsByTagName("author").item(0).getTextContent();
-                this.designer = doc.getElementsByTagName("designer").item(0).getTextContent();
-                this.screen = doc.getElementsByTagName("screen").item(0).getTextContent();
-                this.version = doc.getElementsByTagName("version").item(0).getTextContent();
-                this.font = doc.getElementsByTagName("font").item(0).getTextContent();
-                this.font_cn = doc.getElementsByTagName("font-cn").item(0).getTextContent();
+                Element root = doc.getDocumentElement();
+                String rootName = root.getTagName();
+
+                if ("HnTheme".equals(rootName)) {
+                    isHonor = true;
+                } else if ("HwTheme".equals(rootName)) {
+                    isHonor = false;
+                }
+
+                this.title = parseElement(doc, "title");
+                this.title_cn = parseElement(doc,"title-cn");
+                this.author = parseElement(doc,"author");
+                this.designer = parseElement(doc,"designer");
+                this.screen = parseElement(doc,"screen");
+                this.version = parseElement(doc,"version");
+                this.font = parseElement(doc,"font");
+                this.font_cn = parseElement(doc,"font-cn");
 
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.warn("exception in constructor", e);
             }
         }
     }
@@ -187,10 +218,7 @@ public class HuaweiWatchfaceManager
             );
             gbDeviceApps.add(gbDeviceApp);
         }
-
-        final GBDeviceEventAppInfo appInfoCmd = new GBDeviceEventAppInfo();
-        appInfoCmd.apps = gbDeviceApps.toArray(new GBDeviceApp[0]);
-        support.evaluateGBDeviceEvent(appInfoCmd);
+        support.setGbWatchFaces(gbDeviceApps);
     }
 
     public void updateWatchfaceNames() {
@@ -235,7 +263,7 @@ public class HuaweiWatchfaceManager
             getWatchfacesList.setFinalizeReq(finalizeReq);
             getWatchfacesList.doPerform();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            LOG.error("Failed to get watchfaces list", e);
         }
 
     };
@@ -260,7 +288,7 @@ public class HuaweiWatchfaceManager
             sendWatchfaceOperation.setFinalizeReq(finalizeReq);
             sendWatchfaceOperation.doPerform();
         } catch (IOException e) {
-            LOG.error("Could not set watchface ", getFullFileName(uuid), e );
+            LOG.error("Could not set watchface: {}", getFullFileName(uuid), e);
         }
     }
 
@@ -284,7 +312,7 @@ public class HuaweiWatchfaceManager
             sendWatchfaceOperation.setFinalizeReq(finalizeReq);
             sendWatchfaceOperation.doPerform();
         } catch (IOException e) {
-            LOG.error("Could not delete watchface", getFullFileName(uuid), e);
+            LOG.error("Could not delete watchface: {}", getFullFileName(uuid), e);
         }
     }
 

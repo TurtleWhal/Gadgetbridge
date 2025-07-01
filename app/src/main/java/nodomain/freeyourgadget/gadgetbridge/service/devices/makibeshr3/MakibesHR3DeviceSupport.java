@@ -32,7 +32,6 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.widget.Toast;
@@ -70,20 +69,16 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
+import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
-public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implements SharedPreferences.OnSharedPreferenceChangeListener {
+public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(MakibesHR3DeviceSupport.class);
 
@@ -436,6 +431,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
         this.fetch(true);
     }
 
+    @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         LOG.debug(key + " changed");
 
@@ -492,8 +488,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
 
         GB.updateTransferNotification(null, getContext().getString(R.string.busy_task_fetch_activity_data), true, 0, getContext());
 
-        gbDevice.setState(GBDevice.State.INITIALIZING);
-        gbDevice.sendDeviceUpdateIntent(getContext());
+        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZING, getContext());
 
         this.mControlCharacteristic = getCharacteristic(MakibesHR3Constants.UUID_CHARACTERISTIC_CONTROL);
         this.mReportCharacteristic = getCharacteristic(MakibesHR3Constants.UUID_CHARACTERISTIC_REPORT);
@@ -510,8 +505,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
 
         this.requestFitness(builder);
 
-        gbDevice.setState(GBDevice.State.INITIALIZED);
-        gbDevice.sendDeviceUpdateIntent(getContext());
+        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZED, getContext());
 
         getDevice().setFirmwareVersion("N/A");
         getDevice().setFirmwareVersion2("N/A");
@@ -561,6 +555,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
      */
     private void broadcastSample(MakibesHR3ActivitySample sample) {
         Intent intent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES)
+                .putExtra(GBDevice.EXTRA_DEVICE, getDevice())
                 .putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample)
                 .putExtra(DeviceService.EXTRA_TIMESTAMP, sample.getTimestamp());
         LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
@@ -580,12 +575,12 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
         if (heartRate > 0) {
             sample.setHeartRate(heartRate);
             sample.setTimestamp((int) (System.currentTimeMillis() / 1000));
-            sample.setRawKind(ActivityKind.TYPE_ACTIVITY);
+            sample.setRawKind(ActivityKind.ACTIVITY.getCode());
         } else {
             if (heartRate == MakibesHR3Constants.ARG_HEARTRATE_NO_TARGET) {
-                sample.setRawKind(ActivityKind.TYPE_NOT_WORN);
+                sample.setRawKind(ActivityKind.NOT_WORN.getCode());
             } else if (heartRate == MakibesHR3Constants.ARG_HEARTRATE_NO_READING) {
-                sample.setRawKind(ActivityKind.TYPE_NOT_MEASURED);
+                sample.setRawKind(ActivityKind.NOT_MEASURED.getCode());
             } else {
                 LOG.warn("invalid heart rate reading: " + heartRate);
                 return;
@@ -608,7 +603,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
         sample.setHeartRate(heartRate);
         sample.setTimestamp(timeStamp);
 
-        sample.setRawKind(ActivityKind.TYPE_ACTIVITY);
+        sample.setRawKind(ActivityKind.ACTIVITY.getCode());
 
         this.addGBActivitySample(sample);
     }
@@ -622,12 +617,12 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
         int newSteps = (steps - dayStepCount);
 
         if (newSteps > 0) {
-            LOG.debug("adding " + newSteps + " steps");
+            LOG.debug("adding {} steps", newSteps);
 
             sample.setSteps(steps - dayStepCount);
             sample.setTimestamp(timeStamp);
 
-            sample.setRawKind(ActivityKind.TYPE_ACTIVITY);
+            sample.setRawKind(ActivityKind.ACTIVITY.getCode());
 
             this.addGBActivitySample(sample);
         }
@@ -637,7 +632,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
      * The time is the start of the measurement. Each measurement lasts 1h.
      */
     private void onReceiveStepsSample(int year, int month, int day, int hour, int minute, int steps) {
-        LOG.debug("received steps sample " + year + "-" + month + "-" + day + " " + hour + ":" + minute + " " + steps);
+        LOG.debug("received steps sample {}-{}-{} {}:{} {}", year, month, day, hour, minute, steps);
 
         Calendar calendar = new GregorianCalendar(year, month - 1, day, hour + 1, minute);
 
@@ -652,13 +647,13 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] value) {
+        if (super.onCharacteristicChanged(gatt, characteristic, value)) {
             return true;
         }
 
-        byte[] data = characteristic.getValue();
-        if (data.length < 6)
+        if (value.length < 6)
             return true;
 
         this.fetch(false);
@@ -666,7 +661,6 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
         UUID characteristicUuid = characteristic.getUuid();
 
         if (characteristicUuid.equals(mReportCharacteristic.getUuid())) {
-            byte[] value = characteristic.getValue();
             byte[] arguments = new byte[value.length - 6];
 
             if (arguments.length >= 0) {
@@ -1006,9 +1000,19 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
         return this;
     }
 
+    public byte getTimeMode(SharedPreferences sharedPrefs) {
+        String timeMode = new DevicePrefs(sharedPrefs, gbDevice).getTimeFormat();
+
+        if (timeMode.equals(getContext().getString(R.string.p_timeformat_24h))) {
+            return MakibesHR3Constants.ARG_SET_TIMEMODE_24H;
+        } else {
+            return MakibesHR3Constants.ARG_SET_TIMEMODE_12H;
+        }
+    }
+
     private MakibesHR3DeviceSupport setTimeMode(TransactionBuilder transactionBuilder, SharedPreferences sharedPreferences) {
         return this.setTimeMode(transactionBuilder,
-                MakibesHR3Coordinator.getTimeMode(sharedPreferences));
+                getTimeMode(sharedPreferences));
     }
 
     private MakibesHR3DeviceSupport setEnableRealTimeHeartRate(TransactionBuilder transaction, boolean enable) {
@@ -1062,5 +1066,15 @@ public class MakibesHR3DeviceSupport extends AbstractBTLEDeviceSupport implement
         transaction.write(this.mControlCharacteristic, this.craftData(MakibesHR3Constants.CMD_REBOOT));
 
         return this;
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

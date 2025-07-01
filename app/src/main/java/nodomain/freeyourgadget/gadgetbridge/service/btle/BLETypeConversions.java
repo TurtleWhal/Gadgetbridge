@@ -18,6 +18,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.btle;
 
+import androidx.annotation.Nullable;
+
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
@@ -212,6 +214,14 @@ public class BLETypeConversions {
         return (short) (bytes[0] & 0xff | ((bytes[1] & 0xff) << 8));
     }
 
+    public static int toUint24(byte... bytes) {
+        return (bytes[0] & 0xff) | ((bytes[1] & 0xff) << 8) | ((bytes[2] & 0xff) << 16);
+    }
+
+    public static int toUint24(byte[] bytes, int offset) {
+        return (bytes[offset + 0] & 0xff) | ((bytes[offset + 1] & 0xff) << 8) | ((bytes[offset + 2] & 0xff) << 16);
+    }
+
     public static int toUint32(byte... bytes) {
         return (bytes[0] & 0xff) | ((bytes[1] & 0xff) << 8) | ((bytes[2] & 0xff) << 16) | ((bytes[3] & 0xff) << 24);
     }
@@ -297,6 +307,30 @@ public class BLETypeConversions {
         array[offset + 6] = (byte) (value >> 48);
         array[offset + 7] = (byte) (value >> 56);
     }
+
+    public static void writeUint16BE(byte[] array, int offset, int value) {
+        array[offset + 1] = (byte) value;
+        array[offset] = (byte) (value >> 8);
+    }
+
+    public static void writeUint32BE(byte[] array, int offset, int value) {
+        array[offset + 3] = (byte) value;
+        array[offset + 2] = (byte) (value >> 8);
+        array[offset + 1] = (byte) (value >> 16);
+        array[offset] = (byte) (value >> 24);
+    }
+
+    public static void writeUint64BE(byte[] array, int offset, long value) {
+        array[offset + 7] = (byte) value;
+        array[offset + 6] = (byte) (value >> 8);
+        array[offset + 5] = (byte) (value >> 16);
+        array[offset + 4] = (byte) (value >> 24);
+        array[offset + 3] = (byte) (value >> 32);
+        array[offset + 2] = (byte) (value >> 40);
+        array[offset + 1] = (byte) (value >> 48);
+        array[offset] = (byte) (value >> 56);
+    }
+
 
     /**
      * Creates a calendar object representing the current date and time.
@@ -418,5 +452,40 @@ public class BLETypeConversions {
                 return AlertCategory.InstantMessage;
         }
         return AlertCategory.Simple;
+    }
+
+    /// compatible with FORMAT_FLOAT in {@link android.bluetooth.BluetoothGattCharacteristic#getFloatValue(int, int)}
+    @Nullable
+    public static Float toFloat32(byte[] bytes, int offset) {
+        if ((offset + 4) > bytes.length) {
+            return null;
+        }
+
+        int mantissa24 = (bytes[offset] & 0xFF)
+                | ((bytes[offset + 1] & 0xFF) << 8)
+                | ((bytes[offset + 2] & 0xFF) << 16);
+
+        if (0 != (bytes[offset + 2] & 0x80)) {
+            mantissa24 |= (0xFF << 24);
+        }
+
+        int exponent8 = bytes[offset + 3];
+
+        return (float) (Math.pow(10, exponent8) * mantissa24);
+    }
+
+    /// compatible with {@link android.bluetooth.BluetoothGattCharacteristic#getStringValue(int)}
+    @Nullable
+    public static String getStringValue(final byte[] bytes, final int offset) {
+        if (bytes == null || offset > bytes.length) {
+            return null;
+        }
+        final byte[] str = new byte[bytes.length - offset];
+        for (int i = 0; i < (bytes.length - offset); i++) {
+            str[i] = bytes[offset + i];
+        }
+
+        //noinspection ImplicitDefaultCharsetUsage
+        return new String(str);
     }
 }

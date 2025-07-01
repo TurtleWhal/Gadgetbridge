@@ -18,6 +18,7 @@ import java.util.Map;
 
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.ChecksumCalculator;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminByteBufferReader;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.exception.FitParseException;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitRecordDataFactory;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.MessageWriter;
 
@@ -50,12 +51,12 @@ public class FitFile {
         }
     }
 
-    public static FitFile parseIncoming(File file) throws IOException {
+    public static FitFile parseIncoming(File file) throws IOException, FitParseException {
         return parseIncoming(readFileToByteArray(file));
     }
 
     //TODO: process file in chunks??
-    public static FitFile parseIncoming(byte[] fileContents) {
+    public static FitFile parseIncoming(byte[] fileContents) throws FitParseException {
 
         final GarminByteBufferReader garminByteBufferReader = new GarminByteBufferReader(fileContents);
         garminByteBufferReader.setByteOrder(ByteOrder.LITTLE_ENDIAN);
@@ -73,7 +74,7 @@ public class FitFile {
             final Integer timeOffset = recordHeader.getTimeOffset();
             if (timeOffset != null) {
                 if (referenceTimestamp == null) {
-                    throw new IllegalArgumentException("Got compressed timestamp without knowing current timestamp");
+                    throw new FitParseException("Got compressed timestamp without knowing current timestamp");
                 }
 
                 if (timeOffset >= (referenceTimestamp & 0x1FL)) {
@@ -104,9 +105,14 @@ public class FitFile {
             }
         }
         garminByteBufferReader.setByteOrder(ByteOrder.LITTLE_ENDIAN);
-        int fileCrc = garminByteBufferReader.readShort();
-        if (fileCrc != ChecksumCalculator.computeCrc(fileContents, header.getHeaderSize(), fileContents.length - header.getHeaderSize() - 2)) {
-            throw new IllegalArgumentException("Wrong CRC for FIT file");
+        final int fileCrc = garminByteBufferReader.readShort();
+        final int actualCrc = ChecksumCalculator.computeCrc(fileContents, 0, garminByteBufferReader.getPosition() - 2);
+        if (fileCrc != actualCrc) {
+            throw new FitParseException("Wrong CRC for FIT file: got " + actualCrc + " expected " + fileCrc);
+        }
+        if (garminByteBufferReader.getPosition() < garminByteBufferReader.getLimit()) {
+            LOG.warn("There are {} bytes after the fit file", garminByteBufferReader.getLimit() - garminByteBufferReader.getPosition());
+            // TODO a fit file should actually be multiple fit files
         }
         return new FitFile(header, dataRecords);
     }
@@ -128,7 +134,7 @@ public class FitFile {
         if (!canGenerateOutput)
             throw new IllegalArgumentException("Generation of previously parsed FIT file not supported.");
 
-        MessageWriter temporary = new MessageWriter();
+        MessageWriter temporary = new MessageWriter(writer.getLimit());
         temporary.setByteOrder(ByteOrder.LITTLE_ENDIAN);
         RecordDefinition prevDefinition = null;
         for (final RecordData rd : dataRecords) {
@@ -144,7 +150,29 @@ public class FitFile {
         this.header.generateOutgoingDataPayload(writer);
         writer.writeBytes(temporary.getBytes());
         writer.writeShort(ChecksumCalculator.computeCrc(writer.getBytes(), this.header.getHeaderSize(), writer.getBytes().length - this.header.getHeaderSize()));
+    }
 
+    public byte[] getOutgoingMessage() {
+        // Compute the worst case scenario buffer size for the fit file
+        // A ~1.6MB gpx file with ~16k points results in a ~320KB buffer, ~150KB of which get actually used
+        final int dataRecordsSize = dataRecords.stream()
+                .mapToInt(r -> {
+                    // Worst case scenario, for each data record
+
+                    // one distinct record definition: 5 bytes + (number of field definitions * 3 + 1)
+                    final List<FieldDefinition> definitions = r.getRecordDefinition().getFieldDefinitions();
+                    final int recordDefinitionOverhead = 5 + (definitions != null ? definitions.size() * 3 + 1 : 0);
+
+                    // 1 + size of the value holder
+                    final int dataRecordOverhead = 1 + r.valueHolder.limit();
+
+                    return recordDefinitionOverhead + dataRecordOverhead;
+                }).sum();
+
+        // Final size = 14b header + data records + 2b crc
+        final MessageWriter writer = new MessageWriter(14 + dataRecordsSize + 2);
+        this.generateOutgoingDataPayload(writer);
+        return writer.getBytes();
     }
 
     @NonNull

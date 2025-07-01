@@ -18,6 +18,10 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil_hr;
 
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_CALENDAR_MAX_DESC_LENGTH;
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_CALENDAR_MAX_TITLE_LENGTH;
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_EVENTS_AMOUNT;
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_CALENDAR_TARGET_APP;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.configuration.ConfigurationPutRequest.FitnessConfigItem;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.configuration.ConfigurationPutRequest.InactivityWarningItem;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.configuration.ConfigurationPutRequest.UnitsConfigItem;
@@ -78,7 +82,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -102,8 +109,12 @@ import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.CommuteActionsActivi
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.FossilFileReader;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.FossilHRInstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.HybridHRActivitySampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.HybridHRSpo2SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.NotificationHRConfiguration;
+import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.HybridHRActivitySample;
+import nodomain.freeyourgadget.gadgetbridge.entities.HybridHRSpo2Sample;
+import nodomain.freeyourgadget.gadgetbridge.entities.User;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.NotificationListener;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
@@ -177,6 +188,8 @@ import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.UriHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.Version;
+import nodomain.freeyourgadget.gadgetbridge.util.calendar.CalendarEvent;
+import nodomain.freeyourgadget.gadgetbridge.util.calendar.CalendarManager;
 
 public class FossilHRWatchAdapter extends FossilWatchAdapter {
     public static final int MESSAGE_WHAT_VOICE_DATA_RECEIVED = 0;
@@ -210,6 +223,8 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
     Messenger voiceMessenger = null;
 
     private Version cleanFirmwareVersion = null;
+
+    private final Set<CalendarEvent> lastSync = new HashSet<>();
 
     ServiceConnection voiceServiceConnection = new ServiceConnection() {
         @Override
@@ -430,12 +445,11 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
         }
     }
 
-    private void handleVoiceStatusCharacteristic(BluetoothGattCharacteristic characteristic){
-        byte[] value = characteristic.getValue();
+    private void handleVoiceStatusCharacteristic(BluetoothGattCharacteristic characteristic, byte[] value){
         handleVoiceStatus(value[0]);
     }
 
-    private void handleVoiceDataCharacteristic(BluetoothGattCharacteristic characteristic){
+    private void handleVoiceDataCharacteristic(BluetoothGattCharacteristic characteristic, byte[] value){
         if(voiceMessenger == null){
             return;
         }
@@ -444,7 +458,7 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
                 MESSAGE_WHAT_VOICE_DATA_RECEIVED
         );
         Bundle dataBundle = new Bundle(1);
-        dataBundle.putByteArray("VOICE_DATA", characteristic.getValue());
+        dataBundle.putByteArray("VOICE_DATA", value);
         dataBundle.putString("VOICE_ENCODING", "OPUS");
         message.setData(dataBundle);
         try {
@@ -459,16 +473,16 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
         switch (characteristic.getUuid().toString()){
             case "010541ae-efe8-11c0-91c0-105d1a1155f0":
-                handleVoiceStatusCharacteristic(characteristic);
+                handleVoiceStatusCharacteristic(characteristic, value);
                 return true;
             case "842d2791-0d20-4ce4-1ada-105d1a1155f0":
-                handleVoiceDataCharacteristic(characteristic);
+                handleVoiceDataCharacteristic(characteristic, value);
                 return true;
         }
-        return super.onCharacteristicChanged(gatt, characteristic);
+        return super.onCharacteristicChanged(gatt, characteristic, value);
     }
 
     private void initializeAfterWatchConfirmation(boolean authenticated) {
@@ -489,6 +503,8 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
         // dunno if there is any point in doing this at start since when no watch is connected the QHybridSupport will not receive any intents anyway
 
         updateBuiltinAppsInCache();
+
+        onSendCalendar();
 
         queueWrite(new SetDeviceStateRequest(GBDevice.State.INITIALIZED));
     }
@@ -1232,26 +1248,35 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
                     @Override
                     public void handleFileData(byte[] fileData) {
                         try (DBHandler dbHandler = GBApplication.acquireDB()) {
+                            User user = DBHelper.getUser(dbHandler.getDaoSession());
+                            Long userId = user.getId();
+                            Device device = DBHelper.getDevice(getDeviceSupport().getDevice(), dbHandler.getDaoSession());
+                            Long deviceId = device.getId();
                             ActivityFileParser parser = new ActivityFileParser();
-                            ArrayList<ActivityEntry> entries = parser.parseFile(fileData);
+                            Map.Entry<ArrayList<ActivityEntry>, ArrayList<HybridHRSpo2Sample>> parsedEntries = parser.parseFile(fileData);
+                            // Activities
+                            ArrayList<ActivityEntry> entries = parsedEntries.getKey();
                             HybridHRActivitySampleProvider provider = new HybridHRActivitySampleProvider(getDeviceSupport().getDevice(), dbHandler.getDaoSession());
-
                             HybridHRActivitySample[] samples = new HybridHRActivitySample[entries.size()];
-
-                            Long userId = DBHelper.getUser(dbHandler.getDaoSession()).getId();
-                            Long deviceId = DBHelper.getDevice(getDeviceSupport().getDevice(), dbHandler.getDaoSession()).getId();
                             for (int i = 0; i < entries.size(); i++) {
                                 samples[i] = entries.get(i).toDAOActivitySample(userId, deviceId);
                             }
-
                             provider.addGBActivitySamples(samples);
+                            // SpO2, should be empty for an unsupported device
+                            ArrayList<HybridHRSpo2Sample> spo2Samples = parsedEntries.getValue();
+                            HybridHRSpo2SampleProvider spo2Provider = new HybridHRSpo2SampleProvider(getDeviceSupport().getDevice(), dbHandler.getDaoSession());
+                            for (HybridHRSpo2Sample sample : spo2Samples) {
+                                sample.setDevice(device);
+                                sample.setUser(user);
+                            }
+                            spo2Provider.addSamples(spo2Samples);
 
                             if (saveRawActivityFiles) {
                                 writeFile(String.valueOf(System.currentTimeMillis()), fileData);
                             }
                             queueWrite(new FileDeleteRequest(fileHandle));
                             GB.updateTransferNotification(null, "", false, 100, getContext());
-                            GB.signalActivityDataFinish();
+                            GB.signalActivityDataFinish(getDeviceSupport().getDevice());
                             LOG.debug("Synchronized activity data");
                         } catch (Exception ex) {
                             GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
@@ -1596,6 +1621,79 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
         }
     }
 
+    public void onSendCalendar() {
+        if (!getDeviceSpecificPreferences().getBoolean("sync_calendar", false)) {
+            LOG.debug("Ignoring calendar sync request, sync is disabled");
+            return;
+        }
+
+        int maxItems = Integer.parseInt(getDeviceSpecificPreferences().getString(PREF_CALENDAR_SYNC_EVENTS_AMOUNT, "5"));
+        int titleLength = Integer.parseInt(getDeviceSpecificPreferences().getString(PREF_CALENDAR_MAX_TITLE_LENGTH, "40"));
+        int descLength = Integer.parseInt(getDeviceSpecificPreferences().getString(PREF_CALENDAR_MAX_DESC_LENGTH, "40"));
+        String targetApp = getDeviceSpecificPreferences().getString(PREF_CALENDAR_TARGET_APP, "customWatchFace");
+
+        final CalendarManager upcomingEvents = new CalendarManager(getContext(), getDeviceSupport().getDevice().getAddress());
+        final List<CalendarEvent> calendarEvents = upcomingEvents.getCalendarEventList();
+
+        final Set<CalendarEvent> thisSync = new HashSet<>();
+        int nEvents = 0;
+
+        for (final CalendarEvent calendarEvent : calendarEvents) {
+            if (++nEvents > maxItems) {
+                LOG.warn("Syncing only first {} events of {}", maxItems, calendarEvents.size());
+                break;
+            }
+            thisSync.add(calendarEvent);
+        }
+
+        if (thisSync.equals(lastSync)) {
+            LOG.debug("Already synced this set of events, won't send to device");
+            return;
+        }
+
+        lastSync.clear();
+        lastSync.addAll(thisSync);
+
+        List<CalendarEvent> sortedEventList = new ArrayList<>(thisSync);
+        Collections.sort(sortedEventList, Comparator.comparingLong(CalendarEvent::getBegin));
+
+        LOG.debug("Syncing {} calendar events", sortedEventList.size());
+
+        try {
+            JSONArray items = new JSONArray();
+            for(CalendarEvent event : sortedEventList) {
+                JSONArray reminders = new JSONArray();
+                for (long reminder : event.getRemindersAbsoluteTs()) {
+                    reminders.put(reminder / 1000);
+                }
+                String title = event.getTitle();
+                if (title != null && title.length() > titleLength)
+                    title = event.getTitle().substring(0, titleLength);
+                String desc = event.getDescription();
+                if (desc != null && desc.length() > descLength)
+                    desc = event.getDescription().substring(0, descLength);
+                items.put(new JSONObject()
+                        .put("id", event.getId())
+                        .put("title", title)
+                        .put("desc", desc)
+                        .put("start", event.getBeginSeconds())
+                        .put("end", event.getEndSeconds())
+                        .put("reminders", reminders)
+                );
+            }
+            JSONObject calendarObj = new JSONObject()
+                    .put("res", new JSONObject()
+                            .put("set", new JSONObject()
+                                    .put(targetApp + "._.config.events", items)
+                            )
+                    );
+
+            queueWrite(new JsonPutRequest(calendarObj, this));
+        } catch (JSONException e) {
+            LOG.error("Error sending calendar events: ", e);
+        }
+    }
+
     @Override
     public void factoryReset() {
         queueWrite(new FactoryResetRequest());
@@ -1603,7 +1701,7 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
 
     @Override
     public void onTestNewFunction() {
-        setVibrationStrengthFromConfig();
+        onSendCalendar();
     }
 
     public byte[] getSecretKey() throws IllegalAccessException {
@@ -1824,10 +1922,8 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
     }
 
     @Override
-    public void handleHeartRateCharacteristic(BluetoothGattCharacteristic characteristic) {
-        super.handleHeartRateCharacteristic(characteristic);
-
-        byte[] value = characteristic.getValue();
+    public void handleHeartRateCharacteristic(BluetoothGattCharacteristic characteristic, byte[] value) {
+        super.handleHeartRateCharacteristic(characteristic, value);
 
         int heartRate = value[1];
 
@@ -1835,10 +1931,8 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
     }
 
     @Override
-    protected void handleBackgroundCharacteristic(BluetoothGattCharacteristic characteristic) {
-        super.handleBackgroundCharacteristic(characteristic);
-
-        byte[] value = characteristic.getValue();
+    protected void handleBackgroundCharacteristic(BluetoothGattCharacteristic characteristic, byte[] value) {
+        super.handleBackgroundCharacteristic(characteristic, value);
 
         byte requestType = value[1];
 

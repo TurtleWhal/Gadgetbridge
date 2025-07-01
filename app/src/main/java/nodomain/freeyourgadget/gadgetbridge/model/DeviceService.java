@@ -80,6 +80,8 @@ public interface DeviceService extends EventHandler {
     String ACTION_SET_LED_COLOR = PREFIX + ".action.set_led_color";
     String ACTION_POWER_OFF = PREFIX + ".action.power_off";
     String ACTION_CAMERA_STATUS_CHANGE = PREFIX + ".action.camera_status_change";
+    String ACTION_REQUEST_MUSIC_LIST = PREFIX + ".action.request_music_list";
+    String ACTION_REQUEST_MUSIC_OPERATION = PREFIX + ".action.request_music_operation";
 
     String ACTION_SLEEP_AS_ANDROID = ".action.sleep_as_android";
     String EXTRA_SLEEP_AS_ANDROID_ACTION = "sleepasandroid_action";
@@ -97,7 +99,10 @@ public interface DeviceService extends EventHandler {
     String EXTRA_NOTIFICATION_ACTIONS = "notification_actions";
     String EXTRA_NOTIFICATION_PEBBLE_COLOR = "notification_pebble_color";
     String EXTRA_NOTIFICATION_ICONID = "notification_iconid";
+    String NOTIFICATION_PICTURE_PATH = "notification_picture_path";
     String EXTRA_NOTIFICATION_DNDSUPPRESSED = "notification_dndsuppressed";
+    String EXTRA_NOTIFICATION_CHANNEL_ID = "notification_channel_id";
+    String EXTRA_NOTIFICATION_CATEGORY = "notification_category";
     String EXTRA_FIND_START = "find_start";
     String EXTRA_VIBRATION_INTENSITY = "vibration_intensity";
     String EXTRA_CALL_COMMAND = "call_command";
@@ -148,11 +153,6 @@ public interface DeviceService extends EventHandler {
     String EXTRA_CAMERA_EVENT = "event";
     String EXTRA_CAMERA_FILENAME = "filename";
 
-    /**
-     * Use EXTRA_REALTIME_SAMPLE instead
-     */
-    @Deprecated
-    String EXTRA_REALTIME_STEPS = "realtime_steps";
     String EXTRA_REALTIME_SAMPLE = "realtime_sample";
     String EXTRA_TIMESTAMP = "timestamp";
     /**

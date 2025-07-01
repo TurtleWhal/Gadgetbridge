@@ -77,21 +77,24 @@ public class HuaweiCrypto {
 
     public static final byte[] MESSAGE_RESPONSE = new byte[]{0x01, 0x10};
     public static final byte[] MESSAGE_CHALLENGE = new byte[]{0x01, 0x00};
+    public static final byte[] MESSAGE_CHALLENGE_V4 = new byte[]{0x04, 0x00};
 
     public static final long ENCRYPTION_COUNTER_MAX = 0xFFFFFFFF;
 
     protected int authVersion;
     protected int deviceSupportType;
     protected byte authAlgo;
+    protected  byte authMode;
 
     public HuaweiCrypto(int authVersion) {
         this.authVersion = authVersion;
     }
 
-    public HuaweiCrypto(int authVersion, byte authAlgo, int deviceSupportType) {
+    public HuaweiCrypto(int authVersion, byte authAlgo, int deviceSupportType, byte authMode) {
         this(authVersion);
         this.deviceSupportType = deviceSupportType;
         this.authAlgo = authAlgo;
+        this.authMode = authMode;
     }
 
     public static byte[] generateNonce() {
@@ -103,7 +106,7 @@ public class HuaweiCrypto {
 
     private byte[] getDigestSecret() {
         byte[] digest;
-        if (authVersion == 1) {
+        if ((authVersion == 1) || (authVersion == 4)) { //version 4 digest used on honor health devices
             digest = DIGEST_SECRET_v1.clone();
         } else if (authVersion == 2) {
             digest = DIGEST_SECRET_v2.clone();
@@ -128,7 +131,7 @@ public class HuaweiCrypto {
 
     public byte[] computeDigestHiChainLite(byte[] message, byte[] key, byte[] nonce) throws NoSuchAlgorithmException, InvalidKeyException, InvalidKeySpecException, UnsupportedEncodingException {
         byte[] digestStep1;
-        byte[] hashKey = CryptoUtils.digest(GB.hexdump(key).getBytes("UTF-8"));
+        byte[] hashKey = CryptoUtils.digest(GB.hexdump(key).getBytes(StandardCharsets.UTF_8));
         byte[] digestSecret = getDigestSecret();
         for (int i = 0; i < digestSecret.length; i++) {
             digestSecret[i] = (byte) (((0xFF & hashKey[i]) ^ (digestSecret[i] & 0xFF)) & 0xFF);
@@ -150,7 +153,7 @@ public class HuaweiCrypto {
     }
 
     public byte[] digestChallenge(byte[] secretKey, byte[] nonce) throws NoSuchAlgorithmException, InvalidKeyException, InvalidKeySpecException, UnsupportedEncodingException {
-        if (deviceSupportType == 0x02) {
+        if (authMode == 0x02) {
             if (secretKey == null)
                 return null;
             if (authVersion == 0x02) {
@@ -166,11 +169,15 @@ public class HuaweiCrypto {
             }
             return computeDigestHiChainLite(MESSAGE_CHALLENGE, secretKey, nonce);
         }
-        return computeDigest(MESSAGE_CHALLENGE, nonce);
+        if (authVersion == 4) {
+            return computeDigest(MESSAGE_CHALLENGE_V4, nonce);
+        } else {
+            return computeDigest(MESSAGE_CHALLENGE, nonce);
+        }
     }
 
     public byte[] digestResponse(byte[] secretKey, byte[] nonce) throws NoSuchAlgorithmException, InvalidKeyException, InvalidKeySpecException, UnsupportedEncodingException {
-        if (deviceSupportType == 0x02) {
+        if (authMode == 0x02) {
             if (secretKey == null)
                 return null;
             if (authVersion == 0x02) {
@@ -232,9 +239,10 @@ public class HuaweiCrypto {
         return CryptoUtils.encryptAES_CBC_Pad(data, encryptionKey, iv);
     }
 
-    public byte[] decryptBondingKey(byte[] data, String mac, byte[] iv) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, IllegalArgumentException {
-        byte[] encryptionKey = createSecretKey(mac);
-        return CryptoUtils.decryptAES_CBC_Pad(data, encryptionKey, iv);
+    public byte[] decryptBondingKey(byte encryptMethod, byte[] data, byte[] key, byte[] iv) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, IllegalArgumentException {
+        if (encryptMethod == 0x1)
+            return CryptoUtils.decryptAES_GCM_NoPad(data, key, iv, null);
+        return CryptoUtils.decryptAES_CBC_Pad(data, key, iv);
     }
 
     public byte[] decryptPinCode(byte encryptMethod, byte[] message, byte[] iv) throws CryptoException {

@@ -48,14 +48,14 @@ public class MoondropSpaceTravelCoordinator extends AbstractBLClassicDeviceCoord
     }
 
     @Override
-    public int getBatteryCount() {
-        return 0;
+    public int getDefaultIconResource() {
+        return R.drawable.ic_device_nothingear;
     }
 
     @Override
-    protected void deleteDevice(
-            @NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session)
-            throws GBException {}
+    public boolean supportsOSBatteryLevel() {
+        return true;
+    }
 
     @Override
     public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
@@ -76,7 +76,7 @@ public class MoondropSpaceTravelCoordinator extends AbstractBLClassicDeviceCoord
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return MoondropSpaceTravelDeviceSupport.class;
     }
 }

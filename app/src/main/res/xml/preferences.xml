@@ -2,102 +2,46 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     app:iconSpaceReserved="false">
-    <PreferenceCategory
-        android:key="pref_key_general"
-        android:title="@string/pref_header_general"
-        app:iconSpaceReserved="false">
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_settings"
+        android:key="pref_screen_general"
+        android:summary="@string/pref_description_general"
+        android:title="@string/pref_header_general">
+
         <SwitchPreferenceCompat
             android:defaultValue="true"
             android:key="general_autostartonboot"
             android:layout="@layout/preference_checkbox"
             android:title="@string/pref_title_general_autostartonboot"
-            app:iconSpaceReserved="false" />
+            android:icon="@drawable/ic_autoplay" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="show_changelog"
+            android:layout="@layout/preference_checkbox"
+            android:summary="@string/pref_show_changelog_summary"
+            android:title="@string/pref_show_changelog"
+            android:icon="@drawable/ic_receipt" />
+
         <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="general_autoconnectonbluetooth"
             android:layout="@layout/preference_checkbox"
             android:title="@string/pref_title_general_autoconnectonbluetooth"
-            app:iconSpaceReserved="false" />
+            android:icon="@drawable/ic_bluetooth_searching" />
+
         <SwitchPreferenceCompat
             android:defaultValue="true"
             android:key="general_reconnectonlytoconnected"
             android:layout="@layout/preference_checkbox"
-            android:title="@string/pref_title_general_reconnectonlytoconnected"
             android:summary="@string/pref_summary_general_reconnectonlytoconnected"
-            app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:key="display_add_device_fab"
-            android:layout="@layout/preference_checkbox"
-            android:summaryOff="@string/pref_display_add_device_fab_off"
-            android:summaryOn="@string/pref_display_add_device_fab_on"
-            android:title="@string/pref_display_add_device_fab"
-            app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:key="display_bottom_navigation_bar"
-            android:layout="@layout/preference_checkbox"
-            android:summaryOff="@string/pref_summary_bottom_navigation_bar_off"
-            android:summaryOn="@string/pref_summary_bottom_navigation_bar_on"
-            android:title="@string/pref_title_bottom_navigation_bar"
-            app:iconSpaceReserved="false" />
+            android:title="@string/pref_title_general_reconnectonlytoconnected"
+            android:icon="@drawable/ic_bluetooth_connected" />
 
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:key="mb_intents"
-            android:layout="@layout/preference_checkbox"
-            android:summary="@string/pref_summary_mb_intents"
-            android:title="@string/pref_title_mb_intents"
-            app:iconSpaceReserved="false" />
-
-        <ListPreference
-            android:defaultValue="default"
-            android:dependency="mb_intents"
-            android:key="audio_player"
-            android:summary="%s"
-            android:title="@string/pref_title_audio_player"
-            app:iconSpaceReserved="false" />
-
-        <Preference
-            android:key="pref_category_dashboard"
-            android:title="@string/bottom_nav_dashboard"
-            app:iconSpaceReserved="false" />
-
-        <Preference
-            android:key="pref_category_sleepasandroid"
-            android:title="@string/sleepasandroid_settings"
-            app:iconSpaceReserved="false" />
-
-        <PreferenceScreen
-            android:key="pref_screen_theme"
-            android:title="@string/pref_title_theme"
-            app:iconSpaceReserved="false">
-            <ListPreference
-                android:defaultValue="@string/pref_theme_value_light"
-                android:entries="@array/pref_theme_options"
-                android:entryValues="@array/pref_theme_values"
-                android:key="pref_key_theme"
-                android:summary="%s"
-                android:title="@string/pref_title_theme"
-                app:iconSpaceReserved="false" />
-            <SwitchPreferenceCompat
-                android:defaultValue="false"
-                android:key="pref_key_theme_amoled_black"
-                android:layout="@layout/preference_checkbox"
-                android:title="@string/pref_theme_black_background"
-                app:iconSpaceReserved="false" />
-            <Preference
-                android:enabled="false"
-                android:selectable="false"
-                android:singleLineTitle="false"
-                android:title="@string/pref_theme_dynamic_colors_explanation"
-                app:iconSpaceReserved="false" />
-        </PreferenceScreen>
-
-        <PreferenceScreen
+        <PreferenceCategory
             android:key="language_category"
-            android:title="@string/language_and_region_prefs"
-            app:iconSpaceReserved="false">
+            android:title="@string/language_and_region_prefs">
             <ListPreference
                 android:defaultValue="default"
                 android:entries="@array/pref_language_options"
@@ -105,7 +49,7 @@
                 android:key="language"
                 android:summary="%s"
                 android:title="@string/pref_title_language"
-                app:iconSpaceReserved="false" />
+                android:icon="@drawable/ic_translate" />
             <ListPreference
                 android:defaultValue="metric"
                 android:entries="@array/pref_entries_unit_system"
@@ -113,11 +57,11 @@
                 android:key="measurement_system"
                 android:summary="%s"
                 android:title="@string/pref_title_unit_system"
-                app:iconSpaceReserved="false" />
+                android:icon="@drawable/ic_straighten" />
             <PreferenceScreen
                 android:key="pref_screen_rtl"
                 android:title="@string/preferences_rtl_settings"
-                app:iconSpaceReserved="false">
+                android:icon="@drawable/ic_format_textdirection_r_to_l">
                 <SwitchPreferenceCompat
                     android:defaultValue="false"
                     android:key="rtl"
@@ -141,90 +85,203 @@
                     android:title="@string/pref_rtl_max_line_length"
                     app:iconSpaceReserved="false" />
             </PreferenceScreen>
-        </PreferenceScreen>
+        </PreferenceCategory>
 
-        <PreferenceScreen
-            android:key="pref_screen_weather"
-            android:summary="@string/pref_title_weather_summary"
-            android:title="@string/pref_title_weather"
-            app:iconSpaceReserved="false">
+        <PreferenceCategory
+            android:key="pref_key_datetime"
+            android:title="@string/pref_header_datetime">
+            <SwitchPreferenceCompat
+                android:defaultValue="true"
+                android:key="datetime_synconconnect"
+                android:layout="@layout/preference_checkbox"
+                android:summary="@string/pref_summary_datetime_syctimeonconnect"
+                android:title="@string/pref_title_datetime_syctimeonconnect"
+                android:icon="@drawable/ic_update" />
+        </PreferenceCategory>
 
+        <PreferenceCategory
+            android:title="@string/pref_header_location">
+            <Preference
+                android:key="location_aquire"
+                android:title="@string/pref_title_location_aquire"
+                android:icon="@drawable/ic_gps_location" />
             <EditTextPreference
-                android:inputType="text"
-                android:key="weather_city"
-                android:title="@string/pref_title_weather_location"
-                app:iconSpaceReserved="false"
+                android:defaultValue="0"
+                android:inputType="numberDecimal|numberSigned"
+                android:key="location_latitude"
+                android:maxLength="7"
+                android:title="@string/pref_title_location_latitude"
+                android:icon="@drawable/ic_swap_vert"
                 app:useSimpleSummaryProvider="true" />
-        </PreferenceScreen>
-
-    </PreferenceCategory>
+            <EditTextPreference
+                android:defaultValue="0"
+                android:inputType="numberDecimal|numberSigned"
+                android:key="location_longitude"
+                android:maxLength="7"
+                android:title="@string/pref_title_location_longitude"
+                android:icon="@drawable/ic_swap_horiz"
+                app:useSimpleSummaryProvider="true" />
+            <SwitchPreferenceCompat
+                android:defaultValue="true"
+                android:dependency="location_aquire"
+                android:key="use_updated_location_if_available"
+                android:layout="@layout/preference_checkbox"
+                android:summary="@string/pref_summary_location_keep_uptodate"
+                android:title="@string/pref_title_location_keep_uptodate"
+                android:icon="@drawable/ic_move" />
+        </PreferenceCategory>
+    </PreferenceScreen>
 
     <Preference
+        android:icon="@drawable/ic_person"
         android:key="pref_category_activity_personal"
+        android:summary="@string/pref_description_about_you"
         android:title="@string/activity_prefs_about_you"
         app:iconSpaceReserved="false" />
 
     <Preference
+        android:icon="@drawable/ic_notifications"
+        android:key="pref_category_notifications"
+        android:summary="@string/pref_description_notifications"
+        android:title="@string/pref_header_notifications"
+        app:iconSpaceReserved="false" />
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_paint"
+        android:key="pref_screen_user_interface"
+        android:summary="@string/pref_description_user_interface"
+        android:title="@string/pref_title_user_interface">
+
+        <PreferenceCategory
+            android:key="pref_theme_dynamic_colors_explanation"
+            android:title="@string/pref_theme_dynamic_colors_explanation"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
+
+        <ListPreference
+            android:defaultValue="@string/pref_theme_value_light"
+            android:entries="@array/pref_theme_options"
+            android:entryValues="@array/pref_theme_values"
+            android:key="pref_key_theme"
+            android:summary="%s"
+            android:title="@string/pref_title_theme"
+            app:iconSpaceReserved="false" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="pref_key_theme_amoled_black"
+            android:layout="@layout/preference_checkbox"
+            android:title="@string/pref_theme_black_background"
+            app:iconSpaceReserved="false" />
+
+        <PreferenceCategory
+            android:key="pref_screen_theme"
+            android:title="@string/pref_header_main_screen"
+            app:iconSpaceReserved="false">
+
+            <SwitchPreferenceCompat
+                android:defaultValue="true"
+                android:key="display_add_device_fab"
+                android:layout="@layout/preference_checkbox"
+                android:summaryOff="@string/pref_display_add_device_fab_off"
+                android:summaryOn="@string/pref_display_add_device_fab_on"
+                android:title="@string/pref_display_add_device_fab"
+                app:iconSpaceReserved="false" />
+
+            <SwitchPreferenceCompat
+                android:defaultValue="true"
+                android:key="display_bottom_navigation_bar"
+                android:layout="@layout/preference_checkbox"
+                android:summaryOff="@string/pref_summary_bottom_navigation_bar_off"
+                android:summaryOn="@string/pref_summary_bottom_navigation_bar_on"
+                android:title="@string/pref_title_bottom_navigation_bar"
+                app:iconSpaceReserved="false" />
+        </PreferenceCategory>
+    </PreferenceScreen>
+
+    <Preference
+        android:icon="@drawable/ic_dashboard"
+        android:key="pref_category_dashboard"
+        android:summary="@string/pref_description_dashboard"
+        android:title="@string/bottom_nav_dashboard"
+        app:iconSpaceReserved="false" />
+
+    <Preference
+        android:icon="@drawable/ic_show_chart"
         android:key="pref_charts"
         android:title="@string/activity_prefs_charts"
         app:iconSpaceReserved="false" />
 
-    <PreferenceCategory
-        android:key="pref_key_datetime"
-        android:title="@string/pref_header_datetime"
-        app:iconSpaceReserved="false">
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:key="datetime_synconconnect"
-            android:layout="@layout/preference_checkbox"
-            android:summary="@string/pref_summary_datetime_syctimeonconnect"
-            android:title="@string/pref_title_datetime_syctimeonconnect"
-            app:iconSpaceReserved="false" />
-    </PreferenceCategory>
-    <PreferenceCategory
-        android:title="@string/pref_header_location"
-        app:iconSpaceReserved="false">
-        <Preference
-            android:key="location_aquire"
-            android:title="@string/pref_title_location_aquire"
-            app:iconSpaceReserved="false" />
-        <EditTextPreference
-            android:defaultValue="0"
-            android:inputType="numberDecimal|numberSigned"
-            android:key="location_latitude"
-            android:maxLength="7"
-            android:title="@string/pref_title_location_latitude"
-            app:iconSpaceReserved="false"
-            app:useSimpleSummaryProvider="true" />
-        <EditTextPreference
-            android:defaultValue="0"
-            android:inputType="numberDecimal|numberSigned"
-            android:key="location_longitude"
-            android:maxLength="7"
-            android:title="@string/pref_title_location_longitude"
-            app:iconSpaceReserved="false"
-            app:useSimpleSummaryProvider="true" />
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:dependency="location_aquire"
-            android:key="use_updated_location_if_available"
-            android:layout="@layout/preference_checkbox"
-            android:summary="@string/pref_summary_location_keep_uptodate"
-            android:title="@string/pref_title_location_keep_uptodate"
-            app:iconSpaceReserved="false" />
-        <Preference
-            android:key="pref_key_opentracks_packagename"
-            android:summary="@string/pref_summary_opentracks_packagename"
-            android:title="@string/pref_title_opentracks_packagename"
-            app:iconSpaceReserved="false" />
-    </PreferenceCategory>
-    <PreferenceCategory
-        android:title="@string/pref_header_navigation"
-        app:iconSpaceReserved="false">
-        <PreferenceScreen
-            android:key="navigation_settings"
-            android:title="@string/pref_title_navigation_prefs"
+    <Preference
+        android:icon="@drawable/ic_map"
+        android:key="pref_category_maps"
+        android:title="@string/maps"
+        app:iconSpaceReserved="false" />
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_auto_awesome"
+        android:key="pref_screen_automations"
+        android:summary="@string/pref_description_automations"
+        android:title="@string/pref_header_automations">
+
+        <PreferenceCategory
+            android:title="@string/pref_header_auto_export"
             app:iconSpaceReserved="false">
+            <Preference
+                android:key="auto_export_location"
+                android:summary="%s"
+                android:title="@string/pref_title_auto_export_location"
+                app:iconSpaceReserved="false" />
+            <SwitchPreferenceCompat
+                android:defaultValue="false"
+                android:key="auto_export_enabled"
+                android:layout="@layout/preference_checkbox"
+                android:title="@string/pref_title_auto_export_enabled"
+                app:iconSpaceReserved="false" />
+            <EditTextPreference
+                android:defaultValue="3"
+                android:dependency="auto_export_enabled"
+                android:inputType="number"
+                android:key="auto_export_interval"
+                android:maxLength="3"
+                android:summary="@string/pref_summary_auto_export_interval"
+                android:title="@string/pref_title_auto_export_interval"
+                app:iconSpaceReserved="false" />
+        </PreferenceCategory>
+
+        <PreferenceCategory
+            android:title="@string/pref_header_auto_fetch"
+            app:iconSpaceReserved="false">
+            <SwitchPreferenceCompat
+                android:defaultValue="false"
+                android:key="auto_fetch_enabled"
+                android:layout="@layout/preference_checkbox"
+                android:summary="@string/pref_auto_fetch_summary"
+                android:title="@string/pref_auto_fetch"
+                app:iconSpaceReserved="false" />
+            <EditTextPreference
+                android:defaultValue="0"
+                android:dependency="auto_fetch_enabled"
+                android:inputType="number"
+                android:key="auto_fetch_interval_limit"
+                android:maxLength="3"
+                android:summary="@string/pref_auto_fetch_limit_fetches_summary"
+                android:title="@string/pref_auto_fetch_limit_fetches"
+                app:iconSpaceReserved="false" />
+        </PreferenceCategory>
+    </PreferenceScreen>
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_extension"
+        android:key="pref_screen_external_integrations"
+        android:title="@string/pref_header_external_integrations">
+
+        <PreferenceScreen
+            android:icon="@drawable/ic_navigation"
+            android:key="navigation_settings"
+            android:summary="@string/pref_title_navigation_forward"
+            android:title="@string/pref_title_nagivation_apps"
+            app:iconSpaceReserved="false">
+
             <SwitchPreferenceCompat
                 android:defaultValue="true"
                 android:key="navigation_forward"
@@ -265,82 +322,57 @@
                     app:iconSpaceReserved="false" />
             </PreferenceCategory>
         </PreferenceScreen>
-    </PreferenceCategory>
-    <PreferenceCategory
-        android:title="@string/preferences_category_device_specific_settings"
-        app:iconSpaceReserved="false">
 
         <Preference
-            android:icon="@drawable/ic_device_miband"
-            android:key="pref_key_miband"
-            android:title="@string/preferences_miband_1_2_settings" />
+            android:icon="@drawable/ic_navigation"
+            android:key="pref_key_opentracks_packagename"
+            android:summary="@string/pref_summary_opentracks_packagename"
+            android:title="@string/pref_title_opentracks_packagename" />
 
         <Preference
-            android:icon="@drawable/ic_device_pebble"
-            android:key="pref_key_pebble"
-            android:title="@string/pref_title_pebble_settings">
-        </Preference>
-        <Preference
-            android:icon="@drawable/ic_device_zetime"
-            android:key="pref_key_zetime"
-            android:title="@string/zetime_title_settings" />
-    </PreferenceCategory>
+            android:icon="@drawable/ic_activity_sleep"
+            android:key="pref_category_sleepasandroid"
+            android:title="@string/sleepasandroid_settings" />
 
-    <PreferenceCategory
-        android:title="@string/pref_header_auto_export"
-        app:iconSpaceReserved="false">
-        <Preference
-            android:key="auto_export_location"
-            android:summary="%s"
-            android:title="@string/pref_title_auto_export_location"
-            app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:key="auto_export_enabled"
-            android:layout="@layout/preference_checkbox"
-            android:title="@string/pref_title_auto_export_enabled"
-            app:iconSpaceReserved="false" />
-        <EditTextPreference
-            android:defaultValue="3"
-            android:dependency="auto_export_enabled"
-            android:inputType="number"
-            android:key="auto_export_interval"
-            android:maxLength="3"
-            android:summary="@string/pref_summary_auto_export_interval"
-            android:title="@string/pref_title_auto_export_interval"
-            app:iconSpaceReserved="false" />
-    </PreferenceCategory>
+        <PreferenceScreen
+            android:icon="@drawable/ic_wb_sunny"
+            android:key="pref_screen_weather"
+            android:summary="@string/pref_title_weather_summary"
+            android:title="@string/pref_title_weather">
 
-    <PreferenceCategory
-        android:title="@string/pref_header_auto_fetch"
-        app:iconSpaceReserved="false">
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:key="auto_fetch_enabled"
-            android:layout="@layout/preference_checkbox"
-            android:summary="@string/pref_auto_fetch_summary"
-            android:title="@string/pref_auto_fetch"
-            app:iconSpaceReserved="false" />
-        <EditTextPreference
-            android:defaultValue="0"
-            android:dependency="auto_fetch_enabled"
-            android:inputType="number"
-            android:key="auto_fetch_interval_limit"
-            android:maxLength="3"
-            android:summary="@string/pref_auto_fetch_limit_fetches_summary"
-            android:title="@string/pref_auto_fetch_limit_fetches"
-            app:iconSpaceReserved="false" />
-    </PreferenceCategory>
+            <EditTextPreference
+                android:inputType="text"
+                android:key="weather_city"
+                android:title="@string/pref_title_weather_location"
+                app:iconSpaceReserved="false"
+                app:useSimpleSummaryProvider="true" />
+        </PreferenceScreen>
+    </PreferenceScreen>
 
-    <PreferenceCategory
+    <Preference
+        android:icon="@drawable/ic_bluetooth_searching"
+        android:key="pref_discovery_pairing"
+        android:title="@string/activity_prefs_discovery_pairing"
+        app:iconSpaceReserved="false" />
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_developer_mode"
         android:key="pref_key_development"
-        android:title="@string/pref_header_development"
-        app:iconSpaceReserved="false">
+        android:summary="@string/pref_description_developer_options"
+        android:title="@string/pref_header_development">
+
         <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="log_to_file"
             android:layout="@layout/preference_checkbox"
             android:title="@string/pref_write_logfiles"
+            app:iconSpaceReserved="false" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="crash_notification"
+            android:layout="@layout/preference_checkbox"
+            android:summary="@string/pref_crash_notification_summary"
+            android:title="@string/pref_crash_notification_title"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:defaultValue="true"
@@ -351,31 +383,14 @@
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:defaultValue="true"
-            android:key="show_changelog"
-            android:layout="@layout/preference_checkbox"
-            android:summary="@string/pref_show_changelog_summary"
-            android:title="@string/pref_show_changelog"
-            app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
             android:key="cache_weather"
             android:layout="@layout/preference_checkbox"
             android:summary="@string/pref_cache_weather_summary"
             android:title="@string/pref_cache_weather"
             app:iconSpaceReserved="false" />
-        <Preference
-            android:key="pref_discovery_pairing"
-            android:title="@string/activity_prefs_discovery_pairing"
-            app:iconSpaceReserved="false" />
-    </PreferenceCategory>
-
-    <PreferenceScreen
-        android:key="pref_screen_intent_api"
-        android:title="@string/pref_header_intent_api"
-        app:iconSpaceReserved="false">
 
         <PreferenceCategory
-            android:key="pref_key_intent_api"
+            android:key="pref_screen_intent_api"
             android:title="@string/pref_header_intent_api"
             app:iconSpaceReserved="false">
 
@@ -419,6 +434,52 @@
                 android:layout="@layout/preference_checkbox"
                 android:summary="@string/intent_api_allow_debug_commands_summary"
                 android:title="@string/intent_api_allow_debug_commands_title"
+                app:iconSpaceReserved="false" />
+        </PreferenceCategory>
+    </PreferenceScreen>
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_report"
+        android:key="pref_screen_deprecated_functionalities"
+        android:summary="@string/pref_description_deprecated_functionalities"
+        android:title="@string/pref_header_deprecated_functionalities"
+        app:iconSpaceReserved="false">
+
+        <PreferenceCategory
+            android:key="pref_key_deprecated_functionalities"
+            android:title="@string/pref_header_deprecated_functionalities_warning"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
+
+        <PreferenceCategory
+            android:key="pref_header_media_control"
+            android:title="@string/pref_deprecated_media_control_title"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false">
+
+            <SwitchPreferenceCompat
+                android:defaultValue="false"
+                android:key="pref_deprecated_media_control"
+                android:layout="@layout/preference_checkbox"
+                android:summary="@string/pref_deprecated_media_control_summary"
+                android:title="@string/pref_deprecated_media_control_title"
+                app:iconSpaceReserved="false" />
+
+            <SwitchPreferenceCompat
+                android:defaultValue="false"
+                android:dependency="pref_deprecated_media_control"
+                android:key="mb_intents"
+                android:layout="@layout/preference_checkbox"
+                android:summary="@string/pref_summary_mb_intents"
+                android:title="@string/pref_title_mb_intents"
+                app:iconSpaceReserved="false" />
+
+            <ListPreference
+                android:defaultValue="default"
+                android:dependency="mb_intents"
+                android:key="audio_player"
+                android:summary="%s"
+                android:title="@string/pref_title_audio_player"
                 app:iconSpaceReserved="false" />
         </PreferenceCategory>
     </PreferenceScreen>

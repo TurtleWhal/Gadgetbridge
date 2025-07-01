@@ -27,12 +27,17 @@ import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.DeviceConfig.
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiSupportProvider;
 
 public class SendSetUpDeviceStatusRequest extends Request {
-    private static final Logger LOG = LoggerFactory.getLogger(SetUpDeviceStatusRequest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SendSetUpDeviceStatusRequest.class);
 
     public SendSetUpDeviceStatusRequest(HuaweiSupportProvider support) {
         super(support);
         this.serviceId = DeviceConfig.id;
         this.commandId = SetUpDeviceStatusRequest.id;
+    }
+
+    @Override
+    protected boolean requestSupported() {
+        return supportProvider.getHuaweiCoordinator().supportsMultiDevice();
     }
 
     @Override

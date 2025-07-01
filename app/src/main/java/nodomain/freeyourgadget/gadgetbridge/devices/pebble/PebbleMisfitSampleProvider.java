@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.pebble;
 
+import androidx.annotation.NonNull;
+
 import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractSampleProvider;
@@ -23,6 +25,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.PebbleMisfitSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.PebbleMisfitSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 
 public class PebbleMisfitSampleProvider extends AbstractSampleProvider<PebbleMisfitSample> {
 
@@ -33,13 +36,13 @@ public class PebbleMisfitSampleProvider extends AbstractSampleProvider<PebbleMis
     }
 
     @Override
-    public int normalizeType(int rawType) {
-        return rawType;
+    public ActivityKind normalizeType(int rawType) {
+        return ActivityKind.fromCode(rawType);
     }
 
     @Override
-    public int toRawActivityKind(int activityKind) {
-        return activityKind;
+    public int toRawActivityKind(ActivityKind activityKind) {
+        return activityKind.getCode();
     }
 
     @Override
@@ -62,10 +65,14 @@ public class PebbleMisfitSampleProvider extends AbstractSampleProvider<PebbleMis
         return null;
     }
 
+    @Override
+    @NonNull
     protected Property getTimestampSampleProperty() {
         return PebbleMisfitSampleDao.Properties.Timestamp;
     }
 
+    @Override
+    @NonNull
     protected Property getDeviceIdentifierSampleProperty() {
         return PebbleMisfitSampleDao.Properties.DeviceId;
     }

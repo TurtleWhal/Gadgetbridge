@@ -33,16 +33,19 @@ import java.util.UUID;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 
-public class HuaweiLESupport extends AbstractBTLEDeviceSupport {
+public class HuaweiLESupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(HuaweiLESupport.class);
 
     private final HuaweiSupportProvider supportProvider;
@@ -75,8 +78,8 @@ public class HuaweiLESupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-        supportProvider.onCharacteristicChanged(characteristic);
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] data) {
+        supportProvider.onCharacteristicChanged(characteristic, data);
         return true;
     }
 
@@ -103,6 +106,11 @@ public class HuaweiLESupport extends AbstractBTLEDeviceSupport {
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
         supportProvider.onNotification(notificationSpec);
+    }
+
+    @Override
+    public void onDeleteNotification(int id) {
+        supportProvider.onDeleteNotification(id);
     }
 
     @Override
@@ -176,5 +184,61 @@ public class HuaweiLESupport extends AbstractBTLEDeviceSupport {
     @Override
     public void onCameraStatusChange(GBDeviceEventCameraRemote.Event event, String filename) {
         supportProvider.onCameraStatusChange(event, filename);
+    }
+
+    @Override
+    public void onSetContacts(ArrayList<? extends Contact> contacts) {
+        supportProvider.onSetContacts(contacts);
+    }
+
+    @Override
+    public void onAddCalendarEvent(final CalendarEventSpec calendarEventSpec) {
+        supportProvider.onAddCalendarEvent(calendarEventSpec);
+    }
+
+    @Override
+    public void onDeleteCalendarEvent(final byte type, long id) {
+        supportProvider.onDeleteCalendarEvent(type, id);
+    }
+
+    @Override
+    public void dispose() {
+        supportProvider.dispose();
+        super.dispose();
+    }
+
+    @Override
+    public void onTestNewFunction() {
+        supportProvider.onTestNewFunction();
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
+    }
+
+    @Override
+    public void onMusicListReq() {
+        supportProvider.onMusicListReq();
+    }
+
+    @Override
+    public void onMusicOperation(int operation, int playlistIndex, String playlistName, ArrayList<Integer> musicIds) {
+        supportProvider.onMusicOperation(operation, playlistIndex, playlistName, musicIds);
+    }
+
+    @Override
+    public void onSetCannedMessages(final CannedMessagesSpec cannedMessagesSpec) {
+        supportProvider.onSetCannedMessages(cannedMessagesSpec);
+    }
+
+    @Override
+    public void onFindDevice(boolean start) {
+        supportProvider.onFindDevice(start);
     }
 }

@@ -36,11 +36,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.nothing.Ear1Support;
 
 public abstract class AbstractEarCoordinator extends AbstractBLClassicDeviceCoordinator {
     @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
-        return null;
-    }
-
-    @Override
     public String getManufacturer() {
         return "Nothing";
     }
@@ -51,12 +46,7 @@ public abstract class AbstractEarCoordinator extends AbstractBLClassicDeviceCoor
     }
 
     @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
-
-    }
-
-    @Override
-    public int getBatteryCount() {
+    public int getBatteryCount(final GBDevice device) {
         return 3;
     }
 
@@ -70,7 +60,7 @@ public abstract class AbstractEarCoordinator extends AbstractBLClassicDeviceCoor
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return Ear1Support.class;
     }
 
@@ -85,11 +75,6 @@ public abstract class AbstractEarCoordinator extends AbstractBLClassicDeviceCoor
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_nothingear;
-    }
-
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_nothingear_disabled;
     }
 
     @Override

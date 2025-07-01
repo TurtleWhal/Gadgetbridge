@@ -31,30 +31,28 @@ import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
-import nodomain.freeyourgadget.gadgetbridge.entities.DeviceAttributes;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
-import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 
 public class DeviceHelper {
@@ -70,6 +68,7 @@ public class DeviceHelper {
 
     private final HashMap<String, DeviceType> deviceTypeCache = new HashMap<>();
 
+    @Nullable
     public GBDevice findAvailableDevice(String deviceAddress, Context context) {
         Set<GBDevice> availableDevices = getAvailableDevices(context);
         for (GBDevice availableDevice : availableDevices) {
@@ -101,18 +100,6 @@ public class DeviceHelper {
 
         Set<GBDevice> availableDevices = new LinkedHashSet<>(getDatabaseDevices());
         Prefs prefs = GBApplication.getPrefs();
-        String miAddress = prefs.getString(MiBandConst.PREF_MIBAND_ADDRESS, "");
-        if (miAddress.length() > 0) {
-            GBDevice miDevice = new GBDevice(miAddress, "MI", null, null, DeviceType.MIBAND);
-            availableDevices.add(miDevice);
-        }
-
-        String pebbleEmuAddr = prefs.getString("pebble_emu_addr", "");
-        String pebbleEmuPort = prefs.getString("pebble_emu_port", "");
-        if (pebbleEmuAddr.length() >= 7 && pebbleEmuPort.length() > 0) {
-            GBDevice pebbleEmuDevice = new GBDevice(pebbleEmuAddr + ":" + pebbleEmuPort, "Pebble qemu", "", null, DeviceType.PEBBLE);
-            availableDevices.add(pebbleEmuDevice);
-        }
         return availableDevices;
     }
 
@@ -130,8 +117,7 @@ public class DeviceHelper {
     private DeviceType[] getOrderedDeviceTypes(){
         if(orderedDeviceTypes == null){
             ArrayList<DeviceType> orderedDevices = new ArrayList<>(Arrays.asList(DeviceType.values()));
-            Collections.sort(orderedDevices, (dc1, dc2) -> dc1.getDeviceCoordinator().getOrderPriority() -
-                    dc2.getDeviceCoordinator().getOrderPriority());
+            Collections.sort(orderedDevices, Comparator.comparingInt(dc -> dc.getDeviceCoordinator().getOrderPriority()));
             orderedDeviceTypes = orderedDevices.toArray(new DeviceType[0]);
         }
 
@@ -192,46 +178,6 @@ public class DeviceHelper {
      */
     public GBDevice toGBDevice(Device dbDevice) {
         DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
-        GBDevice gbDevice = new GBDevice(dbDevice.getIdentifier(), dbDevice.getName(), dbDevice.getAlias(), dbDevice.getParentFolder(), deviceType);
-        DeviceCoordinator coordinator = gbDevice.getDeviceCoordinator();
-        for (BatteryConfig batteryConfig : coordinator.getBatteryConfig(gbDevice)) {
-            gbDevice.setBatteryIcon(batteryConfig.getBatteryIcon(), batteryConfig.getBatteryIndex());
-            gbDevice.setBatteryLabel(batteryConfig.getBatteryLabel(), batteryConfig.getBatteryIndex());
-        }
-
-        List<DeviceAttributes> deviceAttributesList = dbDevice.getDeviceAttributesList();
-        if (deviceAttributesList.size() > 0) {
-            gbDevice.setModel(dbDevice.getModel());
-            DeviceAttributes attrs = deviceAttributesList.get(0);
-            gbDevice.setFirmwareVersion(attrs.getFirmwareVersion1());
-            gbDevice.setFirmwareVersion2(attrs.getFirmwareVersion2());
-            gbDevice.setVolatileAddress(attrs.getVolatileIdentifier());
-        }
-
-        return gbDevice;
+        return deviceType.getDeviceCoordinator().createDevice(dbDevice, deviceType);
     }
-
-    /**
-     * Attempts to removing the bonding with the given device. Returns true
-     * if bonding was supposedly successful and false if anything went wrong
-     * @param device
-     * @return
-     */
-    public boolean removeBond(GBDevice device) throws GBException {
-        BluetoothAdapter defaultAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (defaultAdapter != null) {
-            BluetoothDevice remoteDevice = defaultAdapter.getRemoteDevice(device.getAddress());
-            if (remoteDevice != null) {
-                try {
-                    Method method = BluetoothDevice.class.getMethod("removeBond", (Class[]) null);
-                    Object result = method.invoke(remoteDevice, (Object[]) null);
-                    return Boolean.TRUE.equals(result);
-                } catch (Exception e) {
-                    throw new GBException("Error removing bond to device: " + device, e);
-                }
-            }
-        }
-        return false;
-    }
-
 }

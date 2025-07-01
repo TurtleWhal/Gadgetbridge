@@ -18,6 +18,8 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests;
 
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.Toast;
 
 import org.slf4j.Logger;
@@ -79,6 +81,10 @@ public class Request {
         public ResponseTypeMismatchException(HuaweiPacket a, Class<?> b) {
             super("Response type mismatch, packet is of type " + a.getClass() + " but expected " + b);
         }
+
+        public ResponseTypeMismatchException(HuaweiPacket a, Class<?> b, Class<?> c) {
+            super("Response type mismatch, packet is of type " + a.getClass() + " but expected " + b + " or " + c);
+        }
     }
 
     public static class WorkoutParseException extends ResponseParseException {
@@ -105,15 +111,35 @@ public class Request {
     protected HuaweiCrypto huaweiCrypto = null;
     protected boolean addToResponse = true;
 
+    private final Handler handler;
+    private final Runnable timeoutRunner;
+    private Integer timeout = null;
+
     public static class RequestCallback {
         protected HuaweiSupportProvider support = null;
         public RequestCallback() {}
         public RequestCallback(HuaweiSupportProvider supportProvider) {
             support = supportProvider;
         }
-        public void call() {};
+        public void call() {}
+        public void call(Request request) {
+            call(); // To keep everything working as it was as well
+        }
         public void handleException(ResponseParseException e) {
             LOG.error("Callback request exception", e);
+        }
+        public void timeout(Request request) {
+            request.handleNext();
+        }
+    }
+
+    private Runnable getTimeoutRunnable() {
+        return () -> {
+            LOG.debug("Timeout on Service {} command {}", Integer.toHexString(this.serviceId & 0xff), Integer.toHexString(this.commandId & 0xff));
+            if (finalizeReq != null)
+                finalizeReq.timeout(this);
+            else
+                this.handleNext();
         };
     }
 
@@ -124,6 +150,9 @@ public class Request {
         this.builderBr = builder;
 
         this.isSelfQueue = true;
+
+        this.handler = new Handler(Looper.getMainLooper());
+        this.timeoutRunner = getTimeoutRunnable();
     }
 
     public Request(HuaweiSupportProvider supportProvider, nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder builder) {
@@ -133,6 +162,9 @@ public class Request {
         this.builderLe = builder;
 
         this.isSelfQueue = true;
+
+        this.handler = new Handler(Looper.getMainLooper());
+        this.timeoutRunner = getTimeoutRunnable();
     }
 
     public Request(HuaweiSupportProvider supportProvider) {
@@ -145,9 +177,21 @@ public class Request {
             this.builderLe = supportProvider.createLeTransactionBuilder(getName());
 
         this.isSelfQueue = true;
+
+        this.handler = new Handler(Looper.getMainLooper());
+        this.timeoutRunner = getTimeoutRunnable();
     }
-    
+
+    protected boolean requestSupported() {
+        return true;
+    }
+
     public void doPerform() throws IOException {
+        if (!requestSupported()) {
+            this.handleNext();
+            return;
+        }
+
         if (this.addToResponse) {
             supportProvider.addInProgressRequest(this);
         }
@@ -184,6 +228,9 @@ public class Request {
     protected void processResponse() throws ResponseParseException {}
 
     public void handleResponse() {
+        // Stop timeout timer
+        this.handler.removeCallbacks(this.timeoutRunner);
+
         try {
             this.receivedPacket.parseTlv();
         } catch (HuaweiPacket.ParseException e) {
@@ -199,6 +246,10 @@ public class Request {
                 finalizeReq.handleException(e);
             return;
         }
+        handleNext();
+    }
+
+    public void handleNext() {
         if (nextRequest != null && !stopChain) {
             try {
                 nextRequest.doPerform();
@@ -213,9 +264,10 @@ public class Request {
         if (nextRequest == null || stopChain) {
             operationStatus = OperationStatus.FINISHED;
             if (finalizeReq != null) {
-                finalizeReq.call();
+                finalizeReq.call(this);
             }
         }
+        nextRequest = null;
     }
 
     public void setSelfQueue() {
@@ -223,8 +275,10 @@ public class Request {
     }
 
     public Request nextRequest(Request req) {
-        nextRequest = req;
-        nextRequest.setSelfQueue();
+        if (req != null) {
+            nextRequest = req;
+            nextRequest.setSelfQueue();
+        }
         return this;
     }
 
@@ -292,6 +346,10 @@ public class Request {
     private void performConnected() throws IOException {
         LOG.debug("Perform connected");
 
+        // Start the timeout timer
+        if (this.timeout != null)
+            handler.postDelayed(this.timeoutRunner, this.timeout);
+
         if (!this.supportProvider.isBLE()) {
             nodomain.freeyourgadget.gadgetbridge.service.btbr.Transaction transaction = this.builderBr.getTransaction();
             this.supportProvider.performConnected(transaction);
@@ -299,5 +357,21 @@ public class Request {
             nodomain.freeyourgadget.gadgetbridge.service.btle.Transaction transaction = this.builderLe.getTransaction();
             this.supportProvider.performConnected(transaction);
         }
+    }
+
+    public boolean autoRemoveFromResponseHandler() {
+        return true;
+    }
+
+    public void setupTimeoutUntilNext(int timeout) {
+        this.timeout = timeout;
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        // Stop timeout timer
+        this.handler.removeCallbacks(this.timeoutRunner);
+
+        super.finalize();
     }
 }

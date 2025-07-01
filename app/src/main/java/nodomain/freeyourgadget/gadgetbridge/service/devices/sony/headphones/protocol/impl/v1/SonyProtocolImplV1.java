@@ -39,7 +39,6 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdateDevi
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.SonyHeadphonesCapabilities;
-import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.SonyHeadphonesCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AdaptiveVolumeControl;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AmbientSoundControl;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AmbientSoundControlButtonMode;
@@ -310,6 +309,7 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
         return null;
     }
 
+    @Override
     public Request getButtonModes() {
         return new Request(
                 PayloadTypeV1.AUTOMATIC_POWER_OFF_BUTTON_MODE_GET.getMessageType(),
@@ -320,6 +320,7 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
         );
     }
 
+    @Override
     public Request setButtonModes(final ButtonModes config) {
         return new Request(
                 PayloadTypeV1.AUTOMATIC_POWER_OFF_BUTTON_MODE_SET.getMessageType(),
@@ -627,8 +628,6 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
     }
 
     public List<? extends GBDeviceEvent> handleInitResponse(final byte[] payload) {
-        final SonyHeadphonesCoordinator coordinator = getCoordinator();
-
         // Populate the init requests
         final List<Request> capabilityRequests = new ArrayList<>();
 
@@ -638,8 +637,10 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
         final Map<SonyHeadphonesCapabilities, Request> capabilityRequestMap = new LinkedHashMap<SonyHeadphonesCapabilities, Request>() {{
             put(SonyHeadphonesCapabilities.BatterySingle, getBattery(BatteryType.SINGLE));
             put(SonyHeadphonesCapabilities.BatteryDual, getBattery(BatteryType.DUAL));
+            put(SonyHeadphonesCapabilities.BatteryDual2, getBattery(BatteryType.DUAL2));
             put(SonyHeadphonesCapabilities.BatteryCase, getBattery(BatteryType.CASE));
             put(SonyHeadphonesCapabilities.AmbientSoundControl, getAmbientSoundControl());
+            put(SonyHeadphonesCapabilities.AmbientSoundControl2, getAmbientSoundControl());
             put(SonyHeadphonesCapabilities.AncOptimizer, getNoiseCancellingOptimizerState());
             put(SonyHeadphonesCapabilities.AudioUpsampling, getAudioUpsampling());
             put(SonyHeadphonesCapabilities.ButtonModesLeftRight, getButtonModes());
@@ -662,7 +663,7 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
         }};
 
         for (Map.Entry<SonyHeadphonesCapabilities, Request> capabilityEntry : capabilityRequestMap.entrySet()) {
-            if (coordinator.supports(capabilityEntry.getKey())) {
+            if (supports(capabilityEntry.getKey())) {
                 capabilityRequests.add(capabilityEntry.getValue());
             }
         }
@@ -939,14 +940,16 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
             singleBatteryInfo.state = payload[3] == 1 ? BatteryState.BATTERY_CHARGING : BatteryState.BATTERY_NORMAL;
 
             batteryEvents.add(singleBatteryInfo);
-        } else if (BatteryType.DUAL.equals(batteryType)) {
+        } else if (BatteryType.DUAL.equals(batteryType) || BatteryType.DUAL2.equals(batteryType)) {
             // Dual Battery (L / R)
-            LOG.debug("Battery Level: L: {}, R: {}", payload[2], payload[4]);
+            LOG.debug("Battery Level: {}: L: {}, R: {}", batteryType, payload[2], payload[4]);
+
+            boolean hasCaseBattery = supports(SonyHeadphonesCapabilities.BatteryCase);
 
             if (payload[2] != 0) {
                 final GBDeviceEventBatteryInfo gbDeviceEventBatteryInfoLeft = new GBDeviceEventBatteryInfo();
 
-                gbDeviceEventBatteryInfoLeft.batteryIndex = 1;
+                gbDeviceEventBatteryInfoLeft.batteryIndex = hasCaseBattery ? 1 : 0;
                 gbDeviceEventBatteryInfoLeft.level = payload[2];
                 gbDeviceEventBatteryInfoLeft.state = payload[3] == 1 ? BatteryState.BATTERY_CHARGING : BatteryState.BATTERY_NORMAL;
 
@@ -956,7 +959,7 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
             if (payload[4] != 0) {
                 final GBDeviceEventBatteryInfo gbDeviceEventBatteryInfoRight = new GBDeviceEventBatteryInfo();
 
-                gbDeviceEventBatteryInfoRight.batteryIndex = 2;
+                gbDeviceEventBatteryInfoRight.batteryIndex = hasCaseBattery ? 2 : 1;
                 gbDeviceEventBatteryInfoRight.level = payload[4];
                 gbDeviceEventBatteryInfoRight.state = payload[5] == 1 ? BatteryState.BATTERY_CHARGING : BatteryState.BATTERY_NORMAL;
 
@@ -1273,9 +1276,7 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
     }
 
     protected boolean supportsWindNoiseCancelling() {
-        final SonyHeadphonesCoordinator coordinator = getCoordinator();
-
-        return coordinator.supports(SonyHeadphonesCapabilities.WindNoiseReduction);
+        return supports(SonyHeadphonesCapabilities.WindNoiseReduction);
     }
 
     protected BatteryType decodeBatteryType(final byte b) {
@@ -1296,6 +1297,7 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
             case SINGLE:
                 return 0x00;
             case DUAL:
+            case DUAL2: // FIXME this is a workaround to fix the initialization - DUAL2 is not supported by V1
                 return 0x01;
             case CASE:
                 return 0x02;

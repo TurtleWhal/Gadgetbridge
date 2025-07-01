@@ -27,11 +27,16 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.util.concurrent.atomic.AtomicLong;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class PebbleLESupport {
     private static final Logger LOG = LoggerFactory.getLogger(PebbleLESupport.class);
+    private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
+
+    private final GBDevice mgbDevice;
     private final BluetoothDevice mBtDevice;
     private PipeReader mPipeReader;
     private PebbleGATTServer mPebbleGATTServer;
@@ -45,7 +50,8 @@ public class PebbleLESupport {
     private HandlerThread mWriteHandlerThread;
     private Handler mWriteHandler;
 
-    public PebbleLESupport(Context context, final BluetoothDevice btDevice, PipedInputStream pipedInputStream, PipedOutputStream pipedOutputStream) throws IOException {
+    public PebbleLESupport(Context context, GBDevice gbDevice, final BluetoothDevice btDevice, PipedInputStream pipedInputStream, PipedOutputStream pipedOutputStream) throws IOException {
+        mgbDevice = gbDevice;
         mBtDevice = btDevice;
         mPipedInputStream = new PipedInputStream();
         mPipedOutputStream = new PipedOutputStream();
@@ -56,15 +62,15 @@ public class PebbleLESupport {
             LOG.warn("could not connect input stream");
         }
 
-        mWriteHandlerThread = new HandlerThread("write handler thread");
+        mWriteHandlerThread = new HandlerThread("PebbleLESupport_write_" + THREAD_COUNTER.getAndIncrement());
         mWriteHandlerThread.start();
         mWriteHandler = new Handler(mWriteHandlerThread.getLooper());
 
-        mMTULimit = GBApplication.getPrefs().getInt("pebble_mtu_limit", 512);
+        mMTULimit = GBApplication.getDevicePrefs(mgbDevice).getInt("pebble_mtu_limit", 512);
         mMTULimit = Math.max(mMTULimit, 20);
         mMTULimit = Math.min(mMTULimit, 512);
 
-        clientOnly = GBApplication.getPrefs().getBoolean("pebble_gatt_clientonly", false);
+        clientOnly = GBApplication.getDevicePrefs(mgbDevice).getBoolean("pebble_gatt_clientonly", false);
 
         if (!clientOnly) {
             mPebbleGATTServer = new PebbleGATTServer(this, context, mBtDevice);
@@ -197,6 +203,10 @@ public class PebbleLESupport {
 
     private class PipeReader extends Thread {
         int mmSequence = 0;
+
+        PipeReader(){
+            super("PebbleLESupport_read_" + THREAD_COUNTER.getAndIncrement());
+        }
 
         @Override
         public void run() {

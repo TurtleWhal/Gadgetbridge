@@ -27,8 +27,9 @@ package nodomain.freeyourgadget.gadgetbridge.service;
 
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
-import android.util.Log;
 import android.widget.Toast;
+
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,15 +37,11 @@ import org.slf4j.LoggerFactory;
 import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.externalevents.BluetoothConnectReceiver;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.PebbleSupport;
-import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.EnumSet;
 
 public class DeviceSupportFactory {
@@ -58,6 +55,7 @@ public class DeviceSupportFactory {
         mBtAdapter = BluetoothAdapter.getDefaultAdapter();
     }
 
+    @Nullable
     public synchronized DeviceSupport createDeviceSupport(GBDevice device) throws GBException {
         DeviceSupport deviceSupport;
         String deviceAddress = device.getAddress();
@@ -83,6 +81,7 @@ public class DeviceSupportFactory {
         return null;
     }
 
+    @Nullable
     private DeviceSupport createClassNameDeviceSupport(GBDevice device) throws GBException {
         String className = device.getAddress();
         try {
@@ -108,22 +107,11 @@ public class DeviceSupportFactory {
     }
 
     private ServiceDeviceSupport createServiceDeviceSupport(GBDevice device) throws GBException {
-        DeviceCoordinator coordinator = device.getDeviceCoordinator();
-        Class supportClass = coordinator.getDeviceSupportClass();
+        final DeviceCoordinator coordinator = device.getDeviceCoordinator();
+        final Class<?> supportClass = coordinator.getDeviceSupportClass(device);
 
         try {
-            Constructor supportConstructor = supportClass.getConstructor(DeviceType.class);
-            DeviceSupport supportInstance = (DeviceSupport) supportConstructor.newInstance(device.getType());
-            return new ServiceDeviceSupport(supportInstance, coordinator.getInitialFlags());
-        } catch (NoSuchMethodException e) {
-            // ignore, let next call get the default, zero-argument constructor
-        } catch (ReflectiveOperationException e) {
-            LOG.error("error calling DeviceSupport constructor with argument 'DeviceType'");
-            throw new GBException(e);
-        }
-
-        try {
-            DeviceSupport supportInstance = (DeviceSupport) supportClass.newInstance();
+            final DeviceSupport supportInstance = (DeviceSupport) supportClass.newInstance();
             return new ServiceDeviceSupport(supportInstance, coordinator.getInitialFlags());
         } catch (ReflectiveOperationException e) {
             LOG.error("error calling DeviceSupport constructor with zero arguments");
@@ -131,15 +119,14 @@ public class DeviceSupportFactory {
         }
     }
 
-    private DeviceSupport createBTDeviceSupport(GBDevice gbDevice) throws GBException {
+    @Nullable
+    private DeviceSupport createBTDeviceSupport(final GBDevice gbDevice) throws GBException {
         if (mBtAdapter != null && mBtAdapter.isEnabled()) {
             try {
-                DeviceSupport deviceSupport = createServiceDeviceSupport(gbDevice);
-                if (deviceSupport != null) {
-                    deviceSupport.setContext(gbDevice, mBtAdapter, mContext);
-                    return deviceSupport;
-                }
-            } catch (Exception e) {
+                final DeviceSupport deviceSupport = createServiceDeviceSupport(gbDevice);
+                deviceSupport.setContext(gbDevice, mBtAdapter, mContext);
+                return deviceSupport;
+            } catch (final Exception e) {
                 throw new GBException(mContext.getString(R.string.cannot_connect_bt_address_invalid_), e);
             }
         }
@@ -155,5 +142,4 @@ public class DeviceSupportFactory {
             throw new GBException("cannot connect to " + gbDevice, e); // FIXME: localize
         }
     }
-
 }

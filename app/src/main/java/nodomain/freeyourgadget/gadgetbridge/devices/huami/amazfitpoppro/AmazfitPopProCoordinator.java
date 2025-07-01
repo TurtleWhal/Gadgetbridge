@@ -21,30 +21,24 @@ import android.net.Uri;
 
 import androidx.annotation.NonNull;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.amazfitbipupro.AmazfitBipUProCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
-import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.amazfitpoppro.AmazfitPopProSupport;
 
 public class AmazfitPopProCoordinator extends AmazfitBipUProCoordinator {
-    private static final Logger LOG = LoggerFactory.getLogger(AmazfitPopProCoordinator.class);
-
     @Override
     protected Pattern getSupportedDeviceName() {
         return Pattern.compile("Amazfit Pop Pro", Pattern.CASE_INSENSITIVE);
     }
 
     @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
-        AmazfitPopProFWInstallHandler handler = new AmazfitPopProFWInstallHandler(uri, context);
+    public InstallHandler findInstallHandler(final Uri uri, final Context context) {
+        final AmazfitPopProFWInstallHandler handler = new AmazfitPopProFWInstallHandler(uri, context);
         return handler.isValid() ? handler : null;
     }
 
@@ -53,20 +47,9 @@ public class AmazfitPopProCoordinator extends AmazfitBipUProCoordinator {
         return R.string.devicetype_amazfit_pop_pro;
     }
 
-
-    @Override
-    public int getDefaultIconResource() {
-        return R.drawable.ic_device_amazfit_bip;
-    }
-
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_amazfit_bip_disabled;
-    }
-
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return AmazfitPopProSupport.class;
     }
 }

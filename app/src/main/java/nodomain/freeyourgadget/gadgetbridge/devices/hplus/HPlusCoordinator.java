@@ -48,7 +48,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.hplus.HPlusSupport;
-import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 import static nodomain.freeyourgadget.gadgetbridge.GBApplication.getContext;
@@ -139,18 +138,6 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
         }
     }
 
-    public static byte getTimeMode(String deviceAddress) {
-        GBPrefs gbPrefs = new GBPrefs(new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress)));
-
-        String tmode = gbPrefs.getTimeFormat();
-
-        if ("24h".equals(tmode)) {
-            return HPlusConstants.ARG_TIMEMODE_24H;
-        } else {
-            return HPlusConstants.ARG_TIMEMODE_12H;
-        }
-    }
-
     public static byte getUnit(String address) {
         String units = prefs.getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, getContext().getString(R.string.p_unit_metric));
 
@@ -192,20 +179,6 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
         ActivityUser activityUser = new ActivityUser();
 
         return activityUser.getStepsGoal();
-    }
-
-    public static byte getScreenTime(String address) {
-        return (byte) (GBApplication.getDevicePrefs(address).getInt(HPlusConstants.PREF_HPLUS_SCREENTIME, 5) & 0xFF);
-    }
-
-    public static byte getAllDayHR(String address) {
-        boolean value = (GBApplication.getDevicePrefs(address).getBoolean(HPlusConstants.PREF_HPLUS_ALLDAYHR, true));
-
-        if (value) {
-            return HPlusConstants.ARG_HEARTRATE_ALLDAY_ON;
-        } else {
-            return HPlusConstants.ARG_HEARTRATE_ALLDAY_OFF;
-        }
     }
 
     public static byte getSocial(String address) {
@@ -276,10 +249,9 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return HPlusSupport.class;
     }
-
 
     @Override
     public int getDeviceNameResource() {
@@ -291,10 +263,4 @@ public class HPlusCoordinator extends AbstractBLEDeviceCoordinator {
     public int getDefaultIconResource() {
         return R.drawable.ic_device_hplus;
     }
-
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_hplus_disabled;
-    }
 }
-    

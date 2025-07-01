@@ -25,6 +25,7 @@ import android.net.Uri;
 import android.os.ParcelUuid;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -47,6 +48,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.banglejs.BangleJSDeviceSupport;
@@ -85,6 +87,11 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
+    public int getCannedRepliesSlotCount(final GBDevice device) {
+        return 16;
+    }
+
+    @Override
     public boolean supportsSleepAsAndroid() {
         return true;
     }
@@ -92,6 +99,12 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public Set<SleepAsAndroidFeature> getSleepAsAndroidFeatures() {
         return EnumSet.of(SleepAsAndroidFeature.ACCELEROMETER, SleepAsAndroidFeature.HEART_RATE, SleepAsAndroidFeature.NOTIFICATIONS, SleepAsAndroidFeature.ALARMS);
+    }
+
+    @Nullable
+    @Override
+    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
+        return new BangleJSWorkoutParser(context);
     }
 
     @Override
@@ -166,10 +179,6 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) {
-    }
-
-    @Override
     public Class<? extends Activity> getPairingActivity() {
         return null;
     }
@@ -177,11 +186,6 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public SampleProvider<? extends ActivitySample> getSampleProvider(GBDevice device, DaoSession session) {
         return new BangleJSSampleProvider(device, session);
-    }
-
-    @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
-        return null;
     }
 
     @Override
@@ -217,6 +221,8 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
         settings.add(R.xml.devicesettings_notification_wake_on_open);
         settings.add(R.xml.devicesettings_text_bitmaps);
         settings.add(R.xml.devicesettings_transliteration);
+        settings.add(R.xml.devicesettings_canned_reply_16);
+        settings.add(R.xml.devicesettings_banglejs_notifications);
 
         settings.add(R.xml.devicesettings_header_calendar);
         settings.add(R.xml.devicesettings_sync_calendar);
@@ -248,26 +254,24 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
         return true;
     }
 
-    @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
-        return BangleJSDeviceSupport.class;
+    public boolean supportsMusicInfo() {
+        return true;
     }
 
+    @NonNull
+    @Override
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
+        return BangleJSDeviceSupport.class;
+    }
 
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_banglejs;
     }
 
-
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_banglejs;
-    }
-
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_banglejs_disabled;
     }
 }

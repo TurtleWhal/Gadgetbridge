@@ -30,6 +30,7 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.devices.casio.CasioConstants;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEOperation;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.Casio2C2DSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.gbx100.CasioGBX100DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.operations.OperationStatus;
 import nodomain.freeyourgadget.gadgetbridge.util.BcdUtil;
@@ -59,8 +60,8 @@ public class GetConfigurationOperation extends AbstractBTLEOperation<CasioGBX100
     @Override
     protected void doPerform() throws IOException {
         byte[] command = new byte[1];
-        command[0] = CasioConstants.characteristicToByte.get("CASIO_SETTING_FOR_USER_PROFILE");
-        TransactionBuilder builder = performInitialized("getConfiguration");
+        command[0] = Casio2C2DSupport.FEATURE_SETTING_FOR_USER_PROFILE;
+        TransactionBuilder builder = performInitialized("getConfiguration-Get1");
         builder.setCallback(this);
         support.writeAllFeaturesRequest(builder, command);
         builder.queue(getQueue());
@@ -85,9 +86,9 @@ public class GetConfigurationOperation extends AbstractBTLEOperation<CasioGBX100
 
     private void requestBasicSettings() {
         byte[] command = new byte[1];
-        command[0] = CasioConstants.characteristicToByte.get("CASIO_SETTING_FOR_BASIC");
+        command[0] = Casio2C2DSupport.FEATURE_SETTING_FOR_BASIC;
         try {
-            TransactionBuilder builder = performInitialized("getConfiguration");
+            TransactionBuilder builder = performInitialized("getConfiguration-Get2");
             builder.setCallback(this);
             support.writeAllFeaturesRequest(builder, command);
             builder.queue(getQueue());
@@ -98,15 +99,15 @@ public class GetConfigurationOperation extends AbstractBTLEOperation<CasioGBX100
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] data) {
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] data = characteristic.getValue();
 
         if (data.length == 0)
             return true;
 
         if (characteristicUUID.equals(CasioConstants.CASIO_ALL_FEATURES_CHARACTERISTIC_UUID)) {
-            if (data[0] == CasioConstants.characteristicToByte.get("CASIO_SETTING_FOR_USER_PROFILE")) {
+            if (data[0] == Casio2C2DSupport.FEATURE_SETTING_FOR_USER_PROFILE) {
                 boolean female = ((data[1] & 0x01) == 0x01);
                 boolean right = ((data[1] & 0x02) == 0x02);
                 byte[] compData = new byte[data.length];
@@ -129,7 +130,7 @@ public class GetConfigurationOperation extends AbstractBTLEOperation<CasioGBX100
                 requestBasicSettings();
 
                 return true;
-            } else if (data[0] == CasioConstants.characteristicToByte.get("CASIO_SETTING_FOR_BASIC")) {
+            } else if (data[0] == Casio2C2DSupport.FEATURE_SETTING_FOR_BASIC) {
                 boolean timeformat = ((data[1] & 0x01) == 0x01);
                 boolean autolight = ((data[1] & 0x04) == 0x00);
                 boolean key_vibration = (data[10] == 0x01);
@@ -161,13 +162,14 @@ public class GetConfigurationOperation extends AbstractBTLEOperation<CasioGBX100
         }
 
         LOG.info("Unhandled characteristic changed: " + characteristicUUID);
-        return super.onCharacteristicChanged(gatt, characteristic);
+        return super.onCharacteristicChanged(gatt, characteristic, data);
     }
 
     @Override
     public boolean onCharacteristicRead(BluetoothGatt gatt,
-                                        BluetoothGattCharacteristic characteristic, int status) {
+                                        BluetoothGattCharacteristic characteristic, byte[] value,
+                                        int status) {
 
-        return super.onCharacteristicRead(gatt, characteristic, status);
+        return super.onCharacteristicRead(gatt, characteristic, value, status);
     }
 }

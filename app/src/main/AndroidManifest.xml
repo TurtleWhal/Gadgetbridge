@@ -38,6 +38,13 @@
     <!-- Take wake locks (e.g. for time sync) -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!--
+        Necessary for asking the user to disable battery optimizations.
+        GB falls under the acceptable use cases documented here:
+        https://developer.android.com/training/monitoring-device-state/doze-standby.html#exemption-cases
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
     <!-- Read loyalty cards from Catima -->
     <uses-permission android:name="me.hackerchick.catima.READ_CARDS"/>
     <uses-permission android:name="me.hackerchick.catima.debug.READ_CARDS"/>
@@ -59,7 +66,10 @@
     <!-- Used for background service -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
+    <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
 
     <!-- Used for reverse find device -->
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -112,6 +122,7 @@
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:requestLegacyExternalStorage="true"
         android:theme="@style/GadgetbridgeTheme"
@@ -149,12 +160,28 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".activities.welcome.WelcomeActivity"
+            android:label="@string/first_start_welcome_title"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.PermissionsActivity"
+            android:label="@string/first_start_permissions_title"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
             android:name=".activities.SettingsActivity"
             android:label="@string/title_activity_settings"
             android:parentActivityName=".activities.ControlCenterv2" />
         <activity
             android:name=".activities.DashboardPreferencesActivity"
             android:label="@string/dashboard_settings"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.maps.MapsSettingsActivity"
+            android:label="@string/maps_settings"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.maps.MapsTrackActivity"
+            android:label="@string/maps"
             android:parentActivityName=".activities.SettingsActivity" />
         <activity
             android:name=".activities.SleepAsAndroidPreferencesActivity"
@@ -169,29 +196,41 @@
             android:label="@string/activity_prefs_charts"
             android:parentActivityName=".activities.charts.ChartsPreferencesActivity" />
         <activity
+            android:name=".activities.files.FileManagerActivity"
+            android:label="@string/activity_data_management_directory_content_title"
+            android:parentActivityName=".activities.DataManagementActivity" />
+        <activity
+            android:name=".activities.fit.FitViewerActivity"
+            android:exported="true"
+            android:label="@string/fit_file_viewer" />
+        <activity
+            android:name=".activities.BackupRestoreProgressActivity"
+            android:label="@string/activity_db_management_backup_restore_label"
+            android:parentActivityName=".activities.DataManagementActivity" />
+        <activity
             android:name=".activities.discovery.DiscoveryPairingPreferenceActivity"
             android:label="@string/activity_prefs_discovery_pairing"
-            android:parentActivityName=".activities.SettingsActivity" />
-        <activity
-            android:name=".devices.miband.MiBandPreferencesActivity"
-            android:label="@string/preferences_miband_1_2_settings"
             android:parentActivityName=".activities.SettingsActivity" />
         <activity
             android:name=".activities.loyaltycards.LoyaltyCardsSettingsActivity"
             android:label="@string/loyalty_cards"
             android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
         <activity
+            android:name=".activities.audiorecordings.AudioRecordingsActivity"
+            android:label="@string/audio_recordings"
+            android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
+        <activity
             android:name=".devices.garmin.GarminRealtimeSettingsActivity"
             android:label="@string/loading"
             android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
         <activity
-            android:name=".devices.pebble.PebbleSettingsActivity"
-            android:label="@string/pref_title_pebble_settings"
-            android:parentActivityName=".activities.SettingsActivity" />
+            android:name=".devices.huawei.ui.HuaweiStressCalibrationActivity"
+            android:label="@string/huawei_stress_calibrate"
+            android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
         <activity
-            android:name=".devices.zetime.ZeTimePreferenceActivity"
-            android:label="@string/zetime_title_settings"
-            android:parentActivityName=".activities.SettingsActivity" />
+            android:name=".activities.NotificationsAppIconUploadActivity"
+            android:label="@string/notifications_app_icon_upload"
+            android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
         <activity
             android:name=".activities.ActivitySummariesActivity"
             android:label="@string/activity_summaries"
@@ -201,6 +240,10 @@
             android:label="@string/title_activity_appmanager"
             android:launchMode="singleTop"
             android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.musicmanager.MusicManagerActivity"
+            android:label="@string/title_activity_musicmanager"
+            android:parentActivityName=".activities.SettingsActivity" />
         <activity
             android:name=".activities.AppBlacklistActivity"
             android:label="@string/title_activity_notification_management"
@@ -212,6 +255,14 @@
         <activity
             android:name=".devices.vesc.VescControlActivity"
             android:label="@string/devicetype_vesc"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".devices.idasen.IdasenControlActivity"
+            android:label="@string/devicetype_idasen"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".devices.ultrahuman.UltrahumanBreathingActivity"
+            android:label="@string/devicetype_ultrahuma_ring_air"
             android:parentActivityName=".activities.ControlCenterv2" />
         <activity
             android:name=".activities.FwAppInstallerActivity"
@@ -455,21 +506,45 @@
             android:name=".externalevents.NotificationListener"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-            android:exported="false">
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Bind to notification listener for capturing and forwarding notifications" />
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-        <service android:name=".service.NotificationCollectorMonitorService" />
-        <service android:name=".service.DeviceCommunicationService" />
+        <service
+            android:name=".service.NotificationCollectorMonitorService"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Service for capturing and forwarding notifications" />
+        </service>
+        <service
+            android:name=".service.DeviceCommunicationService"
+            android:foregroundServiceType="connectedDevice" />
         <service
             android:name=".devices.pinetime.PineTimeDFUService"
-            android:label="PineTime Nordic DFU service" />
+            android:label="PineTime Nordic DFU service"
+            android:foregroundServiceType="connectedDevice" />
 
         <service
             android:name=".service.btle.BLEScanService"
             android:enabled="true"
-            android:exported="false">
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <service
+            android:name=".service.GBCompanionDeviceService"
+            android:exported="true"
+            android:label="GB CompanionDevice Service"
+            android:permission="android.permission.BIND_COMPANION_DEVICE_SERVICE"
+            tools:targetApi="31">
+            <intent-filter>
+                <action android:name="android.companion.CompanionDeviceService" />
+            </intent-filter>
         </service>
 
         <receiver
@@ -556,6 +631,11 @@
             android:parentActivityName=".activities.ControlCenterv2"
             android:windowSoftInputMode="stateHidden" />
         <activity
+            android:name=".activities.licenses.LicensesActivity"
+            android:label="@string/open_source_licenses"
+            android:parentActivityName=".activities.AboutActivity"
+            android:windowSoftInputMode="stateHidden" />
+        <activity
             android:name=".activities.OpenFwAppInstallerActivity"
             android:label="@string/open_fw_installer_info_text_title"
             android:parentActivityName=".activities.ControlCenterv2"
@@ -605,6 +685,14 @@
         <activity
             android:name=".devices.pebble.PebblePairingActivity"
             android:label="@string/title_activity_pebble_pairing" />
+        <activity
+            android:name=".devices.evenrealities.G1PairingActivity"
+            android:label="@string/title_activity_even_realities_g1_pairing"
+            android:parentActivityName=".activities.discovery.DiscoveryActivityV2" />
+        <activity
+            android:name=".devices.gree.GreeAcPairingActivity"
+            android:label="@string/devicetype_gree_ac"
+            android:parentActivityName=".activities.discovery.DiscoveryActivityV2" />
         <activity
             android:name=".devices.watch9.Watch9PairingActivity"
             android:label="@string/title_activity_watch9_pairing" />
@@ -842,6 +930,11 @@
             android:exported="true" />
 
         <activity
+            android:name=".devices.marstek.SolarEquipmentStatusActivity"
+            android:label="Solar Equipment Status"
+            android:exported="true" />
+
+        <activity
             android:name=".devices.binary_sensor.activity.DataActivity"
             android:exported="true" />
 
@@ -890,6 +983,11 @@
             android:name=".activities.CameraActivity"
             android:launchMode="singleInstance"
             android:exported="false" />
+
+        <activity
+            android:name=".devices.cycling_sensor.activity.CyclingLiveDataActivity"
+            android:launchMode="singleInstance"
+            android:exported="true" />
     </application>
 
 </manifest>

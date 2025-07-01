@@ -53,6 +53,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.Casio2C2DSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
+import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_AUTOLIGHT;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_AUTOREMOVE_MESSAGE;
@@ -69,12 +70,12 @@ import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.Dev
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_PREVIEW_MESSAGE_IN_TITLE;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_TIMEFORMAT;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_ACTIVETIME_MINUTES;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_DATE_OF_BIRTH;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_DISTANCE_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_GENDER;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_HEIGHT_CM;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_STEPS_GOAL;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_WEIGHT_KG;
-import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_YEAR_OF_BIRTH;
 
 public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements SharedPreferences.OnSharedPreferenceChangeListener {
     private static final Logger LOG = LoggerFactory.getLogger(CasioGBX100DeviceSupport.class);
@@ -92,6 +93,12 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
 
     public CasioGBX100DeviceSupport() {
         super(LOG);
+    }
+
+    @Override
+    public DevicePreference[] supportedDevicePreferences() {
+        return new DevicePreference[] {
+        };
     }
 
     @Override
@@ -130,15 +137,15 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
 
     @Override
     public boolean onCharacteristicRead(BluetoothGatt gatt,
-                                        BluetoothGattCharacteristic characteristic, int status) {
+                                        BluetoothGattCharacteristic characteristic, byte[] data,
+                                        int status) {
 
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] data = characteristic.getValue();
 
         if(data.length == 0)
             return true;
 
-        return super.onCharacteristicRead(gatt, characteristic, status);
+        return super.onCharacteristicRead(gatt, characteristic, data, status);
     }
 
     public CasioGBX100ActivitySample getSumWithinRange(int timestamp_from, int timestamp_to) {
@@ -196,29 +203,29 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
 
     public void stepCountDataFetched(int totalCount, int totalCalories, ArrayList<CasioGBX100ActivitySample> data) {
         LOG.info("Got the following step count data: ");
-        LOG.info("Total Count: " + totalCount);
-        LOG.info("Total Calories: " + totalCalories);
+        LOG.info("Total Count: {}", totalCount);
+        LOG.info("Total Calories: {}", totalCalories);
 
         addGBActivitySamples(data);
     }
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] data) {
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] data = characteristic.getValue();
         if (data.length == 0)
             return true;
 
         if (characteristicUUID.equals(CasioConstants.CASIO_ALL_FEATURES_CHARACTERISTIC_UUID)) {
-            if(data[0] == CasioConstants.characteristicToByte.get("ALERT_LEVEL")) {
+            if(data[0] == FEATURE_ALERT_LEVEL) {
                 if(data[1] == 0x02) {
                     onReverseFindDevice(true);
                 } else {
                     onReverseFindDevice(false);
                 }
                 return true;
-            } else if(data[0] == CasioConstants.characteristicToByte.get("CASIO_CURRENT_TIME_MANAGER")) {
+            } else if(data[0] == FEATURE_CURRENT_TIME_MANAGER) {
                 if(data[1] == 0x00) {
                     try {
                         TransactionBuilder builder = performInitialized("writeCurrentTime");
@@ -233,7 +240,7 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
         }
 
         LOG.info("Unhandled characteristic change: " + characteristicUUID + " code: " + String.format("0x%1x ...", data[0]));
-        return super.onCharacteristicChanged(gatt, characteristic);
+        return super.onCharacteristicChanged(gatt, characteristic, data);
     }
 
     public void syncProfile() {
@@ -293,32 +300,27 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
         // If not a call or email, check the sender and if null, promote the title and message preview
         // as subtitle
         if (showMessagePreview && icon != CasioConstants.CATEGORY_INCOMING_CALL && icon != CasioConstants.CATEGORY_EMAIL) {
-            if (sender == null) {
+            if (StringUtils.isNullOrEmpty(sender)) {
                 // Shift title to sender slot
                 sender = title;
             }
             //Shift content to title
-            if (message != null) {
+            if (!StringUtils.isNullOrEmpty(message)) {
                 title = message.substring(0, Math.min(message.length(), 18)) + "..";
             }
         }
 
         // Make sure title and sender are less than 32 characters
         byte[] titleBytes = new byte[0];
-        if(title != null) {
+        if (!StringUtils.isNullOrEmpty(title)) {
             if (title.length() > 32) {
                 title = title.substring(0, 30) + "..";
             }
             titleBytes = title.getBytes(StandardCharsets.UTF_8);
         }
 
-        byte[] messageBytes = new byte[0];
-        if(message != null) {
-            messageBytes = message.getBytes(StandardCharsets.UTF_8);
-        }
-
         byte[] senderBytes = new byte[0];
-        if(sender != null) {
+        if (!StringUtils.isNullOrEmpty(sender)) {
             if (sender.length() > 32) {
                 sender = sender.substring(0, 30) + "..";
             }
@@ -326,8 +328,15 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
         }
 
         byte[] subtitleBytes = new byte[0];
-        if (subtitle != null) {
+        if (!StringUtils.isNullOrEmpty(subtitle)) {
             subtitleBytes = subtitle.getBytes(StandardCharsets.UTF_8);
+        }
+
+        // Ensure the message is not over 250 bytes, as per #4063
+        // FIXME: We probably need to take the MTU into account too...
+        byte[] messageBytes = new byte[0];
+        if (!StringUtils.isNullOrEmpty(message)) {
+            messageBytes = StringUtils.truncateToBytes(message, 250);
         }
 
         byte[] arr = new byte[22];
@@ -394,10 +403,10 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
         try {
             TransactionBuilder builder = performInitialized("showNotification");
             builder.write(getCharacteristic(CasioConstants.CASIO_NOTIFICATION_CHARACTERISTIC_UUID), copy);
-            LOG.info("Showing notification, title: " + title + " message (not sent): " + message);
+            LOG.info("Showing notification, title: {} message: {}", title, message);
             builder.queue(getQueue());
         } catch (IOException e) {
-            LOG.warn("showNotification failed: " + e.getMessage());
+            LOG.error("showNotification failed", e);
         }
     }
 
@@ -426,7 +435,7 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
                 icon = CasioConstants.CATEGORY_OTHER;
                 break;
         }
-        LOG.info("onNotification id=" + notificationSpec.getId());
+        LOG.info("onNotification id={}", notificationSpec.getId());
         showNotification(icon, notificationSpec.sender, notificationSpec.title, notificationSpec.body, notificationSpec.getId(), false);
         mSyncedNotificationIDs.add(notificationSpec.getId());
         if(autoremove) {
@@ -509,8 +518,8 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
         if(!isConnected())
             return;
 
-        data1[0] = CasioConstants.characteristicToByte.get("CASIO_SETTING_FOR_ALM");
-        data2[0] = CasioConstants.characteristicToByte.get("CASIO_SETTING_FOR_ALM2");
+        data1[0] = FEATURE_SETTING_FOR_ALM;
+        data2[0] = FEATURE_SETTING_FOR_ALM2;
 
         for(int i=0; i<alarms.size(); i++)
         {
@@ -635,6 +644,7 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
         }
     }
 
+    @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         LOG.debug(key + " changed");
 
@@ -670,7 +680,7 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
                 case PREF_USER_WEIGHT_KG:
                     new SetConfigurationOperation(this, CasioConstants.ConfigurationOption.OPTION_WEIGHT).perform();
                     break;
-                case PREF_USER_YEAR_OF_BIRTH:
+                case PREF_USER_DATE_OF_BIRTH:
                     new SetConfigurationOperation(this, CasioConstants.ConfigurationOption.OPTION_BIRTHDAY).perform();
                     break;
                 case PREF_TIMEFORMAT:

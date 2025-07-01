@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,9 +31,9 @@ import java.util.Objects;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.BarcodeFormat;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.AbstractZeppOsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.util.MapUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -70,14 +71,14 @@ public class ZeppOsLoyaltyCardService extends AbstractZeppOsService {
     public void handlePayload(final byte[] payload) {
         switch (payload[0]) {
             case CMD_CAPABILITIES_RESPONSE:
-                LOG.info("Loyalty cards capabilities, version1={}, version2={}", payload[1], payload[2]);
-
                 supportedFormats.clear();
                 supportedColors.clear();
-                int version = payload[1];
+
+                final int version = payload[1];
+                getSupport().evaluateGBDeviceEvent(new GBDeviceEventUpdatePreferences(PREF_VERSION, version));
 
                 if (version != 1 || payload[2] != 1) {
-                    LOG.warn("Unexpected loyalty cards service version");
+                    LOG.warn("Unexpected loyalty cards service version {}, {}", version, payload[2]);
                     return;
                 }
 
@@ -105,7 +106,14 @@ public class ZeppOsLoyaltyCardService extends AbstractZeppOsService {
                     supportedColors.add(color);
                 }
 
-                getSupport().evaluateGBDeviceEvent(new GBDeviceEventUpdatePreferences(PREF_VERSION, version));
+                LOG.info(
+                        "Loyalty cards version1={}, version2={}, formats={}, colors={}",
+                        payload[1],
+                        payload[2],
+                        supportedFormats,
+                        supportedColors
+                );
+
                 return;
             case CMD_SET_ACK:
                 LOG.info("Loyalty cards set ACK, status = {}", payload[1]);
@@ -116,7 +124,7 @@ public class ZeppOsLoyaltyCardService extends AbstractZeppOsService {
     }
 
     @Override
-    public void initialize(final TransactionBuilder builder) {
+    public void initialize(final ZeppOsTransactionBuilder builder) {
         requestCapabilities(builder);
     }
 
@@ -128,7 +136,7 @@ public class ZeppOsLoyaltyCardService extends AbstractZeppOsService {
         return supportedFormats;
     }
 
-    public void requestCapabilities(final TransactionBuilder builder) {
+    public void requestCapabilities(final ZeppOsTransactionBuilder builder) {
         write(builder, CMD_CAPABILITIES_REQUEST);
     }
 
@@ -155,11 +163,18 @@ public class ZeppOsLoyaltyCardService extends AbstractZeppOsService {
     }
 
     private List<LoyaltyCard> filterSupportedCards(final List<LoyaltyCard> cards) {
+        if (supportedFormats.isEmpty()) {
+            LOG.warn("Supported formats are not known");
+            return Collections.emptyList();
+        }
+
         final List<LoyaltyCard> ret = new ArrayList<>();
 
         for (final LoyaltyCard card : cards) {
             if (supportedFormats.contains(card.getBarcodeFormat())) {
                 ret.add(card);
+            } else {
+                LOG.warn("Ignoring unsupported card format {}", card.getBarcodeFormat());
             }
         }
 

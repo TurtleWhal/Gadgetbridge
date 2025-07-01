@@ -19,20 +19,28 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.imp
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.SWIM_STYLE;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.TIME_END;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.TIME_START;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_NONE;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_UNIX_EPOCH_SECONDS;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummaryProgressEntry;
+import nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.XiaomiWorkoutType;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummary;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryData;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class XiaomiSimpleActivityParser {
@@ -49,12 +57,14 @@ public class XiaomiSimpleActivityParser {
     }
 
     public void parse(final BaseActivitySummary summary, final ByteBuffer buf) {
-        final JSONObject summaryData = new JSONObject();
+        final ActivitySummaryData summaryData = new ActivitySummaryData();
 
         final byte[] header = new byte[headerSize];
         buf.get(header);
 
         LOG.debug("Header: {}", GB.hexdump(header));
+
+        final Map<String, Number> hrZones = new HashMap<>(5);
 
         for (int i = 0; i < dataEntries.size(); i++) {
             final XiaomiSimpleDataEntry dataEntry = dataEntries.get(i);
@@ -84,7 +94,7 @@ public class XiaomiSimpleActivityParser {
                 // ignored
             } else if (dataEntry.getKey().equals(SWIM_STYLE)) {
                 String swimStyleName = "unknown";
-                Float swimStyle = value.floatValue();
+                final float swimStyle = value.floatValue();
 
                 if (swimStyle == 0) {
                     swimStyleName = "medley";
@@ -98,49 +108,46 @@ public class XiaomiSimpleActivityParser {
                     swimStyleName = "butterfly";
                 }
 
-                addSummaryData(summaryData, dataEntry.getKey(), swimStyleName);
+                summaryData.add(dataEntry.getKey(), swimStyleName);
             } else if (dataEntry.getKey().equals(XIAOMI_WORKOUT_TYPE)) {
-                // TODO use XiaomiWorkoutType
-                switch (value.intValue()) {
-                    case 2:
-                        summary.setActivityKind(ActivityKind.TYPE_WALKING);
-                        break;
-                    case 6:
-                        summary.setActivityKind(ActivityKind.TYPE_CYCLING);
-                        break;
-                    default:
-                        summary.setActivityKind(ActivityKind.TYPE_UNKNOWN);
+                final ActivityKind activityKind = XiaomiWorkoutType.fromCode(value.intValue());
+                summary.setActivityKind(activityKind.getCode());
+                if (activityKind == ActivityKind.UNKNOWN) {
+                    summaryData.add(dataEntry.getKey(), value, UNIT_NONE);
                 }
+            } else if (ActivitySummaryEntries.HR_ZONES.containsKey(dataEntry.getKey())) {
+                // Save the HR zones so we can add them later in order
+                hrZones.put(dataEntry.getKey(), value);
             } else {
-                addSummaryData(summaryData, dataEntry.getKey(), value.floatValue(), dataEntry.getUnit());
+                summaryData.add(dataEntry.getKey(), value.floatValue(), dataEntry.getUnit());
+            }
+        }
+
+        if (!hrZones.isEmpty()) {
+            final int totalTime = hrZones.values().stream().mapToInt(Number::intValue).sum();
+            if (totalTime != 0) {
+                for (Map.Entry<String, Integer> zone : ActivitySummaryEntries.HR_ZONES.entrySet()) {
+                    final String zoneKey = zone.getKey();
+                    if (!hrZones.containsKey(zoneKey)) {
+                        continue;
+                    }
+                    final int zoneColor = zone.getValue();
+                    final int zoneTime = Objects.requireNonNull(hrZones.get(zoneKey)).intValue();
+
+                    summaryData.add(
+                            zoneKey,
+                            new ActivitySummaryProgressEntry(
+                                    zoneTime,
+                                    UNIT_SECONDS,
+                                    ((100 * zoneTime) / totalTime),
+                                    zoneColor != 0 ? GBApplication.getContext().getResources().getColor(zoneColor) : 0
+                            )
+                    );
+                }
             }
         }
 
         summary.setSummaryData(summaryData.toString());
-    }
-
-    protected void addSummaryData(final JSONObject summaryData, final String key, final float value, final String unit) {
-        if (value > 0) {
-            try {
-                final JSONObject innerData = new JSONObject();
-                innerData.put("value", value);
-                innerData.put("unit", unit);
-                summaryData.put(key, innerData);
-            } catch (final JSONException ignore) {
-            }
-        }
-    }
-
-    protected void addSummaryData(final JSONObject summaryData, final String key, final String value) {
-        if (key != null && !key.equals("") && value != null && !value.equals("")) {
-            try {
-                final JSONObject innerData = new JSONObject();
-                innerData.put("value", value);
-                innerData.put("unit", "string");
-                summaryData.put(key, innerData);
-            } catch (final JSONException ignore) {
-            }
-        }
     }
 
     public static class Builder {

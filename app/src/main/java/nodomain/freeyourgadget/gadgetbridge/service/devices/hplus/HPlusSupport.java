@@ -24,7 +24,6 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.hplus;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.net.Uri;
 import android.widget.Toast;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -48,33 +47,34 @@ import nodomain.freeyourgadget.gadgetbridge.devices.hplus.HPlusCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.hplus.HPlusWeatherCode;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.webview.CurrentPosition;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
-public class HPlusSupport extends AbstractBTLEDeviceSupport {
+public class HPlusSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(HPlusSupport.class);
     private final GBDeviceEventBatteryInfo batteryCmd = new GBDeviceEventBatteryInfo();
     public BluetoothGattCharacteristic ctrlCharacteristic = null;
     public BluetoothGattCharacteristic measureCharacteristic = null;
     private HPlusHandlerThread syncHelper;
-    private DeviceType deviceType = DeviceType.UNKNOWN;
+    private final DeviceType deviceType;
 
-    public HPlusSupport(DeviceType type) {
+    public HPlusSupport() {
+        this(DeviceType.HPLUS);
+    }
+
+    protected HPlusSupport(final DeviceType type) {
         super(LOG);
-        LOG.info("HPlusSupport Instance Created");
+        LOG.info("HPlusSupport Instance created for {}", type);
         deviceType = type;
 
         addSupportedService(HPlusConstants.UUID_SERVICE_HP);
@@ -92,8 +92,7 @@ public class HPlusSupport extends AbstractBTLEDeviceSupport {
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         LOG.info("Initializing");
 
-        gbDevice.setState(GBDevice.State.INITIALIZING);
-        gbDevice.sendDeviceUpdateIntent(getContext());
+        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZING, getContext());
 
         measureCharacteristic = getCharacteristic(HPlusConstants.UUID_CHARACTERISTIC_MEASURE);
         ctrlCharacteristic = getCharacteristic(HPlusConstants.UUID_CHARACTERISTIC_CONTROL);
@@ -105,8 +104,7 @@ public class HPlusSupport extends AbstractBTLEDeviceSupport {
         //Initialize device
         sendUserInfo(builder); //Sync preferences
 
-        gbDevice.setState(GBDevice.State.INITIALIZED);
-        gbDevice.sendDeviceUpdateIntent(getContext());
+        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZED, getContext());
 
         if (syncHelper == null) {
             syncHelper = new HPlusHandlerThread(getDevice(), getContext(), this);
@@ -168,13 +166,18 @@ public class HPlusSupport extends AbstractBTLEDeviceSupport {
         return this;
     }
 
+    public byte getTimeMode() {
+        if ("24h".equals(getDevicePrefs().getTimeFormat())) {
+            return HPlusConstants.ARG_TIMEMODE_24H;
+        } else {
+            return HPlusConstants.ARG_TIMEMODE_12H;
+        }
+    }
 
     private HPlusSupport setTimeMode(TransactionBuilder transaction) {
-        byte value = HPlusCoordinator.getTimeMode(getDevice().getAddress());
-
         transaction.write(ctrlCharacteristic, new byte[]{
                 HPlusConstants.CMD_SET_TIMEMODE,
-                value
+                getTimeMode()
         });
         return this;
     }
@@ -321,23 +324,33 @@ public class HPlusSupport extends AbstractBTLEDeviceSupport {
     }
 
 
+    public byte getScreenTime() {
+        return (byte) (getDevicePrefs().getInt(HPlusConstants.PREF_HPLUS_SCREENTIME, 5) & 0xFF);
+    }
+
     private HPlusSupport setScreenTime(TransactionBuilder transaction) {
-        byte value = HPlusCoordinator.getScreenTime(getDevice().getAddress());
         transaction.write(ctrlCharacteristic, new byte[]{
                 HPlusConstants.CMD_SET_SCREENTIME,
-                value
+                getScreenTime()
 
         });
         return this;
     }
 
+    public byte getAllDayHR() {
+        boolean value = (getDevicePrefs().getBoolean(HPlusConstants.PREF_HPLUS_ALLDAYHR, true));
+
+        if (value) {
+            return HPlusConstants.ARG_HEARTRATE_ALLDAY_ON;
+        } else {
+            return HPlusConstants.ARG_HEARTRATE_ALLDAY_OFF;
+        }
+    }
+
     private HPlusSupport setAllDayHeart(TransactionBuilder transaction) {
-
-        byte value = HPlusCoordinator.getAllDayHR(getDevice().getAddress());
-
         transaction.write(ctrlCharacteristic, new byte[]{
                 HPlusConstants.CMD_SET_ALLDAY_HRM,
-                value
+                getAllDayHR()
 
         });
 
@@ -826,13 +839,13 @@ public class HPlusSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] data) {
+        if (super.onCharacteristicChanged(gatt, characteristic, data)) {
             return true;
         }
 
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] data = characteristic.getValue();
         if (data.length == 0)
             return true;
 
@@ -906,4 +919,13 @@ public class HPlusSupport extends AbstractBTLEDeviceSupport {
         }
     }
 
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
+    }
 }

@@ -35,12 +35,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.ServiceCompat;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
@@ -178,7 +181,7 @@ public class BLEScanService extends Service {
         );
     }
 
-    private void updateNotification(String content) {
+    private void updateNotification(CharSequence content) {
         notificationManager.notify(
                 GB.NOTIFICATION_ID_SCAN,
                 createNotification(content, R.drawable.ic_bluetooth)
@@ -202,7 +205,7 @@ public class BLEScanService extends Service {
         return createNotification(content, icon);
     }
 
-    private Notification createNotification(String content, int icon) {
+    private Notification createNotification(CharSequence content, int icon) {
 
         return new NotificationCompat
                 .Builder(this, GB.NOTIFICATION_CHANNEL_ID_SCAN_SERVICE)
@@ -215,7 +218,11 @@ public class BLEScanService extends Service {
     private void startForeground() {
         Notification serviceNotification = createNotification(false, 0);
 
-        super.startForeground(GB.NOTIFICATION_ID_SCAN, serviceNotification);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceCompat.startForeground(this, GB.NOTIFICATION_ID_SCAN, serviceNotification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
+        } else {
+            ServiceCompat.startForeground(this, GB.NOTIFICATION_ID_SCAN, serviceNotification, 0);
+        }
     }
 
     @Override
@@ -315,9 +322,11 @@ public class BLEScanService extends Service {
                 filter
         );
 
-        registerReceiver(
+        ContextCompat.registerReceiver(
+                this,
                 bluetoothStateChangedReceiver,
-                new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+                new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+                ContextCompat.RECEIVER_EXPORTED
         );
     }
 

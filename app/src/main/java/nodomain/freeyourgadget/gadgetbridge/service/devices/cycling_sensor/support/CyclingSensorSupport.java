@@ -1,7 +1,5 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.cycling_sensor.support;
 
-import static nodomain.freeyourgadget.gadgetbridge.model.ActivityKind.TYPE_CYCLING;
-
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
@@ -31,7 +29,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.NotifyAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.ReadAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfoProfile;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -93,7 +90,7 @@ public class CyclingSensorSupport extends CyclingSensorBaseSupport {
     private long persistenceInterval;
     private long nextPersistenceTimestamp = 0;
 
-    private float wheelCircumference;
+    private float wheelCircumferenceMeters;
 
     private CyclingSpeedCadenceMeasurement lastReportedMeasurement = null;
     private long lastMeasurementTime = 0;
@@ -125,19 +122,19 @@ public class CyclingSensorSupport extends CyclingSensorBaseSupport {
         nextPersistenceTimestamp = 0;
         
         float wheelDiameter = deviceSpecificPrefs.getFloat(DeviceSettingsPreferenceConst.PREF_CYCLING_SENSOR_WHEEL_DIAMETER, 29);
-        wheelCircumference = (float)(wheelDiameter * 2.54 * Math.PI) / 100;
+        wheelCircumferenceMeters = (float)(wheelDiameter * 2.54 * Math.PI) / 100;
     }
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
 
         BluetoothGattCharacteristic measurementCharacteristic =
                 getCharacteristic(UUID_CYCLING_SENSOR_CSC_MEASUREMENT);
 
         builder.add(new NotifyAction(measurementCharacteristic, true));
 
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
         batteryCharacteristic = getCharacteristic(BatteryInfoProfile.UUID_CHARACTERISTIC_BATTERY_LEVEL);
 
         if(batteryCharacteristic != null){
@@ -151,8 +148,7 @@ public class CyclingSensorSupport extends CyclingSensorBaseSupport {
         return builder;
     }
 
-    private void handleMeasurementCharacteristic(BluetoothGattCharacteristic characteristic){
-        byte[] value = characteristic.getValue();
+    private void handleMeasurementCharacteristic(byte[] value){
         if(value == null || value.length < 7){
             logger.error("Measurement characteristic value length smaller than 7");
             return;
@@ -196,12 +192,30 @@ public class CyclingSensorSupport extends CyclingSensorBaseSupport {
 
                 float revolutionsPerSecond = revolutionsDelta * (1000f / millisDelta);
 
-                speed = revolutionsPerSecond * wheelCircumference;
+                speed = revolutionsPerSecond * wheelCircumferenceMeters;
             }
         }
 
         lastReportedMeasurement = currentMeasurement;
         lastMeasurementTime = now;
+
+        CyclingSample sample = new CyclingSample();
+
+        if (currentMeasurement.revolutionDataPresent) {
+            sample.setRevolutionCount(currentMeasurement.revolutionCount);
+            sample.setSpeed(speed);
+            sample.setDistance(currentMeasurement.revolutionCount * wheelCircumferenceMeters);
+        }
+
+        sample.setTimestamp(now);
+
+        Intent liveIntent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES);
+        liveIntent.putExtra(GBDevice.EXTRA_DEVICE, getDevice());
+        liveIntent.putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample);
+        liveIntent.putExtra("EXTRA_DEVICE_ADDRESS", getDevice().getAddress());
+        LocalBroadcastManager.getInstance(getContext())
+                .sendBroadcast(liveIntent);
+
 
         if(now < nextPersistenceTimestamp){
             // too early
@@ -209,21 +223,6 @@ public class CyclingSensorSupport extends CyclingSensorBaseSupport {
         }
 
         nextPersistenceTimestamp = now + persistenceInterval;
-
-        CyclingSample sample = new CyclingSample();
-
-        if (currentMeasurement.revolutionDataPresent) {
-            sample.setRevolutionCount(currentMeasurement.revolutionCount);
-            sample.setSpeed(speed);
-            sample.setDistance(currentMeasurement.revolutionCount * wheelCircumference);
-        }
-
-        sample.setTimestamp(now);
-
-        Intent liveIntent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES);
-        liveIntent.putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample);
-        LocalBroadcastManager.getInstance(getContext())
-                .sendBroadcast(liveIntent);
 
         try(DBHandler handler = GBApplication.acquireDB()) {
             DaoSession session = handler.getDaoSession();
@@ -244,12 +243,10 @@ public class CyclingSensorSupport extends CyclingSensorBaseSupport {
     }
 
     @Override
-    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-        byte[] value = characteristic.getValue();
-
+    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
         if(characteristic.equals(batteryCharacteristic) && value != null && value.length == 1){
             GBDeviceEventBatteryInfo info = new GBDeviceEventBatteryInfo();
-            info.level = characteristic.getValue()[0];
+            info.level = value[0];
             handleGBDeviceEvent(info);
         }
 
@@ -257,9 +254,9 @@ public class CyclingSensorSupport extends CyclingSensorBaseSupport {
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
         if(characteristic.getUuid().equals(UUID_CYCLING_SENSOR_CSC_MEASUREMENT)){
-            handleMeasurementCharacteristic(characteristic);
+            handleMeasurementCharacteristic(value);
             return true;
         }
         return false;

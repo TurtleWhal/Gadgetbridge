@@ -31,11 +31,17 @@ public class HuaweiWatchGT3Coordinator extends HuaweiBRCoordinator {
 
     @Override
     protected Pattern getSupportedDeviceName() {
-        return Pattern.compile("(" + HuaweiConstants.HU_WATCHGT3_NAME + "|" + HuaweiConstants.HU_WATCHGT3PRO_NAME + ").*", Pattern.CASE_INSENSITIVE);
+        return Pattern.compile("(" + HuaweiConstants.HU_WATCHGT3_NAME + "|" + HuaweiConstants.HU_WATCHGT3PRO_NAME + "|" + HuaweiConstants.HU_WATCHGT3SE_NAME + ").*", Pattern.CASE_INSENSITIVE);
     }
 
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_huawei_watchgt3;
+    }
+
+    @Override
+    public boolean supportsUnicodeEmojis() {
+        // HarmonyOS watch
+        return true;
     }
 }

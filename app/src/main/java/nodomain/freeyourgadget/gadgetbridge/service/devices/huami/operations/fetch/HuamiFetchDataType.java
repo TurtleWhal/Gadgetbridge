@@ -32,6 +32,8 @@ public enum HuamiFetchDataType {
     SLEEP_RESPIRATORY_RATE(0x38),
     RESTING_HEART_RATE(0x3a),
     MAX_HEART_RATE(0x3d),
+    SLEEP_SESSION(0x48),
+    HRV(0x49),
     ;
 
     private final byte code;

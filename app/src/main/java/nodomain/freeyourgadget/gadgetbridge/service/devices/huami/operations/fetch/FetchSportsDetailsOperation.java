@@ -39,9 +39,8 @@ import nodomain.freeyourgadget.gadgetbridge.export.GPXExporter;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrack;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.AbstractHuamiActivityDetailsParser;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiFetcher;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiActivityDetailsParser;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
@@ -57,13 +56,12 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
     private final BaseActivitySummary summary;
     private final String lastSyncTimeKey;
 
-    FetchSportsDetailsOperation(@NonNull BaseActivitySummary summary,
-                                @NonNull AbstractHuamiActivityDetailsParser detailsParser,
-                                @NonNull HuamiSupport support,
-                                @NonNull String lastSyncTimeKey,
+    FetchSportsDetailsOperation(@NonNull final BaseActivitySummary summary,
+                                @NonNull final AbstractHuamiActivityDetailsParser detailsParser,
+                                @NonNull final HuamiFetcher fetcher,
+                                @NonNull final String lastSyncTimeKey,
                                 int fetchCount) {
-        super(support);
-        setName("fetching sport details");
+        super(fetcher, HuamiFetchDataType.SPORTS_DETAILS);
         this.summary = summary;
         this.detailsParser = detailsParser;
         this.lastSyncTimeKey = lastSyncTimeKey;
@@ -71,15 +69,15 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
     }
 
     @Override
-    protected String taskDescription() {
+    public String taskDescription() {
         return getContext().getString(R.string.busy_task_fetch_sports_details);
     }
 
     @Override
-    protected void startFetching(TransactionBuilder builder) {
-        LOG.info("start " + getName());
+    protected void startFetching() {
+        LOG.info("start {}", getName());
         final GregorianCalendar sinceWhen = getLastSuccessfulSyncTime();
-        startFetching(builder, HuamiFetchDataType.SPORTS_DETAILS.getCode(), sinceWhen);
+        startFetching(HuamiFetchDataType.SPORTS_DETAILS.getCode(), sinceWhen);
     }
 
     @Override
@@ -95,35 +93,47 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
             ((HuamiActivityDetailsParser) detailsParser).setSkipCounterByte(false); // is already stripped
         }
 
+        // Start by persisting the raw bytes right away - they can always be re-processed later if needed
+        try {
+            final String rawBytesPath = saveRawBytes();
+            if (rawBytesPath != null) {
+                try (DBHandler dbHandler = GBApplication.acquireDB()) {
+                    summary.setRawDetailsPath(rawBytesPath);
+                    dbHandler.getDaoSession().getBaseActivitySummaryDao().update(summary);
+                }
+            }
+        } catch (final Exception e) {
+            GB.toast(getContext(), "Error saving raw bytes: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+            return false;
+        }
+
         try {
             final ActivityTrack track = detailsParser.parse(buffer.toByteArray());
-            final ActivityTrackExporter exporter = createExporter();
+            final ActivityTrackExporter exporter = new GPXExporter();
             final String trackType;
-            switch (summary.getActivityKind()) {
-                case ActivityKind.TYPE_CYCLING:
+            switch (ActivityKind.fromCode(summary.getActivityKind())) {
+                case CYCLING:
                     trackType = getContext().getString(R.string.activity_type_biking);
                     break;
-                case ActivityKind.TYPE_RUNNING:
+                case RUNNING:
                     trackType = getContext().getString(R.string.activity_type_running);
                     break;
-                case ActivityKind.TYPE_WALKING:
+                case WALKING:
                     trackType = getContext().getString(R.string.activity_type_walking);
                     break;
-                case ActivityKind.TYPE_HIKING:
+                case HIKING:
                     trackType = getContext().getString(R.string.activity_type_hiking);
                     break;
-                case ActivityKind.TYPE_CLIMBING:
+                case CLIMBING:
                     trackType = getContext().getString(R.string.activity_type_climbing);
                     break;
-                case ActivityKind.TYPE_SWIMMING:
+                case SWIMMING:
                     trackType = getContext().getString(R.string.activity_type_swimming);
                     break;
                 default:
                     trackType = "track";
                     break;
             }
-
-            final String rawBytesPath = saveRawBytes();
 
             final String fileName = FileUtils.makeValidFileName("gadgetbridge-" + trackType.toLowerCase() + "-" + DateTimeUtils.formatIso8601(summary.getStartTime()) + ".gpx");
             final File targetFile = new File(FileUtils.getExternalFilesDir(), fileName);
@@ -139,14 +149,12 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
                 if (exportGpxSuccess) {
                     summary.setGpxTrack(targetFile.getAbsolutePath());
                 }
-                if (rawBytesPath != null) {
-                    summary.setRawDetailsPath(rawBytesPath);
-                }
                 dbHandler.getDaoSession().getBaseActivitySummaryDao().update(summary);
             }
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving activity details: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
-            return false;
+            // #4549 - we do not return false here, since this might cause the same activity to be fetched over and over again
+            // the raw details are persisted above, we can always re-process if needed
         }
 
         // Always increment the sync timestamp on success, even if we did not get data
@@ -155,8 +163,8 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
         saveLastSyncTimestamp(endTime);
 
         if (needsAnotherFetch(endTime)) {
-            final FetchSportsSummaryOperation nextOperation = new FetchSportsSummaryOperation(getSupport(), fetchCount);
-            getSupport().getFetchOperationQueue().add(0, nextOperation);
+            final FetchSportsSummaryOperation nextOperation = new FetchSportsSummaryOperation(fetcher, fetchCount);
+            fetcher.getFetchOperationQueue().add(0, nextOperation);
         }
 
         return true;
@@ -164,8 +172,8 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
 
     private boolean needsAnotherFetch(GregorianCalendar lastSyncTimestamp) {
         // We have 2 operations per fetch round: summary + details
-        if (fetchCount > 10) {
-            LOG.warn("Already have 5 fetch rounds, not doing another one.");
+        if (fetchCount > 20) {
+            LOG.warn("Already have {} fetch rounds, not doing another one.", fetchCount/ 2);
             return false;
         }
 
@@ -183,12 +191,6 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
         return true;
     }
 
-    private ActivityTrackExporter createExporter() {
-        final GPXExporter exporter = new GPXExporter();
-        exporter.setCreator(GBApplication.app().getNameAndVersion());
-        return exporter;
-    }
-
     @Override
     protected String getLastSyncTimeKey() {
         return lastSyncTimeKey;
@@ -203,13 +205,13 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
 
     private String saveRawBytes() {
         final String fileName = FileUtils.makeValidFileName(String.format("%s.bin", DateTimeUtils.formatIso8601(summary.getStartTime())));
-        FileOutputStream outputStream = null;
 
         try {
             final File targetFolder = new File(FileUtils.getExternalFilesDir(), "rawDetails");
+            //noinspection ResultOfMethodCallIgnored
             targetFolder.mkdirs();
             final File targetFile = new File(targetFolder, fileName);
-            outputStream = new FileOutputStream(targetFile);
+            final FileOutputStream outputStream = new FileOutputStream(targetFile);
             outputStream.write(buffer.toByteArray());
             outputStream.close();
             return targetFile.getAbsolutePath();

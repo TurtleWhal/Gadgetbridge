@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -73,9 +74,8 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.wena3.protocol.logic.ActivitySyncPacketProcessor;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.wena3.protocol.logic.parsers.BehaviorPacketParser;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.wena3.protocol.logic.parsers.CaloriesPacketParser;
@@ -134,7 +134,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.wena3.protocol.
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
-public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
+public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final int INCOMING_CALL_ID = 3939;
     private static final Logger LOG = LoggerFactory.getLogger(SonyWena3DeviceSupport.class);
     private String lastMusicInfo = null;
@@ -164,7 +164,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
         if(perAppNotificationSettingsRepository == null) {
             perAppNotificationSettingsRepository = new AppSpecificNotificationSettingsRepository(getDevice());
         }
@@ -191,20 +191,20 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
         // Finally, sync activity data
         requestActivityDataDownload(builder, false);
 
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
-        CalendarReceiver.forceSync();
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        CalendarReceiver.forceSync(getDevice());
         return builder;
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
         if(characteristic.getUuid().equals(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_STATE_UUID)) {
-            BatteryLevelInfo stateInfo = new BatteryLevelInfo(characteristic.getValue());
+            BatteryLevelInfo stateInfo = new BatteryLevelInfo(value);
             handleGBDeviceEvent(stateInfo.toDeviceEvent());
             return true;
         }
         else if (characteristic.getUuid().equals(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID)) {
-            NotificationServiceStatusRequest request = new NotificationServiceStatusRequest(characteristic.getValue());
+            NotificationServiceStatusRequest request = new NotificationServiceStatusRequest(value);
             if(request.requestType == StatusRequestType.MUSIC_INFO_FETCH.value) {
                 LOG.debug("Request for music info received");
                 if(lastMusicState != null && lastMusicState.state == MusicStateSpec.STATE_PLAYING && lastMusicInfo != null) {
@@ -229,27 +229,27 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
                 return true;
             }
             else if(request.requestType == StatusRequestType.GET_CALENDAR.value) {
-                CalendarReceiver.forceSync();
+                CalendarReceiver.forceSync(getDevice());
                 sendAllCalendarEvents(null);
             }
             else {
                 LOG.warn("Unknown NotificationServiceStatusRequest " + request.requestType);
             }
         } else if(characteristic.getUuid().equals(SonyWena3Constants.ACTIVITY_LOG_CHARACTERISTIC_UUID)) {
-            ActivitySyncDataPacket asdp = new ActivitySyncDataPacket(characteristic.getValue());
+            ActivitySyncDataPacket asdp = new ActivitySyncDataPacket(value);
             activitySyncHandler.receivePacket(asdp, getDevice());
         }
         return false;
     }
 
     @Override
-    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
         if(characteristic.getUuid().equals(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_STATE_UUID)) {
-            BatteryLevelInfo stateInfo = new BatteryLevelInfo(characteristic.getValue());
+            BatteryLevelInfo stateInfo = new BatteryLevelInfo(value);
             handleGBDeviceEvent(stateInfo.toDeviceEvent());
             return true;
         } else if(characteristic.getUuid().equals(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_INFO_UUID)) {
-            DeviceInfo deviceInfo = new DeviceInfo(characteristic.getValue());
+            DeviceInfo deviceInfo = new DeviceInfo(value);
             handleGBDeviceEvent(deviceInfo.toDeviceEvent());
             return true;
         }
@@ -843,7 +843,8 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
     private void sendActivityGoalSettings(TransactionBuilder b) {
         Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress()));
         ActivityUser user = new ActivityUser();
-        if(user.getYearOfBirth() < 1920) {
+        LocalDate dateOfBirth = user.getDateOfBirth();
+        if(dateOfBirth.getYear() < 1920) {
             LOG.error("Device does not support this year of birth");
             return;
         }
@@ -851,8 +852,16 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
 
         GenderSetting gender = user.getGender() == ActivityUser.GENDER_FEMALE ? GenderSetting.FEMALE : GenderSetting.MALE;
 
+
         // Maybe we need to set the full birth date?
-        BodyPropertiesSetting bodyPropertiesSetting = new BodyPropertiesSetting(gender, (short)user.getYearOfBirth(), (short)0, (short)1, (short)user.getHeightCm(), (short)user.getWeightKg());
+        BodyPropertiesSetting bodyPropertiesSetting = new BodyPropertiesSetting(
+                gender,
+                (short)dateOfBirth.getYear(),
+                (short)dateOfBirth.getMonthValue(),
+                (short)dateOfBirth.getDayOfMonth(),
+                (short)user.getHeightCm(),
+                (short)user.getWeightKg()
+        );
         GoalStepsSetting stepsSetting = new GoalStepsSetting(stepsNotification, user.getStepsGoal());
 
         b.write(
@@ -1034,7 +1043,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
                     sendHomeScreenSettings(builder);
                     break;
 
-                case ActivityUser.PREF_USER_YEAR_OF_BIRTH:
+                case ActivityUser.PREF_USER_DATE_OF_BIRTH:
                 case ActivityUser.PREF_USER_GENDER:
                 case ActivityUser.PREF_USER_HEIGHT_CM:
                 case ActivityUser.PREF_USER_WEIGHT_KG:
@@ -1059,7 +1068,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
                     break;
 
                 default:
-                    LOG.warn("Unsupported setting %s", config);
+                    LOG.warn("Unsupported setting {}", config);
                     return;
             }
 
@@ -1067,5 +1076,15 @@ public class SonyWena3DeviceSupport extends AbstractBTLEDeviceSupport {
         } catch(Exception e) {
             GB.toast("Failed to send settings update", Toast.LENGTH_SHORT, GB.ERROR);
         }
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

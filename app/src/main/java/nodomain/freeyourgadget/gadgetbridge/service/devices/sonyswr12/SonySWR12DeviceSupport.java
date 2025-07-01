@@ -19,7 +19,6 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.sonyswr12;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
-import android.net.Uri;
 import android.widget.Toast;
 
 import org.slf4j.Logger;
@@ -36,14 +35,7 @@ import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventBatteryInfo;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener;
@@ -71,7 +63,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.GB;
 // - get notified: -call, -notification, -notification from, -do not disturb
 // - media control: media/find phone(tap once for play pause, tap twice for next, tap triple for previous)
 
-public class SonySWR12DeviceSupport extends AbstractBTLEDeviceSupport {
+public class SonySWR12DeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(SonySWR12DeviceSupport.class);
     private SonySWR12HandlerThread processor = null;
 
@@ -117,8 +109,7 @@ public class SonySWR12DeviceSupport extends AbstractBTLEDeviceSupport {
         if (gbDevice.getState() != GBDevice.State.INITIALIZED) {
             gbDevice.setFirmwareVersion("N/A");
             gbDevice.setFirmwareVersion2("N/A");
-            gbDevice.setState(GBDevice.State.INITIALIZED);
-            gbDevice.sendDeviceUpdateIntent(getContext());
+            gbDevice.setUpdateState(GBDevice.State.INITIALIZED, getContext());
         }
     }
 
@@ -164,18 +155,18 @@ public class SonySWR12DeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-        return super.onCharacteristicRead(gatt, characteristic, status);
+    public boolean onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
+        return super.onCharacteristicRead(gatt, characteristic, value, status);
     }
 
     @Override
-    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic))
+    public boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
+        if (super.onCharacteristicChanged(gatt, characteristic, value))
             return true;
         UUID uuid = characteristic.getUuid();
         if (uuid.equals(SonySWR12Constants.UUID_CHARACTERISTIC_EVENT)) {
             try {
-                EventBase event = EventFactory.readEventFromByteArray(characteristic.getValue());
+                EventBase event = EventFactory.readEventFromByteArray(value);
                 getProcessor().process(event);
             } catch (Exception e) {
                 return false;
@@ -240,5 +231,15 @@ public class SonySWR12DeviceSupport extends AbstractBTLEDeviceSupport {
         } catch (Exception exc) {
             LOG.error("failed to send config " + config, exc);
         }
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

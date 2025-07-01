@@ -11,6 +11,7 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.cycling_sensor.activity.CyclingLiveDataActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.cycling_sensor.db.CyclingSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.CyclingSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.CyclingSampleDao;
@@ -69,18 +70,13 @@ public class CyclingSensorCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
-        return null;
-    }
-
-    @Override
     public String getManufacturer() {
-        return "Unknown";
+        return "Generic";
     }
 
     @Override
     public Class<? extends Activity> getAppsManagementActivity() {
-        return null;
+        return CyclingLiveDataActivity.class;
     }
 
     @Override
@@ -102,7 +98,7 @@ public class CyclingSensorCoordinator extends AbstractBLEDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return CyclingSensorSupport.class;
     }
 
@@ -110,4 +106,11 @@ public class CyclingSensorCoordinator extends AbstractBLEDeviceCoordinator {
     public int getDeviceNameResource() {
         return R.string.devicetype_cycling_sensor;
     }
+
+    @Override
+    public boolean supportsAppsManagement(GBDevice device) {
+        return true;
+    }
+
+
 }

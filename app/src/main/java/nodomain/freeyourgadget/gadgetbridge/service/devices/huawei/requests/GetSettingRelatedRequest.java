@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket.CryptoException;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.DeviceConfig;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiSupportProvider;
@@ -36,6 +35,11 @@ public class GetSettingRelatedRequest extends Request {
     }
 
     @Override
+    protected boolean requestSupported() {
+        return supportProvider.getHuaweiCoordinator().supportsSettingRelated();
+    }
+
+    @Override
     protected List<byte[]> createRequest() throws RequestCreationException {
         try {
             return new DeviceConfig.SettingRelated.Request(paramsProvider).serialize();
@@ -46,6 +50,13 @@ public class GetSettingRelatedRequest extends Request {
 
     @Override
     protected void processResponse() throws ResponseParseException {
+        if (!(receivedPacket instanceof DeviceConfig.SettingRelated.Response))
+            throw new ResponseTypeMismatchException(receivedPacket, DeviceConfig.SettingRelated.Response.class);
+
         LOG.debug("handle Setting Related");
+
+        supportProvider.getHuaweiCoordinator().setSupportsTruSleepNewSync(((DeviceConfig.SettingRelated.Response) receivedPacket).truSleepNewSync);
+        supportProvider.getHuaweiCoordinator().setSupportsRriNewSync(((DeviceConfig.SettingRelated.Response) receivedPacket).rriNewSync);
+        supportProvider.getHuaweiCoordinator().setSupportsGpsNewSync(((DeviceConfig.SettingRelated.Response) receivedPacket).gpsNewSync);
     }
 }

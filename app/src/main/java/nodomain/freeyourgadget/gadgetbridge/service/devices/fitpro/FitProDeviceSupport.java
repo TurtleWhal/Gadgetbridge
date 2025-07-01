@@ -89,7 +89,6 @@ import static nodomain.freeyourgadget.gadgetbridge.devices.fitpro.FitProConstant
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
-import android.net.Uri;
 import android.widget.Toast;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -134,20 +133,15 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfoProfile;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfo;
@@ -156,7 +150,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
-public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
+public class FitProDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(FitProDeviceSupport.class);
     public final GBDeviceEventBatteryInfo batteryCmd = new GBDeviceEventBatteryInfo();
     public final GBDeviceEventVersionInfo versionCmd = new GBDeviceEventVersionInfo();
@@ -198,7 +192,7 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
         readCharacteristic = getCharacteristic(UUID_CHARACTERISTIC_RX);
         writeCharacteristic = getCharacteristic(UUID_CHARACTERISTIC_TX);
 
@@ -237,7 +231,7 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
         builder.write(writeCharacteristic, craftData(CMD_GROUP_BAND_INFO, CMD_RX_BAND_INFO));
         builder.wait(200);
 
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
         return builder;
     }
 
@@ -274,10 +268,10 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        super.onCharacteristicChanged(gatt, characteristic);
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] data) {
+        super.onCharacteristicChanged(gatt, characteristic, data);
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] data = characteristic.getValue();
         debugPrintArray(data, "FitPro received value");
         if (data[0] != FitProConstants.DATA_HEADER) {
             if (debugEnabled) {
@@ -370,7 +364,7 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
     public void indicateFinishedFetchingOperation() {
         //LOG.debug("download finish announced");
         GB.updateTransferNotification(null, "", false, 100, getContext());
-        GB.signalActivityDataFinish();
+        GB.signalActivityDataFinish(getDevice());
         unsetBusy();
     }
 
@@ -496,7 +490,7 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
                 case ActivityUser.PREF_USER_WEIGHT_KG:
                 case ActivityUser.PREF_USER_GENDER:
                 case ActivityUser.PREF_USER_HEIGHT_CM:
-                case ActivityUser.PREF_USER_YEAR_OF_BIRTH:
+                case ActivityUser.PREF_USER_DATE_OF_BIRTH:
                     setUserData(builder);
                     break;
                 case ActivityUser.PREF_USER_STEPS_GOAL:
@@ -910,7 +904,7 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
         // this device doesn't have concept of on-off alarm, so use the last slot for this and store
         // this alarm in the database so the user knows what is going on and can disable it
 
-        if (alarms.toArray().length == 1 && alarms.get(0).getRepetition() == 0) { //single shot?
+        if (alarms.size() == 1 && alarms.get(0).getRepetition() == 0) { //single shot?
             Alarm oneshot = alarms.get(0);
             alarms = (ArrayList<? extends Alarm>) AlarmUtils.mergeOneshotToDeviceAlarms(gbDevice, (nodomain.freeyourgadget.gadgetbridge.entities.Alarm) oneshot, 7);
         }
@@ -1333,6 +1327,7 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
 
     public void broadcastSample(FitProActivitySample sample) {
         Intent intent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES)
+                .putExtra(GBDevice.EXTRA_DEVICE, getDevice())
                 .putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample);
         LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
     }
@@ -1355,11 +1350,11 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
         sample.setSpo2Percent(spo2);
 
         sample.setTimestamp((int) (date.getTimeInMillis() / 1000));
-        sample.setRawKind(ActivityKind.TYPE_ACTIVITY);
+        sample.setRawKind(ActivityKind.ACTIVITY.getCode());
 
         addGBActivitySample(sample);
         broadcastSample(sample);
-        GB.signalActivityDataFinish();
+        GB.signalActivityDataFinish(getDevice());
     }
 
     public void handleDayTotalsData(int steps, int distance, int calories) {
@@ -1394,7 +1389,7 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
             sample.setSteps(newSteps);
             sample.setDistanceMeters(distance);
             sample.setCaloriesBurnt(calories);
-            sample.setRawKind(ActivityKind.TYPE_ACTIVITY);
+            sample.setRawKind(ActivityKind.ACTIVITY);
             sample.setRawIntensity(1);
             addGBActivitySample(sample);
             broadcastSample(sample);
@@ -1451,5 +1446,15 @@ public class FitProDeviceSupport extends AbstractBTLEDeviceSupport {
         Calendar date = GregorianCalendar.getInstance();
         date.set(year, month - 1, day, 0, 0, 0);
         return date;
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

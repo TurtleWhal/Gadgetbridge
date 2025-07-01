@@ -24,7 +24,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.Uri;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,24 +45,18 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.watch9.operations.InitOperation;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.ArrayUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.BcdUtil;
 
-public class Watch9DeviceSupport extends AbstractBTLEDeviceSupport {
+public class Watch9DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private boolean needsAuth;
     private int sequenceNumber = 0;
@@ -120,7 +113,7 @@ public class Watch9DeviceSupport extends AbstractBTLEDeviceSupport {
             needsAuth = false;
             new InitOperation(auth, this, builder).perform();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.warn("exception in initializeDevice", e);
         }
 
         return builder;
@@ -314,7 +307,7 @@ public class Watch9DeviceSupport extends AbstractBTLEDeviceSupport {
                 .enableNotificationChannels(builder)
                 .enableDoNotDisturb(builder, false)
                 .setFitnessGoal(builder);
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
         builder.setCallback(this);
 
         return this;
@@ -395,18 +388,18 @@ public class Watch9DeviceSupport extends AbstractBTLEDeviceSupport {
             }
             builder.queue(getQueue());
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.warn("exception in onSendConfiguration", e);
         }
     }
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        super.onCharacteristicChanged(gatt, characteristic);
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] value) {
+        super.onCharacteristicChanged(gatt, characteristic, value);
 
         UUID characteristicUUID = characteristic.getUuid();
         if (Watch9Constants.UUID_CHARACTERISTIC_WRITE.equals(characteristicUUID)) {
-            byte[] value = characteristic.getValue();
             if (ArrayUtils.equals(value, Watch9Constants.RESP_FIRMWARE_INFO, 5)) {
                 handleFirmwareInfo(value);
             } else if (ArrayUtils.equals(value, Watch9Constants.RESP_BATTERY_INFO, 5)) {
@@ -425,7 +418,7 @@ public class Watch9DeviceSupport extends AbstractBTLEDeviceSupport {
             return true;
         } else {
             LOG.info("Unhandled characteristic changed: " + characteristicUUID);
-            logMessageContent(characteristic.getValue());
+            logMessageContent(value);
         }
 
         return false;
@@ -476,6 +469,16 @@ public class Watch9DeviceSupport extends AbstractBTLEDeviceSupport {
         LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(getContext());
         broadcastManager.unregisterReceiver(broadcastReceiver);
         super.dispose();
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 
     private static class Conversion {

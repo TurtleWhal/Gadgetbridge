@@ -16,28 +16,18 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.qc35;
 
-import android.app.Activity;
-
 import androidx.annotation.NonNull;
 
 import java.util.regex.Pattern;
 
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLClassicDeviceCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qc35.QC35BaseSupport;
 
 public class QC35Coordinator extends AbstractBLClassicDeviceCoordinator {
-    @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
-
-    }
-
     @Override
     protected Pattern getSupportedDeviceName() {
         return Pattern.compile("Bose QC 35.*");
@@ -52,7 +42,7 @@ public class QC35Coordinator extends AbstractBLClassicDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return QC35BaseSupport.class;
     }
 
@@ -82,10 +72,5 @@ public class QC35Coordinator extends AbstractBLClassicDeviceCoordinator {
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_headphones;
-    }
-
-    @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_headphones_disabled;
     }
 }

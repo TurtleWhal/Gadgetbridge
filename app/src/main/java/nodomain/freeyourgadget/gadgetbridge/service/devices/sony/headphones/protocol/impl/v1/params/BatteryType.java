@@ -19,5 +19,6 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones.pro
 public enum BatteryType {
     SINGLE,
     DUAL,
+    DUAL2,
     CASE,
 }

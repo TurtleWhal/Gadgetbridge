@@ -1,10 +1,11 @@
-/*  Copyright (C) 2015-2024 Andreas Böhler, Andreas Shimokawa, Arjan
+/*  Copyright (C) 2015-2025 Andreas Böhler, Andreas Shimokawa, Arjan
     Schrijver, Avamander, Carsten Pfeiffer, Daniel Dakhno, Daniele Gobbetti,
     Daniel Hauck, Davis Mosenkovs, Dikay900, Dmitriy Bogdanov, Frank Slezak,
     Gabriele Monaco, Gordon Williams, ivanovlev, João Paulo Barraca, José
     Rebelo, Julien Pivotto, Kasha, keeshii, Martin, Matthieu Baerts, mvn23,
     NekoBox, Nephiel, Petr Vaněk, Sebastian Kranz, Sergey Trofimov, Steffen
-    Liebergeld, Taavi Eomäe, TylerWilliamson, Uwe Hermann, Yoran Vulker
+    Liebergeld, Taavi Eomäe, TylerWilliamson, Uwe Hermann, Yoran Vulker,
+    Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -22,8 +23,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service;
 
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.*;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
@@ -35,15 +34,18 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
 import android.location.Location;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
@@ -58,6 +60,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -65,9 +68,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.HeartRateUtils;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.CameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.AlarmClockReceiver;
-import nodomain.freeyourgadget.gadgetbridge.externalevents.AlarmReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.BluetoothConnectReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.BluetoothPairingRequestReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.CMWeatherReceiver;
@@ -85,6 +86,7 @@ import nodomain.freeyourgadget.gadgetbridge.externalevents.SMSReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.SilentModeReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.TimeChangeReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.TinyWeatherForecastGermanyReceiver;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.VolumeChangeReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.sleepasandroid.SleepAsAndroidReceiver;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -108,9 +110,14 @@ import nodomain.freeyourgadget.gadgetbridge.service.receivers.GBAutoFetchReceive
 import nodomain.freeyourgadget.gadgetbridge.util.EmojiConverter;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
-import nodomain.freeyourgadget.gadgetbridge.util.language.LanguageUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
+import nodomain.freeyourgadget.gadgetbridge.util.language.LanguageUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.language.Transliterator;
+
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_STRESS_TEST_CONNECT_COUNT;
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_STRESS_TEST_CONNECT_PARALLEL;
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_STRESS_TEST_DISPOSE;
+import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.*;
 
 public class DeviceCommunicationService extends Service implements SharedPreferences.OnSharedPreferenceChangeListener {
     public static class DeviceStruct{
@@ -258,7 +265,8 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
     private GBAutoFetchReceiver mGBAutoFetchReceiver = null;
     private AutoConnectIntervalReceiver mAutoConnectInvervalReceiver = null;
 
-    private AlarmReceiver mAlarmReceiver = null;
+    private VolumeChangeReceiver mVolumeChangeReceiver = null;
+
     private final List<CalendarReceiver> mCalendarReceiver = new ArrayList<>();
     private CMWeatherReceiver mCMWeatherReceiver = null;
     private LineageOsWeatherReceiver mLineageOsWeatherReceiver = null;
@@ -288,16 +296,18 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
             "com.spotify.music.playbackstatechanged"
     };
 
-    private final String COMMAND_BLUETOOTH_CONNECT = "nodomain.freeyourgadget.gadgetbridge.BLUETOOTH_CONNECT";
-    private final String ACTION_DEVICE_CONNECTED = "nodomain.freeyourgadget.gadgetbridge.BLUETOOTH_CONNECTED";
-    private final String ACTION_DEVICE_SCANNED = "nodomain.freeyourgadget.gadgetbridge.BLUETOOTH_SCANNED";
     private final int NOTIFICATIONS_CACHE_MAX = 10;  // maximum amount of notifications to cache per device while disconnected
     private boolean allowBluetoothIntentApi = false;
     private boolean reconnectViaScan = GBPrefs.RECONNECT_SCAN_DEFAULT;
 
+    private final String API_LEGACY_COMMAND_BLUETOOTH_CONNECT = "nodomain.freeyourgadget.gadgetbridge.BLUETOOTH_CONNECT";
+    private final String API_LEGACY_COMMAND_BLUETOOTH_DISCONNECT = "nodomain.freeyourgadget.gadgetbridge.BLUETOOTH_DISCONNECT";
+    private final String API_LEGACY_ACTION_DEVICE_CONNECTED = "nodomain.freeyourgadget.gadgetbridge.BLUETOOTH_CONNECTED";
+    private final String API_LEGACY_ACTION_DEVICE_SCANNED = "nodomain.freeyourgadget.gadgetbridge.BLUETOOTH_SCANNED";
+
     private void sendDeviceAPIBroadcast(String address, String action){
         if(!allowBluetoothIntentApi){
-            GB.log("not sending API event due to settings", GB.INFO, null);
+            LOG.debug("not sending API event due to settings");
             return;
         }
         Intent intent = new Intent(action);
@@ -307,51 +317,57 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
     }
 
     private void sendDeviceConnectedBroadcast(String address){
-        sendDeviceAPIBroadcast(address, ACTION_DEVICE_CONNECTED);
+        sendDeviceAPIBroadcast(address, API_LEGACY_ACTION_DEVICE_CONNECTED);
     }
 
     BroadcastReceiver bluetoothCommandReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            switch (intent.getAction()){
-                case COMMAND_BLUETOOTH_CONNECT:
-                    if(!allowBluetoothIntentApi){
-                        GB.log("Connection API not allowed in settings", GB.ERROR, null);
-                        return;
-                    }
-                    Bundle extras = intent.getExtras();
-                    if(extras == null){
-                        GB.log("no extras provided in Intent", GB.ERROR, null);
-                        return;
-                    }
-                    String address = extras.getString("EXTRA_DEVICE_ADDRESS", "");
-                    if(address.isEmpty()){
-                        GB.log("no bluetooth address provided in Intent", GB.ERROR, null);
-                        return;
-                    }
-                    if(isDeviceConnected(address)){
+            if (!allowBluetoothIntentApi){
+                GB.log("Connection API not allowed in settings", GB.ERROR, null);
+                return;
+            }
+            Bundle extras = intent.getExtras();
+            if (extras == null) {
+                GB.log("no extras provided in Intent", GB.ERROR, null);
+                return;
+            }
+            final String action = intent.getAction();
+            if (action == null) {
+                GB.log("Action for bluetooth command is null", GB.ERROR, null);
+                return;
+            }
+            String address = extras.getString("EXTRA_DEVICE_ADDRESS", "");
+            if (address.isEmpty()){
+                GB.log("no bluetooth address provided in Intent", GB.ERROR, null);
+                return;
+            }
+            GBDevice targetDevice = GBApplication.app()
+                    .getDeviceManager()
+                    .getDeviceByAddress(address);
+
+            if (targetDevice == null){
+                GB.log(String.format("device %s not registered", address), GB.ERROR, null);
+                return;
+            }
+
+            switch (action) {
+                case API_LEGACY_COMMAND_BLUETOOTH_CONNECT:
+                    if (isDeviceConnected(address)){
                         GB.log(String.format("device %s already connected", address), GB.INFO, null);
                         sendDeviceConnectedBroadcast(address);
-                        return;
-                    }
 
-                    List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
-                    GBDevice targetDevice = GBApplication
-                            .app()
-                            .getDeviceManager()
-                            .getDeviceByAddress(address);
-
-                    if(targetDevice == null){
-                        GB.log(String.format("device %s not registered", address), GB.ERROR, null);
                         return;
                     }
 
                     GB.log(String.format("connecting to %s", address), GB.INFO, null);
 
-                    GBApplication
-                            .deviceService(targetDevice)
-                            .connect();
+                    GBApplication.deviceService(targetDevice).connect();
+                    break;
+                case API_LEGACY_COMMAND_BLUETOOTH_DISCONNECT:
+                    GB.log(String.format("disconnecting from %s", address), GB.INFO, null);
 
+                    GBApplication.deviceService(targetDevice).disconnect();
                     break;
             }
         }
@@ -390,6 +406,11 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
             String action = intent.getAction();
             if(GBDevice.ACTION_DEVICE_CHANGED.equals(action)){
                 GBDevice device = intent.getParcelableExtra(GBDevice.EXTRA_DEVICE);
+                if (device == null) {
+                    // Should never happen
+                    LOG.error("Got ACTION_DEVICE_CHANGED without device");
+                    return;
+                }
 
                 // create a new instance of the changed devices coordinator, in case it's capabilities changed
                 DeviceStruct cachedStruct = getDeviceStructOrNull(device);
@@ -402,14 +423,13 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
 
                 GBDevice.DeviceUpdateSubject subject = (GBDevice.DeviceUpdateSubject) intent.getSerializableExtra(GBDevice.EXTRA_UPDATE_SUBJECT);
 
-                if(subject == GBDevice.DeviceUpdateSubject.DEVICE_STATE && device.isInitialized()){
-                    LOG.debug("device state update reason");
+                if (subject == GBDevice.DeviceUpdateSubject.DEVICE_STATE && device.isInitialized()) {
                     sendDeviceConnectedBroadcast(device.getAddress());
                     sendCachedNotifications(device);
-                }else if(subject == GBDevice.DeviceUpdateSubject.CONNECTION_STATE && (device.getState() == GBDevice.State.SCANNED)){
-                    sendDeviceAPIBroadcast(device.getAddress(), ACTION_DEVICE_SCANNED);
+                } else if(subject == GBDevice.DeviceUpdateSubject.DEVICE_STATE && (device.getState() == GBDevice.State.SCANNED)) {
+                    sendDeviceAPIBroadcast(device.getAddress(), API_LEGACY_ACTION_DEVICE_SCANNED);
                 }
-            }else if(BLEScanService.EVENT_DEVICE_FOUND.equals(action)){
+            } else if(BLEScanService.EVENT_DEVICE_FOUND.equals(action)){
                 String deviceAddress = intent.getStringExtra(BLEScanService.EXTRA_DEVICE_ADDRESS);
 
                 GBDevice target = GBApplication
@@ -447,20 +467,18 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                         }
                     }
 
-                    target.setState(GBDevice.State.SCANNED);
-                    target.sendDeviceUpdateIntent(DeviceCommunicationService.this, GBDevice.DeviceUpdateSubject.CONNECTION_STATE);
+                    target.setUpdateState(GBDevice.State.SCANNED, DeviceCommunicationService.this);
                     new Handler().postDelayed(() -> {
                         if(target.getState() != GBDevice.State.SCANNED){
                             return;
                         }
                         deviceLastScannedTimestamps.put(target.getAddress(), System.currentTimeMillis());
-                        target.setState(GBDevice.State.WAITING_FOR_SCAN);
-                        target.sendDeviceUpdateIntent(DeviceCommunicationService.this, GBDevice.DeviceUpdateSubject.CONNECTION_STATE);
+                        target.setUpdateState(GBDevice.State.WAITING_FOR_SCAN, DeviceCommunicationService.this);
                     }, timeoutSeconds * 1000);
                     return;
                 }
 
-                connectToDevice(target);
+                connectToDevice(target, false);
             }
         }
     };
@@ -501,20 +519,21 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
 
     private void registerExternalReceivers(){
         mBlueToothConnectReceiver = new BluetoothConnectReceiver(this);
-        registerReceiver(mBlueToothConnectReceiver, new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED));
+        ContextCompat.registerReceiver(this, mBlueToothConnectReceiver, new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED), ContextCompat.RECEIVER_EXPORTED);
 
         mAutoConnectInvervalReceiver= new AutoConnectIntervalReceiver(this);
-        registerReceiver(mAutoConnectInvervalReceiver, new IntentFilter("GB_RECONNECT"));
+        ContextCompat.registerReceiver(this, mAutoConnectInvervalReceiver, new IntentFilter("GB_RECONNECT"), ContextCompat.RECEIVER_EXPORTED);
 
         IntentFilter bluetoothCommandFilter = new IntentFilter();
-        bluetoothCommandFilter.addAction(COMMAND_BLUETOOTH_CONNECT);
-        registerReceiver(bluetoothCommandReceiver, bluetoothCommandFilter);
+        bluetoothCommandFilter.addAction(API_LEGACY_COMMAND_BLUETOOTH_CONNECT);
+        bluetoothCommandFilter.addAction(API_LEGACY_COMMAND_BLUETOOTH_DISCONNECT);
+        ContextCompat.registerReceiver(this, bluetoothCommandReceiver, bluetoothCommandFilter, ContextCompat.RECEIVER_EXPORTED);
 
         final IntentFilter deviceSettingsIntentFilter = new IntentFilter();
         deviceSettingsIntentFilter.addAction(DeviceSettingsReceiver.COMMAND);
-        registerReceiver(deviceSettingsReceiver, deviceSettingsIntentFilter);
+        ContextCompat.registerReceiver(this, deviceSettingsReceiver, deviceSettingsIntentFilter, ContextCompat.RECEIVER_EXPORTED);
 
-        registerReceiver(intentApiReceiver, intentApiReceiver.buildFilter());
+        ContextCompat.registerReceiver(this, intentApiReceiver, intentApiReceiver.buildFilter(), ContextCompat.RECEIVER_EXPORTED);
     }
 
     @Override
@@ -555,8 +574,7 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 continue;
             }
             createDeviceStruct(device);
-            device.setState(GBDevice.State.WAITING_FOR_SCAN);
-            device.sendDeviceUpdateIntent(this);
+            device.setUpdateState(GBDevice.State.WAITING_FOR_SCAN, this);
         }
     }
 
@@ -575,25 +593,17 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
         return registeredStruct;
     }
 
-    private void connectToDevice(GBDevice device){
-        connectToDevice(device, false);
-    }
+    private void connectToDevice(@Nullable final GBDevice device, final boolean firstTime) {
+        final List<GBDevice> gbDevs = new ArrayList<>(2);
+        final boolean fromExtra;
 
-    private void connectToDevice(@Nullable final GBDevice device, boolean firstTime) {
-        final List<GBDevice> gbDevs = new ArrayList<>();
-        boolean fromExtra = false;
-
-        final Prefs prefs = getPrefs();
+        final GBPrefs prefs = getPrefs();
 
         if (device != null) {
-            if (!device.getDeviceCoordinator().isConnectable()) {
-                GB.toast("Cannot connect to Scannable Device", Toast.LENGTH_SHORT, GB.INFO);
-                return;
-            }
-
             gbDevs.add(device);
             fromExtra = true;
         } else {
+            fromExtra = false;
             List<GBDevice> gbAllDevs = GBApplication.app().getDeviceManager().getDevices();
 
             if (gbAllDevs != null && !gbAllDevs.isEmpty()) {
@@ -615,70 +625,119 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
         }
 
         if (gbDevs.isEmpty()) {
+            LOG.warn("No devices to connect to");
             return;
         }
 
-        for (GBDevice gbDevice : gbDevs) {
+        for (final GBDevice gbDevice : gbDevs) {
+            final String deviceAddress = gbDevice.getAddress();
+
+            LOG.debug("Will attempt to connect to {}", gbDevice);
+
             if (!gbDevice.getDeviceCoordinator().isConnectable()) {
                 // we cannot connect to beacons, skip this device
+                LOG.debug("connectToDevice - {} isn't connectable", deviceAddress);
+                if (fromExtra) {
+                    GB.toast("Cannot connect to Scannable Device", Toast.LENGTH_SHORT, GB.INFO);
+                }
                 continue;
             }
 
-            String btDeviceAddress = gbDevice.getAddress();
-
-            boolean autoReconnect = GBPrefs.AUTO_RECONNECT_DEFAULT;
+            final boolean autoReconnect;
             if (prefs != null && prefs.getPreferences() != null) {
-                autoReconnect = getPrefs().getAutoReconnect(gbDevice);
+                autoReconnect = prefs.getAutoReconnect(gbDevice);
                 if (!fromExtra && !autoReconnect) {
+                    LOG.debug("connectToDevice - {} neither from extra nor auto reconnect (1)",
+                            deviceAddress);
                     continue;
                 }
 
                 final Set<String> lastDeviceAddresses = new HashSet<>(prefs.getStringSet(GBPrefs.LAST_DEVICE_ADDRESSES, Collections.emptySet()));
 
-                if (!lastDeviceAddresses.contains(btDeviceAddress)) {
-                    lastDeviceAddresses.add(btDeviceAddress);
+                if (!lastDeviceAddresses.contains(deviceAddress)) {
+                    lastDeviceAddresses.add(deviceAddress);
                     prefs.getPreferences().edit().putStringSet(GBPrefs.LAST_DEVICE_ADDRESSES, lastDeviceAddresses).apply();
                 }
+            } else {
+                autoReconnect = GBPrefs.AUTO_RECONNECT_DEFAULT;
             }
 
             if (!fromExtra && !autoReconnect) {
+                LOG.debug("connectToDevice - {} neither from extra nor auto reconnect (2)",
+                        deviceAddress);
                 continue;
             }
 
             DeviceStruct registeredStruct = getDeviceStructOrNull(gbDevice);
             if (registeredStruct == null) {
+                LOG.debug("connectToDevice - {} create new device struct", deviceAddress);
                 registeredStruct = createDeviceStruct(gbDevice);
-            } else {
-                final GBDevice deviceFromStruct = registeredStruct.getDevice();
-
-                if (isDeviceConnecting(deviceFromStruct) || isDeviceConnected(deviceFromStruct)) {
-                    continue;
-                }
-
-                try {
-                    removeDeviceSupport(gbDevice);
-                } catch (final DeviceNotFoundException e) {
-                    LOG.error("connectToDevice(): Failed to remove device support: {}", e, e);
-                }
             }
 
             try {
-                final DeviceSupport deviceSupport = mFactory.createDeviceSupport(gbDevice);
+                DeviceSupport deviceSupport = registeredStruct.getDeviceSupport();
 
                 if (deviceSupport != null) {
-                    setDeviceSupport(gbDevice, deviceSupport);
+                    if (deviceSupport.isConnected()) {
+                        LOG.debug("connectToDevice - {} device support is already connected",
+                                deviceAddress);
+                        continue;
+                    }
+                    GBDevice supportDevice = deviceSupport.getDevice();
+                    if (supportDevice != null && supportDevice.isConnected()) {
+                        LOG.debug("connectToDevice - {} device is already connected",
+                                deviceAddress);
+                        continue;
+                    }
+                    if (supportDevice != null && supportDevice.isConnecting()) {
+                        LOG.debug("connectToDevice - {} device is already connecting",
+                                deviceAddress);
+                        continue;
+                    }
+                }
 
+                if (deviceSupport != null && !deviceSupport.canReconnect()) {
+                    try {
+                        LOG.debug("connectToDevice - {} dispose device support", deviceAddress);
+                        if (BuildConfig.DEBUG) {
+                            stressTestDispose(deviceSupport);
+                        } else {
+                            deviceSupport.dispose();
+                        }
+                    } catch (final Exception e) {
+                        LOG.error("connectToDevice - {} failed to dispose device support",
+                                deviceAddress, e);
+                    }
+                    deviceSupport = null;
+                }
+
+                final boolean createSupport = (deviceSupport == null);
+                if (createSupport) {
+                    LOG.debug("connectToDevice - {} create new device support", deviceAddress);
+                    deviceSupport = mFactory.createDeviceSupport(gbDevice);
+                    registeredStruct.setDeviceSupport(deviceSupport);
+                }
+
+                if (deviceSupport != null) {
+                    final boolean connected;
                     if (firstTime) {
-                        deviceSupport.connectFirstTime();
+                        connected = deviceSupport.connectFirstTime();
                     } else {
                         deviceSupport.setAutoReconnect(autoReconnect);
                         deviceSupport.setScanReconnect(reconnectViaScan);
-                        deviceSupport.connect();
+                        if (BuildConfig.DEBUG) {
+                            connected = stressTestConnect(deviceSupport);
+                        } else {
+                            connected = deviceSupport.connect();
+                        }
                     }
+                    LOG.debug("connectToDevice - {} connected:{} firstTime:{}", deviceAddress,
+                            connected, firstTime);
                 } else {
                     GB.toast(this, getString(R.string.cannot_connect, "Can't create device support"), Toast.LENGTH_SHORT, GB.ERROR);
                 }
             } catch (Exception e) {
+                LOG.warn("exception in connectToDevice for {}", deviceAddress, e);
                 GB.toast(this, getString(R.string.cannot_connect, e.getMessage()), Toast.LENGTH_SHORT, GB.ERROR, e);
             }
 
@@ -751,7 +810,7 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                     try {
                         handleAction(intent, action, device1);
                     } catch (DeviceNotFoundException e) {
-                        e.printStackTrace();
+                        LOG.warn("exception in onStartCommand", e);
                     } catch (Exception e) {
                         LOG.error("An exception was raised while handling the action {} for the device {}: ", action, device1, e);
                     }
@@ -795,7 +854,7 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
             try {
                 removeDeviceSupport(device);
             } catch (DeviceNotFoundException e) {
-                e.printStackTrace();
+                LOG.error("Trying to disconnect unknown device: ", e);
             }
             device.setState(GBDevice.State.NOT_CONNECTED);
             device.sendDeviceUpdateIntent(this);
@@ -809,15 +868,18 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
 
         final Transliterator transliterator = LanguageUtils.getTransliterator(device);
 
+        // Copy the incoming intent to make sure we don't modify it before it gets passed to other devices
+        Intent intentCopy = (Intent) intent.clone();
+
         for (String extra : GBDeviceService.transliterationExtras) {
-            if (intent.hasExtra(extra)) {
+            if (intentCopy.hasExtra(extra)) {
                 // Ensure the text is sanitized (eg. emoji converted to ascii) before applying the transliterators
                 // otherwise the emoji are removed before converting them
-                String sanitizedText = sanitizeNotifText(intent.getStringExtra(extra), device);
+                String sanitizedText = sanitizeNotifText(intentCopy.getStringExtra(extra), device);
                 if (transliterator != null) {
                     sanitizedText = transliterator.transliterate(sanitizedText);
                 }
-                intent.putExtra(extra, sanitizedText);
+                intentCopy.putExtra(extra, sanitizedText);
             }
         }
 
@@ -826,22 +888,31 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 device.sendDeviceUpdateIntent(this, GBDevice.DeviceUpdateSubject.NOTHING);
                 break;
             case ACTION_NOTIFICATION: {
-                int desiredId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
+                int desiredId = intentCopy.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
                 NotificationSpec notificationSpec = new NotificationSpec(desiredId);
-                notificationSpec.phoneNumber = intent.getStringExtra(EXTRA_NOTIFICATION_PHONENUMBER);
-                notificationSpec.sender = intent.getStringExtra(EXTRA_NOTIFICATION_SENDER);
-                notificationSpec.subject = intent.getStringExtra(EXTRA_NOTIFICATION_SUBJECT);
-                notificationSpec.title = intent.getStringExtra(EXTRA_NOTIFICATION_TITLE);
-                notificationSpec.key = intent.getStringExtra(EXTRA_NOTIFICATION_KEY);
-                notificationSpec.body = intent.getStringExtra(EXTRA_NOTIFICATION_BODY);
-                notificationSpec.sourceName = intent.getStringExtra(EXTRA_NOTIFICATION_SOURCENAME);
-                notificationSpec.type = (NotificationType) intent.getSerializableExtra(EXTRA_NOTIFICATION_TYPE);
-                notificationSpec.attachedActions = (ArrayList<NotificationSpec.Action>) intent.getSerializableExtra(EXTRA_NOTIFICATION_ACTIONS);
-                notificationSpec.pebbleColor = (byte) intent.getSerializableExtra(EXTRA_NOTIFICATION_PEBBLE_COLOR);
-                notificationSpec.flags = intent.getIntExtra(EXTRA_NOTIFICATION_FLAGS, 0);
-                notificationSpec.sourceAppId = intent.getStringExtra(EXTRA_NOTIFICATION_SOURCEAPPID);
-                notificationSpec.iconId = intent.getIntExtra(EXTRA_NOTIFICATION_ICONID, 0);
-                notificationSpec.dndSuppressed = intent.getIntExtra(EXTRA_NOTIFICATION_DNDSUPPRESSED, 0);
+                notificationSpec.phoneNumber = intentCopy.getStringExtra(EXTRA_NOTIFICATION_PHONENUMBER);
+                notificationSpec.sender = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SENDER);
+                notificationSpec.subject = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SUBJECT);
+                notificationSpec.title = intentCopy.getStringExtra(EXTRA_NOTIFICATION_TITLE);
+                if(notificationSpec.title == null) {
+                    notificationSpec.title = "";
+                }
+                notificationSpec.key = intentCopy.getStringExtra(EXTRA_NOTIFICATION_KEY);
+                notificationSpec.body = intentCopy.getStringExtra(EXTRA_NOTIFICATION_BODY);
+                if(notificationSpec.body == null) {
+                    notificationSpec.body = "";
+                }
+                notificationSpec.sourceName = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SOURCENAME);
+                notificationSpec.type = (NotificationType) intentCopy.getSerializableExtra(EXTRA_NOTIFICATION_TYPE);
+                notificationSpec.attachedActions = (ArrayList<NotificationSpec.Action>) intentCopy.getSerializableExtra(EXTRA_NOTIFICATION_ACTIONS);
+                notificationSpec.pebbleColor = (byte) intentCopy.getSerializableExtra(EXTRA_NOTIFICATION_PEBBLE_COLOR);
+                notificationSpec.flags = intentCopy.getIntExtra(EXTRA_NOTIFICATION_FLAGS, 0);
+                notificationSpec.sourceAppId = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SOURCEAPPID);
+                notificationSpec.iconId = intentCopy.getIntExtra(EXTRA_NOTIFICATION_ICONID, 0);
+                notificationSpec.picturePath = intent.getStringExtra(NOTIFICATION_PICTURE_PATH);
+                notificationSpec.dndSuppressed = intentCopy.getIntExtra(EXTRA_NOTIFICATION_DNDSUPPRESSED, 0);
+                notificationSpec.channelId = intentCopy.getStringExtra(EXTRA_NOTIFICATION_CHANNEL_ID);
+                notificationSpec.category = intentCopy.getStringExtra(EXTRA_NOTIFICATION_CATEGORY);
 
                 if (notificationSpec.type == NotificationType.GENERIC_SMS && notificationSpec.phoneNumber != null) {
                     GBApplication.getIDSenderLookup().add(notificationSpec.getId(), notificationSpec.phoneNumber);
@@ -867,33 +938,33 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 break;
             }
             case ACTION_DELETE_NOTIFICATION: {
-                deviceSupport.onDeleteNotification(intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1));
+                deviceSupport.onDeleteNotification(intentCopy.getIntExtra(EXTRA_NOTIFICATION_ID, -1));
                 break;
             }
             case ACTION_ADD_CALENDAREVENT: {
                 CalendarEventSpec calendarEventSpec = new CalendarEventSpec();
-                calendarEventSpec.id = intent.getLongExtra(EXTRA_CALENDAREVENT_ID, -1);
-                calendarEventSpec.type = intent.getByteExtra(EXTRA_CALENDAREVENT_TYPE, (byte) -1);
-                calendarEventSpec.timestamp = intent.getIntExtra(EXTRA_CALENDAREVENT_TIMESTAMP, -1);
-                calendarEventSpec.durationInSeconds = intent.getIntExtra(EXTRA_CALENDAREVENT_DURATION, -1);
-                calendarEventSpec.allDay = intent.getBooleanExtra(EXTRA_CALENDAREVENT_ALLDAY, false);
-                calendarEventSpec.reminders =  (ArrayList<Long>) intent.getSerializableExtra(EXTRA_CALENDAREVENT_REMINDERS);
-                calendarEventSpec.title = intent.getStringExtra(EXTRA_CALENDAREVENT_TITLE);
-                calendarEventSpec.description = intent.getStringExtra(EXTRA_CALENDAREVENT_DESCRIPTION);
-                calendarEventSpec.location = intent.getStringExtra(EXTRA_CALENDAREVENT_LOCATION);
-                calendarEventSpec.calName = intent.getStringExtra(EXTRA_CALENDAREVENT_CALNAME);
-                calendarEventSpec.color = intent.getIntExtra(EXTRA_CALENDAREVENT_COLOR, 0);
+                calendarEventSpec.id = intentCopy.getLongExtra(EXTRA_CALENDAREVENT_ID, -1);
+                calendarEventSpec.type = intentCopy.getByteExtra(EXTRA_CALENDAREVENT_TYPE, (byte) -1);
+                calendarEventSpec.timestamp = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_TIMESTAMP, -1);
+                calendarEventSpec.durationInSeconds = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_DURATION, -1);
+                calendarEventSpec.allDay = intentCopy.getBooleanExtra(EXTRA_CALENDAREVENT_ALLDAY, false);
+                calendarEventSpec.reminders =  (ArrayList<Long>) intentCopy.getSerializableExtra(EXTRA_CALENDAREVENT_REMINDERS);
+                calendarEventSpec.title = intentCopy.getStringExtra(EXTRA_CALENDAREVENT_TITLE);
+                calendarEventSpec.description = intentCopy.getStringExtra(EXTRA_CALENDAREVENT_DESCRIPTION);
+                calendarEventSpec.location = intentCopy.getStringExtra(EXTRA_CALENDAREVENT_LOCATION);
+                calendarEventSpec.calName = intentCopy.getStringExtra(EXTRA_CALENDAREVENT_CALNAME);
+                calendarEventSpec.color = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_COLOR, 0);
                 deviceSupport.onAddCalendarEvent(calendarEventSpec);
                 break;
             }
             case ACTION_DELETE_CALENDAREVENT: {
-                long id = intent.getLongExtra(EXTRA_CALENDAREVENT_ID, -1);
-                byte type = intent.getByteExtra(EXTRA_CALENDAREVENT_TYPE, (byte) -1);
+                long id = intentCopy.getLongExtra(EXTRA_CALENDAREVENT_ID, -1);
+                byte type = intentCopy.getByteExtra(EXTRA_CALENDAREVENT_TYPE, (byte) -1);
                 deviceSupport.onDeleteCalendarEvent(type, id);
                 break;
             }
             case ACTION_RESET: {
-                int flags = intent.getIntExtra(EXTRA_RESET_FLAGS, 0);
+                int flags = intentCopy.getIntExtra(EXTRA_RESET_FLAGS, 0);
                 deviceSupport.onReset(flags);
                 break;
             }
@@ -902,38 +973,38 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 break;
             }
             case ACTION_FETCH_RECORDED_DATA: {
-                int dataTypes = intent.getIntExtra(EXTRA_RECORDED_DATA_TYPES, 0);
+                int dataTypes = intentCopy.getIntExtra(EXTRA_RECORDED_DATA_TYPES, 0);
                 deviceSupport.onFetchRecordedData(dataTypes);
                 break;
             }
             case ACTION_FIND_DEVICE: {
-                boolean start = intent.getBooleanExtra(EXTRA_FIND_START, false);
+                boolean start = intentCopy.getBooleanExtra(EXTRA_FIND_START, false);
                 deviceSupport.onFindDevice(start);
                 break;
             }
             case ACTION_PHONE_FOUND: {
-                final boolean start = intent.getBooleanExtra(EXTRA_FIND_START, false);
+                final boolean start = intentCopy.getBooleanExtra(EXTRA_FIND_START, false);
                 deviceSupport.onFindPhone(start);
                 break;
             }
             case ACTION_SET_CONSTANT_VIBRATION: {
-                int intensity = intent.getIntExtra(EXTRA_VIBRATION_INTENSITY, 0);
+                int intensity = intentCopy.getIntExtra(EXTRA_VIBRATION_INTENSITY, 0);
                 deviceSupport.onSetConstantVibration(intensity);
                 break;
             }
             case ACTION_CALLSTATE:
                 CallSpec callSpec = new CallSpec();
-                callSpec.command = intent.getIntExtra(EXTRA_CALL_COMMAND, CallSpec.CALL_UNDEFINED);
-                callSpec.number = intent.getStringExtra(EXTRA_CALL_PHONENUMBER);
-                callSpec.name = intent.getStringExtra(EXTRA_CALL_DISPLAYNAME);
-                callSpec.sourceName = intent.getStringExtra(EXTRA_CALL_SOURCENAME);
-                callSpec.sourceAppId = intent.getStringExtra(EXTRA_CALL_SOURCEAPPID);
-                callSpec.dndSuppressed = intent.getIntExtra(EXTRA_CALL_DNDSUPPRESSED, 0);
+                callSpec.command = intentCopy.getIntExtra(EXTRA_CALL_COMMAND, CallSpec.CALL_UNDEFINED);
+                callSpec.number = intentCopy.getStringExtra(EXTRA_CALL_PHONENUMBER);
+                callSpec.name = intentCopy.getStringExtra(EXTRA_CALL_DISPLAYNAME);
+                callSpec.sourceName = intentCopy.getStringExtra(EXTRA_CALL_SOURCENAME);
+                callSpec.sourceAppId = intentCopy.getStringExtra(EXTRA_CALL_SOURCEAPPID);
+                callSpec.dndSuppressed = intentCopy.getIntExtra(EXTRA_CALL_DNDSUPPRESSED, 0);
                 deviceSupport.onSetCallState(callSpec);
                 break;
             case ACTION_SETCANNEDMESSAGES:
-                int type = intent.getIntExtra(EXTRA_CANNEDMESSAGES_TYPE, -1);
-                String[] cannedMessages = intent.getStringArrayExtra(EXTRA_CANNEDMESSAGES);
+                int type = intentCopy.getIntExtra(EXTRA_CANNEDMESSAGES_TYPE, -1);
+                String[] cannedMessages = intentCopy.getStringArrayExtra(EXTRA_CANNEDMESSAGES);
 
                 CannedMessagesSpec cannedMessagesSpec = new CannedMessagesSpec();
                 cannedMessagesSpec.type = type;
@@ -945,37 +1016,37 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 break;
             case ACTION_SETMUSICINFO:
                 MusicSpec musicSpec = new MusicSpec();
-                musicSpec.artist = intent.getStringExtra(EXTRA_MUSIC_ARTIST);
-                musicSpec.album = intent.getStringExtra(EXTRA_MUSIC_ALBUM);
-                musicSpec.track = intent.getStringExtra(EXTRA_MUSIC_TRACK);
-                musicSpec.duration = intent.getIntExtra(EXTRA_MUSIC_DURATION, 0);
-                musicSpec.trackCount = intent.getIntExtra(EXTRA_MUSIC_TRACKCOUNT, 0);
-                musicSpec.trackNr = intent.getIntExtra(EXTRA_MUSIC_TRACKNR, 0);
+                musicSpec.artist = intentCopy.getStringExtra(EXTRA_MUSIC_ARTIST);
+                musicSpec.album = intentCopy.getStringExtra(EXTRA_MUSIC_ALBUM);
+                musicSpec.track = intentCopy.getStringExtra(EXTRA_MUSIC_TRACK);
+                musicSpec.duration = intentCopy.getIntExtra(EXTRA_MUSIC_DURATION, 0);
+                musicSpec.trackCount = intentCopy.getIntExtra(EXTRA_MUSIC_TRACKCOUNT, 0);
+                musicSpec.trackNr = intentCopy.getIntExtra(EXTRA_MUSIC_TRACKNR, 0);
                 deviceSupport.onSetMusicInfo(musicSpec);
                 break;
             case ACTION_SET_PHONE_VOLUME:
-                float phoneVolume = intent.getFloatExtra(EXTRA_PHONE_VOLUME, 0);
+                float phoneVolume = intentCopy.getFloatExtra(EXTRA_PHONE_VOLUME, 0);
                 deviceSupport.onSetPhoneVolume(phoneVolume);
                 break;
             case ACTION_SET_PHONE_SILENT_MODE:
-                final int ringerMode = intent.getIntExtra(EXTRA_PHONE_RINGER_MODE, -1);
+                final int ringerMode = intentCopy.getIntExtra(EXTRA_PHONE_RINGER_MODE, -1);
                 deviceSupport.onChangePhoneSilentMode(ringerMode);
                 break;
             case ACTION_SETMUSICSTATE:
                 MusicStateSpec stateSpec = new MusicStateSpec();
-                stateSpec.shuffle = intent.getByteExtra(EXTRA_MUSIC_SHUFFLE, (byte) 0);
-                stateSpec.repeat = intent.getByteExtra(EXTRA_MUSIC_REPEAT, (byte) 0);
-                stateSpec.position = intent.getIntExtra(EXTRA_MUSIC_POSITION, 0);
-                stateSpec.playRate = intent.getIntExtra(EXTRA_MUSIC_RATE, 0);
-                stateSpec.state = intent.getByteExtra(EXTRA_MUSIC_STATE, (byte) 0);
+                stateSpec.shuffle = intentCopy.getByteExtra(EXTRA_MUSIC_SHUFFLE, (byte) 0);
+                stateSpec.repeat = intentCopy.getByteExtra(EXTRA_MUSIC_REPEAT, (byte) 0);
+                stateSpec.position = intentCopy.getIntExtra(EXTRA_MUSIC_POSITION, 0);
+                stateSpec.playRate = intentCopy.getIntExtra(EXTRA_MUSIC_RATE, 0);
+                stateSpec.state = intentCopy.getByteExtra(EXTRA_MUSIC_STATE, (byte) 0);
                 deviceSupport.onSetMusicState(stateSpec);
                 break;
             case ACTION_SETNAVIGATIONINFO:
                 NavigationInfoSpec navigationInfoSpec = new NavigationInfoSpec();
-                navigationInfoSpec.instruction = intent.getStringExtra(EXTRA_NAVIGATION_INSTRUCTION);
-                navigationInfoSpec.nextAction = intent.getIntExtra(EXTRA_NAVIGATION_NEXT_ACTION,0);
-                navigationInfoSpec.distanceToTurn = intent.getStringExtra(EXTRA_NAVIGATION_DISTANCE_TO_TURN);
-                navigationInfoSpec.ETA = intent.getStringExtra(EXTRA_NAVIGATION_ETA);
+                navigationInfoSpec.instruction = intentCopy.getStringExtra(EXTRA_NAVIGATION_INSTRUCTION);
+                navigationInfoSpec.nextAction = intentCopy.getIntExtra(EXTRA_NAVIGATION_NEXT_ACTION,0);
+                navigationInfoSpec.distanceToTurn = intentCopy.getStringExtra(EXTRA_NAVIGATION_DISTANCE_TO_TURN);
+                navigationInfoSpec.ETA = intentCopy.getStringExtra(EXTRA_NAVIGATION_ETA);
                 deviceSupport.onSetNavigationInfo(navigationInfoSpec);
                 break;
             case ACTION_REQUEST_APPINFO:
@@ -985,90 +1056,90 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 deviceSupport.onScreenshotReq();
                 break;
             case ACTION_STARTAPP: {
-                UUID uuid = (UUID) intent.getSerializableExtra(EXTRA_APP_UUID);
-                boolean start = intent.getBooleanExtra(EXTRA_APP_START, true);
+                UUID uuid = (UUID) intentCopy.getSerializableExtra(EXTRA_APP_UUID);
+                boolean start = intentCopy.getBooleanExtra(EXTRA_APP_START, true);
                 deviceSupport.onAppStart(uuid, start);
                 break;
             }
             case ACTION_DOWNLOADAPP: {
-                UUID uuid = (UUID) intent.getSerializableExtra(EXTRA_APP_UUID);
+                UUID uuid = (UUID) intentCopy.getSerializableExtra(EXTRA_APP_UUID);
                 deviceSupport.onAppDownload(uuid);
                 break;
             }
             case ACTION_DELETEAPP: {
-                UUID uuid = (UUID) intent.getSerializableExtra(EXTRA_APP_UUID);
+                UUID uuid = (UUID) intentCopy.getSerializableExtra(EXTRA_APP_UUID);
                 deviceSupport.onAppDelete(uuid);
                 break;
             }
             case ACTION_APP_CONFIGURE: {
-                UUID uuid = (UUID) intent.getSerializableExtra(EXTRA_APP_UUID);
-                String config = intent.getStringExtra(EXTRA_APP_CONFIG);
+                UUID uuid = (UUID) intentCopy.getSerializableExtra(EXTRA_APP_UUID);
+                String config = intentCopy.getStringExtra(EXTRA_APP_CONFIG);
                 Integer id = null;
-                if (intent.hasExtra(EXTRA_APP_CONFIG_ID)) {
-                    id = intent.getIntExtra(EXTRA_APP_CONFIG_ID, 0);
+                if (intentCopy.hasExtra(EXTRA_APP_CONFIG_ID)) {
+                    id = intentCopy.getIntExtra(EXTRA_APP_CONFIG_ID, 0);
                 }
                 deviceSupport.onAppConfiguration(uuid, config, id);
                 break;
             }
             case ACTION_APP_REORDER: {
-                UUID[] uuids = (UUID[]) intent.getSerializableExtra(EXTRA_APP_UUID);
+                UUID[] uuids = (UUID[]) intentCopy.getSerializableExtra(EXTRA_APP_UUID);
                 deviceSupport.onAppReorder(uuids);
                 break;
             }
             case ACTION_INSTALL:
-                Uri uri = intent.getParcelableExtra(EXTRA_URI);
+                Uri uri = intentCopy.getParcelableExtra(EXTRA_URI);
                 if (uri != null) {
                     LOG.info("will try to install app/fw");
                     deviceSupport.onInstallApp(uri);
                 }
                 break;
             case ACTION_SET_ALARMS:
-                ArrayList<? extends Alarm> alarms = (ArrayList<? extends Alarm>) intent.getSerializableExtra(EXTRA_ALARMS);
+                ArrayList<? extends Alarm> alarms = (ArrayList<? extends Alarm>) intentCopy.getSerializableExtra(EXTRA_ALARMS);
                 deviceSupport.onSetAlarms(alarms);
                 break;
             case ACTION_SET_REMINDERS:
-                ArrayList<? extends Reminder> reminders = (ArrayList<? extends Reminder>) intent.getSerializableExtra(EXTRA_REMINDERS);
+                ArrayList<? extends Reminder> reminders = (ArrayList<? extends Reminder>) intentCopy.getSerializableExtra(EXTRA_REMINDERS);
                 deviceSupport.onSetReminders(reminders);
                 break;
             case ACTION_SET_LOYALTY_CARDS:
-                final ArrayList<LoyaltyCard> loyaltyCards = (ArrayList<LoyaltyCard>) intent.getSerializableExtra(EXTRA_LOYALTY_CARDS);
+                final ArrayList<LoyaltyCard> loyaltyCards = (ArrayList<LoyaltyCard>) intentCopy.getSerializableExtra(EXTRA_LOYALTY_CARDS);
                 deviceSupport.onSetLoyaltyCards(loyaltyCards);
                 break;
             case ACTION_SET_WORLD_CLOCKS:
-                ArrayList<? extends WorldClock> clocks = (ArrayList<? extends WorldClock>) intent.getSerializableExtra(EXTRA_WORLD_CLOCKS);
+                ArrayList<? extends WorldClock> clocks = (ArrayList<? extends WorldClock>) intentCopy.getSerializableExtra(EXTRA_WORLD_CLOCKS);
                 deviceSupport.onSetWorldClocks(clocks);
                 break;
             case ACTION_SET_CONTACTS:
-                ArrayList<? extends Contact> contacts = (ArrayList<? extends Contact>) intent.getSerializableExtra(EXTRA_CONTACTS);
+                ArrayList<? extends Contact> contacts = (ArrayList<? extends Contact>) intentCopy.getSerializableExtra(EXTRA_CONTACTS);
                 deviceSupport.onSetContacts(contacts);
                 break;
             case ACTION_ENABLE_REALTIME_STEPS: {
-                boolean enable = intent.getBooleanExtra(EXTRA_BOOLEAN_ENABLE, false);
+                boolean enable = intentCopy.getBooleanExtra(EXTRA_BOOLEAN_ENABLE, false);
                 deviceSupport.onEnableRealtimeSteps(enable);
                 break;
             }
             case ACTION_ENABLE_HEARTRATE_SLEEP_SUPPORT: {
-                boolean enable = intent.getBooleanExtra(EXTRA_BOOLEAN_ENABLE, false);
+                boolean enable = intentCopy.getBooleanExtra(EXTRA_BOOLEAN_ENABLE, false);
                 deviceSupport.onEnableHeartRateSleepSupport(enable);
                 break;
             }
             case ACTION_SET_HEARTRATE_MEASUREMENT_INTERVAL: {
-                int seconds = intent.getIntExtra(EXTRA_INTERVAL_SECONDS, 0);
+                int seconds = intentCopy.getIntExtra(EXTRA_INTERVAL_SECONDS, 0);
                 deviceSupport.onSetHeartRateMeasurementInterval(seconds);
                 break;
             }
             case ACTION_ENABLE_REALTIME_HEARTRATE_MEASUREMENT: {
-                boolean enable = intent.getBooleanExtra(EXTRA_BOOLEAN_ENABLE, false);
+                boolean enable = intentCopy.getBooleanExtra(EXTRA_BOOLEAN_ENABLE, false);
                 deviceSupport.onEnableRealtimeHeartRateMeasurement(enable);
                 break;
             }
             case ACTION_SEND_CONFIGURATION: {
-                String config = intent.getStringExtra(EXTRA_CONFIG);
+                String config = intentCopy.getStringExtra(EXTRA_CONFIG);
                 deviceSupport.onSendConfiguration(config);
                 break;
             }
             case ACTION_READ_CONFIGURATION: {
-                String config = intent.getStringExtra(EXTRA_CONFIG);
+                String config = intentCopy.getStringExtra(EXTRA_CONFIG);
                 deviceSupport.onReadConfiguration(config);
                 break;
             }
@@ -1077,14 +1148,14 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 break;
             }
             case ACTION_SEND_WEATHER: {
-                ArrayList<WeatherSpec> weatherSpecs = (ArrayList<WeatherSpec>) intent.getSerializableExtra(EXTRA_WEATHER);
+                ArrayList<WeatherSpec> weatherSpecs = (ArrayList<WeatherSpec>) intentCopy.getSerializableExtra(EXTRA_WEATHER);
                 if (weatherSpecs != null && !weatherSpecs.isEmpty()) {
                     deviceSupport.onSendWeather(weatherSpecs);
                 }
                 break;
             }
             case ACTION_SET_LED_COLOR:
-                int color = intent.getIntExtra(EXTRA_LED_COLOR, 0);
+                int color = intentCopy.getIntExtra(EXTRA_LED_COLOR, 0);
                 if (color != 0) {
                     deviceSupport.onSetLedColor(color);
                 }
@@ -1093,52 +1164,52 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 deviceSupport.onPowerOff();
                 break;
             case ACTION_SET_FM_FREQUENCY:
-                float frequency = intent.getFloatExtra(EXTRA_FM_FREQUENCY, -1);
+                float frequency = intentCopy.getFloatExtra(EXTRA_FM_FREQUENCY, -1);
                 if (frequency != -1) {
                     deviceSupport.onSetFmFrequency(frequency);
                 }
                 break;
             case ACTION_SET_GPS_LOCATION:
-                final Location location = intent.getParcelableExtra(EXTRA_GPS_LOCATION);
+                final Location location = intentCopy.getParcelableExtra(EXTRA_GPS_LOCATION);
                 deviceSupport.onSetGpsLocation(location);
                 break;
             case ACTION_SLEEP_AS_ANDROID:
                 if(device.getDeviceCoordinator().supportsSleepAsAndroid() && GBApplication.getPrefs().getString("sleepasandroid_device", new String()).equals(device.getAddress()))
                 {
-                    final String sleepAsAndroidAction = intent.getStringExtra(EXTRA_SLEEP_AS_ANDROID_ACTION);
-                    deviceSupport.onSleepAsAndroidAction(sleepAsAndroidAction, intent.getExtras());
+                    final String sleepAsAndroidAction = intentCopy.getStringExtra(EXTRA_SLEEP_AS_ANDROID_ACTION);
+                    deviceSupport.onSleepAsAndroidAction(sleepAsAndroidAction, intentCopy.getExtras());
                 }
                 break;
             case ACTION_CAMERA_STATUS_CHANGE:
-                final GBDeviceEventCameraRemote.Event event = GBDeviceEventCameraRemote.intToEvent(intent.getIntExtra(EXTRA_CAMERA_EVENT, -1));
+                final GBDeviceEventCameraRemote.Event event = GBDeviceEventCameraRemote.intToEvent(intentCopy.getIntExtra(EXTRA_CAMERA_EVENT, -1));
                 String filename = null;
                 if (event == GBDeviceEventCameraRemote.Event.TAKE_PICTURE) {
-                    filename = intent.getStringExtra(EXTRA_CAMERA_FILENAME);
+                    filename = intentCopy.getStringExtra(EXTRA_CAMERA_FILENAME);
                 }
                 deviceSupport.onCameraStatusChange(event, filename);
+                break;
+            case ACTION_REQUEST_MUSIC_LIST:
+                deviceSupport.onMusicListReq();
+                break;
+            case ACTION_REQUEST_MUSIC_OPERATION:
+                int operation = intentCopy.getIntExtra("operation", -1);
+                int playlistIndex = intentCopy.getIntExtra("playlistIndex", -1);
+                String playlistName = intentCopy.getStringExtra("playlistName");
+                ArrayList<Integer> musics = (ArrayList<Integer>) intentCopy.getSerializableExtra("musicIds");
+                deviceSupport.onMusicOperation(operation, playlistIndex, playlistName, musics);
                 break;
         }
     }
 
-    /**
-     * Disposes the current DeviceSupport instance (if any) and sets a new device support instance
-     * (if not null).
-     *
-     * @param deviceSupport deviceSupport to reokace/add
-     */
-    private void setDeviceSupport(GBDevice device, DeviceSupport deviceSupport) throws DeviceNotFoundException {
-       DeviceStruct deviceStruct = getDeviceStruct(device);
-       DeviceSupport cachedDeviceSupport = deviceStruct.getDeviceSupport();
-       if (deviceSupport != cachedDeviceSupport && cachedDeviceSupport != null) {
-           cachedDeviceSupport.dispose();
-       }
-       deviceStruct.setDeviceSupport(deviceSupport);
-    }
-
     private void removeDeviceSupport(GBDevice device) throws DeviceNotFoundException {
         DeviceStruct struct = getDeviceStruct(device);
-        if(struct.getDeviceSupport() != null){
-            struct.getDeviceSupport().dispose();
+        DeviceSupport support = struct.getDeviceSupport();
+        if(support != null){
+            if (BuildConfig.DEBUG) {
+                stressTestDispose(support);
+            } else {
+                support.dispose();
+            }
         }
         struct.setDeviceSupport(null);
     }
@@ -1148,7 +1219,7 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
         try {
             deviceStruct = getDeviceStruct(device);
         } catch (DeviceNotFoundException e) {
-            e.printStackTrace();
+            LOG.warn("exception in getDeviceStructOrNull", e);
         }
         return deviceStruct;
     }
@@ -1182,7 +1253,7 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
         try {
             device = getDeviceByAddress(deviceAddress);
         } catch (DeviceNotFoundException e) {
-            e.printStackTrace();
+            LOG.warn("exception in getDeviceByAddressOrNull", e);
         }
         return device;
     }
@@ -1193,10 +1264,11 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
         }
         for(DeviceStruct struct : deviceStructs){
             if(struct.getDevice().equals(device)){
-                if(struct.getDeviceSupport() == null)
+                DeviceSupport support = struct.getDeviceSupport();
+                if(support == null)
                     throw new DeviceNotFoundException(device);
 
-                return struct.getDeviceSupport();
+                return support;
             }
         }
         throw new DeviceNotFoundException(device);
@@ -1204,30 +1276,21 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
 
     private void startForeground() {
         GB.createNotificationChannels(this);
-        startForeground(GB.NOTIFICATION_ID, GB.createNotification(getString(R.string.gadgetbridge_running), this));
-    }
 
-    private boolean isDeviceConnected(GBDevice device) {
-        return isDeviceConnected(device.getAddress());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_DENIED)
+                return;
+
+            ServiceCompat.startForeground(this, GB.NOTIFICATION_ID, GB.createNotification(getString(R.string.gadgetbridge_running), this), ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
+        } else {
+            ServiceCompat.startForeground(this, GB.NOTIFICATION_ID, GB.createNotification(getString(R.string.gadgetbridge_running), this), 0);
+        }
     }
 
     private boolean isDeviceConnected(String deviceAddress) {
         for(DeviceStruct struct : deviceStructs){
             if(struct.getDevice().getAddress().compareToIgnoreCase(deviceAddress) == 0){
                 return struct.getDevice().isConnected();
-            }
-        }
-        return false;
-    }
-
-    private boolean isDeviceConnecting(GBDevice device) {
-        return isDeviceConnecting(device.getAddress());
-    }
-
-    private boolean isDeviceConnecting(String deviceAddress) {
-        for(DeviceStruct struct : deviceStructs){
-            if(struct.getDevice().getAddress().compareToIgnoreCase(deviceAddress) == 0){
-                return struct.getDevice().isConnecting();
             }
         }
         return false;
@@ -1241,17 +1304,6 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
         for(DeviceStruct struct : deviceStructs){
             if(struct.getDevice().getAddress().compareToIgnoreCase(deviceAddress) == 0){
                 return struct.getDevice().isInitialized();
-            }
-        }
-        return false;
-    }
-
-    private boolean deviceStateEquals(GBDevice device, GBDevice.State... states){
-        if((device = getDeviceByAddressOrNull(device.getAddress())) != null){
-            for(GBDevice.State possibleState : states){
-                if(device.getState() == possibleState){
-                    return true;
-                }
             }
         }
         return false;
@@ -1284,31 +1336,17 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
             for (GBDevice deviceWithCalendar : devicesWithCalendar) {
                 if (!deviceHasCalendarReceiverRegistered(deviceWithCalendar)) {
                     if (!(GBApplication.isRunningMarshmallowOrLater() && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_DENIED)) {
-                        IntentFilter calendarIntentFilter = new IntentFilter();
-                        calendarIntentFilter.addAction("android.intent.action.PROVIDER_CHANGED");
-                        calendarIntentFilter.addDataScheme("content");
-                        calendarIntentFilter.addDataAuthority("com.android.calendar", null);
-                        CalendarReceiver receiver = new CalendarReceiver(deviceWithCalendar);
-                        registerReceiver(receiver, calendarIntentFilter);
+                        CalendarReceiver receiver = new CalendarReceiver(this, deviceWithCalendar);
+                        receiver.registerBroadcastReceivers();
                         mCalendarReceiver.add(receiver);
-                        // Add a receiver to allow us to quickly force as calendar sync (without having to provide data)
-                        registerReceiver(receiver, new IntentFilter("FORCE_CALENDAR_SYNC"));
                     }
                 }
             }
-            if (mAlarmReceiver == null) {
-                mAlarmReceiver = new AlarmReceiver();
-                registerReceiver(mAlarmReceiver, new IntentFilter("DAILY_ALARM"));
-            }
         } else {
-            for (CalendarReceiver registeredReceiver: mCalendarReceiver){
-                unregisterReceiver(registeredReceiver);
+            for (CalendarReceiver registeredReceiver: mCalendarReceiver) {
+                registeredReceiver.dispose();
             }
             mCalendarReceiver.clear();
-            if (mAlarmReceiver != null) {
-                unregisterReceiver(mAlarmReceiver);
-                mAlarmReceiver = null;
-            }
         }
 
         if (enable) {
@@ -1318,15 +1356,15 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 filter.addAction("android.intent.action.PHONE_STATE");
                 filter.addAction("android.intent.action.NEW_OUTGOING_CALL");
                 filter.addAction("nodomain.freeyourgadget.gadgetbridge.MUTE_CALL");
-                registerReceiver(mPhoneCallReceiver, filter);
+                ContextCompat.registerReceiver(this, mPhoneCallReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
             }
             if (mSMSReceiver == null) {
                 mSMSReceiver = new SMSReceiver();
-                registerReceiver(mSMSReceiver, new IntentFilter("android.provider.Telephony.SMS_RECEIVED"));
+                ContextCompat.registerReceiver(this, mSMSReceiver, new IntentFilter("android.provider.Telephony.SMS_RECEIVED"), ContextCompat.RECEIVER_EXPORTED);
             }
             if (mPebbleReceiver == null) {
                 mPebbleReceiver = new PebbleReceiver();
-                registerReceiver(mPebbleReceiver, new IntentFilter("com.getpebble.action.SEND_NOTIFICATION"));
+                ContextCompat.registerReceiver(this, mPebbleReceiver, new IntentFilter("com.getpebble.action.SEND_NOTIFICATION"), ContextCompat.RECEIVER_EXPORTED);
             }
             if (mMusicPlaybackReceiver == null && features.supportsMusicInfo()) {
                 mMusicPlaybackReceiver = new MusicPlaybackReceiver();
@@ -1334,7 +1372,11 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 for (String action : mMusicActions) {
                     filter.addAction(action);
                 }
-                registerReceiver(mMusicPlaybackReceiver, filter);
+                ContextCompat.registerReceiver(this, mMusicPlaybackReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
+            }
+            if (mVolumeChangeReceiver ==  null && features.supportsMusicInfo()) {
+                mVolumeChangeReceiver = new VolumeChangeReceiver();
+                mVolumeChangeReceiver.registerReceiver(this);
             }
             if (mTimeChangeReceiver == null) {
                 mTimeChangeReceiver = new TimeChangeReceiver();
@@ -1342,14 +1384,14 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 filter.addAction("android.intent.action.TIME_SET");
                 filter.addAction("android.intent.action.TIMEZONE_CHANGED");
                 filter.addAction(TimeChangeReceiver.ACTION_DST_CHANGED_OR_PERIODIC_SYNC);
-                registerReceiver(mTimeChangeReceiver, filter);
+                ContextCompat.registerReceiver(this, mTimeChangeReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
                 // Ensure alarm is scheduled after registering broadcast receiver
                 // (this is important in case receiver was unregistered when the previous alarm arrived).
                 TimeChangeReceiver.ifEnabledScheduleNextDstChangeOrPeriodicSync(this);
             }
             if (mBlueToothPairingRequestReceiver == null) {
                 mBlueToothPairingRequestReceiver = new BluetoothPairingRequestReceiver(this);
-                registerReceiver(mBlueToothPairingRequestReceiver, new IntentFilter(BluetoothDevice.ACTION_PAIRING_REQUEST));
+                ContextCompat.registerReceiver(this, mBlueToothPairingRequestReceiver, new IntentFilter(BluetoothDevice.ACTION_PAIRING_REQUEST), ContextCompat.RECEIVER_EXPORTED);
             }
             if (mAlarmClockReceiver == null) {
                 mAlarmClockReceiver = new AlarmClockReceiver();
@@ -1358,14 +1400,14 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 filter.addAction(AlarmClockReceiver.ALARM_DONE_ACTION);
                 filter.addAction(AlarmClockReceiver.GOOGLE_CLOCK_ALARM_ALERT_ACTION);
                 filter.addAction(AlarmClockReceiver.GOOGLE_CLOCK_ALARM_DONE_ACTION);
-                registerReceiver(mAlarmClockReceiver, filter);
+                ContextCompat.registerReceiver(this, mAlarmClockReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
             }
 
             if (mSilentModeReceiver == null) {
                 mSilentModeReceiver = new SilentModeReceiver();
                 IntentFilter filter = new IntentFilter();
                 filter.addAction(AudioManager.RINGER_MODE_CHANGED_ACTION);
-                registerReceiver(mSilentModeReceiver, filter);
+                ContextCompat.registerReceiver(this, mSilentModeReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
             }
 
             if (locationService == null) {
@@ -1382,21 +1424,21 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 if (GBApplication.isRunningOreoOrLater()) {
                     if (mLineageOsWeatherReceiver == null) {
                         mLineageOsWeatherReceiver = new LineageOsWeatherReceiver();
-                        registerReceiver(mLineageOsWeatherReceiver, new IntentFilter("GB_UPDATE_WEATHER"));
+                        ContextCompat.registerReceiver(this, mLineageOsWeatherReceiver, new IntentFilter("GB_UPDATE_WEATHER"), ContextCompat.RECEIVER_EXPORTED);
                     }
                 } else {
                     if (mCMWeatherReceiver == null) {
                         mCMWeatherReceiver = new CMWeatherReceiver();
-                        registerReceiver(mCMWeatherReceiver, new IntentFilter("GB_UPDATE_WEATHER"));
+                        ContextCompat.registerReceiver(this, mCMWeatherReceiver, new IntentFilter("GB_UPDATE_WEATHER"), ContextCompat.RECEIVER_EXPORTED);
                     }
                 }
                 if (mTinyWeatherForecastGermanyReceiver == null) {
                     mTinyWeatherForecastGermanyReceiver = new TinyWeatherForecastGermanyReceiver();
-                    registerReceiver(mTinyWeatherForecastGermanyReceiver, new IntentFilter("de.kaffeemitkoffein.broadcast.WEATHERDATA"));
+                    ContextCompat.registerReceiver(this, mTinyWeatherForecastGermanyReceiver, new IntentFilter("de.kaffeemitkoffein.broadcast.WEATHERDATA"), ContextCompat.RECEIVER_EXPORTED);
                 }
                 if (mGenericWeatherReceiver == null) {
                     mGenericWeatherReceiver = new GenericWeatherReceiver();
-                    registerReceiver(mGenericWeatherReceiver, new IntentFilter(GenericWeatherReceiver.ACTION_GENERIC_WEATHER));
+                    ContextCompat.registerReceiver(this, mGenericWeatherReceiver, new IntentFilter(GenericWeatherReceiver.ACTION_GENERIC_WEATHER), ContextCompat.RECEIVER_EXPORTED);
                 }
                 if (mOmniJawsObserver == null) {
                     try {
@@ -1412,14 +1454,14 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
             {
                 if (mSleepAsAndroidReceiver == null) {
                     mSleepAsAndroidReceiver = new SleepAsAndroidReceiver();
-                    registerReceiver(mSleepAsAndroidReceiver, new IntentFilter());
+                    ContextCompat.registerReceiver(this, mSleepAsAndroidReceiver, new IntentFilter(), ContextCompat.RECEIVER_EXPORTED);
                 }
             }
 
             if (GBApplication.getPrefs().getBoolean("auto_fetch_enabled", false) &&
                     features.supportsActivityDataFetching() && mGBAutoFetchReceiver == null) {
                 mGBAutoFetchReceiver = new GBAutoFetchReceiver();
-                registerReceiver(mGBAutoFetchReceiver, new IntentFilter("android.intent.action.USER_PRESENT"));
+                ContextCompat.registerReceiver(this, mGBAutoFetchReceiver, new IntentFilter("android.intent.action.USER_PRESENT"), ContextCompat.RECEIVER_EXPORTED);
             }
         } else {
             if (mPhoneCallReceiver != null) {
@@ -1437,6 +1479,10 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
             if (mMusicPlaybackReceiver != null) {
                 unregisterReceiver(mMusicPlaybackReceiver);
                 mMusicPlaybackReceiver = null;
+            }
+            if (mVolumeChangeReceiver != null) {
+                mVolumeChangeReceiver.unregisterReceiver();
+                mVolumeChangeReceiver = null;
             }
             if (mTimeChangeReceiver != null) {
                 unregisterReceiver(mTimeChangeReceiver);
@@ -1530,7 +1576,7 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
             try {
                 removeDeviceSupport(device);
             } catch (DeviceNotFoundException e) {
-                e.printStackTrace();
+                LOG.warn("exception in onDestroy", e);
             }
         }
         GB.removeNotification(GB.NOTIFICATION_ID, this); // need to do this because the updated notification won't be cancelled when service stops
@@ -1576,5 +1622,77 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
             devices[i] = deviceStructs.get(i).getDevice();
         }
         return devices;
+    }
+
+    private static void stressTestDispose(DeviceSupport deviceSupport) {
+        SharedPreferences pref = GBApplication.getDeviceSpecificSharedPrefs(deviceSupport.getDevice().getAddress());
+        final boolean extra = pref.getBoolean(PREF_DEVICE_STRESS_TEST_DISPOSE, false);
+
+        LOG.debug("stress test - dispose(normal)");
+        deviceSupport.dispose();
+        if (extra) {
+            LOG.debug("stress test - dispose(extra)");
+            deviceSupport.dispose();
+        }
+    }
+
+    private static boolean stressTestConnect(DeviceSupport deviceSupport) {
+        SharedPreferences pref = GBApplication.getDeviceSpecificSharedPrefs(deviceSupport.getDevice().getAddress());
+
+        final int extras = pref.getInt(PREF_DEVICE_STRESS_TEST_CONNECT_COUNT, 0);
+        final boolean parallel = pref.getBoolean(PREF_DEVICE_STRESS_TEST_CONNECT_PARALLEL, false);
+
+        LOG.debug("stress test - connect() extras:{} parallel:{}", extras, parallel);
+
+        StressTestConnect[] testers = new StressTestConnect[extras+1];
+        for (int i = 0; i < testers.length; i++) {
+            testers[i] = new StressTestConnect(i, deviceSupport);
+        }
+
+        if (parallel) {
+            // parallel calls
+            for (int i = 0; i < testers.length; i++) {
+                testers[i].start();
+            }
+            for (int i = testers.length - 1; 0 <= i; i--) {
+                // reverse order to increase chances that something "interesting" happens
+                try {
+                    testers[i].join(0L);
+                } catch (final Throwable t) {
+                    LOG.debug("stress test - connect(#{}) join exception", i, t);
+                }
+            }
+            LOG.debug("stress test - connect() parallel => {}", testers[0].result);
+            return testers[0].result;
+        } else {
+            // serial calls
+            for (int i = 0; i < testers.length; i++) {
+                testers[i].run();
+            }
+            LOG.debug("stress test - connect() serial => {}", testers[0].result);
+            return testers[0].result;
+        }
+    }
+
+    private static class StressTestConnect extends Thread {
+        private final int i;
+        private final DeviceSupport support;
+        boolean result;
+
+        StressTestConnect(int index, DeviceSupport deviceSupport) {
+            i = index;
+            support = deviceSupport;
+        }
+
+        @Override
+        public void run() {
+            LOG.debug("stress test - connect(#{})", i);
+            try {
+                result = support.connect();
+                LOG.debug("stress test - connect(#{}) => {}", i, result);
+            } catch (Throwable t) {
+                LOG.error("stress test - connect(#{}) exception", i, t);
+            }
+        }
     }
 }

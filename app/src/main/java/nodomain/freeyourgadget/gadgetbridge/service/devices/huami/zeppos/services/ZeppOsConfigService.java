@@ -24,6 +24,8 @@ import static nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst.PREF
 import static nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst.PREF_NIGHT_MODE;
 import static nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst.PREF_NIGHT_MODE_END;
 import static nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst.PREF_NIGHT_MODE_START;
+import static nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsConfigService.ConfigArg.LANGUAGE;
+import static nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsConfigService.ConfigArg.LANGUAGE_FOLLOW_PHONE;
 
 import android.text.TextUtils;
 import android.widget.Toast;
@@ -59,23 +61,27 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsUtils;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.GpsCapability;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.WorkoutDetectionCapability;
+import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.ActivateDisplayOnLift;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.ActivateDisplayOnLiftSensitivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.AlwaysOnDisplay;
+import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.miband.DoNotDisturb;
 import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsMenuType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiLanguageType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.AbstractZeppOsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.MapUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
@@ -129,13 +135,41 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
     }
 
     @Override
-    public void initialize(final TransactionBuilder builder) {
+    public void initialize(final ZeppOsTransactionBuilder builder) {
         write(builder, CMD_CAPABILITIES_REQUEST);
-        requestAllConfigs(builder);
     }
 
     @Override
     public boolean onSendConfiguration(final String prefKey, Prefs prefs) {
+        // Special cases
+        switch (prefKey) {
+            // Fitness goals are global
+            case ActivityUser.PREF_USER_STEPS_GOAL:
+            case ActivityUser.PREF_USER_CALORIES_BURNT:
+            case ActivityUser.PREF_USER_SLEEP_DURATION:
+            case ActivityUser.PREF_USER_GOAL_WEIGHT_KG:
+            case ActivityUser.PREF_USER_GOAL_STANDING_TIME_HOURS:
+            case ActivityUser.PREF_USER_GOAL_FAT_BURN_TIME_MINUTES: {
+                withTransactionBuilder("set fitness goal", this::setFitnessGoal);
+                return true;
+            }
+            // Measurement system is global
+            case SettingsActivity.PREF_MEASUREMENT_SYSTEM: {
+                withTransactionBuilder("set measurement system", this::setMeasurementSystem);
+                return true;
+            }
+            // Password needs sanity checks
+            case PasswordCapabilityImpl.PREF_PASSWORD:
+            case PasswordCapabilityImpl.PREF_PASSWORD_ENABLED: {
+                withTransactionBuilder("set " + prefKey, this::setPassword);
+                return true;
+            }
+            case PREF_LANGUAGE: {
+                withTransactionBuilder("set language", this::setLanguage);
+                return true;
+            }
+        }
+
         if (!PREF_TO_CONFIG.containsKey(prefKey)) {
             return false;
         }
@@ -144,9 +178,7 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         if (setConfig(prefs, prefKey, configSetter)) {
             try {
                 // If the ConfigSetter was able to set the config, just write it and return
-                final TransactionBuilder builder = new TransactionBuilder("send config " + prefKey);
-                configSetter.write(builder);
-                builder.queue(getSupport().getQueue());
+                withTransactionBuilder("send config " + prefKey, configSetter::write);
             } catch (final Exception e) {
                 GB.toast("Error setting configuration", Toast.LENGTH_LONG, GB.ERROR, e);
             }
@@ -155,6 +187,79 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         }
 
         return false;
+    }
+
+    private void setLanguage(final ZeppOsTransactionBuilder builder) {
+        final String localeString = getDevicePrefs().getString("language", "auto");
+
+        LOG.info("Setting device language to {}", localeString);
+
+        newSetter()
+                .setByte(LANGUAGE, getDevicePrefs().getLanguageId())
+                .setBoolean(LANGUAGE_FOLLOW_PHONE, localeString.equals("auto"))
+                .write(builder);
+    }
+
+    private void setPassword(final ZeppOsTransactionBuilder builder) {
+        final boolean passwordEnabled = HuamiCoordinator.getPasswordEnabled(getSupport().getDevice().getAddress());
+        final String password = HuamiCoordinator.getPassword(getSupport().getDevice().getAddress());
+
+        LOG.info("Setting password: {}, {}", passwordEnabled, password);
+
+        if (password == null || password.isEmpty()) {
+            LOG.warn("Invalid password: {}", password);
+            return;
+        }
+
+        newSetter()
+                .setBoolean(ConfigArg.PASSWORD_ENABLED, passwordEnabled)
+                .setString(ConfigArg.PASSWORD_TEXT, password)
+                .write(builder);
+    }
+
+    protected void setFitnessGoal(final ZeppOsTransactionBuilder builder) {
+        final int goalSteps = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_STEPS_GOAL, ActivityUser.defaultUserStepsGoal);
+        final int goalCalories = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_CALORIES_BURNT, ActivityUser.defaultUserCaloriesBurntGoal);
+        final int goalSleep = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_SLEEP_DURATION, ActivityUser.defaultUserSleepDurationGoal);
+        final int goalWeight = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_GOAL_WEIGHT_KG, ActivityUser.defaultUserGoalWeightKg);
+        final int goalStandingTime = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_GOAL_STANDING_TIME_HOURS, ActivityUser.defaultUserGoalStandingTimeHours);
+        final int goalFatBurnTime = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_GOAL_FAT_BURN_TIME_MINUTES, ActivityUser.defaultUserFatBurnTimeMinutes);
+        LOG.info("Setting Fitness Goals to steps={}, calories={}, sleep={}, weight={}, standingTime={}, fatBurn={}", goalSteps, goalCalories, goalSleep, goalWeight, goalStandingTime, goalFatBurnTime);
+
+        newSetter()
+                .setInt(ConfigArg.FITNESS_GOAL_STEPS, goalSteps)
+                .setShort(ConfigArg.FITNESS_GOAL_CALORIES, (short) goalCalories)
+                .setShort(ConfigArg.FITNESS_GOAL_SLEEP, (short) (goalSleep * 60))
+                .setShort(ConfigArg.FITNESS_GOAL_WEIGHT, (short) goalWeight)
+                .setShort(ConfigArg.FITNESS_GOAL_STANDING_TIME, (short) (goalStandingTime))
+                .setShort(ConfigArg.FITNESS_GOAL_FAT_BURN_TIME, (short) goalFatBurnTime)
+                .write(builder);
+    }
+
+    private void setMeasurementSystem(final ZeppOsTransactionBuilder builder) {
+        final String measurementSystem = GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, "metric");
+        LOG.info("Setting measurement system to {}", measurementSystem);
+
+        final byte distanceUnit;
+        final byte temperatureUnit;
+        final byte weightUnit;
+
+        // FIXME we should be able to configure these separately
+        if ("metric".equals(measurementSystem)) {
+            distanceUnit = 0;
+            temperatureUnit = 0;
+            weightUnit = 0;
+        } else {
+            distanceUnit = 1;
+            temperatureUnit = 1;
+            weightUnit = 2;
+        }
+
+        newSetter()
+                .setByte(ConfigArg.DISTANCE_UNIT, distanceUnit)
+                .setByte(ConfigArg.TEMPERATURE_UNIT, temperatureUnit)
+                .setByte(ConfigArg.WEIGHT_UNIT, weightUnit)
+                .write(builder);
     }
 
     private void handleCapabilitiesResponse(final byte[] payload) {
@@ -170,12 +275,13 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
             return;
         }
 
+        final ZeppOsTransactionBuilder builder = createTransactionBuilder("configs request");
         for (int i = 0; i < numGroups; i++) {
             final ConfigGroup configGroup = ConfigGroup.fromValue(payload[3 + i]);
             LOG.debug("Got supported config group {}: {}", String.format("0x%02x", payload[3 + i]), configGroup);
+            requestConfig(builder, configGroup);
         }
-
-        // TODO: We should only request supported config groups
+        builder.queue(getSupport());
     }
 
     private boolean sentFitnessGoal = false;
@@ -215,11 +321,11 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         getSupport().evaluateGBDeviceEvent(eventUpdatePreferences);
 
         if (getSupport().getDevice().isInitialized()) {
-            if (prefs.containsKey(PREF_LANGUAGE) && prefs.get(PREF_LANGUAGE).equals(PREF_LANGUAGE_AUTO)) {
+            if (prefs.containsKey(PREF_LANGUAGE) && PREF_LANGUAGE_AUTO.equals(prefs.get(PREF_LANGUAGE))) {
                 // Band is reporting automatic language, we need to send the actual language
                 getSupport().onSendConfiguration(PREF_LANGUAGE);
             }
-            if (prefs.containsKey(PREF_TIMEFORMAT) && prefs.get(PREF_TIMEFORMAT).equals(PREF_TIMEFORMAT_AUTO)) {
+            if (prefs.containsKey(PREF_TIMEFORMAT) && PREF_TIMEFORMAT_AUTO.equals(prefs.get(PREF_TIMEFORMAT))) {
                 // Band is reporting automatic time format, we need to send the actual time format
                 getSupport().onSendConfiguration(PREF_TIMEFORMAT);
             }
@@ -232,17 +338,11 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         }
     }
 
-    public void requestAllConfigs(final TransactionBuilder builder) {
-        for (final ConfigGroup configGroup : ConfigGroup.values()) {
-            requestConfig(builder, configGroup);
-        }
-    }
-
-    public void requestConfig(final TransactionBuilder builder, final ConfigGroup config) {
+    public void requestConfig(final ZeppOsTransactionBuilder builder, final ConfigGroup config) {
         requestConfig(builder, config, true, ZeppOsConfigService.ConfigArg.getAllArgsForConfigGroup(config));
     }
 
-    public void requestConfig(final TransactionBuilder builder,
+    public void requestConfig(final ZeppOsTransactionBuilder builder,
                               final ConfigGroup config,
                               final boolean includeConstraints,
                               final List<ZeppOsConfigService.ConfigArg> args) {
@@ -362,6 +462,7 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         COVER_TO_MUTE(ConfigGroup.SOUND_AND_VIBRATION, ConfigType.BOOL, 0x08, PREF_COVER_TO_MUTE),
         VIBRATE_FOR_ALERT(ConfigGroup.SOUND_AND_VIBRATION, ConfigType.BOOL, 0x09, PREF_VIBRATE_FOR_ALERT),
         TEXT_TO_SPEECH(ConfigGroup.SOUND_AND_VIBRATION, ConfigType.BOOL, 0x0a, PREF_TEXT_TO_SPEECH),
+        VIBRATION_INTENSITY(ConfigGroup.SOUND_AND_VIBRATION, ConfigType.BYTE, 0x12, PREF_VIBRATION_INTENSITY),
 
         // Wearing Direction
         WEARING_DIRECTION_BUTTONS(ConfigGroup.WEARING_DIRECTION, ConfigType.BYTE, 0x02, PREF_WEARDIRECTION),
@@ -421,15 +522,17 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         // System
         TIME_FORMAT(ConfigGroup.SYSTEM, ConfigType.BYTE, 0x01, PREF_TIMEFORMAT),
         DATE_FORMAT(ConfigGroup.SYSTEM, ConfigType.STRING, 0x02, PREF_DATEFORMAT),
+        DISTANCE_UNIT(ConfigGroup.SYSTEM, ConfigType.BYTE, 0x05, null), // TODO needs to be handled globally
         DND_MODE(ConfigGroup.SYSTEM, ConfigType.BYTE, 0x0a, PREF_DO_NOT_DISTURB),
         DND_SCHEDULED_START(ConfigGroup.SYSTEM, ConfigType.DATETIME_HH_MM, 0x0b, PREF_DO_NOT_DISTURB_START),
         DND_SCHEDULED_END(ConfigGroup.SYSTEM, ConfigType.DATETIME_HH_MM, 0x0c, PREF_DO_NOT_DISTURB_END),
         CALL_DELAY(ConfigGroup.SYSTEM, ConfigType.SHORT, 0x11, PREF_NOTIFICATION_DELAY_CALLS),
-        TEMPERATURE_UNIT(ConfigGroup.SYSTEM, ConfigType.BYTE, 0x12, SettingsActivity.PREF_MEASUREMENT_SYSTEM),
+        TEMPERATURE_UNIT(ConfigGroup.SYSTEM, ConfigType.BYTE, 0x12, null), // TODO needs to be handled globally
         TIME_FORMAT_FOLLOWS_PHONE(ConfigGroup.SYSTEM, ConfigType.BOOL, 0x13, null /* special case, handled below */),
         UPPER_BUTTON_LONG_PRESS(ConfigGroup.SYSTEM, ConfigType.STRING_LIST, 0x15, PREF_UPPER_BUTTON_LONG_PRESS),
         LOWER_BUTTON_PRESS(ConfigGroup.SYSTEM, ConfigType.STRING_LIST, 0x16, PREF_LOWER_BUTTON_SHORT_PRESS),
         DISPLAY_CALLER(ConfigGroup.SYSTEM, ConfigType.BOOL, 0x18, PREF_DISPLAY_CALLER),
+        WEIGHT_UNIT(ConfigGroup.SYSTEM, ConfigType.BYTE, 0x1a, null), // TODO needs to be handled globally
         NIGHT_MODE_MODE(ConfigGroup.SYSTEM, ConfigType.BYTE, 0x1b, PREF_NIGHT_MODE),
         NIGHT_MODE_SCHEDULED_START(ConfigGroup.SYSTEM, ConfigType.DATETIME_HH_MM, 0x1c, PREF_NIGHT_MODE_START),
         NIGHT_MODE_SCHEDULED_END(ConfigGroup.SYSTEM, ConfigType.DATETIME_HH_MM, 0x1d, PREF_NIGHT_MODE_END),
@@ -663,6 +766,8 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
                 return encodeEnum(WORKOUT_DETECTION_CATEGORY_MAP, value);
             case WORKOUT_DETECTION_SENSITIVITY:
                 return encodeEnum(WORKOUT_DETECTION_SENSITIVITY_MAP, value);
+            case VIBRATION_INTENSITY:
+                return encodeString(VIBRATION_INTENSITY_MAP, value);
         }
 
         LOG.error("No encoder for {}", configArg);
@@ -804,7 +909,7 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
             return baos.toByteArray();
         }
 
-        public void write(final TransactionBuilder builder) {
+        public void write(final ZeppOsTransactionBuilder builder) {
             // Write one command per config group
             for (final ConfigGroup configGroup : arguments.keySet()) {
                 ZeppOsConfigService.this.write(builder, encode(configGroup));
@@ -1202,7 +1307,13 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
                             final List<String> possibleLanguages = new ArrayList<>();
                             possibleLanguages.add("auto");
                             for (final byte possibleValue : value.getPossibleValues()) {
-                                possibleLanguages.add(languageByteToLocale(possibleValue));
+                                final String languageCode = languageByteToLocale(possibleValue);
+                                if (languageCode == null) {
+                                    LOG.warn("Unknown language byte {}", String.format("0x%02x", possibleValue));
+                                    possibleLanguages.add(String.format("0x%x", possibleValue));
+                                } else {
+                                    possibleLanguages.add(languageCode);
+                                }
                             }
                             possibleLanguages.removeAll(Collections.singleton(null));
                             prefs.put(DeviceSettingsUtils.getPrefPossibleValuesKey(configArg.getPrefKey()), TextUtils.join(",", possibleLanguages));
@@ -1253,6 +1364,9 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
                 case WORKOUT_DETECTION_SENSITIVITY:
                     decoder = b -> decodeEnum(WORKOUT_DETECTION_SENSITIVITY_MAP, b);
                     break;
+                case VIBRATION_INTENSITY:
+                    decoder = b -> decodeString(VIBRATION_INTENSITY_MAP, b);
+                    break;
                 default:
                     decoder = null;
             }
@@ -1302,12 +1416,8 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
 
         private Map<String, Object> singletonMap(final String key, final Object value) {
             if (key == null) {
-                LOG.error("Null key in prefs update");
-                if (BuildConfig.DEBUG) {
-                    // Crash
-                    throw new IllegalStateException("Null key in prefs update");
-                }
-                return Collections.emptyMap();
+                LOG.warn("Null key in prefs update, val = {}", value);
+                return new HashMap<>();
             }
 
             return new HashMap<String, Object>() {{
@@ -1691,6 +1801,12 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
             return (byte) (int) HuamiLanguageType.idLookup.get(locale);
         }
 
+        // value doesn't match a known language, attempt to parse it as hex
+        final Matcher matcher = Pattern.compile("^0[xX]([0-9a-fA-F]{1,2})$").matcher(locale);
+        if (matcher.find()) {
+            return (byte) Integer.parseInt(matcher.group(1), 16);
+        }
+
         return null;
     }
 
@@ -1731,9 +1847,21 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         put((byte) 0x03, DoNotDisturb.ALWAYS);
     }};
 
+    private static final Map<Byte, Enum<?>> DISTANCE_UNIT_MAP = new HashMap<Byte, Enum<?>>() {{
+        put((byte) 0x00, MiBandConst.DistanceUnit.METRIC);
+        put((byte) 0x01, MiBandConst.DistanceUnit.IMPERIAL);
+    }};
+
     private static final Map<Byte, Enum<?>> TEMPERATURE_UNIT_MAP = new HashMap<Byte, Enum<?>>() {{
         put((byte) 0x00, MiBandConst.DistanceUnit.METRIC);
         put((byte) 0x01, MiBandConst.DistanceUnit.IMPERIAL);
+    }};
+
+    private static final Map<Byte, Enum<?>> WEIGHT_UNIT_MAP = new HashMap<Byte, Enum<?>>() {{
+        put((byte) 0x00, MiBandConst.DistanceUnit.METRIC);
+        //put((byte) 0x01, MiBandConst.DistanceUnit.IMPERIAL); // jin (500g)
+        put((byte) 0x02, MiBandConst.DistanceUnit.IMPERIAL);
+        //put((byte) 0x03, MiBandConst.DistanceUnit.IMPERIAL); // stone (1 stone = 14 pounds)
     }};
 
     private static final Map<Byte, String> TIME_FORMAT_MAP = new HashMap<Byte, String>() {{
@@ -1781,7 +1909,7 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         put((byte) 0x00, GpsCapability.Combination.LOW_POWER_GPS);
         put((byte) 0x01, GpsCapability.Combination.GPS);
         put((byte) 0x02, GpsCapability.Combination.GPS_BDS);
-        put((byte) 0x03, GpsCapability.Combination.GPS_GNOLASS);
+        put((byte) 0x03, GpsCapability.Combination.GPS_GLONASS);
         put((byte) 0x04, GpsCapability.Combination.GPS_GALILEO);
         put((byte) 0x05, GpsCapability.Combination.ALL_SATELLITES);
     }};
@@ -1806,6 +1934,11 @@ public class ZeppOsConfigService extends AbstractZeppOsService {
         put((byte) 0x00, WorkoutDetectionCapability.Sensitivity.HIGH);
         put((byte) 0x01, WorkoutDetectionCapability.Sensitivity.STANDARD);
         put((byte) 0x02, WorkoutDetectionCapability.Sensitivity.LOW);
+    }};
+
+    private static final Map<Byte, String> VIBRATION_INTENSITY_MAP = new HashMap<Byte, String>() {{
+        put((byte) 0x00, "normal");
+        put((byte) 0x01, "enhanced");
     }};
 
     public static String decodeEnum(final Map<Byte, Enum<?>> map, final byte b) {

@@ -2,10 +2,10 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages
 
 import androidx.annotation.Nullable;
 
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.FileType.FILETYPE;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordData;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordDefinition;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordHeader;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionFileType.Type;
 
 //
 // WARNING: This class was auto-generated, please avoid modifying it directly.
@@ -22,8 +22,8 @@ public class FitFileId extends RecordData {
     }
 
     @Nullable
-    public Type getType() {
-        return (Type) getFieldByNumber(0);
+    public FILETYPE getType() {
+        return (FILETYPE) getFieldByNumber(0);
     }
 
     @Nullable

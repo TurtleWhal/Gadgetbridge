@@ -16,24 +16,27 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.entities;
 
+import androidx.annotation.NonNull;
+
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 
 public abstract class AbstractActivitySample implements ActivitySample {
-    private SampleProvider mProvider;
+    private SampleProvider<?> mProvider;
 
     @Override
-    public SampleProvider getProvider() {
+    public SampleProvider<?> getProvider() {
         return mProvider;
     }
 
-    public void setProvider(SampleProvider provider) {
+    public void setProvider(SampleProvider<?> provider) {
         mProvider = provider;
     }
 
     @Override
-    public int getKind() {
+    public ActivityKind getKind() {
         return getProvider().normalizeType(getRawKind());
     }
 
@@ -54,6 +57,12 @@ public abstract class AbstractActivitySample implements ActivitySample {
     }
 
     public void setSteps(int steps) {
+    }
+
+    public void setDistanceCm(int distance) {
+    }
+
+    public void setActiveCalories(int activeCalories) {
     }
 
     /**
@@ -89,14 +98,27 @@ public abstract class AbstractActivitySample implements ActivitySample {
     }
 
     @Override
+    public int getDistanceCm() {
+        return NOT_MEASURED;
+    }
+
+    @Override
+    public int getActiveCalories() {
+        return NOT_MEASURED;
+    }
+
+    @NonNull
+    @Override
     public String toString() {
-        int kind = getProvider() != null ? getKind() : ActivitySample.NOT_MEASURED;
+        ActivityKind kind = getProvider() != null ? getKind() : ActivityKind.NOT_MEASURED;
         float intensity = getProvider() != null ? getIntensity() : ActivitySample.NOT_MEASURED;
         return getClass().getSimpleName() + "{" +
                 "timestamp=" + DateTimeUtils.formatDateTime(DateTimeUtils.parseTimeStamp(getTimestamp())) +
                 ", intensity=" + intensity +
                 ", steps=" + getSteps() +
-                ", heartrate=" + getHeartRate() +
+                ", distanceCm=" + getDistanceCm() +
+                ", activeCalories=" + getActiveCalories() +
+                ", heartRate=" + getHeartRate() +
                 ", type=" + kind +
                 ", userId=" + getUserId() +
                 ", deviceId=" + getDeviceId() +

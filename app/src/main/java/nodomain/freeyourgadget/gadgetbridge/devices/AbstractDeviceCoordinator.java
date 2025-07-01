@@ -1,7 +1,7 @@
-/*  Copyright (C) 2015-2024 akasaka / Genjitsu Labs, Alicia Hormann, Andreas
+/*  Copyright (C) 2015-2025 akasaka / Genjitsu Labs, Alicia Hormann, Andreas
     Shimokawa, Arjan Schrijver, Carsten Pfeiffer, Daniel Dakhno, Daniele Gobbetti,
     Davis Mosenkovs, Dmitry Markin, José Rebelo, Matthieu Baerts, Nephiel,
-    Petr Vaněk, Taavi Eomäe
+    Petr Vaněk, Taavi Eomäe, Johannes Krude, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -44,9 +44,12 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import de.greenrobot.dao.AbstractDao;
+import de.greenrobot.dao.Property;
 import de.greenrobot.dao.query.QueryBuilder;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.GBException;
@@ -58,12 +61,12 @@ import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabi
 import nodomain.freeyourgadget.gadgetbridge.capabilities.widgets.WidgetManager;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
-import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst;
 import nodomain.freeyourgadget.gadgetbridge.entities.AlarmDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.BatteryLevelDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.CyclingSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
+import nodomain.freeyourgadget.gadgetbridge.entities.DeviceAttributes;
 import nodomain.freeyourgadget.gadgetbridge.entities.DeviceAttributesDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
@@ -71,13 +74,20 @@ import nodomain.freeyourgadget.gadgetbridge.model.AbstractNotificationPattern;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
+import nodomain.freeyourgadget.gadgetbridge.model.BodyEnergySample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.HrvSummarySample;
+import nodomain.freeyourgadget.gadgetbridge.model.HrvValueSample;
 import nodomain.freeyourgadget.gadgetbridge.model.PaiSample;
-import nodomain.freeyourgadget.gadgetbridge.model.SleepRespiratoryRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.RespiratoryRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.RestingMetabolicRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.SleepScoreSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
+import nodomain.freeyourgadget.gadgetbridge.model.Vo2MaxSample;
+import nodomain.freeyourgadget.gadgetbridge.model.WeightSample;
 import nodomain.freeyourgadget.gadgetbridge.service.ServiceDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
@@ -89,13 +99,14 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     private Pattern supportedDeviceName = null;
 
     /**
-     * This method should return a ReGexp pattern that will matched against a found device
+     * This method should return a Regexp pattern that will matched against a found device
      * to check whether this coordinator supports that device.
      * If more sophisticated logic is needed to determine device support, the supports(GBDeviceCandidate)
      * should be overridden.
      *
      * @return Pattern
      */
+    @Nullable
     protected Pattern getSupportedDeviceName() {
         return null;
     }
@@ -129,13 +140,37 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
         return Collections.emptyList();
     }
 
-    @Override
-    public GBDevice createDevice(GBDeviceCandidate candidate, DeviceType deviceType) {
-        GBDevice gbDevice = new GBDevice(candidate.getDevice().getAddress(), candidate.getName(), null, null, deviceType);
+    protected void setBatteryConfigOnDevice(GBDevice gbDevice) {
         for (BatteryConfig batteryConfig : getBatteryConfig(gbDevice)) {
             gbDevice.setBatteryIcon(batteryConfig.getBatteryIcon(), batteryConfig.getBatteryIndex());
             gbDevice.setBatteryLabel(batteryConfig.getBatteryLabel(), batteryConfig.getBatteryIndex());
         }
+    }
+
+    @Override
+    public GBDevice createDevice(GBDeviceCandidate candidate, DeviceType deviceType) {
+        GBDevice gbDevice = new GBDevice(candidate.getDevice().getAddress(), candidate.getName(), null, null, deviceType);
+        setBatteryConfigOnDevice(gbDevice);
+        return gbDevice;
+    }
+
+    @Override
+    public GBDevice createDevice(Device dbDevice, DeviceType deviceType) {
+        GBDevice gbDevice =
+                new GBDevice(dbDevice.getIdentifier(), dbDevice.getName(), dbDevice.getAlias(),
+                             dbDevice.getParentFolder(), deviceType);
+
+        setBatteryConfigOnDevice(gbDevice);
+
+        List<DeviceAttributes> deviceAttributesList = dbDevice.getDeviceAttributesList();
+        if (!deviceAttributesList.isEmpty()) {
+            gbDevice.setModel(dbDevice.getModel());
+            DeviceAttributes attrs = deviceAttributesList.get(0);
+            gbDevice.setFirmwareVersion(attrs.getFirmwareVersion1());
+            gbDevice.setFirmwareVersion2(attrs.getFirmwareVersion2());
+            gbDevice.setVolatileAddress(attrs.getVolatileIdentifier());
+        }
+
         return gbDevice;
     }
 
@@ -153,12 +188,6 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
             lastDeviceAddresses = new HashSet<String>(lastDeviceAddresses);
             lastDeviceAddresses.remove(gbDevice.getAddress());
             prefs.getPreferences().edit().putStringSet(GBPrefs.LAST_DEVICE_ADDRESSES, lastDeviceAddresses).apply();
-        }
-
-        String macAddress = prefs.getPreferences().getString(MiBandConst.PREF_MIBAND_ADDRESS, "");
-        if (gbDevice.getAddress().equals(macAddress)) {
-            LOG.debug("#1605 removing devel miband");
-            prefs.getPreferences().edit().remove(MiBandConst.PREF_MIBAND_ADDRESS).apply();
         }
 
         GBApplication.deleteDeviceSpecificSharedPrefs(gbDevice.getAddress());
@@ -185,13 +214,32 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
 
     /**
      * Hook for subclasses to perform device-specific deletion logic, e.g. db cleanup.
+     * By default, it clears all data from all device-specific dao tables.
      *
      * @param gbDevice the GBDevice
      * @param device   the corresponding database Device
      * @param session  the session to use
      * @throws GBException if there was an error deleting device-specific resources
      */
-    protected abstract void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException;
+    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
+        final Long deviceId = device.getId();
+
+        final Map<AbstractDao<?, ?>, Property> daoMap = getAllDeviceDao(session);
+
+        for (final Map.Entry<AbstractDao<?, ?>, Property> e : daoMap.entrySet()) {
+            e.getKey().queryBuilder()
+                    .where(e.getValue().eq(deviceId))
+                    .buildDelete().executeDeleteWithoutDetachingEntities();
+        }
+    }
+
+    /**
+     * Returns a map from {@link AbstractDao} to the corresponding Device ID property. All data present
+     * in these tables for a device will be deleted when the device is deleted.
+     */
+    protected Map<AbstractDao<?, ?>, Property> getAllDeviceDao(@NonNull final DaoSession session) {
+        return Collections.emptyMap();
+    }
 
     @Override
     public boolean allowFetchActivityData(GBDevice device) {
@@ -199,12 +247,38 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    @Nullable
     public SampleProvider<? extends ActivitySample> getSampleProvider(final GBDevice device, final DaoSession session) {
         return null;
     }
 
     @Override
+    @Nullable
     public TimeSampleProvider<? extends StressSample> getStressSampleProvider(GBDevice device, DaoSession session) {
+        return null;
+    }
+
+    @Override
+    @Nullable
+    public TimeSampleProvider<? extends BodyEnergySample> getBodyEnergySampleProvider(final GBDevice device, final DaoSession session) {
+        return null;
+    }
+
+    @Override
+    @Nullable
+    public TimeSampleProvider<? extends HrvSummarySample> getHrvSummarySampleProvider(GBDevice device, DaoSession session) {
+        return null;
+    }
+
+    @Override
+    @Nullable
+    public TimeSampleProvider<? extends HrvValueSample> getHrvValueSampleProvider(GBDevice device, DaoSession session) {
+        return null;
+    }
+
+    @Override
+    @Nullable
+    public Vo2MaxSampleProvider<? extends Vo2MaxSample> getVo2MaxSampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
@@ -218,48 +292,86 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    public boolean showStressLevelInPercents() {
+        return false;
+    }
+
+    @Override
+    public int[] getStressChartParameters() {
+        // by default stress data provided every 60 seconds
+        // by default it is not interval data and we don't need to insert deltas
+        // if interval and delta provided stress data will be displayed as bars with deltas between.
+        return new int[]{60, 0, 0};
+    }
+
+    @Override
+    @Nullable
     public TimeSampleProvider<? extends TemperatureSample> getTemperatureSampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
     @Override
+    @Nullable
     public TimeSampleProvider<? extends Spo2Sample> getSpo2SampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
     @Override
+    @Nullable
     public TimeSampleProvider<CyclingSample> getCyclingSampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
     @Override
+    @Nullable
     public TimeSampleProvider<? extends HeartRateSample> getHeartRateMaxSampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
     @Override
+    @Nullable
     public TimeSampleProvider<? extends HeartRateSample> getHeartRateRestingSampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
     @Override
+    @Nullable
     public TimeSampleProvider<? extends HeartRateSample> getHeartRateManualSampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
     @Override
+    @Nullable
     public TimeSampleProvider<? extends PaiSample> getPaiSampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
     @Override
-    public TimeSampleProvider<? extends SleepRespiratoryRateSample> getSleepRespiratoryRateSampleProvider(GBDevice device, DaoSession session) {
+    @Nullable
+    public TimeSampleProvider<? extends RespiratoryRateSample> getRespiratoryRateSampleProvider(GBDevice device, DaoSession session) {
         return null;
     }
 
     @Override
     @Nullable
-    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device) {
+    public TimeSampleProvider<? extends WeightSample> getWeightSampleProvider(GBDevice device, DaoSession session) {
+        return null;
+    }
+
+    @Override
+    public TimeSampleProvider<? extends RestingMetabolicRateSample> getRestingMetabolicRateProvider(final GBDevice device, final DaoSession session) {
+        return new DefaultRestingMetabolicRateProvider(device, session);
+    }
+
+    @Override
+    @Nullable
+    public TimeSampleProvider<? extends SleepScoreSample> getSleepScoreProvider(final GBDevice device, final DaoSession session) {
+        return null;
+    }
+
+    @Override
+    @Nullable
+    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
         return null;
     }
 
@@ -292,6 +404,7 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    @Nullable
     public File getAppCacheDir() throws IOException {
         return null;
     }
@@ -309,11 +422,13 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    @Nullable
     public String getAppCacheSortFilename() {
         return null;
     }
 
     @Override
+    @Nullable
     public String getAppFileExtension() {
         return null;
     }
@@ -423,6 +538,11 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    public boolean supportsDebugLogs() {
+        return false;
+    }
+
+    @Override
     public boolean supportsActivityDataFetching() {
         return false;
     }
@@ -439,6 +559,36 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
 
     @Override
     public boolean supportsStressMeasurement() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsBodyEnergy() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsHrvMeasurement(final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsVO2Max() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsVO2MaxCycling() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsVO2MaxRunning() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsActiveCalories() {
         return false;
     }
 
@@ -460,7 +610,12 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
-    public boolean supportsTemperatureMeasurement() {
+    public boolean supportsTemperatureMeasurement(final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsContinuousTemperature(final GBDevice device) {
         return false;
     }
 
@@ -490,7 +645,32 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    public boolean supportsPaiLow() {
+        return supportsPai();
+    }
+
+    @Override
+    public int getPaiTarget() {
+        return 100;
+    }
+
+    @Override
+    public boolean supportsRespiratoryRate() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsDayRespiratoryRate() {
+        return false;
+    }
+
+    @Override
     public boolean supportsSleepRespiratoryRate() {
+        return supportsRespiratoryRate();
+    }
+
+    @Override
+    public boolean supportsWeightMeasurement() {
         return false;
     }
 
@@ -535,6 +715,16 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    public boolean getRemindersHaveTime() {
+        return true;
+    }
+
+    @Override
+    public boolean getReserveReminderSlotsForCalendar() {
+        return false;
+    }
+
+    @Override
     public int getCannedRepliesSlotCount(final GBDevice device) {
         return 0;
     }
@@ -551,6 +741,11 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
 
     @Override
     public boolean supportsDisabledWorldClocks() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsAudioRecordings(final GBDevice device) {
         return false;
     }
 
@@ -576,6 +771,11 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    public boolean supportsHeartRateRestingMeasurement(final GBDevice device) {
+        return false;
+    }
+
+    @Override
     public boolean supportsManualHeartRateMeasurement(final GBDevice device) {
         return supportsHeartRateMeasurement(device);
     }
@@ -592,6 +792,16 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
 
     @Override
     public boolean supportsRemSleep() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsAwakeSleep() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsSleepScore(final GBDevice device) {
         return false;
     }
 
@@ -628,8 +838,12 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
         if (connectionType.usesBluetoothLE()) {
             settings = ArrayUtils.insert(0, settings, R.xml.devicesettings_reconnect_ble);
         }
-        if (connectionType.usesBluetoothClassic()) {
-            settings = ArrayUtils.insert(0, settings, R.xml.devicesettings_reconnect_bl_classic);
+        if (connectionType.usesBluetoothClassic() || connectionType.usesBluetoothLE()) {
+            settings = ArrayUtils.insert(0, settings, R.xml.devicesettings_device_connect_back);
+        }
+
+        if (connectionType.usesBluetoothLE() || connectionType.usesBluetoothClassic()){
+            settings = ArrayUtils.add(settings, R.xml.devicesettings_connection_priority_low_power);
         }
 
         return settings;
@@ -655,11 +869,13 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
         return new int[0];
     }
 
+    @Nullable
     @Override
     public DeviceSpecificSettingsCustomizer getDeviceSpecificSettingsCustomizer(GBDevice device) {
         return null;
     }
 
+    @Nullable
     @Override
     public String[] getSupportedLanguageSettings(GBDevice device) {
         return null;
@@ -678,21 +894,30 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
-    public int getBatteryCount() {
+    public int getBatteryCount(final GBDevice device) {
         return 1;
     } //multiple battery support, default is 1, maximum is 3, 0 will disable the battery in UI
 
     @Override
     public BatteryConfig[] getBatteryConfig(final GBDevice device) {
-        final BatteryConfig[] batteryConfigs = new BatteryConfig[getBatteryCount()];
-        for (int i = 0; i < getBatteryCount(); i++) {
+        final BatteryConfig[] batteryConfigs = new BatteryConfig[getBatteryCount(device)];
+        for (int i = 0; i < getBatteryCount(device); i++) {
             batteryConfigs[i] = new BatteryConfig(i);
         }
         return batteryConfigs;
     }
 
+    public boolean supportsOSBatteryLevel() {
+        return false;
+    }
+
     @Override
-    public boolean supportsPowerOff() {
+    public boolean addBatteryPollingSettings() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsPowerOff(final GBDevice device) {
         return false;
     }
 
@@ -745,12 +970,6 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
-    @DrawableRes
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_default_disabled;
-    }
-
-    @Override
     public boolean supportsNotificationVibrationPatterns() {
         return false;
     }
@@ -781,7 +1000,17 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    public int getLiveActivityFragmentPulseInterval() {
+        return 1000;
+    }
+
+    @Override
     public boolean validateAuthKey(final String authKey) {
         return !(authKey.getBytes().length < 34 || !authKey.startsWith("0x"));
+    }
+
+    @Override
+    public List<DeviceCardAction> getCustomActions() {
+        return Collections.emptyList();
     }
 }

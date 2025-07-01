@@ -9,8 +9,6 @@ import android.speech.tts.UtteranceProgressListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Locale;
-
 
 public class GBTextToSpeech {
     private static final Logger LOG = LoggerFactory.getLogger(GBTextToSpeech.class);
@@ -38,9 +36,8 @@ public class GBTextToSpeech {
     private void initializeTTS(UtteranceProgressListener callback) {
         textToSpeech = new TextToSpeech(context, status -> {
             if (status == TextToSpeech.SUCCESS) {
-                int result = textToSpeech.setLanguage(Locale.getDefault());
-                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    LOG.error("TTS returned error: Language not supported.");
+                if (textToSpeech.getVoice() == null) {
+                    LOG.error("TTS returned error: No voice available.");
                 } else {
                     this.isConnected = true;
                     textToSpeech.setOnUtteranceProgressListener(callback);
@@ -51,14 +48,14 @@ public class GBTextToSpeech {
         });
     }
 
-    public void speak(String text) {
+    public void speak(CharSequence text) {
         Bundle params = new Bundle();
         // Put the audio stream type into the Bundle
         params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_RING);
         textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, params, "call");
     }
 
-    public void speakNotification(String text) {
+    public void speakNotification(CharSequence text) {
         int result = audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, this.audioFocus);
         if (AudioManager.AUDIOFOCUS_REQUEST_GRANTED != result)
             LOG.warn("AudioManager did not grant us the requested focus");

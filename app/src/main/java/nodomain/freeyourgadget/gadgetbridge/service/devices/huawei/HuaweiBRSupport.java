@@ -29,7 +29,10 @@ import java.util.UUID;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
@@ -47,7 +50,10 @@ public class HuaweiBRSupport extends AbstractBTBRDeviceSupport {
         addSupportedService(HuaweiConstants.UUID_SERVICE_HUAWEI_SDP);
         setBufferSize(1032);
         supportProvider = new HuaweiSupportProvider(this);
+    }
 
+    protected HuaweiSupportProvider getSupportProvider() {
+        return supportProvider;
     }
 
     @Override
@@ -95,6 +101,11 @@ public class HuaweiBRSupport extends AbstractBTBRDeviceSupport {
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
         supportProvider.onNotification(notificationSpec);
+    }
+
+    @Override
+    public void onDeleteNotification(int id) {
+        supportProvider.onDeleteNotification(id);
     }
 
     @Override
@@ -168,5 +179,52 @@ public class HuaweiBRSupport extends AbstractBTBRDeviceSupport {
     @Override
     public void onCameraStatusChange(GBDeviceEventCameraRemote.Event event, String filename) {
         supportProvider.onCameraStatusChange(event, filename);
+    }
+
+    @Override
+    public void onSetContacts(ArrayList<? extends Contact> contacts) {
+        supportProvider.onSetContacts(contacts);
+    }
+
+    @Override
+    public void onAddCalendarEvent(final CalendarEventSpec calendarEventSpec) {
+        supportProvider.onAddCalendarEvent(calendarEventSpec);
+    }
+
+    @Override
+    public void onDeleteCalendarEvent(final byte type, long id) {
+        supportProvider.onDeleteCalendarEvent(type, id);
+    }
+
+
+    @Override
+    public void dispose() {
+        supportProvider.dispose();
+        super.dispose();
+    }
+
+    @Override
+    public void onTestNewFunction() {
+        supportProvider.onTestNewFunction();
+    }
+
+    @Override
+    public void onMusicListReq() {
+        supportProvider.onMusicListReq();
+    }
+
+    @Override
+    public void onMusicOperation(int operation, int playlistIndex, String playlistName, ArrayList<Integer> musicIds) {
+        supportProvider.onMusicOperation(operation, playlistIndex, playlistName, musicIds);
+    }
+
+    @Override
+    public void onSetCannedMessages(final CannedMessagesSpec cannedMessagesSpec) {
+        supportProvider.onSetCannedMessages(cannedMessagesSpec);
+    }
+
+    @Override
+    public void onFindDevice(boolean start) {
+        supportProvider.onFindDevice(start);
     }
 }

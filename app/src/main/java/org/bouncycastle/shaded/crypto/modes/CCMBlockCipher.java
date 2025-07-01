@@ -49,6 +49,7 @@ public class CCMBlockCipher
      * @param c the block cipher to be used.
      * @deprecated use the CCMBlockCipher.newInstance() static method.
      */
+    @Deprecated
     public CCMBlockCipher(BlockCipher c)
     {
         this.cipher = c;
@@ -261,9 +262,19 @@ public class CCMBlockCipher
         if (q < 4)
         {
             int limitLen = 1 << (8 * q);
-            if (inLen >= limitLen)
+
+            // no input length adjustment for encryption
+            int inputAdjustment = 0;
+
+            if (!forEncryption)
             {
-                throw new IllegalStateException("CCM packet too large for choice of q.");
+                // input includes 16 additional bytes: CCM flags and n+q values.
+                inputAdjustment = 1 /* flags */ + 15 /* n + q */;
+            }
+
+            if ((inLen-inputAdjustment) >= limitLen)
+            {
+                throw new IllegalStateException("CCM packet too large for choice of q");
             }
         }
 

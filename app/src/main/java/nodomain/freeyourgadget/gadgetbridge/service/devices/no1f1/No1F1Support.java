@@ -20,7 +20,6 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.no1f1;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.net.Uri;
 import android.text.format.DateFormat;
 import android.widget.Toast;
 
@@ -49,14 +48,9 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
@@ -64,7 +58,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 import static org.apache.commons.lang3.math.NumberUtils.min;
 
-public class No1F1Support extends AbstractBTLEDeviceSupport {
+public class No1F1Support extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(No1F1Support.class);
     private final GBDeviceEventVersionInfo versionCmd = new GBDeviceEventVersionInfo();
     private final GBDeviceEventBatteryInfo batteryCmd = new GBDeviceEventBatteryInfo();
@@ -83,8 +77,7 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         LOG.info("Initializing");
 
-        gbDevice.setState(GBDevice.State.INITIALIZING);
-        gbDevice.sendDeviceUpdateIntent(getContext());
+        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZING, getContext());
 
         measureCharacteristic = getCharacteristic(No1F1Constants.UUID_CHARACTERISTIC_MEASURE);
         ctrlCharacteristic = getCharacteristic(No1F1Constants.UUID_CHARACTERISTIC_CONTROL);
@@ -98,8 +91,7 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
         builder.write(ctrlCharacteristic, new byte[]{No1F1Constants.CMD_FIRMWARE_VERSION});
         builder.write(ctrlCharacteristic, new byte[]{No1F1Constants.CMD_BATTERY});
 
-        gbDevice.setState(GBDevice.State.INITIALIZED);
-        gbDevice.sendDeviceUpdateIntent(getContext());
+        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZED, getContext());
 
         LOG.info("Initialization Done");
 
@@ -108,13 +100,13 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] data) {
+        if (super.onCharacteristicChanged(gatt, characteristic, data)) {
             return true;
         }
 
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] data = characteristic.getValue();
         if (data.length == 0)
             return true;
 
@@ -484,7 +476,7 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
 
     private void handleActivityData(byte[] data) {
         if (data[1] == (byte) 0xfd) {
-            LOG.info("CRC received: " + (data[2] & 0xff) + ", calculated: " + (crc & 0xff));
+            LOG.info("CRC received: {}, calculated: {}", data[2] & 0xff, crc & 0xff);
             if (data[2] != crc) {
                 GB.toast(getContext(), "Incorrect CRC. Try fetching data again.", Toast.LENGTH_LONG, GB.ERROR);
                 GB.updateTransferNotification(null,"Data transfer failed", false, 0, getContext());
@@ -492,7 +484,7 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
                     getDevice().unsetBusyTask();
                     getDevice().sendDeviceUpdateIntent(getContext());
                 }
-            } else if (samples.size() > 0) {
+            } else if (!samples.isEmpty()) {
                 try (DBHandler dbHandler = GBApplication.acquireDB()) {
                     Long userId = DBHelper.getUser(dbHandler.getDaoSession()).getId();
                     Long deviceId = DBHelper.getDevice(getDevice(), dbHandler.getDaoSession()).getId();
@@ -501,13 +493,13 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
                         samples.get(i).setDeviceId(deviceId);
                         samples.get(i).setUserId(userId);
                         if (data[0] == No1F1Constants.CMD_FETCH_STEPS) {
-                            samples.get(i).setRawKind(ActivityKind.TYPE_ACTIVITY);
+                            samples.get(i).setRawKind(ActivityKind.ACTIVITY.getCode());
                             samples.get(i).setRawIntensity(samples.get(i).getSteps());
                         } else if (data[0] == No1F1Constants.CMD_FETCH_SLEEP) {
                             if (samples.get(i).getRawIntensity() < 7)
-                                samples.get(i).setRawKind(ActivityKind.TYPE_DEEP_SLEEP);
+                                samples.get(i).setRawKind(ActivityKind.DEEP_SLEEP.getCode());
                             else
-                                samples.get(i).setRawKind(ActivityKind.TYPE_LIGHT_SLEEP);
+                                samples.get(i).setRawKind(ActivityKind.LIGHT_SLEEP.getCode());
                         }
                         provider.addGBActivitySample(samples.get(i));
                     }
@@ -520,7 +512,7 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
                         GB.updateTransferNotification(null,"", false, 100, getContext());
                         if (getDevice().isBusy()) {
                             getDevice().unsetBusyTask();
-                            GB.signalActivityDataFinish();
+                            GB.signalActivityDataFinish(getDevice());
                         }
                     }
                 } catch (Exception ex) {
@@ -542,15 +534,18 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
             if (data[0] == No1F1Constants.CMD_FETCH_STEPS) {
                 timestamp.set(Calendar.MINUTE, 0);
                 sample.setSteps(data[6] * 256 + (data[7] & 0xff));
+                //noinspection lossy-conversions
                 crc ^= (data[6] ^ data[7]);
             } else if (data[0] == No1F1Constants.CMD_FETCH_SLEEP) {
                 timestamp.set(Calendar.MINUTE, data[6] & 0xff);
                 sample.setRawIntensity(data[7] * 256 + (data[8] & 0xff));
+                //noinspection lossy-conversions
                 crc ^= (data[7] ^ data[8]);
                 startProgress = 33;
             } else if (data[0] == No1F1Constants.CMD_FETCH_HEARTRATE) {
                 timestamp.set(Calendar.MINUTE, data[6] & 0xff);
                 sample.setHeartRate(data[7] & 0xff);
+                //noinspection lossy-conversions
                 crc ^= (data[6] ^ data[7]);
                 startProgress = 66;
             }
@@ -591,5 +586,15 @@ public class No1F1Support extends AbstractBTLEDeviceSupport {
                 LOG.warn("Error saving current heart rate: " + ex.getLocalizedMessage());
             }
         }
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

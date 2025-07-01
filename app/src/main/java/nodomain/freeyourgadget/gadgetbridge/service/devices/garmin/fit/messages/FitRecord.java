@@ -26,13 +26,18 @@ public class FitRecord extends RecordData {
     }
 
     @Nullable
-    public Long getLatitude() {
-        return (Long) getFieldByNumber(0);
+    public Double getLatitude() {
+        return (Double) getFieldByNumber(0);
     }
 
     @Nullable
-    public Long getLongitude() {
-        return (Long) getFieldByNumber(1);
+    public Double getLongitude() {
+        return (Double) getFieldByNumber(1);
+    }
+
+    @Nullable
+    public Float getAltitude() {
+        return (Float) getFieldByNumber(2);
     }
 
     @Nullable
@@ -41,18 +46,68 @@ public class FitRecord extends RecordData {
     }
 
     @Nullable
-    public Long getDistance() {
-        return (Long) getFieldByNumber(5);
+    public Integer getCadence() {
+        return (Integer) getFieldByNumber(4);
     }
 
     @Nullable
-    public Long getEnhancedSpeed() {
-        return (Long) getFieldByNumber(73);
+    public Double getDistance() {
+        return (Double) getFieldByNumber(5);
     }
 
     @Nullable
-    public Long getEnhancedAltitude() {
-        return (Long) getFieldByNumber(78);
+    public Float getSpeed() {
+        return (Float) getFieldByNumber(6);
+    }
+
+    @Nullable
+    public Integer getPower() {
+        return (Integer) getFieldByNumber(7);
+    }
+
+    @Nullable
+    public Long getAccumulatedPower() {
+        return (Long) getFieldByNumber(29);
+    }
+
+    @Nullable
+    public Float getOscillation() {
+        return (Float) getFieldByNumber(39);
+    }
+
+    @Nullable
+    public Integer getActivity() {
+        return (Integer) getFieldByNumber(42);
+    }
+
+    @Nullable
+    public Float getFractionalCadence() {
+        return (Float) getFieldByNumber(53);
+    }
+
+    @Nullable
+    public Double getEnhancedSpeed() {
+        return (Double) getFieldByNumber(73);
+    }
+
+    @Nullable
+    public Double getEnhancedAltitude() {
+        return (Double) getFieldByNumber(78);
+    }
+
+    @Nullable
+    public Float getVerticalRatio() {
+        return (Float) getFieldByNumber(83);
+    }
+
+    @Nullable
+    public Float getStepLength() {
+        return (Float) getFieldByNumber(85);
+    }
+
+    @Nullable
+    public Integer getEnhancedRespirationRate() {
+        return (Integer) getFieldByNumber(108);
     }
 
     @Nullable
@@ -74,19 +129,22 @@ public class FitRecord extends RecordData {
 
     public ActivityPoint toActivityPoint() {
         final ActivityPoint activityPoint = new ActivityPoint();
-        activityPoint.setTime(new Date(getComputedTimestamp()));
+        activityPoint.setTime(new Date(getComputedTimestamp() * 1000L));
         if (getLatitude() != null && getLongitude() != null) {
             activityPoint.setLocation(new GPSCoordinate(
-                    GarminUtils.semicirclesToDegrees(getLongitude().longValue()),
-                    GarminUtils.semicirclesToDegrees(getLatitude().longValue()),
-                    getEnhancedAltitude() != null ? getEnhancedAltitude() / 10d : GPSCoordinate.UNKNOWN_ALTITUDE
+                    getLongitude(),
+                    getLatitude(),
+                    getEnhancedAltitude() != null ? getEnhancedAltitude() : GPSCoordinate.UNKNOWN_ALTITUDE
             ));
         }
         if (getHeartRate() != null) {
             activityPoint.setHeartRate(getHeartRate());
         }
         if (getEnhancedSpeed() != null) {
-            activityPoint.setSpeed(getEnhancedSpeed());
+            activityPoint.setSpeed(getEnhancedSpeed().floatValue());
+        }
+        if (getCadence() != null) {
+            activityPoint.setCadence(getCadence());
         }
         return activityPoint;
     }

@@ -20,6 +20,8 @@ package nodomain.freeyourgadget.gadgetbridge.devices.huawei;
 
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.CryptoTags;
 
+import androidx.annotation.NonNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +75,7 @@ public class HuaweiTLV {
                     .array();
         }
 
+        @NonNull
         public String toString() {
             return "{tag: " + Integer.toHexString(tag & 0xFF) + " - Value: " + StringUtils.bytesToHex(value) + "} - ";
         }
@@ -219,20 +222,86 @@ public class HuaweiTLV {
         throw new HuaweiPacket.MissingTagException(tag);
     }
 
+    public byte[] getBytes(int tag, byte[] defaultValue) {
+        try {
+            return getBytes(tag);
+        } catch (HuaweiPacket.MissingTagException e) {
+            return defaultValue;
+        }
+    }
+
     public Byte getByte(int tag) throws HuaweiPacket.MissingTagException {
         return getBytes(tag)[0];
+    }
+
+    public Byte getByte(int tag, Byte defaultValue) {
+        try {
+            return getByte(tag);
+        } catch (HuaweiPacket.MissingTagException e) {
+            return defaultValue;
+        }
     }
 
     public Boolean getBoolean(int tag) throws HuaweiPacket.MissingTagException {
         return getBytes(tag)[0] == 1;
     }
 
+    public Boolean getBoolean(int tag, Boolean defaultValue) {
+        try {
+            return getBoolean(tag);
+        } catch (HuaweiPacket.MissingTagException e) {
+            return defaultValue;
+        }
+    }
+
     public Integer getInteger(int tag) throws HuaweiPacket.MissingTagException {
         return ByteBuffer.wrap(getBytes(tag)).getInt();
     }
 
+    public Integer getInteger(int tag, Integer defaultResult) {
+        try {
+            return getInteger(tag);
+        } catch (HuaweiPacket.MissingTagException e) {
+            return defaultResult;
+        }
+    }
+
     public Short getShort(int tag) throws HuaweiPacket.MissingTagException {
         return ByteBuffer.wrap(getBytes(tag)).getShort();
+    }
+
+    public Short getShort(int tag, Short defaultValue) {
+        try {
+            return getShort(tag);
+        } catch (HuaweiPacket.MissingTagException e) {
+            return defaultValue;
+        }
+    }
+
+    public Long getLong(int tag) throws HuaweiPacket.MissingTagException {
+        return ByteBuffer.wrap(getBytes(tag)).getLong();
+    }
+
+    public Integer getAsInteger(int tag) throws HuaweiPacket.MissingTagException {
+        byte[] bytes = getBytes(tag);
+        if(bytes.length == 1) {
+            return bytes[0] & 0xFF;
+        } else if(bytes.length == 2) {
+            return ByteBuffer.wrap(getBytes(tag)).getShort() & 0xFFFF;
+        }
+        return ByteBuffer.wrap(getBytes(tag)).getInt();
+    }
+
+    public Long getAsLong(int tag) throws HuaweiPacket.MissingTagException {
+        byte[] bytes = getBytes(tag);
+        if(bytes.length == 1) {
+            return (long) (bytes[0] & 0xFF);
+        } else if(bytes.length == 2) {
+            return (long) (ByteBuffer.wrap(getBytes(tag)).getShort() & 0xFFFF);
+        } else if(bytes.length == 4) {
+            return (long) (ByteBuffer.wrap(getBytes(tag)).getInt());
+        }
+        return ByteBuffer.wrap(getBytes(tag)).getLong();
     }
 
     public String getString(int tag) throws HuaweiPacket.MissingTagException {
@@ -282,6 +351,7 @@ public class HuaweiTLV {
      * Get string representation of HuaweiTLV, "Empty" when no elements are present
      * @return String
      */
+    @NonNull
     public String toString() {
         if (valueMap.isEmpty())
             return "Empty";
@@ -292,13 +362,12 @@ public class HuaweiTLV {
         return msg.substring(0, msg.length() - 3);
     }
 
-    public HuaweiTLV encrypt(ParamsProvider paramsProvider) throws CryptoException {
-        byte[] serializedTLV = serialize();
+    public static HuaweiTLV encryptRaw(ParamsProvider paramsProvider, byte[] data) throws CryptoException {
         byte[] key = paramsProvider.getSecretKey();
         byte[] nonce = paramsProvider.getIv();
         byte[] encryptedTLV = HuaweiCrypto.encrypt(
                 paramsProvider.getEncryptMethod() == 0x01 || paramsProvider.getDeviceSupportType() == 0x04,
-                serializedTLV,
+                data,
                 key,
                 nonce);
         return new HuaweiTLV()
@@ -307,13 +376,22 @@ public class HuaweiTLV {
                 .put(CryptoTags.cipherText, encryptedTLV);
     }
 
-    public void decrypt(ParamsProvider paramsProvider) throws CryptoException, HuaweiPacket.MissingTagException {
+    public HuaweiTLV encrypt(ParamsProvider paramsProvider) throws CryptoException {
+        byte[] serializedTLV = serialize();
+        return encryptRaw(paramsProvider, serializedTLV);
+    }
+
+    public byte[] decryptRaw(ParamsProvider paramsProvider) throws CryptoException, HuaweiPacket.MissingTagException {
         byte[] key = paramsProvider.getSecretKey();
-        byte[] decryptedTLV = HuaweiCrypto.decrypt(
+        return HuaweiCrypto.decrypt(
                 paramsProvider.getEncryptMethod() == 0x01 || paramsProvider.getDeviceSupportType() == 0x04,
                 getBytes(CryptoTags.cipherText),
                 key,
                 getBytes(CryptoTags.initVector));
+    }
+
+    public void decrypt(ParamsProvider paramsProvider) throws CryptoException, HuaweiPacket.MissingTagException {
+        byte[] decryptedTLV = decryptRaw(paramsProvider);
         this.valueMap = new ArrayList<>();
         parse(decryptedTLV);
     }
@@ -330,6 +408,7 @@ final class VarInt {
         this.size = this.eValue.length;
     }
 
+    @NonNull
     public String toString() {
         return "VarInt(dValue: " + this.dValue + ", size: " + this.size + ", eValue: " + StringUtils.bytesToHex(this.eValue) + ")";
     }

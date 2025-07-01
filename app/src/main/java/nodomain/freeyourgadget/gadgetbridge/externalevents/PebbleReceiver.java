@@ -51,7 +51,7 @@ public class PebbleReceiver extends BroadcastReceiver {
         }
 
         String messageType = intent.getStringExtra("messageType");
-        if (!messageType.equals("PEBBLE_ALERT")) {
+        if (!"PEBBLE_ALERT".equals(messageType)) {
             LOG.info("non PEBBLE_ALERT message type not supported");
             return;
         }
@@ -69,7 +69,7 @@ public class PebbleReceiver extends BroadcastReceiver {
             notificationSpec.title = notificationJSON.getJSONObject(0).getString("title");
             notificationSpec.body = notificationJSON.getJSONObject(0).getString("body");
         } catch (JSONException e) {
-            e.printStackTrace();
+            LOG.warn("exception in onReceive", e);
             return;
         }
 

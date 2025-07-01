@@ -1,14 +1,17 @@
-apply plugin: 'java'
-apply plugin: 'maven-publish'
-apply plugin:'application'
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'application'
+}
 
-archivesBaseName = 'gadgetbridge-daogenerator'
-//version = '0.9.2-SNAPSHOT'
+base.archivesName = 'gadgetbridge-daogenerator'
 
 dependencies {
-//    implementation 'org.greenrobot:greendao-generator:2.2.0'
-//    implementation project(":DaoGenerator")
-    implementation 'com.github.Freeyourgadget:greendao:1998d7cd2d21f662c6044f6ccf3b3a251bbad341'
+    // https://codeberg.org/Freeyourgadget/greenDao
+    //implementation 'com.github.Freeyourgadget:greendao:1998d7cd2d21f662c6044f6ccf3b3a251bbad341'
+    // As of 2025-06-19, this is bundled directly in the repository due to jitpack build issues
+
+    implementation 'org.freemarker:freemarker:2.3.23'
 }
 
 sourceSets {
@@ -16,13 +19,19 @@ sourceSets {
         java {
             srcDir 'src'
         }
+        resources {
+            srcDir 'src-template'
+        }
     }
 }
 
-mainClassName = "nodomain.freeyourgadget.gadgetbridge.daogen.GBDaoGenerator"
+application.mainClass = "nodomain.freeyourgadget.gadgetbridge.daogen.GBDaoGenerator"
 
-task genSources(type: JavaExec) {
-    main = mainClassName
+tasks.register('genSources', JavaExec) {
+    inputs.dir(file("src"))
+    outputs.dir(project.rootProject.file("app/src/main/java"))
+
+    mainClass = application.mainClass
     classpath = sourceSets.main.runtimeClasspath
     workingDir = '../'
 }
@@ -30,13 +39,17 @@ task genSources(type: JavaExec) {
 artifacts {
     archives jar
 }
-sourceCompatibility = JavaVersion.VERSION_1_7
-targetCompatibility = JavaVersion.VERSION_1_7
+
+java {
+    // setting sourceCompatibility and targetCompatibility isn't required because this module
+    // ships no complied code
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
 
 tasks.named("distTar") {
-    duplicatesStrategy = 'include'
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 tasks.named("distZip") {
-    duplicatesStrategy = 'include'
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }

@@ -60,6 +60,7 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
 
     protected final int TOTAL_DAYS = getRangeDays();
 
+
     @Override
     protected void init() {
         BACKGROUND_COLOR = GBApplication.getBackgroundColor(requireContext());
@@ -148,6 +149,11 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
     @Override
     protected void renderCharts() {
         mTemperatureChart.animateX(ANIM_TIME, Easing.EaseInOutQuart);
+    }
+
+    @Override
+    protected boolean isSingleDay() {
+        return false;
     }
 
     @Override

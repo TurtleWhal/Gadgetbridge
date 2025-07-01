@@ -34,7 +34,6 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
-import com.github.mikephil.charting.formatter.DefaultAxisValueFormatter;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
@@ -54,7 +53,7 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
-// Based on StressChartFragment
+// Based on StressDailyFragment
 
 public class Spo2ChartFragment extends AbstractChartFragment<Spo2ChartFragment.Spo2ChartsData> {
     protected static final Logger LOG = LoggerFactory.getLogger(Spo2ChartFragment.class);
@@ -81,9 +80,9 @@ public class Spo2ChartFragment extends AbstractChartFragment<Spo2ChartFragment.S
         CHART_TEXT_COLOR = GBApplication.getSecondaryTextColor(requireContext());
 
         if (prefs.getBoolean("chart_heartrate_color", false)) {
-            CHART_LINE_COLOR = ContextCompat.getColor(getContext(), R.color.chart_heartrate_alternative);
+            CHART_LINE_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate_alternative);
         } else {
-            CHART_LINE_COLOR = ContextCompat.getColor(getContext(), R.color.chart_heartrate);
+            CHART_LINE_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate);
         }
 
         SPO2_AVERAGE_LABEL = requireContext().getString(R.string.charts_legend_spo2_average);
@@ -123,12 +122,13 @@ public class Spo2ChartFragment extends AbstractChartFragment<Spo2ChartFragment.S
         mSpo2Chart.setData(chartsData.getData());
         mSpo2Chart.getAxisLeft().removeAllLimitLines();
 
-        LOG.info("SpO2 average: " + spo2Data.getAverage());
+        LOG.debug("SpO2 average: {}", spo2Data.getAverage());
 
         if (spo2Data.getAverage() > 0 && SHOW_CHARTS_AVERAGE) {
             final LimitLine averageLine = new LimitLine(spo2Data.getAverage());
             averageLine.setLineColor(Color.RED);
-            averageLine.setLineWidth(0.1f);
+            averageLine.setLineWidth(1.5f);
+            averageLine.enableDashedLine(15f, 10f, 0f);
             mSpo2Chart.getAxisLeft().addLimitLine(averageLine);
         }
 
@@ -138,6 +138,11 @@ public class Spo2ChartFragment extends AbstractChartFragment<Spo2ChartFragment.S
     @Override
     public String getTitle() {
         return requireContext().getString(R.string.pref_header_spo2);
+    }
+
+    @Override
+    public boolean isSingleDay() {
+        return false;
     }
 
     @Override
@@ -256,7 +261,7 @@ public class Spo2ChartFragment extends AbstractChartFragment<Spo2ChartFragment.S
             lineDataSets.add(createDataSet(lineEntries));
 
             final LineData lineData = new LineData(lineDataSets);
-            final ValueFormatter xValueFormatter = new SampleXLabelFormatter(tsTranslation);
+            final ValueFormatter xValueFormatter = new SampleXLabelFormatter(tsTranslation, "HH:mm");
             final DefaultChartsData<LineData> chartsData = new DefaultChartsData<>(lineData, xValueFormatter);
             return new Spo2ChartsData(chartsData, Math.round((float) averageSum / averageNumSamples));
         }

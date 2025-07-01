@@ -38,7 +38,6 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
 import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleMorpheuzSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.PebbleMorpheuzSample;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 class AppMessageHandlerMorpheuz extends AppMessageHandler {
     private Integer keyPoint;
@@ -100,8 +99,7 @@ class AppMessageHandlerMorpheuz extends AppMessageHandler {
 
     @Override
     public boolean isEnabled() {
-        Prefs prefs = GBApplication.getPrefs();
-        return prefs.getBoolean("pebble_sync_morpheuz", true);
+        return devicePrefs.getBoolean("pebble_sync_morpheuz", true);
     }
 
     @Override
@@ -111,7 +109,7 @@ class AppMessageHandlerMorpheuz extends AppMessageHandler {
         for (Pair<Integer, Object> pair : pairs) {
             if (Objects.equals(pair.first, keyTransmit)) {
                 ctrl_message |= CTRL_TRANSMIT_DONE;
-                GB.signalActivityDataFinish();
+                GB.signalActivityDataFinish(getDevice());
             } else if (pair.first.equals(keyGoneoff)) {
                 alarm_gone_off = (int) pair.second;
                 LOG.info("got gone off: " + alarm_gone_off / 60 + ":" + alarm_gone_off % 60);

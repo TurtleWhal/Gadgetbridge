@@ -63,11 +63,10 @@ import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 
 
 public class ActivitySummariesFilter extends AbstractGBActivity {
-    private static final Logger LOG = LoggerFactory.getLogger(ActivitySummariesActivity.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ActivitySummariesFilter.class);
     private static final String DATE_FILTER_FROM = "dateFromFilter";
     private static final String DATE_FILTER_TO = "dateToFilter";
     public static long ALL_DEVICES = 999;
@@ -75,7 +74,7 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
     long dateFromFilter = 0;
     long dateToFilter = 0;
     String nameContainsFilter;
-    HashMap<String, Integer> activityKindMap = new HashMap<>(1);
+    HashMap<String, ActivityKind> activityKindMap = new HashMap<>(1);
     List<Long> itemsFilter;
     long deviceFilter;
     long initial_deviceFilter;
@@ -87,7 +86,7 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
         super.onCreate(savedInstanceState);
         Bundle bundle = this.getIntent().getExtras();
 
-        activityKindMap = (HashMap<String, Integer>) bundle.getSerializable("activityKindMap");
+        activityKindMap = (HashMap<String, ActivityKind>) bundle.getSerializable("activityKindMap");
         itemsFilter = (List<Long>) bundle.getSerializable("itemsFilter");
         activityFilter = bundle.getInt("activityFilter", 0);
         dateFromFilter = bundle.getLong("dateFromFilter", 0);
@@ -120,13 +119,15 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
         final Spinner filterKindSpinner = findViewById(R.id.select_kind);
         ArrayList<SpinnerWithIconItem> kindArray = new ArrayList<>();
 
-        for (Map.Entry<String, Integer> item : activityKindMap.entrySet()) {
-            if (item.getValue() == 0) continue; //do not put here All devices, but we do need them in the array
-            kindArray.add(new SpinnerWithIconItem(item.getKey(), new Long(item.getValue()), ActivityKind.getIconId(item.getValue())));
+        for (Map.Entry<String, ActivityKind> item : activityKindMap.entrySet()) {
+            if (item.getValue() == ActivityKind.UNKNOWN) continue; //do not put here All devices, but we do need them in the array
+            kindArray.add(new SpinnerWithIconItem(item.getKey(), (long) item.getValue().getCode(), item.getValue().getIcon()));
         }
 
+        kindArray.sort((o1, o2) -> o1.getText().compareToIgnoreCase(o2.getText()));
+
         //ensure that all items is always first in the list, this is an issue on old android
-        SpinnerWithIconItem allActivities = new SpinnerWithIconItem(getString(R.string.activity_summaries_all_activities), new Long(0), ActivityKind.getIconId(0));
+        SpinnerWithIconItem allActivities = new SpinnerWithIconItem(getString(R.string.activity_summaries_all_activities), (long) ActivityKind.UNKNOWN.getCode(), ActivityKind.UNKNOWN.getIcon());
         kindArray.add(0, allActivities);
 
         SpinnerWithIconAdapter adapter = new SpinnerWithIconAdapter(this,
@@ -142,10 +143,9 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
 
         //quick date filter selection
         final Spinner quick_filter_period_select = findViewById(R.id.quick_filter_period_select);
-        ArrayList<String> quickDateArray = new ArrayList<>(activityKindMap.keySet());
 
-        ArrayList activity_filter_quick_filter_period_items = new ArrayList(Arrays.asList(getResources().getStringArray(R.array.activity_filter_quick_filter_period_items)));
-        ArrayAdapter<String> filterDateAdapter = new ArrayAdapter<String>(this,
+        ArrayList<String> activity_filter_quick_filter_period_items = new ArrayList<>(Arrays.asList(getResources().getStringArray(R.array.activity_filter_quick_filter_period_items)));
+        ArrayAdapter<String> filterDateAdapter = new ArrayAdapter<>(this,
                 R.layout.simple_spinner_item_themed, activity_filter_quick_filter_period_items);
         quick_filter_period_select.setAdapter(filterDateAdapter);
         addListenerOnQuickFilterSelection();
@@ -197,7 +197,7 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
             @Override
             public void onClick(View v) {
                 String text = nameContainsFilterdata.getText().toString();
-                if (text != null && text.length() > 0) {
+                if (!text.isEmpty()) {
                     nameContainsFilter = text;
                 }
                 Intent intent = new Intent();
@@ -381,38 +381,40 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
         update_filter_fields();
     }
 
-    public LinkedHashMap getAllDevices(Context appContext) {
+    public LinkedHashMap<String, Pair<Long, Integer>> getAllDevices(Context appContext) {
         DaoSession daoSession;
         GBApplication gbApp = (GBApplication) appContext;
         LinkedHashMap<String, Pair<Long, Integer>> newMap = new LinkedHashMap<>(1);
         List<? extends GBDevice> devices = gbApp.getDeviceManager().getDevices();
-        newMap.put(getString(R.string.activity_summaries_all_devices), new Pair(ALL_DEVICES, R.drawable.ic_device_default_disabled));
+        newMap.put(getString(R.string.activity_summaries_all_devices), new Pair<>(ALL_DEVICES, R.drawable.ic_device_default));
 
         try (DBHandler handler = GBApplication.acquireDB()) {
             daoSession = handler.getDaoSession();
             for (GBDevice device : devices) {
                 DeviceCoordinator coordinator = device.getType().getDeviceCoordinator();
                 Device dbDevice = DBHelper.findDevice(device, daoSession);
-                int icon = device.getEnabledDisabledIconResource();
+                int icon = device.getDeviceCoordinator().getDefaultIconResource();
                 if (dbDevice != null && coordinator != null
                         && coordinator.supportsActivityTracks()
                         && !newMap.containsKey(device.getAliasOrName())) {
-                    newMap.put(device.getAliasOrName(), new Pair(dbDevice.getId(), icon));
+                    newMap.put(device.getAliasOrName(), new Pair<>(dbDevice.getId(), icon));
                 }
             }
 
         } catch (Exception e) {
-            LOG.debug("Error getting list of all devices: " + e);
+            LOG.error("Error getting list of all devices", e);
         }
         return newMap;
     }
 
-    public SpinnerWithIconItem getKindByValue(Integer value) {
-        for (Map.Entry<String, Integer> entry : activityKindMap.entrySet()) {
-            if (Objects.equals(value, entry.getValue())) {
-                return new SpinnerWithIconItem(entry.getKey(),
-                        new Long(entry.getValue()),
-                        ActivityKind.getIconId(entry.getValue()));
+    public SpinnerWithIconItem getKindByValue(int value) {
+        for (Map.Entry<String, ActivityKind> entry : activityKindMap.entrySet()) {
+            if (value == entry.getValue().getCode()) {
+                return new SpinnerWithIconItem(
+                        entry.getKey(),
+                        (long) entry.getValue().getCode(),
+                        entry.getValue().getIcon()
+                );
             }
         }
         return null;
@@ -434,7 +436,7 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
             SpinnerWithIconItem selectedItem = (SpinnerWithIconItem) parent.getItemAtPosition(pos);
             String activity = selectedItem.getText();
-            activityFilter = activityKindMap.get(activity);
+            activityFilter = activityKindMap.get(activity).getCode();
             update_filter_fields();
         }
 
@@ -461,11 +463,11 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
     }
 
     public class CustomQuickFilterSelectionListener implements AdapterView.OnItemSelectedListener {
-        ArrayList activity_filter_quick_filter_period_values = new ArrayList(Arrays.asList(getResources().getStringArray(R.array.activity_filter_quick_filter_period_values)));
+        ArrayList<String> activity_filter_quick_filter_period_values = new ArrayList<>(Arrays.asList(getResources().getStringArray(R.array.activity_filter_quick_filter_period_values)));
         String selection;
 
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-            selection = activity_filter_quick_filter_period_values.get(pos).toString();
+            selection = activity_filter_quick_filter_period_values.get(pos);
             setTimePeriodFilter(selection);
         }
 

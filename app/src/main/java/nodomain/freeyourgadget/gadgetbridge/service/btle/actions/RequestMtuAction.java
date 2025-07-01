@@ -16,16 +16,16 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.btle.actions;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.os.Build;
-
-import androidx.annotation.RequiresApi;
 
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEAction;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCallback;
 
+/// Calls {@link BluetoothGatt#requestMtu(int)}. Results are returned to
+/// {@link GattCallback#onMtuChanged(BluetoothGatt, int, int)}
 public class RequestMtuAction extends BtLEAction {
-    private int mtu;
+    private final int mtu;
 
     public RequestMtuAction(int mtu) {
         super(null);
@@ -38,8 +38,14 @@ public class RequestMtuAction extends BtLEAction {
         return true;
     }
 
+    @SuppressLint("MissingPermission")
     @Override
     public boolean run(BluetoothGatt gatt) {
         return gatt.requestMtu(this.mtu);
+    }
+
+    @Override
+    public String toString() {
+        return getCreationTime() + ": " + getClass().getSimpleName() + " mtu=" + mtu;
     }
 }

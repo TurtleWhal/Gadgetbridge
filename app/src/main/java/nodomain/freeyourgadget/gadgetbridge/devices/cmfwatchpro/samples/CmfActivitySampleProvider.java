@@ -40,6 +40,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.CmfSleepStageSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 
 public class CmfActivitySampleProvider extends AbstractSampleProvider<CmfActivitySample> {
     private static final Logger LOG = LoggerFactory.getLogger(CmfActivitySampleProvider.class);
@@ -72,13 +73,13 @@ public class CmfActivitySampleProvider extends AbstractSampleProvider<CmfActivit
     }
 
     @Override
-    public int normalizeType(final int rawType) {
-        return rawType;
+    public ActivityKind normalizeType(final int rawType) {
+        return ActivityKind.fromCode(rawType);
     }
 
     @Override
-    public int toRawActivityKind(final int activityKind) {
-        return activityKind;
+    public int toRawActivityKind(final ActivityKind activityKind) {
+        return activityKind.getCode();
     }
 
     @Override
@@ -92,17 +93,16 @@ public class CmfActivitySampleProvider extends AbstractSampleProvider<CmfActivit
     }
 
     @Override
-    protected List<CmfActivitySample> getGBActivitySamples(final int timestamp_from, final int timestamp_to, final int activityType) {
+    protected List<CmfActivitySample> getGBActivitySamples(final int timestamp_from, final int timestamp_to) {
         LOG.trace(
-                "Getting cmf activity samples for {} between {} and {}",
-                String.format("0x%08x", activityType),
+                "Getting cmf activity samples between {} and {}",
                 timestamp_from,
                 timestamp_to
         );
 
         final long nanoStart = System.nanoTime();
 
-        final List<CmfActivitySample> samples = super.getGBActivitySamples(timestamp_from, timestamp_to, activityType);
+        final List<CmfActivitySample> samples = super.getGBActivitySamples(timestamp_from, timestamp_to);
 
         if (!samples.isEmpty()) {
             convertCumulativeSteps(samples, CmfActivitySampleDao.Properties.Steps);
@@ -165,34 +165,23 @@ public class CmfActivitySampleProvider extends AbstractSampleProvider<CmfActivit
                     sampleByTs.put(i, sample);
                 }
 
-                final int sleepRawKind = sleepStageToActivityKind(sleepStageSample.getStage());
-                sample.setRawKind(sleepRawKind);
-
-                switch (sleepRawKind) {
-                    case ActivityKind.TYPE_DEEP_SLEEP:
-                        sample.setRawIntensity(20);
-                        break;
-                    case ActivityKind.TYPE_LIGHT_SLEEP:
-                        sample.setRawIntensity(30);
-                        break;
-                    case ActivityKind.TYPE_REM_SLEEP:
-                        sample.setRawIntensity(40);
-                        break;
-                }
+                final ActivityKind sleepRawKind = sleepStageToActivityKind(sleepStageSample.getStage());
+                sample.setRawKind(sleepRawKind.getCode());
+                sample.setRawIntensity(ActivitySample.NOT_MEASURED);
             }
         }
     }
 
-    final int sleepStageToActivityKind(final int sleepStage) {
+    final ActivityKind sleepStageToActivityKind(final int sleepStage) {
         switch (sleepStage) {
             case 1:
-                return ActivityKind.TYPE_DEEP_SLEEP;
+                return ActivityKind.DEEP_SLEEP;
             case 2:
-                return ActivityKind.TYPE_LIGHT_SLEEP;
+                return ActivityKind.LIGHT_SLEEP;
             case 3:
-                return ActivityKind.TYPE_REM_SLEEP;
+                return ActivityKind.REM_SLEEP;
             default:
-                return ActivityKind.TYPE_UNKNOWN;
+                return ActivityKind.UNKNOWN;
         }
     }
 }

@@ -1,4 +1,4 @@
-/*  Copyright (C) 2021-2024 Arjan Schrijver, José Rebelo
+/*  Copyright (C) 2021-2024 Arjan Schrijver, José Rebelo, Johannes Krude
 
     This file is part of Gadgetbridge.
 
@@ -47,9 +47,11 @@ public class GBReminderListAdapter extends RecyclerView.Adapter<GBReminderListAd
 
     private final Context mContext;
     private ArrayList<Reminder> reminderList;
+    private boolean remindersHaveTime;
 
-    public GBReminderListAdapter(Context context) {
+    public GBReminderListAdapter(Context context, boolean remindersHaveTime) {
         this.mContext = context;
+        this.remindersHaveTime = remindersHaveTime;
     }
 
     public void setReminderList(List<Reminder> reminders) {
@@ -100,7 +102,12 @@ public class GBReminderListAdapter extends RecyclerView.Adapter<GBReminderListAd
         holder.reminderMessage.setText(reminder.getMessage());
 
         final Date time = reminder.getDate();
-        final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+        SimpleDateFormat format;
+        if (remindersHaveTime) {
+            format = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+        } else {
+            format = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        }
 
         int stringResId = 0;
 

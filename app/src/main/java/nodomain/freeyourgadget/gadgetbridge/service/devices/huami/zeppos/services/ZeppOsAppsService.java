@@ -16,8 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services;
 
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,9 +26,10 @@ import java.util.List;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.AbstractZeppOsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
+import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
 public class ZeppOsAppsService extends AbstractZeppOsService {
     private static final Logger LOG = LoggerFactory.getLogger(ZeppOsAppsService.class);
@@ -78,7 +77,8 @@ public class ZeppOsAppsService extends AbstractZeppOsService {
         }
     }
 
-    public void initialize(final TransactionBuilder builder) {
+    @Override
+    public void initialize(final ZeppOsTransactionBuilder builder) {
         requestApps(builder);
     }
 
@@ -92,7 +92,7 @@ public class ZeppOsAppsService extends AbstractZeppOsService {
 
     private void handleAppsPayload(final byte[] payload) {
         if (payload[1] != CMD_INCOMING) {
-            LOG.warn("Unexpected non-incoming payload ({})", String.format("0x%02x", payload[1]));
+            LOG.warn("Unexpected non-incoming apps payload ({})", String.format("0x%02x", payload[1]));
             return;
         }
 
@@ -115,9 +115,10 @@ public class ZeppOsAppsService extends AbstractZeppOsService {
         }
     }
 
+    /** @noinspection SwitchStatementWithTooFewBranches*/
     private void handleScreenshotPayload(final byte[] payload) {
         if (payload[1] != CMD_INCOMING) {
-            LOG.warn("Unexpected non-incoming payload ({})", String.format("0x%02x", payload[1]));
+            LOG.warn("Unexpected non-incoming screenshot payload ({})", String.format("0x%02x", payload[1]));
             return;
         }
 
@@ -133,11 +134,15 @@ public class ZeppOsAppsService extends AbstractZeppOsService {
     private void parseAppList(final byte[] payload) {
         apps.clear();
 
-        final byte[] appListStringBytes = ArrayUtils.subarray(payload, 16, payload.length);
-        final String appListString = new String(appListStringBytes);
+        final String appListString = StringUtils.untilNullTerminator(payload, 16);
+        if (appListString == null) {
+            LOG.warn("Failed to get app list string from payload");
+            return;
+        }
+
         final String[] appListSplit = appListString.split(";");
         for (final String appString : appListSplit) {
-            if (StringUtils.isBlank(appString)) {
+            if (StringUtils.isEmpty(appString)) {
                 continue;
             }
 
@@ -164,7 +169,7 @@ public class ZeppOsAppsService extends AbstractZeppOsService {
         // TODO broadcast something to update app manager
     }
 
-    public void requestApps(final TransactionBuilder builder) {
+    public void requestApps(final ZeppOsTransactionBuilder builder) {
         LOG.info("Request apps");
 
         final ByteBuffer buf = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);

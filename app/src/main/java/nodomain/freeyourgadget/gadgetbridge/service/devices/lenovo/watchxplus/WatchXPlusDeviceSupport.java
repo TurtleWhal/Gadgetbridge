@@ -24,7 +24,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Handler;
 import android.widget.Toast;
 
@@ -71,18 +70,13 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.lenovo.operations.InitOperation;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.ArrayUtils;
@@ -90,7 +84,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.BcdUtil;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
-public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
+public class WatchXPlusDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private boolean needsAuth;
     private int sequenceNumber = 0;
     private boolean isCalibrationActive = false;
@@ -152,7 +146,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
             needsAuth = false;
             new InitOperation(auth, this, builder).perform();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.warn("exception in initializeDevice", e);
         }
         return builder;
     }
@@ -549,7 +543,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                 //.setUnitsSettings()                             // set metric/imperial units
                 .checkInitTime(builder)
                 .syncPreferences(builder);                      // read preferences from app and set them to watch
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
         builder.setCallback(this);
         return this;
     }
@@ -649,6 +643,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                     // init repeat handler
                     final Handler handler = new Handler();
                     handler.postDelayed(new Runnable() {
+                        @Override
                         public void run() {
                             // Actions to do after repeatDelay seconds
                             if (((isRinging) && (remainingRepeats > 0)) || ((isRinging) && (continuousRing))) {
@@ -703,6 +698,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                         // repeat missed call notification
                         final Handler handler = new Handler();
                         handler.postDelayed(new Runnable() {
+                            @Override
                             public void run() {
                                 // Actions to do after repeatDelay seconds
                                 if ((isMissedCall) && (remainingMissedRepeats > 0)) {
@@ -876,6 +872,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                     setPowerMode();
                     break;
                 case DeviceSettingsPreferenceConst.PREF_LANGUAGE:
+                case DeviceSettingsPreferenceConst.PREF_TIMEFORMAT:
                     setLanguageAndTimeFormat(builder);
                     break;
 
@@ -898,16 +895,13 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                 case DeviceSettingsPreferenceConst.PREF_DISCONNECTNOTIF_NOSHED:
                     setDisconnectReminder(builder);
                     break;
-                case DeviceSettingsPreferenceConst.PREF_TIMEFORMAT:
-                    setLanguageAndTimeFormat(builder);
-                    break;
                 case DeviceSettingsPreferenceConst.PREF_DO_NOT_DISTURB_NOAUTO:
                     setDNDHours(builder);
                     break;
             }
             builder.queue(getQueue());
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.error("Failed to send config", e);
         }
     }
 
@@ -1388,11 +1382,11 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        super.onCharacteristicChanged(gatt, characteristic);
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] value) {
+        super.onCharacteristicChanged(gatt, characteristic, value);
 
         UUID characteristicUUID = characteristic.getUuid();
-        byte[] value = characteristic.getValue();
         if (WatchXPlusConstants.UUID_CHARACTERISTIC_WRITE.equals(characteristicUUID)) {
             if (ArrayUtils.equals(value, WatchXPlusConstants.RESP_FIRMWARE_INFO, 5)) {
                 handleFirmwareInfo(value);
@@ -1447,7 +1441,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                 LOG.info(" Received notification settings status ");
             } else {
                 LOG.info(" Unhandled value change for characteristic: " + characteristicUUID);
-                logMessageContent(characteristic.getValue());
+                logMessageContent(value);
             }
 
             return true;
@@ -1457,7 +1451,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
             return true;
         } else {
             LOG.info(" Unhandled characteristic changed: " + characteristicUUID + " value " + Arrays.toString(value));
-            logMessageContent(characteristic.getValue());
+            logMessageContent(value);
         }
 
         return false;
@@ -1633,7 +1627,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                     sample.setTimestamp(tsWithOffset);
                     sample.setProvider(provider);
                     sample.setRawIntensity(val);
-                    sample.setRawKind(val == 0 ? ActivityKind.TYPE_DEEP_SLEEP : ActivityKind.TYPE_LIGHT_SLEEP);
+                    sample.setRawKind((val == 0 ? ActivityKind.DEEP_SLEEP : ActivityKind.LIGHT_SLEEP).getCode());
                     samples.add(sample);
                     overlayList.add(new WatchXPlusHealthActivityOverlay(sample.getTimestamp(), sample.getTimestamp()+300, sample.getRawKind(), sample.getDeviceId(), sample.getUserId(), sample.getRawWatchXPlusHealthData()));
                 }
@@ -1655,7 +1649,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                     sample.setTimestamp(tsWithOffset);
                     sample.setHeartRate(val);
                     sample.setProvider(provider);
-                    sample.setRawKind(ActivityKind.TYPE_ACTIVITY);
+                    sample.setRawKind(ActivityKind.ACTIVITY.getCode());
                     samples.add(sample);
                 }
                 provider.addGBActivitySamples(samples.toArray(new WatchXPlusActivitySample[0]));
@@ -1777,7 +1771,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                 WatchXPlusActivitySample sample = createSample(dbHandler, timestamp);
                 sample.setTimestamp(timestamp);
 //            sample.setRawKind(record.type);
-                sample.setRawKind(ActivityKind.TYPE_ACTIVITY);
+                sample.setRawKind(ActivityKind.ACTIVITY.getCode());
                 sample.setSteps(newSteps);
 //            sample.setDistance(record.distance);
 //            sample.setCalories(record.calories);
@@ -1846,7 +1840,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                 timestamp,                      // ts
                 deviceId, userId,               // User id
                 null,            // Raw Data
-                ActivityKind.TYPE_UNKNOWN,      // rawKind
+                ActivityKind.UNKNOWN.getCode(),      // rawKind
                 ActivitySample.NOT_MEASURED,      // rawIntensity
                 ActivitySample.NOT_MEASURED,     // Steps
                 ActivitySample.NOT_MEASURED,    // HR
@@ -2038,21 +2032,23 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
                 buildCommand(WatchXPlusConstants.CMD_ALTITUDE,
                         WatchXPlusConstants.WRITE_VALUE,
                         bArr));
-        LOG.info(" setAltitude: " + mAltitude);
+        LOG.info(" setAltitude: {}", mAltitude);
     }
 
     // set time format
     private void setLanguageAndTimeFormat(TransactionBuilder transactionBuilder) {
         byte setLanguage, setTimeMode;
-        String languageString = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getString(DeviceSettingsPreferenceConst.PREF_LANGUAGE, "1");
-        if (languageString == null || languageString.equals("1")) {
-             setLanguage = 0x01;
-        } else {
-            setLanguage = 0x00;
+        String languageString = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getString(DeviceSettingsPreferenceConst.PREF_LANGUAGE, "en_US");
+        switch (languageString) {
+            case "zh_CN":
+                setLanguage = 0x00;
+                break;
+            case "en_US":
+            default:
+                setLanguage = 0x01;
         }
 
         String timeformatString = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getString(DeviceSettingsPreferenceConst.PREF_TIMEFORMAT, "1");
-        assert timeformatString != null;
         if (timeformatString.equals(getContext().getString(R.string.p_timeformat_24h))) {
             setTimeMode = WatchXPlusConstants.ARG_SET_TIMEMODE_24H;
         } else {
@@ -2094,6 +2090,15 @@ public class WatchXPlusDeviceSupport extends AbstractBTLEDeviceSupport {
         }
     }
 
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
+    }
 
 
     private static class Conversion {

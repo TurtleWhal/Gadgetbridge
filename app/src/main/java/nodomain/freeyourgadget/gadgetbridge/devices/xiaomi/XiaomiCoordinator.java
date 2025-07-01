@@ -20,6 +20,8 @@ import static nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.Xiaomi
 
 import android.app.Activity;
 import android.bluetooth.le.ScanFilter;
+import android.content.Context;
+import android.net.Uri;
 import android.os.ParcelUuid;
 
 import androidx.annotation.NonNull;
@@ -45,6 +47,7 @@ import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.widgets.WidgetManager;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
@@ -55,7 +58,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
 import nodomain.freeyourgadget.gadgetbridge.model.PaiSample;
-import nodomain.freeyourgadget.gadgetbridge.model.SleepRespiratoryRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.RespiratoryRateSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
@@ -84,7 +87,7 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return XiaomiSupport.class;
     }
 
@@ -94,6 +97,13 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
         // At this point we don't know if it's encrypted or not, so let's accept both:
         return authKeyBytes.length == 32 || (authKey.startsWith("0x") && authKeyBytes.length == 34)
                 || AUTH_KEY_PATTERN.matcher(authKey.trim()).matches();
+    }
+
+    @Nullable
+    @Override
+    public InstallHandler findInstallHandler(final Uri uri, final Context context) {
+        final XiaomiInstallHandler handler = new XiaomiInstallHandler(uri, context);
+        return handler.isValid() ? handler : null;
     }
 
     @Override
@@ -143,9 +153,8 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public TimeSampleProvider<? extends HeartRateSample> getHeartRateRestingSampleProvider(final GBDevice device, final DaoSession session) {
-        // TODO XiaomiHeartRateRestingSampleProvider
-        return super.getHeartRateRestingSampleProvider(device, session);
+    public TimeSampleProvider<? extends HeartRateSample> getHeartRateRestingSampleProvider(GBDevice device, DaoSession session) {
+        return new XiaomiHeartRateRestingSampleProvider(device, session);
     }
 
     @Override
@@ -160,14 +169,14 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public TimeSampleProvider<? extends SleepRespiratoryRateSample> getSleepRespiratoryRateSampleProvider(final GBDevice device, final DaoSession session) {
+    public TimeSampleProvider<? extends RespiratoryRateSample> getRespiratoryRateSampleProvider(final GBDevice device, final DaoSession session) {
         // TODO XiaomiSleepRespiratoryRateSampleProvider
-        return super.getSleepRespiratoryRateSampleProvider(device, session);
+        return super.getRespiratoryRateSampleProvider(device, session);
     }
 
     @Nullable
     @Override
-    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device) {
+    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
         return new WorkoutSummaryParser();
     }
 
@@ -186,6 +195,7 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
         return true;
     }
 
+    @Override
     public boolean supportsAppsManagement(final GBDevice device) {
         return true;
     }
@@ -259,6 +269,11 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
     public boolean supportsHeartRateStats() {
         // TODO it does, and they're persisted - see DailySummaryParser
         return false;
+    }
+
+    @Override
+    public boolean supportsHeartRateRestingMeasurement(GBDevice device) {
+        return true;
     }
 
     @Override
@@ -359,6 +374,11 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
+    public boolean addBatteryPollingSettings() {
+        return true;
+    }
+
+    @Override
     public boolean supportsUnicodeEmojis() {
         return true;
     }
@@ -442,6 +462,7 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
         final List<Integer> workout = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.WORKOUT);
         workout.add(R.xml.devicesettings_workout_start_on_phone);
         workout.add(R.xml.devicesettings_workout_send_gps_to_band);
+        workout.add(R.xml.devicesettings_workout_send_gps_to_band_timeout);
 
         //
         // Notifications
@@ -571,5 +592,19 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
 
     public boolean supports(final GBDevice device, final String feature) {
         return getPrefs(device).getBoolean(feature, false);
+    }
+
+    public boolean checkDecryptionMac() {
+        return true;
+    }
+
+    /**
+     * Whether the device supports alarms. This differs from {@link #getAlarmSlotCount} since that
+     * returns the number of alarms dynamically after requesting them, but some devices will crash
+     * if we even attempt to request alarms and they do not support them - see
+     * <a href="https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/3766">#3766</a>
+     */
+    public boolean supportsAlarms() {
+        return true;
     }
 }

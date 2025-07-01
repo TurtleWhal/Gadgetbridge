@@ -23,11 +23,8 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.apache.commons.lang3.ArrayUtils;
-
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -35,10 +32,11 @@ import java.util.List;
 import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.widgets.WidgetManager;
@@ -48,23 +46,29 @@ import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.roidmi.RoidmiConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.test.activity.TestActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestBodyEnergySampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestHrvSummarySampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestHrvValueSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestPaiSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestRespiratoryRateSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestSpo2SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestStressSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.test.samples.TestTemperatureSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.AbstractNotificationPattern;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
+import nodomain.freeyourgadget.gadgetbridge.model.BodyEnergySample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.HrvSummarySample;
+import nodomain.freeyourgadget.gadgetbridge.model.HrvValueSample;
 import nodomain.freeyourgadget.gadgetbridge.model.PaiSample;
-import nodomain.freeyourgadget.gadgetbridge.model.SleepRespiratoryRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.RespiratoryRateSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
@@ -75,13 +79,6 @@ import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
-    @Override
-    protected void deleteDevice(@NonNull final GBDevice gbDevice,
-                                @NonNull final Device device,
-                                @NonNull final DaoSession session) throws GBException {
-        // Nothing to do
-    }
-
     @Override
     public boolean supports(final GBDeviceCandidate candidate) {
         return false;
@@ -94,7 +91,7 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return TestDeviceSupport.class;
     }
 
@@ -114,6 +111,21 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
+    public TimeSampleProvider<? extends BodyEnergySample> getBodyEnergySampleProvider(final GBDevice device, final DaoSession session) {
+        return supportsBodyEnergy() ? new TestBodyEnergySampleProvider() : super.getBodyEnergySampleProvider(device ,session);
+    }
+
+    @Override
+    public TimeSampleProvider<? extends HrvSummarySample> getHrvSummarySampleProvider(final GBDevice device, final DaoSession session) {
+        return supportsHrvMeasurement(device) ? new TestHrvSummarySampleProvider() : super.getHrvSummarySampleProvider(device ,session);
+    }
+
+    @Override
+    public TimeSampleProvider<? extends HrvValueSample> getHrvValueSampleProvider(final GBDevice device, final DaoSession session) {
+        return supportsHrvMeasurement(device) ? new TestHrvValueSampleProvider() : super.getHrvValueSampleProvider(device ,session);
+    }
+
+    @Override
     public int[] getStressRanges() {
         // TODO getStressRanges
         return super.getStressRanges();
@@ -121,7 +133,7 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
 
     @Override
     public TimeSampleProvider<? extends TemperatureSample> getTemperatureSampleProvider(final GBDevice device, final DaoSession session) {
-        return new TestTemperatureSampleProvider(); // TODO supportsTemperature
+        return supportsTemperatureMeasurement(device) ? new TestTemperatureSampleProvider() : super.getTemperatureSampleProvider(device, session);
     }
 
     @Override
@@ -153,15 +165,14 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public TimeSampleProvider<? extends SleepRespiratoryRateSample> getSleepRespiratoryRateSampleProvider(final GBDevice device, final DaoSession session) {
-        // TODO getHeartRateManualSampleProvider
-        return super.getSleepRespiratoryRateSampleProvider(device, session);
+    public TimeSampleProvider<? extends RespiratoryRateSample> getRespiratoryRateSampleProvider(final GBDevice device, final DaoSession session) {
+        return supportsRespiratoryRate() ? new TestRespiratoryRateSampleProvider() : super.getRespiratoryRateSampleProvider(device, session);
     }
 
     @Nullable
     @Override
-    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device) {
-        return supportsActivityTracks() ? new TestActivitySummaryParser() : super.getActivitySummaryParser(device);
+    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
+        return supportsActivityTracks() ? new TestActivitySummaryParser() : super.getActivitySummaryParser(device, context);
     }
 
     @Override
@@ -302,7 +313,7 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsTemperatureMeasurement() {
+    public boolean supportsTemperatureMeasurement(final GBDevice device) {
         return supports(getTestDevice(), TestFeature.TEMPERATURE_MEASUREMENT);
     }
 
@@ -314,6 +325,16 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     @Override
     public boolean supportsStressMeasurement() {
         return supports(getTestDevice(), TestFeature.STRESS_MEASUREMENT);
+    }
+
+    @Override
+    public boolean supportsBodyEnergy() {
+        return supports(getTestDevice(), TestFeature.BODY_ENERGY);
+    }
+
+    @Override
+    public boolean supportsHrvMeasurement(final GBDevice device) {
+        return supports(device, TestFeature.HRV_MEASUREMENT);
     }
 
     @Override
@@ -339,6 +360,11 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     @Override
     public boolean supportsPaiTime() {
         return supports(getTestDevice(), TestFeature.PAI_TIME);
+    }
+
+    @Override
+    public boolean supportsRespiratoryRate() {
+        return supports(getTestDevice(), TestFeature.RESPIRATORY_RATE);
     }
 
     @Override
@@ -465,26 +491,26 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public int[] getSupportedDeviceSpecificSettings(final GBDevice device) {
-        final List<Integer> settings = new ArrayList<>();
+    public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
+        final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
 
-        settings.add(R.xml.devicesettings_header_apps);
-        settings.add(R.xml.devicesettings_loyalty_cards);
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_loyalty_cards);
 
         if (getWorldClocksSlotCount() > 0) {
-            settings.add(R.xml.devicesettings_header_time);
-            settings.add(R.xml.devicesettings_world_clocks);
+            final List<Integer> dateTime = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DATE_TIME);
+            dateTime.add(R.xml.devicesettings_world_clocks);
         }
 
         if (getContactsSlotCount(device) > 0) {
-            settings.add(R.xml.devicesettings_header_other);
-            settings.add(R.xml.devicesettings_contacts);
+            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_contacts);
         }
 
-        settings.add(R.xml.devicesettings_header_developer);
-        settings.add(R.xml.devicesettings_test_features);
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_test_features);
 
-        return ArrayUtils.toPrimitive(settings.toArray(new Integer[0]));
+        final List<Integer> developer = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
+        developer.add(R.xml.devicesettings_developer_add_test_activities);
+
+        return deviceSpecificSettings;
     }
 
     @Override
@@ -513,19 +539,19 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public int getBatteryCount() {
+    public int getBatteryCount(final GBDevice device) {
         return supports(getTestDevice(), TestFeature.BATTERIES_MULTIPLE) ? 3 : 1;
     }
 
     @Override
     public BatteryConfig[] getBatteryConfig(final GBDevice device) {
-        if (getBatteryCount() == 1) {
+        if (getBatteryCount(device) == 1) {
             return super.getBatteryConfig(device);
         }
 
-        final BatteryConfig[] ret = new BatteryConfig[getBatteryCount()];
+        final BatteryConfig[] ret = new BatteryConfig[getBatteryCount(device)];
 
-        for (int i = 0; i < getBatteryCount(); i++) {
+        for (int i = 0; i < getBatteryCount(device); i++) {
             ret[i] = new BatteryConfig(i, R.drawable.ic_battery_full, R.string.battery);
         }
 
@@ -533,7 +559,7 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsPowerOff() {
+    public boolean supportsPowerOff(final GBDevice device) {
         return supports(getTestDevice(), TestFeature.POWER_OFF);
     }
 
@@ -575,12 +601,6 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public int getDisabledIconResource() {
-        // TODO getDisabledIconResource
-        return super.getDisabledIconResource();
-    }
-
-    @Override
     public boolean supportsNotificationVibrationPatterns() {
         return supports(getTestDevice(), TestFeature.NOTIFICATION_VIBRATION_PATTERNS);
     }
@@ -593,6 +613,11 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     @Override
     public boolean supportsNotificationLedPatterns() {
         return supports(getTestDevice(), TestFeature.NOTIFICATION_LED_PATTERNS);
+    }
+
+    @Override
+    public boolean addBatteryPollingSettings() {
+        return supports(getTestDevice(), TestFeature.BATTERY_POLLING_SETTINGS);
     }
 
     @Override

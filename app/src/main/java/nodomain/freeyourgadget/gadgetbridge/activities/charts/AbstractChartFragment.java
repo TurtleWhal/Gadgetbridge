@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.text.format.DateUtils;
 import android.view.View;
 
 import androidx.fragment.app.FragmentActivity;
@@ -153,6 +154,7 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
     protected void onMadeVisibleInActivity() {
         super.onMadeVisibleInActivity();
         showDateBar(true);
+        updateDateInfo(getStartDate(), getEndDate());
         if (mChartDirty) {
             refresh();
         }
@@ -186,6 +188,14 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
         return toTimestamp(getStartDate());
     }
 
+    /**
+     * Whether this chart shows data only for a single day. The day is expected to match
+     * the end timestamp.
+     */
+    protected boolean isSingleDay() {
+        return true;
+    }
+
     protected int toTimestamp(Date date) {
         return (int) ((date.getTime() / 1000));
     }
@@ -195,8 +205,15 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
     }
 
     protected void onReceive(Context context, Intent intent) {
+        final FragmentActivity fragmentActivity = requireActivity();
+        if (!(fragmentActivity instanceof ChartsHost)) {
+            LOG.error("{} is not an instance of ChartsHost, preventing crash", fragmentActivity.getClass());
+            return;
+        }
+
         String action = intent.getAction();
         if (ChartsHost.REFRESH.equals(action)) {
+            updateDateInfo(getStartDate(), getEndDate());
             refresh();
         } else if (ChartsHost.DATE_NEXT_DAY.equals(action)) {
             handleDate(getStartDate(), getEndDate(), +1);
@@ -235,6 +252,8 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
             if (!shiftDates(startDate, endDate, offset)) {
                 return;
             }
+
+            updateDateInfo(getStartDate(), getEndDate());
         }
         refreshIfVisible();
     }
@@ -315,7 +334,6 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
         if (chartsHost != null) {
             if (chartsHost.getDevice() != null) {
                 mChartDirty = false;
-                updateDateInfo(getStartDate(), getEndDate());
                 if (refreshTask != null && refreshTask.getStatus() != AsyncTask.Status.FINISHED) {
                     refreshTask.cancel(true);
                 }
@@ -350,12 +368,18 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
         protected void onPostExecute(final Object o) {
             super.onPostExecute(o);
             final FragmentActivity activity = getActivity();
-            if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
-                updateChartsnUIThread(chartsData);
-                renderCharts();
-            } else {
+            if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 LOG.info("Not rendering charts because activity is not available anymore");
+                return;
             }
+            if (getTaskError() != null) {
+                // Async task failed - we will have no data, so avoid NPE crashes
+                // a log + toast were already displayed by the DBAccess class
+                return;
+            }
+
+            updateChartsnUIThread(chartsData);
+            renderCharts();
         }
     }
 
@@ -381,10 +405,11 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
     }
 
     private void updateDateInfo(final Date from, final Date to) {
-        if (from.equals(to)) {
-            getChartsHost().setDateInfo(DateTimeUtils.formatDate(from));
+        int dateFlags = DateUtils.FORMAT_SHOW_WEEKDAY;
+        if (isSingleDay() || from.equals(to)) {
+            getChartsHost().setDateInfo(DateTimeUtils.formatDate(to, dateFlags));
         } else {
-            getChartsHost().setDateInfo(DateTimeUtils.formatDateRange(from, to));
+            getChartsHost().setDateInfo(DateTimeUtils.formatDateRange(from, to, dateFlags));
         }
     }
 }

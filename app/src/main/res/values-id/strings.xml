@@ -68,9 +68,7 @@
     <string name="installhandler_firmware_name">%1$s: %2$s %3$s</string>
     <string name="fwapp_install_device_not_ready">File tidak dapat diinstal, perangkat tidak siap.</string>
     <string name="updating_firmware">Mem-flash perangkat tegar…</string>
-    <string name="firmware_update_progress">Pengunggahan sedang berlangsung
-\n%1d %% pada %.2f kbps (rata-rata %.2f kbps)
-\nBagian %1d dari %1d</string>
+    <string name="firmware_update_progress">Pengunggahan sedang berlangsung \n%1d %% pada %.2f kbps (rata-rata %.2f kbps) \nBagian %1d dari %1d</string>
     <string name="devicestatus_upload_failed">Unggahan gagal</string>
     <string name="devicestatus_upload_aborted">Unggahan telah dibatalkan!</string>
     <string name="devicestatus_upload_validating">Unggahan sedang divalidasi</string>
@@ -378,12 +376,10 @@
     <string name="activity_prefs_charts">Pengaturan bagan</string>
     <string name="activity_prefs_activetime_minutes">Sasaran setiap hari: waktu aktif dalam menit</string>
     <string name="companiondevice_pairing">Penyandingan CompanionDevice</string>
-    <string name="ignore_bonded_devices">Abaikan perangkat yang dijalin</string>
     <string name="miband_prefs_fitness_goal">Sasaran langkah sehari</string>
     <string name="pref_title_physical_buttons">Tombol fisik</string>
     <string name="pref_header_sony_equalizer_bands">Band</string>
     <string name="sony_button_mode_right">Mode Tombol (Kanan)</string>
-    <string name="devicetype_miscale2">Mi Scale 2</string>
     <string name="menuitem_goal">Sasaran Aktivitas</string>
     <string name="weeksleepchart_sleep_a_month">Tidur per bulan</string>
     <string name="pref_title_chart_sleep_rolling_24_hour">Jangka tidur</string>
@@ -550,7 +546,7 @@
     <string name="user_feedback_miband_set_alarms_ok">Alarm dikirim ke perangkat.</string>
     <string name="live_activity_current_steps_per_minute">Langkah/mnt saat ini</string>
     <string name="lefun_prefs_antilost_summary">Gelang akan bergetar ketika ponsel Anda terputus dari gelang</string>
-    <string name="dbmanagementactivity_overwrite_database_confirmation">Benar-benar timpa data saat ini\? Semua data aktivitas dan preferensi saat ini (jika ada) akan ditimpa.</string>
+    <string name="dbmanagementactivity_overwrite_database_confirmation">Benar-benar timpa data saat ini? Semua data aktivitas, perangkat, dan preferensi saat ini (jika ada) akan ditimpa.</string>
     <string name="dbmanagementactivity_old_activity_db_successfully_deleted">Data aktivitas lawas dihapus.</string>
     <string name="StringUtils_sender">(%1$s)</string>
     <string name="activity_type_biking">Bersepeda</string>
@@ -647,7 +643,6 @@
     <string name="power_saving">Penghemat Daya</string>
     <string name="single_band">Jalur Tunggal</string>
     <string name="low_power_gps">GPS Daya Rendah</string>
-    <string name="gps_gnolass">GPS + GLONASS</string>
     <string name="all_satellites">Semua Satelit</string>
     <string name="speed_first">Kecepatan Terlebih Dahulu</string>
     <string name="accuracy_first">Akurasi Terlebih Dahulu</string>
@@ -687,7 +682,7 @@
     <string name="pref_enable_unsupported_settings_summary">Ini akan mengaktifkan akses ke semua pengaturan yang tersedia, bahkan jika tidak didukung oleh perangkat. Ini bisa menjadi tidak stabil dan mogok pada perangkat.</string>
     <string name="abstract_chart_fragment_kind_rem_sleep">Tidur REM</string>
     <string name="user_feedback_all_alarms_disabled">Semua alarm dinonaktifkan</string>
-    <string name="you_slept">Anda tidur dari %1$s ke %2$s</string>
+    <string name="you_slept">%1$s - %2$s</string>
     <string name="prefs_find_phone_summary">Gunakan gelang Anda untuk memainkan bunyi ponsel Anda.</string>
     <string name="mi2_prefs_display_items_summary">Pilih item untuk ditampilkan pada layar gelang</string>
     <string name="prefs_password_6_digits_0_to_9_summary">Kata sandi harus memiliki 6 digit, dengan hanya nomor</string>
@@ -735,7 +730,6 @@
     <string name="hr_widget_heart_rate">Detak jantung</string>
     <string name="qhybrid_offset_time_by">geser waktu dengan</string>
     <string name="qhybrid_use_activity_hand_as_notification_counter">gunakan tangan aktivitas sebagai penghitung notifikasi</string>
-    <string name="companiondevice_pairing_details">Mengaktifkan dukungan API CompanionDevice baru (hanya ada efek di Android 8 dan lebih) yang akan meningkatkan keandalan ketika perangkat harus dimulai ulang di latar belakang, membutuhkan menyandingan ulang ke Gadgetbridge untuk diterapkan</string>
     <string name="laps_unit">putaran</string>
     <string name="qhybrid_calibration_counterclockwise">Berlawanan arah jarum jam</string>
     <string name="watchface_setting_button_toggle_backlight">Nyalakan lampu belakang</string>
@@ -849,7 +843,6 @@
     <string name="gpx_receiver_overwrite_some_files">Beberapa berkas sudah ada. Timpa\?</string>
     <string name="error_no_location_access">Akses lokasi harus diberikan dan diaktifkan untuk pemindaian untuk bekerja dengan benar</string>
     <string name="error_retrieving_devices_database">Kesalahan mendapatkan perangkat dari basis data</string>
-    <string name="ignore_bonded_devices_description">Mengaktifkan opsi ini akan mengabaikan perangkat yang telah dijalin/disandingkan ketika memindai</string>
     <string name="sports_activity_confirm_delete_title">Hapus %d aktivitas</string>
     <string name="sports_activity_confirm_delete_description">Apakah Anda yakin ingin menghapus %d aktivitas\?</string>
     <string name="watchface_dialog_widget_background">Latar belakang</string>
@@ -1342,7 +1335,7 @@
     <string name="pref_huami_truncate_fetch_operation_timestamps_title">Kecilkan stempel waktu operasi pendapatan</string>
     <string name="pref_huami_truncate_fetch_operation_timestamps_summary">Kecilkan stempel waktu operasi pendapatan ke menit. Nonaktifkan pengaturan ini untuk tetap dalam detik, jika Anda mengalami masalah saat mendapatkan olahraga sangat pendek.</string>
     <string name="pref_title_dont_ack_transfer">Jangan ACK transfer data aktivitas</string>
-    <string name="pref_summary_keep_data_on_device">Akan menyimpan data aktivitas di perangkat bahkan setelah sinkronisasi. Berguna jika GB digunakan bersama dengan aplikasi lain.</string>
+    <string name="pref_summary_keep_data_on_device">Akan menyimpan data aktivitas di perangkat bahkan setelah sinkronisasi. Berguna jika GB digunakan bersama dengan aplikasi lain. Ini dapat mengakibatkan jam tangan kehabisan ruangan dan/atau berhenti menyinkronkan dengan benar.</string>
     <string name="miband_prefs_reserve_reminder_calendar">Pengingat untuk disimpan untuk acara masa depan</string>
     <string name="mi2_prefs_button_actions">Tindakan tombol</string>
     <string name="pref_sleep_breathing_quality_monitoring">Pemantauan kualitas pernapasan tidur</string>
@@ -1544,7 +1537,6 @@
     <string name="pref_title_auto_export_enabled">Ekspor otomatis diaktifkan</string>
     <string name="pref_header_auto_fetch">Dapatkan secara otomatis</string>
     <string name="pref_auto_fetch_limit_fetches">Waktu minimum antara pendapatan</string>
-    <string name="discovery_scanning_intensity">Intensitas pemindaian</string>
     <string name="connecting">Menhubungkan</string>
     <string name="pref_screen_notification_profile_email">Notifikasi surel</string>
     <string name="pref_screen_notification_profile_missed_call">Notifikasi panggilan tidak terjawab</string>
@@ -1644,7 +1636,6 @@
     <string name="pref_sleep_mode_sleep_screen_summary">Tampilkan Layar Tidur ketika membangunkan layar saat mode tidur, untuk mengurangi gangguan</string>
     <string name="pref_sleep_mode_smart_enable_title">Pengaktifan Pintar</string>
     <string name="pref_sleep_mode_smart_enable_summary">Aktifkan mode tidur secara otomatis ketika memakai gelang saat tidur</string>
-    <string name="discovery_scanning_intensity_warning">Jika Anda mengalami pembekuan atau tidak menanggapi, coba atur Intensitas pemindaian ke tingkat yang rendah. Jika perangkat Anda tidak ditemukan, coba atur Intesitas pemindaian ke tingkat yang tinggi.</string>
     <string name="pref_summary_disable_new_ble_scanning">Centang opsi ini jika perangkat Anda tidak dapat ditemukan saat penemuan</string>
     <string name="connected">Terhubung</string>
     <string name="test">Uji coba</string>
@@ -1951,7 +1942,6 @@
     <string name="zetime_prefs_inactivity_sa">Sabtu</string>
     <string name="pref_pebble_privacy_mode_complete">Hanya tampilkan ikon notifikasi</string>
     <string name="pref_gps_satellite_search">Pencarian Satelit</string>
-    <string name="preferences_miband_settings">Pengaturan Mi Band / Amazfit</string>
     <string name="watchface_install_info">Anda akan memasang wajah jam berikut: 
 \n 
 \n%1$s 
@@ -2026,9 +2016,7 @@
 \nIntensitas gerakan:%3$s</string>
     <string name="activity_db_management_empty_db_warning">Peringatan! Dengan menekan tombol ini Anda akan menghapus basis data Anda dan mulai dari awal.</string>
     <string name="dbmanagementactivity_really_delete_entire_db">Benar-benar hapus seluruh basis data\? Semua data aktivitas dan informasi tentang perangkat Anda akan hilang.</string>
-    <string name="permission_location">%1$s membutuhkan akses ke lokasi Anda di latar belakang untuk memungkinkan untuk tetap terhubung ke jam tangan Anda bahkan ketika layar Anda mati. 
-\n 
-\nMohon ketuk \'%2$s\' untuk menerima.</string>
+    <string name="permission_location">%1$s membutuhkan akses ke lokasi Anda di latar belakang untuk memungkinkan untuk tetap terhubung ke jam tangan Anda bahkan ketika layar Anda mati. \n \nMohon ketuk \'%2$s\' untuk menerima.</string>
     <string name="permission_notification_listener">%1$s membutuhkan akses ke Notifikasi untuk dapat ditampilkan di jam tangan Anda ketika layar ponsel Anda mati. 
 \n 
 \nMohon ketuk \'%2$s\'\' lalu \'%1$s\' dan aktifkan \'Perbolehkan Akses Notifikasi\', lalu ketuk \'Kembali\' untuk kembali ke %1$s.</string>
@@ -2284,7 +2272,6 @@
     <string name="devicetype_bohemic_smart_bracelet">Bohemic Smart Bracelet</string>
     <string name="pref_title_mb_intents">Intent Tombol Media Siaran Secara Langsung</string>
     <string name="pref_summary_mb_intents">Aktifkan jika kontrol media perangkat tidak berfungsi untuk aplikasi tertentu</string>
-    <string name="devicetype_vivomove_hr">Garmin Vivomove HR</string>
     <string name="devicetype_casiogwb5600">Casio GW-B5600</string>
     <string name="devicetype_casiogmwb5000">Casio GMW-B5000</string>
     <string name="busy_task_fetch_sports_summaries">Mendapatkan rangkuman olahraga</string>
@@ -2355,11 +2342,7 @@
 \nGelang Anda akan dinyalakan ulang setelah memasang berkas .zip.
 \n
 \nLANJUTKAN DENGAN RISIKO ANDA SENDIRI!</string>
-    <string name="fw_upgrade_notice_zepp_os">Anda akan memasang perangkat tegar %s pada %s Anda.
-\n
-\nJam tangan Anda akan dinyalakan ulang setelah memasang berkas .zip.
-\n
-\nLANJUTKAN DENGAN RISIKO ANDA SENDIRI!</string>
+    <string name="fw_upgrade_notice_zepp_os">Anda akan memasang perangkat tegar %s pada %s Anda. \n \nJam tangan Anda akan dinyalakan ulang setelah memasang berkas .zip. \n \nLANJUTKAN DENGAN RISIKO ANDA SENDIRI!</string>
     <string name="device_experimental">EKSPERIMENTAL</string>
     <string name="info_menu_structure_set">JSON struktur menu ditetapkan dalam GB</string>
     <string name="error_invalid_menu_structure">JSON struktur menu tidak valid</string>
@@ -2390,8 +2373,6 @@
     <string name="updatefirmwareoperation_failed_low_mtu">MTU %1$d saat ini terlalu rendah, silakan aktitkan MTU yang tintgi dalan pengaturan perangkat dan putuskan/hubungkan ulang perangkat.</string>
     <string name="text_receiver_activity_title">Kirim teks ke perangkat</string>
     <string name="devicetype_miband2_hrx">Mi Band HRX</string>
-    <string name="new_discover_activity_description">Aktifkan aktivitas penemuan baru, yang seharusnya memperbaiki masalah penemuan perangkat. Nonaktifkan ini jika Anda menghadapi masalah apa pun saat mencari atau memasangkan perangkat Anda.</string>
-    <string name="new_discover_activity_title">Aktifkan aktivitas penemuan baru</string>
     <string name="prefs_home_icon_left_item">Kiri</string>
     <string name="prefs_wena3_title_activity">Pengaturan Aktivitas</string>
     <string name="white">Putih</string>
@@ -2811,7 +2792,6 @@
     <string name="scan_scanning_single_device">Memindai 1 perangkat</string>
     <string name="scan_scanning_multiple_devices">Memindai %d perangkat</string>
     <string name="devicetype_miband8active">Xiaomi Smart Band 8 Active</string>
-    <string name="temperature">Suhu</string>
     <string name="pref_adaptive_volume_control_title">Kontrol volume adaptif</string>
     <string name="pref_wide_area_tap_title">Ketukan area luas</string>
     <string name="devicetype_sony_linkbuds">Sony LinkBuds</string>
@@ -2873,8 +2853,7 @@
     <string name="foreFootLandings">Landasan kaki depan</string>
     <string name="RunningForm">Bentuk Lari</string>
     <string name="pref_force_enable_heartrate_support">Paksa dukungan detak jantung</string>
-    <string name="pref_force_enable_heartrate_support_summary">Paksa nengaktifkan dukungan detak jantung.
-\n
+    <string name="pref_force_enable_heartrate_support_summary">Paksa mengaktifkan dukungan detak jantung.
 \nGUNAKAN DENGAN RISIKO ANDA SENDIRI</string>
     <string name="pref_force_enable_spo2_support">Paksa dukungan SpO2</string>
     <string name="pref_force_enable_spo2_support_summary">Paksa mengaktifkan dukungan SpO2.
@@ -2950,5 +2929,210 @@
     <string name="cyclingPowerAverage">Daya bersepeda rata-rata</string>
     <string name="cyclingPowerMin">Daya bersepeda minimum</string>
     <string name="cyclingPowerMax">Daya bersepeda maksimum</string>
-    <string name="huawei_trusleep_warning">Peringatan: mengaktifkan ini akan menghentikan kemunculan tidur di Gadgetbridge! Klik di sini jika Anda menerima hal ini.</string>
+    <string name="huawei_trusleep_warning">Peringatan: mengaktifkan ini akan membuat semua tidur sebagai tidur ringan di Gadgetbridge! Klik di sini jika Anda menerima hal ini.</string>
+    <string name="battery_percentage_str">%1$s%%</string>
+    <string name="toggle_debug_mode">Saklar mode pengawakutuan</string>
+    <string name="toast_setting_requires_reconnect">Pengaturan ini akan diterapkan setelah penghubungan ulang</string>
+    <string name="devicetype_moondrop_space_travel">Moondrop Space Travel</string>
+    <string name="moondrop_touch_earbud">Earbud</string>
+    <string name="moondrop_touch_earbud_both">Keduanya</string>
+    <string name="folder">Folder</string>
+    <string name="devicetype_garmin_epix_pro">Garmin Epix Pro</string>
+    <string name="loading">Memuat…</string>
+    <string name="device_name_cycling_sensor">Sensor bersepeda</string>
+    <string name="copied_to_clipboard">Disalin ke papan klip</string>
+    <string name="url">URL</string>
+    <string name="devicetype_garmin_fenix_5">Garmin Fenix 5</string>
+    <string name="devicetype_garmin_fenix_6">Garmin Fenix 6</string>
+    <string name="devicetype_garmin_instinct_2s_solar">Garmin Instinct 2S Solar</string>
+    <string name="devicetype_garmin_instinct_crossover">Garmin Instinct Crossover</string>
+    <string name="devicetype_garmin_forerunner_255s">Garmin Forerunner 255S</string>
+    <string name="none">Tidak ada</string>
+    <string name="garmin_agps_local_file">Berkas lokal</string>
+    <string name="devicetype_garmin_vivoactive_3">Garmin Vívoactive 3</string>
+    <string name="moondrop_equalizer_preset_reference">Referensi</string>
+    <string name="moondrop_equalizer_preset_basshead">Basshead</string>
+    <string name="moondrop_equalizer_preset_monitor">Monitor</string>
+    <string name="moondrop_touch_trigger">Picuan</string>
+    <string name="moondrop_touch_action_play_pause">Putar/Jeda</string>
+    <string name="devicetype_garmin_fenix_6_sapphire">Garmin Fenix 6 Sapphire</string>
+    <string name="devicetype_huawei_band9">Huawei Band 9</string>
+    <string name="devicetype_huawei_watch4pro">Huawei Watch 4 (Pro)</string>
+    <string name="garmin_agps_url_i">URL %1$d AGPS</string>
+    <string name="devicetype_huawei_watchfit3">Huawei Watch Fit 3</string>
+    <string name="devicetype_garmin_instinct">Garmin Instinct</string>
+    <string name="devicetype_garmin_instinct_2s">Garmin Instinct 2S</string>
+    <string name="devicetype_garmin_instinct_2x_solar">Garmin Instinct 2X Solar</string>
+    <string name="devicetype_garmin_instinct_2_soltac">Garmin Instinct 2 SolTac</string>
+    <string name="devicetype_garmin_instinct_2_solar">Garmin Instinct 2 Solar</string>
+    <string name="devicetype_garmin_forerunner_265">Garmin Forerunner 265</string>
+    <string name="devicetype_garmin_vivoactive_4">Garmin Vívoactive 4</string>
+    <string name="devicetype_garmin_vivoactive_4s">Garmin Vívoactive 4S</string>
+    <string name="devicetype_garmin_vivoactive_5">Garmin Vívoactive 5</string>
+    <string name="open_camera">Buka Kamera</string>
+    <string name="devicetype_garmin_venu_3s">Garmin Venu 3S</string>
+    <string name="dashboard_calendar_month_goals_reached_title">% target langkah tercapai</string>
+    <plurals name="amount_of_days">
+        <item quantity="other">%d hari</item>
+    </plurals>
+    <string name="pref_fetch_unknown_files_summary">Dapatkan berkas aktivitas yang tidak diketahui dari jam tangan. Mereka tidak akan diproses, tetapi akan disimpan dalam ponsel.</string>
+    <string name="pref_summary_cycling_persistence_interval">Interval dalam detik ketika data bersepeda saat ini dituliskan ke basis data</string>
+    <string name="chart_cycling_point_label_speed">%.1f km/j</string>
+    <string name="devicetype_cycling_sensor">Sensor kecepatan bersepeda</string>
+    <string name="pref_summary_wheel_diameter">Diameter roda dalam inci. Biasanya 29, 27.5, atau 26.</string>
+    <string name="title_cycling">Bersepeda</string>
+    <string name="pref_title_wheel_diameter">Diameter roda</string>
+    <string name="pref_title_cycling_persistence_interval">Interval ketekunan</string>
+    <string name="proprietary_app_warning">Fitur ini memerlukan pemasangan aplikasi bersumber tertutup</string>
+    <string name="authentication_failed_check_key">Autentikasi gagal, silakan periksa kunci autentikasi</string>
+    <string name="activity_prefs_height_inches">Tinggi dalam inci</string>
+    <string name="pref_battery_polling_summary">Ini merupakan hasil upaya terbaik, dan dapat terlambat karena beberapa alasan</string>
+    <string name="pref_battery_polling_configuration">Konfigurasi pendapatan baterai</string>
+    <string name="pref_battery_polling_enable">Aktifkan pendapatan baterai</string>
+    <string name="pref_battery_polling_interval">Interval pendapatan baterai</string>
+    <string name="pref_battery_polling_interval_format">setiap %1$s menit</string>
+    <string name="battery_low_notify_enabled">Beri tahu pada baterai lemah</string>
+    <string name="battery_polling_failed_start">Gagal memulai pendapatan baterai</string>
+    <string name="no_folder_selected">Tidak ada folder yang dipilih</string>
+    <string name="pref_title_garmin_default_reply_suffix">Gunakan akhiran balasan yang sudah ditentukan</string>
+    <string name="pref_garmin_agps_help">Daftar di bawah berisi semua URL yang diminta oleh jam tangan untuk pembaruan AGPS. Anda dapat memilih berkas dari penyimpanan ponsel yang akan dikirim ke jam tangan ketika meminta pembaruan.</string>
+    <string name="battery_full_threshold">Ambang baterai penuh</string>
+    <string name="pref_fetch_unknown_files_title">Dapatkan berkas tidak diketahui</string>
+    <string name="pref_adaptive_noise_cancelling_title">ANC Adaptif</string>
+    <string name="pref_adaptive_noise_cancelling_summary">Tetapkan kekuatan ANC secara otomatis tergantung pada tingkat suara ambien</string>
+    <string name="chart_cycling_point_label_distance">Hari ini: %.1f km \nJumlah: %.1f km</string>
+    <string name="devicetype_garmin_vivomove_trend">Garmin Vívomove Trend</string>
+    <string name="devicetype_garmin_venu_2_plus">Garmin Venu 2 Plus</string>
+    <string name="devicetype_garmin_instinct_solar">Garmin Instinct Solar</string>
+    <string name="devicetype_garmin_vivosmart_5">Garmin Vívosmart 5</string>
+    <string name="devicetype_hama_fit6900">Hama Fit6900</string>
+    <string name="moondrop_touch_action_call_pick_hang">Jawab/Tolak Panggilan</string>
+    <string name="moondrop_touch_action_call_start">Mulai Panggilan</string>
+    <string name="moondrop_touch_action_assistant">Picu Asisten Suara</string>
+    <string name="moondrop_touch_trigger_long_press_3s">Tekanan Panjang (3 dtk)</string>
+    <string name="moondrop_touch_action_anc_mode">Saklar Mode Pembatalan Suara Aktif</string>
+    <string name="pref_speak_notifications_focus_exclusive_title">Jeda audio dari aplikasi lain</string>
+    <string name="pref_speak_notifications_focus_exclusive_summary_on">Pemutaran dari aplikasi lain akan dijeda ketika notifikasi ini diucapkan</string>
+    <string name="device_name_bicycle_sensor">Sensor sepeda</string>
+    <string name="toast_camera_permission_required">Perizinan kamera diperlukan untuk fungsi ini.</string>
+    <string name="toast_camera_support_required">Dukungan kamera diperlukan untuk fungsi ini.</string>
+    <string name="toast_camera_photo_taken">Foto telah diambil dan disimpan pada: %s</string>
+    <string name="unsupported">Tidak didukung</string>
+    <string name="realtime_settings">Pengaturan waktu nyata</string>
+    <string name="min_val">Minimum: %d</string>
+    <string name="max_val">Maksimum: %d</string>
+    <string name="folder_is_empty">Folder kosong</string>
+    <string name="share_debug_info">Bagikan info pengawakutuan</string>
+    <string name="notif_battery_full_title">Baterai gadget penuh!</string>
+    <string name="notif_battery_full">Baterai %1$s penuh</string>
+    <string name="devicetype_garmin_fenix_7_pro">Garmin Fenix 7 Pro</string>
+    <string name="notification_channel_full_battery_name">Baterai penuh</string>
+    <string name="show_in_notification">Tampilkan dalam notifikasi</string>
+    <string name="default_percentage">Bawaan (%1$d%%)</string>
+    <string name="pref_touch_tone">Nada Sentuh</string>
+    <string name="pref_wearing_tone">Nada Pemakaian</string>
+    <string name="pref_touch_tone_summary">Memutar nada ketika earbud disentuh</string>
+    <string name="pref_wearing_tone_summary">Memutar nada ketika earbud dimasukkan</string>
+    <string name="devicetype_garmin_fenix_7s">Garmin Fenix 7S</string>
+    <string name="battery_i">Baterai %d</string>
+    <string name="intent_api_broadcast_activity_sync_summary">Siarkan intent ketika sinkronisasi aktivitas selesai untuk perangkat apa pun</string>
+    <string name="battery_low_threshold">Ambang baterai lemah</string>
+    <string name="battery_full_notify_enabled">Beri tahu pada baterai penuh</string>
+    <string name="devicetype_garmin_forerunner_255">Garmin Forerunner 255</string>
+    <string name="devicetype_soundcore_liberty3_pro">Soundcore Liberty 3 Pro</string>
+    <string name="preferences_qhybrid_settings_summary">Pengaturan lawas untuk jam tangan Q Hybrid</string>
+    <string name="moondrop_touch_trigger_long_press_1s">Tekanan Panjang (1 dtk)</string>
+    <string name="intent_api_broadcast_activity_sync_title">Siarkan pada penyelesaian sinkronisasi aktivitas</string>
+    <string name="agps_status_missing">Hilang</string>
+    <string name="agps_status_pending">Tertunda</string>
+    <string name="agps_status_current">Saat ini</string>
+    <string name="agps_status_error">Kesalahan</string>
+    <string name="pref_agps_status">Status AGPS</string>
+    <string name="devicetype_amazfit_bip5_unity">Amazfit Bip 5 Unity</string>
+    <string name="devicetype_garmin_vivomove_hr">Garmin Vívomove HR</string>
+    <string name="devicetype_garmin_vivomove_style">Garmin Vívomove Style</string>
+    <string name="devicetype_garmin_venu_3">Garmin Venu 3</string>
+    <string name="devicetype_garmin_swim_2">Garmin Swim 2</string>
+    <string name="pref_summary_garmin_default_reply_suffix">Disertakan dengan tambahan set akhiran dalam Gadgetbridge</string>
+    <string name="pref_speak_notifications_focus_exclusive_summary_off">Volume pemutaran aplikasi lain akan direndahkan ketika notifikasi ini diucapkan</string>
+    <string name="devicetype_garmin_venu_2">Garmin Venu 2</string>
+    <string name="devicetype_garmin_forerunner_245">Garmin Forerunner 245</string>
+    <string name="devicetype_miband9">Xiaomi Smart Band 9</string>
+    <string name="devicetype_amazfit_trex_3">Amazfit T-Rex 3</string>
+    <string name="devicetype_garmin_forerunner_255_music">Garmin Forerunner 255 Music</string>
+    <string name="pref_title_notification_times_enabled">Waktu notifikasi</string>
+    <string name="pref_summary_notification_times_enabled">Hanya kirim notifikasi pada waktu tertentu</string>
+    <string name="devicetype_redmi_watch_5_active">Redmi Watch 5 Active</string>
+    <string name="devicetype_colmi_r02">Colmi R02</string>
+    <string name="devicetype_colmi_r06">Colmi R06</string>
+    <string name="devicetype_colmi_r03">Colmi R03</string>
+    <string name="minutes_20">20 menit</string>
+    <string name="minutes_240">240 menit</string>
+    <string name="devicetype_garmin_venu_2s">Garmin Venu 2S</string>
+    <string name="devicetype_micompositionscale">Mi Body Composition Scale 2</string>
+    <string name="devicetype_mijia_xmwsdj04">Mijia Temperature and Humidity Sensor 2 (E-ink)</string>
+    <string name="devicetype_honor_watchgs3">Honor Watch GS 3</string>
+    <string name="devicetype_nothing_cmf_buds_pro_2">CMF Buds Pro 2</string>
+    <string name="devicetype_nothing_cmf_watch_pro_2">CMF Watch Pro 2</string>
+    <string name="devicetype_sony_wf_c700n">Sony WF-C700N</string>
+    <string name="devicetype_soundcore_motion300">Soundcore Motion 300</string>
+    <string name="devicetype_huawei_watch3">Huawei Watch 3 (Pro)</string>
+    <string name="devicetype_garmin_fenix_5_plus">Garmin Fenix 5 Plus</string>
+    <string name="pref_title_calendar_lookahead">Jumlah hari berikut</string>
+    <string name="pref_summary_calendar_lookahead">Sinkronkan sampai dengan %1s hari dari acara kalender</string>
+    <string name="minutes_255">255 menit</string>
+    <string name="devicetype_garmin_fenix_5x_plus">Garmin Fenix 5X Plus</string>
+    <string name="devicetype_garmin_forerunner_245_music">Garmin Forerunner 245 Music</string>
+    <string name="devicetype_vivitar_hr_bp_monitor_activity_tracker">Vivitar HR &amp; BP Monitor Activity Tracker</string>
+    <string name="devicetype_huawei_watchgtrunner">Huawei Watch GT Runner</string>
+    <string name="pref_time_sync">Sinkronisasi waktu otomatis</string>
+    <string name="minutes_7">7 menit</string>
+    <string name="minutes_8">8 menit</string>
+    <string name="minutes_2">2 menit</string>
+    <string name="minutes_3">3 menit</string>
+    <string name="minutes_4">4 menit</string>
+    <string name="minutes_6">6 menit</string>
+    <string name="devicetype_huawei_watchgtcyber">Huawei Watch GT Cyber</string>
+    <string name="minutes_150">150 menit</string>
+    <string name="devicetype_garmin_venu">Garmin Venu</string>
+    <string name="devicetype_garmin_forerunner_265s">Garmin Forerunner 265S</string>
+    <string name="devicetype_garmin_forerunner_965">Garmin Forerunner 965</string>
+    <string name="devicetype_mismartscale">Mi Smart Scale 2</string>
+    <string name="devicetype_soundcore_liberty4_nc">Soundcore Liberty 4 NC</string>
+    <string name="devicetype_honor_watchgspro">Honor Watch GS Pro</string>
+    <string name="search">Cari</string>
+    <string name="minutes_9">9 menit</string>
+    <string name="minutes_15">15 menit</string>
+    <string name="minutes_45">45 menit</string>
+    <string name="minutes_60">60 menit</string>
+    <string name="minutes_75">75 menit</string>
+    <string name="minutes_90">90 menit</string>
+    <string name="minutes_120">120 menit</string>
+    <string name="minutes_180">180 menit</string>
+    <string name="minutes_210">210 menit</string>
+    <string name="devicetype_garmin_forerunner_955">Garmin Forerunner 955</string>
+    <string name="devicetype_garmin_vivosport">Garmin Vívosport</string>
+    <string name="devicetype_garmin_fenix_8">Garmin Fenix 8</string>
+    <string name="devicetype_sony_wf_c500">Sony WF-C500</string>
+    <string name="devicetype_huawei_watchgt5">Huawei Watch GT 5 (Pro)</string>
+    <string name="devicetype_ble_gatt_client">Klien Generik BLE GATT</string>
+    <string name="pref_title_nagivation_apps">Aplikasi navigasi</string>
+    <string name="pref_header_external_integrations">Integrasi Eksternal</string>
+    <string name="pref_header_automations">Otomatisasi</string>
+    <string name="pref_description_general">Pemulaian, bahasa, wilayah, lokasi</string>
+    <string name="pref_description_about_you">Tanggal lahir, kelamin, tinggi, berat, goal</string>
+    <string name="pref_description_notifications">Notifikasi aplikasi, daftar putih/hitam</string>
+    <string name="pref_description_dashboard">Widget, perangkat yang disertakan</string>
+    <string name="pref_description_automations">Ekspor otomatis, pendapatan data otomatis</string>
+    <string name="pref_description_developer_options">Log, API intent</string>
+    <string name="pref_header_main_screen">Layar utama</string>
+    <string name="pref_title_user_interface">Antarmuka pengguna</string>
+    <string name="devicetype_garmin_venu_sq">Garmin Venu Sq</string>
+    <string name="devicetype_garmin_enduro_3">Garmin Enduro 3</string>
+    <string name="devicetype_garmin_forerunner_165">Garmin Forerunner 165</string>
+    <string name="devicetype_garmin_forerunner_255s_music">Garmin Forerunner 255S Music</string>
+    <string name="pref_description_deprecated_functionalities">Pengaturan yang akan dihapus dalam versi depan</string>
+    <string name="pref_header_sound">Suara</string>
+    <string name="pref_description_user_interface">Tema, layar utama</string>
+    <string name="gps_glonass">GPS + GLONASS</string>
 </resources>

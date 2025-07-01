@@ -24,6 +24,7 @@ import java.util.List;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Notifications;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Notifications.NotificationConstraints;
+import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiSupportProvider;
 
 public class GetNotificationConstraintsRequest extends Request {
@@ -33,6 +34,13 @@ public class GetNotificationConstraintsRequest extends Request {
         super(support);
         this.serviceId = Notifications.id;
         this.commandId = NotificationConstraints.id;
+    }
+
+    @Override
+    protected boolean requestSupported() {
+        return supportProvider.getHuaweiCoordinator().supportsNotificationAlert() && supportProvider.getProtocolVersion() == 2
+                && supportProvider.getCoordinator().getDeviceType() != DeviceType.HUAWEIBANDAW70
+                && supportProvider.getCoordinator().getDeviceType() != DeviceType.HONORWATCH4; // Bit of a workaround, there is probably some capabilities this actually depends on
     }
 
     @Override

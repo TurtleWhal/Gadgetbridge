@@ -35,9 +35,9 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventNotificati
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.AbstractZeppOsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
 public class ZeppOsCannedMessagesService extends AbstractZeppOsService {
@@ -98,13 +98,18 @@ public class ZeppOsCannedMessagesService extends AbstractZeppOsService {
         }
     }
 
+    @Override
+    public void initialize(final ZeppOsTransactionBuilder builder) {
+        requestCannedMessages(builder);
+    }
+
     public void setCannedMessages(final CannedMessagesSpec cannedMessagesSpec) {
         if (cannedMessagesSpec.type != CannedMessagesSpec.TYPE_GENERIC) {
             LOG.warn("Got unsupported canned messages type: {}", cannedMessagesSpec.type);
             return;
         }
 
-        final TransactionBuilder builder = new TransactionBuilder("set canned messages");
+        final ZeppOsTransactionBuilder builder = createTransactionBuilder("set canned messages");
 
         for (int i = 0; i < 16; i++) {
             LOG.debug("Deleting canned message {}", i);
@@ -130,10 +135,10 @@ public class ZeppOsCannedMessagesService extends AbstractZeppOsService {
             buf.put(cannedMessage.getBytes(StandardCharsets.UTF_8));
             write(builder, buf.array());
         }
-        builder.queue(getSupport().getQueue());
+        builder.queue(getSupport());
     }
 
-    public void requestCannedMessages(final TransactionBuilder builder) {
+    public void requestCannedMessages(final ZeppOsTransactionBuilder builder) {
         LOG.info("Requesting canned messages");
 
         write(builder, new byte[]{CMD_REQUEST});

@@ -22,16 +22,18 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.FileType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.GlobalFITMessage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordData;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordDefinition;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordHeader;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionFileType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionGoalSource;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionGoalType;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionHrvStatus;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionLanguage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionMeasurementSystem;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionSleepStage;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionSwimStyle;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionWeatherAqi;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionWeatherCondition;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
@@ -40,6 +42,8 @@ import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class FitCodeGen {
     public static void main(final String[] args) throws Exception {
+        // To run this in Android Studio, right click and select "Run 'FitCodeGen.main()' with Coverage"
+        // for some reason, the classpath is broken otherwise.
         new FitCodeGen().generate();
     }
 
@@ -189,7 +193,21 @@ public class FitCodeGen {
             sb.append("\n");
             sb.append("    @Nullable\n");
             sb.append("    public ").append(fieldTypeName).append(method(" get", primitive)).append("() {\n");
-            sb.append("        return (").append(fieldTypeName).append(") getFieldByNumber(").append(primitive.getNumber()).append(");\n");
+            if (fieldTypeName.endsWith("[]")) {
+                // Special case for arrays, since these are decoded in RecordData and we can't easily decode them with the correct type
+                // FIXME this should be refactored...
+                final String simpleTypeName = fieldTypeName.replace("[]", "");
+                sb.append("        final Object[] objectsArray = (Object[]) getFieldByNumber(").append(primitive.getNumber()).append(");\n");
+                sb.append("        if (objectsArray == null)\n");
+                sb.append("            return null;\n");
+                sb.append("        final ").append(fieldTypeName).append(" ret = new ").append(simpleTypeName).append("[objectsArray.length];\n");
+                sb.append("        for (int i = 0; i < objectsArray.length; i++) {\n");
+                sb.append("            ret[i] = (").append(simpleTypeName).append(") objectsArray[i];\n");
+                sb.append("        }\n");
+                sb.append("        return ret;\n");
+            } else {
+                sb.append("        return (").append(fieldTypeName).append(") getFieldByNumber(").append(primitive.getNumber()).append(");\n");
+            }
             sb.append("    }\n");
         }
 
@@ -227,14 +245,22 @@ public class FitCodeGen {
             switch (primitive.getType()) {
                 case ALARM:
                     return Calendar.class;
+                case ARRAY:
+                    return Number[].class;
                 case DAY_OF_WEEK:
                     return DayOfWeek.class;
                 case FILE_TYPE:
-                    return FieldDefinitionFileType.Type.class;
+                    return FileType.FILETYPE.class;
                 case GOAL_SOURCE:
                     return FieldDefinitionGoalSource.Source.class;
                 case GOAL_TYPE:
                     return FieldDefinitionGoalType.Type.class;
+                case HRV_STATUS:
+                    return FieldDefinitionHrvStatus.HrvStatus.class;
+                case HR_TIME_IN_ZONE:
+                    return Double[].class;
+                case HR_ZONE_HIGH_BOUNDARY:
+                    return Integer[].class;
                 case MEASUREMENT_SYSTEM:
                     return FieldDefinitionMeasurementSystem.Type.class;
                 case TEMPERATURE:
@@ -249,6 +275,10 @@ public class FitCodeGen {
                     return FieldDefinitionSleepStage.SleepStage.class;
                 case WEATHER_AQI:
                     return FieldDefinitionWeatherAqi.AQI_LEVELS.class;
+                case COORDINATE:
+                    return Double.class;
+                case SWIM_STYLE:
+                    return FieldDefinitionSwimStyle.SwimStyle.class;
             }
 
             throw new RuntimeException("Unknown field type " + primitive.getType());
@@ -263,14 +293,22 @@ public class FitCodeGen {
             case UINT8Z:
             case UINT16Z:
             case BASE_TYPE_BYTE:
-                return Integer.class;
+                if (primitive.getScale() != 1) {
+                    return Float.class;
+                } else {
+                    return Integer.class;
+                }
             case SINT32:
             case UINT32:
             case UINT32Z:
             case SINT64:
             case UINT64:
             case UINT64Z:
-                return Long.class;
+                if (primitive.getScale() != 1) {
+                    return Double.class;
+                } else {
+                    return Long.class;
+                }
             case STRING:
                 return String.class;
             case FLOAT32:

@@ -29,7 +29,6 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.widget.Toast;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -89,12 +88,11 @@ import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCharacteristic;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.alertnotification.AlertCategory;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.alertnotification.AlertNotificationProfile;
@@ -104,7 +102,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.Batter
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfoProfile;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
-public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuLogListener {
+public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implements DfuLogListener {
     private static final Logger LOG = LoggerFactory.getLogger(PineTimeJFSupport.class);
     private final GBDeviceEventVersionInfo versionCmd = new GBDeviceEventVersionInfo();
     private final GBDeviceEventBatteryInfo batteryCmd = new GBDeviceEventBatteryInfo();
@@ -488,7 +486,7 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
         requestDeviceInfo(builder);
         if (GBApplication.getPrefs().getBoolean("datetime_synconconnect", true)) {
             onSetTime();
@@ -511,9 +509,7 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
         batteryInfoProfile.requestBatteryInfo(builder);
         batteryInfoProfile.enableNotify(builder, true);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            builder.requestMtu(256);
-        }
+        builder.requestMtu(256);
         return builder;
     }
 
@@ -590,8 +586,9 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
 
     @Override
     public boolean onCharacteristicRead(BluetoothGatt gatt,
-                                        BluetoothGattCharacteristic characteristic, int status) {
-        if (super.onCharacteristicRead(gatt, characteristic, status)) {
+                                        BluetoothGattCharacteristic characteristic, byte[] value,
+                                        int status) {
+        if (super.onCharacteristicRead(gatt, characteristic, value, status)) {
             return true;
         }
         UUID characteristicUUID = characteristic.getUuid();
@@ -654,14 +651,14 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] value) {
+        if (super.onCharacteristicChanged(gatt, characteristic, value)) {
             return true;
         }
 
         UUID characteristicUUID = characteristic.getUuid();
         if (characteristicUUID.equals(PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_EVENT)) {
-            byte[] value = characteristic.getValue();
             GBDeviceEventMusicControl deviceEventMusicControl = new GBDeviceEventMusicControl();
 
             switch (value[0]) {
@@ -689,7 +686,6 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
             evaluateGBDeviceEvent(deviceEventMusicControl);
             return true;
         } else if (characteristicUUID.equals(PineTimeJFConstants.UUID_CHARACTERISTIC_ALERT_NOTIFICATION_EVENT)) {
-            byte[] value = characteristic.getValue();
             GBDeviceEventCallControl deviceEventCallControl = new GBDeviceEventCallControl();
             switch (value[0]) {
                 case 0:
@@ -707,14 +703,14 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
             evaluateGBDeviceEvent(deviceEventCallControl);
             return true;
         } else if (characteristicUUID.equals(PineTimeJFConstants.UUID_CHARACTERISTIC_MOTION_STEP_COUNT)) {
-            int steps = BLETypeConversions.toUint32(characteristic.getValue());
+            int steps = BLETypeConversions.toUint32(value);
             if (LOG.isDebugEnabled()) {
                 LOG.debug("onCharacteristicChanged: MotionService:Steps=" + steps);
             }
             onReceiveStepsSample(steps);
             return true;
         } else if (characteristicUUID.equals(PineTimeJFConstants.UUID_CHARACTERISTIC_HEART_RATE_MEASUREMENT)) {
-            int heartrate = Byte.toUnsignedInt(characteristic.getValue()[1]);
+            int heartrate = Byte.toUnsignedInt(value[1]);
             if (LOG.isDebugEnabled()) {
                 LOG.debug("onCharacteristicChanged: HeartRateMeasurement:HeartRate=" + heartrate);
             }
@@ -1055,7 +1051,7 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
     }
 
     private void setInitialized(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
     }
 
     private void requestDeviceInfo(TransactionBuilder builder) {
@@ -1126,11 +1122,12 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
             sample.setTimestamp(timeStamp);
 
             // since it's a local timestamp, it should NOT be treated as Activity because it will spoil activity charts
-            sample.setRawKind(ActivityKind.TYPE_UNKNOWN);
+            sample.setRawKind(ActivityKind.UNKNOWN.getCode());
 
             this.addGBActivitySample(sample);
 
             Intent intent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES)
+                    .putExtra(GBDevice.EXTRA_DEVICE, getDevice())
                     .putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample)
                     .putExtra(DeviceService.EXTRA_TIMESTAMP, sample.getTimestamp());
             LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
@@ -1152,11 +1149,12 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
             sample.setHeartRate(heartrate);
             sample.setTimestamp(timeStamp);
             // since it's a local timestamp, it should NOT be treated as Activity because it will spoil activity charts
-            sample.setRawKind(ActivityKind.TYPE_UNKNOWN);
+            sample.setRawKind(ActivityKind.UNKNOWN.getCode());
 
             this.addGBActivitySample(sample);
 
             Intent intent = new Intent(DeviceService.ACTION_REALTIME_SAMPLES)
+                    .putExtra(GBDevice.EXTRA_DEVICE, getDevice())
                     .putExtra(DeviceService.EXTRA_REALTIME_SAMPLE, sample)
                     .putExtra(DeviceService.EXTRA_TIMESTAMP, sample.getTimestamp());
             LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
@@ -1240,7 +1238,7 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
                 provider.addGBActivitySample(sample);
             }
 
-            GB.signalActivityDataFinish();
+            GB.signalActivityDataFinish(getDevice());
 
         } catch (Exception ex) {
             GB.toast(getContext(), "Error saving samples: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
@@ -1261,5 +1259,15 @@ public class PineTimeJFSupport extends AbstractBTLEDeviceSupport implements DfuL
     private void logDebug(String logMessage, String toastMessage) {
         LOG.debug(logMessage);
         //GB.toast(getContext(), toastMessage, Toast.LENGTH_LONG, GB.WARN);
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

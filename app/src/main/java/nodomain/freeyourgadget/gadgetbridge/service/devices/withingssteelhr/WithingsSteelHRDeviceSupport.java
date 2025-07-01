@@ -16,8 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr;
 
-import static nodomain.freeyourgadget.gadgetbridge.GBApplication.getContext;
-
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -48,22 +46,17 @@ import java.util.List;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
-import nodomain.freeyourgadget.gadgetbridge.devices.hplus.HPlusConstants;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.ServerTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.activity.WithingsActivityType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.communication.WithingsServerAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.communication.WithingsUUID;
@@ -113,14 +106,13 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.comm
 import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.communication.notification.NotificationProvider;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.communication.notification.NotificationSource;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_LANGUAGE;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_LANGUAGE_AUTO;
 
-public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
+public class WithingsSteelHRDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(WithingsSteelHRDeviceSupport.class);
     public static final String LAST_ACTIVITY_SYNC = "lastActivitySync";
@@ -187,16 +179,10 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     @Override
-    public boolean getSendWriteRequestResponse() {
-        return true;
-    }
-
-
-    @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         logger.debug("Starting initialization...");
         conversationQueue = new ConversationQueue(this);
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
         getDevice().setFirmwareVersion("N/A");
         getDevice().setFirmwareVersion2("N/A");
         BluetoothGattCharacteristic characteristic = getCharacteristic(WithingsUUID.WITHINGS_WRITE_CHARACTERISTIC_UUID);
@@ -214,6 +200,11 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+        super.onMtuChanged(gatt, mtu, status);
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            return;
+        }
+
         logger.debug("MTU has changed to " + mtu);
         mtuSize = mtu;
         if (firstTimeConnect) {
@@ -298,12 +289,11 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
-                                           BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+                                           BluetoothGattCharacteristic characteristic,
+                                           byte[] data) {
+        if (super.onCharacteristicChanged(gatt, characteristic, data)) {
             return true;
         }
-
-        byte[] data = characteristic.getValue();
 
         boolean complete = messageBuilder.buildMessage(data);
         if (complete) {
@@ -476,7 +466,7 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
 
     public void finishInitialization() {
         TransactionBuilder builder = createTransactionBuilder("setupFinished");
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
         builder.queue(getQueue());
         logger.debug("Finished initialization.");
     }
@@ -675,7 +665,7 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
                 }
                 addSimpleConversationToQueue(message);
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.warn("exception in setWorkoutActivityTypes", e);
             }
         }
 
@@ -699,7 +689,7 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
         message.addDataStructure(imageMetaData);
 
         ImageData imageData = new ImageData();
-        final int drawableId = ActivityKind.getIconId(withingsActivityType.toActivityKind());
+        final int drawableId = withingsActivityType.toActivityKind().getIcon();
         Drawable drawable = getContext().getDrawable(drawableId);
         imageData.setImageData(IconHelper.getIconBytesFromDrawable(drawable));
         message.addDataStructure(imageData);
@@ -719,7 +709,7 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
         String localeString = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress())
                 .getString(PREF_LANGUAGE, PREF_LANGUAGE_AUTO);
 
-        if (localeString == null || localeString.equals(PREF_LANGUAGE_AUTO)) {
+        if (localeString.equals(PREF_LANGUAGE_AUTO)) {
             localeString = java.util.Locale.getDefault().getLanguage();
         }
 
@@ -737,10 +727,7 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
     }
 
     private short getTimeMode() {
-        GBPrefs gbPrefs = new GBPrefs(new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress())));
-        String tmode = gbPrefs.getTimeFormat();
-
-        if ("24h".equals(tmode)) {
+        if ("24h".equals(getDevicePrefs().getTimeFormat())) {
             return UserUnitConstants.UNIT_24H;
         } else {
             return UserUnitConstants.UNIT_12H;
@@ -757,4 +744,8 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLEDeviceSupport {
         }
     }
 
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
 }

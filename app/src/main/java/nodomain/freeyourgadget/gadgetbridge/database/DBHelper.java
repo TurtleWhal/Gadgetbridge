@@ -30,7 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -69,11 +71,13 @@ import nodomain.freeyourgadget.gadgetbridge.entities.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.entities.WorldClockDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
+import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.ValidByDate;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
+import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 
 
 /**
@@ -147,10 +151,14 @@ public class DBHelper {
     }
 
     public void importDB(DBHandler dbHandler, File fromFile) throws IllegalStateException, IOException {
+        importDB(dbHandler, new FileInputStream(fromFile));
+    }
+
+    public void importDB(DBHandler dbHandler, InputStream inputStream) throws IllegalStateException, IOException {
         String dbPath = getClosedDBPath(dbHandler);
         try {
             File toFile = new File(dbPath);
-            FileUtils.copyFile(fromFile, toFile);
+            FileUtils.copyStreamToFile(inputStream, toFile);
         } finally {
             dbHandler.openDb();
         }
@@ -391,6 +399,20 @@ public class DBHelper {
         session.getDeviceDao().update(device);
     }
 
+    public static void updateDeviceType(final DaoSession session, final String address, final DeviceType newType) {
+        final DeviceDao deviceDao = session.getDeviceDao();
+        final Query<Device> query = deviceDao.queryBuilder().where(DeviceDao.Properties.Identifier.eq(address)).build();
+        final List<Device> devices = query.list();
+        if (devices.isEmpty()) {
+            LOG.warn("Failed to find device with address {}", address);
+            return;
+        }
+
+        final Device device = devices.get(0);
+        device.setTypeName(newType.name());
+        session.getDeviceDao().update(device);
+    }
+
     /**
      * Returns all active (that is, not old, archived ones) from the database.
      * (currently the active handling is not available)
@@ -594,7 +616,7 @@ public class DBHelper {
     @NonNull
     public static List<Alarm> getAlarms(@NonNull GBDevice gbDevice) {
         DeviceCoordinator coordinator = gbDevice.getDeviceCoordinator();
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
+        GBPrefs prefs = new GBPrefs(new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress())));
 
         int reservedSlots = prefs.getInt(DeviceSettingsPreferenceConst.PREF_RESERVER_ALARMS_CALENDAR, 0);
         int alarmSlots = coordinator.getAlarmSlotCount(gbDevice);
@@ -637,10 +659,8 @@ public class DBHelper {
     @NonNull
     public static List<Reminder> getReminders(@NonNull GBDevice gbDevice) {
         final DeviceCoordinator coordinator = gbDevice.getDeviceCoordinator();
-        final Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
 
-        int reservedSlots = prefs.getInt(DeviceSettingsPreferenceConst.PREF_RESERVER_REMINDERS_CALENDAR, coordinator.supportsCalendarEvents() ? 0 : 9);
-
+        final int reservedSlots = GBApplication.getDevicePrefs(gbDevice).getReservedReminderCalendarSlots();
         final int reminderSlots = coordinator.getReminderSlotCount(gbDevice);
 
         try (DBHandler db = GBApplication.acquireDB()) {

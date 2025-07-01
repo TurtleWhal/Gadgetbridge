@@ -22,61 +22,59 @@ import android.net.Uri;
 
 import androidx.annotation.NonNull;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsUtils;
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
-import nodomain.freeyourgadget.gadgetbridge.GBException;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.service.SleepAsAndroidSender;
+import nodomain.freeyourgadget.gadgetbridge.devices.SleepAsAndroidFeature;
+import nodomain.freeyourgadget.gadgetbridge.devices.Vo2MaxSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.WorkoutVo2MaxSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiExtendedSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.AbstractActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuamiExtendedActivitySampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuamiHeartRateManualSampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuamiHeartRateMaxSampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuamiHeartRateRestingSampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuamiPaiSampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuamiSleepRespiratoryRateSampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuamiSpo2SampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuamiStressSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.model.Vo2MaxSample;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsFwInstallHandler;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsAlexaService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsContactsService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsLogsService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsLoyaltyCardService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsRemindersService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsShortcutCardsService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsConfigService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiLanguageType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiVibrationPatternNotificationType;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsBtbrSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsBtleSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsFwInstallHandler;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsAssistantService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsConfigService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsContactsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsFindDeviceService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsLogsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsLoyaltyCardService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsPhoneService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsRemindersService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsShortcutCardsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.filetransfer.ZeppOsFileTransferImpl;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
-import nodomain.freeyourgadget.gadgetbridge.devices.SleepAsAndroidFeature;
 
 public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     public abstract String getDeviceBluetoothName();
@@ -89,19 +87,39 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
+    public String getManufacturer() {
+        // Actual manufacturer is Huami
+        return "Amazfit";
+    }
+
+    @Override
     protected final Pattern getSupportedDeviceName() {
         // Most devices use the exact bluetooth name
         // Some devices have a " XXXX" suffix with the last 4 digits of mac address (eg. Mi Band 7)
-        // *However*, some devices broadcast a 2nd bluetooth device with "-XXXX" suffix, which I believe
-        // is only used for calls, and Gadgetbridge can't use for pairing, but I was not yet able to
-        // fully confirm this, so we still recognize them.
-        return Pattern.compile("^" + getDeviceBluetoothName() + "([- ][A-Z0-9]{4})?$");
+        // *However*, some devices broadcast a 2nd bluetooth device with "-XXXX" suffix, which seem to
+        // only be used for calls, and Gadgetbridge can't use for pairing.
+        // **Additionally**, it was also reported on some issues such as #4827 that some devices
+        // only broadcast the one with the mac address, which Gadgetbridge can use for pairing...
+        return Pattern.compile("^" + Pattern.quote(getDeviceBluetoothName()) + "([- ]+[A-Z0-9]{4})?$");
     }
 
     @NonNull
     @Override
-    public final Class<? extends DeviceSupport> getDeviceSupportClass() {
-        return ZeppOsSupport.class;
+    public final Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
+        // Prioritize user choice
+        DeviceCoordinator.ConnectionType connType = GBApplication.getDevicePrefs(device).getForcedConnectionTypeFromPrefs();
+        if (connType == DeviceCoordinator.ConnectionType.BOTH) {
+            connType = getConnectionType();
+        }
+
+        switch (connType) {
+            case BOTH:
+            case BT_CLASSIC:
+                return ZeppOsBtbrSupport.class;
+            case BLE:
+            default:
+                return ZeppOsBtleSupport.class;
+        }
     }
 
     @Override
@@ -113,20 +131,28 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
             }
         }
 
-        if (supportsGpxUploads()) {
-            final ZeppOsGpxRouteInstallHandler gpxRouteInstallHandler = new ZeppOsGpxRouteInstallHandler(uri, context);
-            if (gpxRouteInstallHandler.isValid()) {
-                return gpxRouteInstallHandler;
-            }
+        final ZeppOsGpxRouteInstallHandler gpxRouteInstallHandler = new ZeppOsGpxRouteInstallHandler(uri, context);
+        if (gpxRouteInstallHandler.isValid()) {
+            return gpxRouteInstallHandler;
         }
 
-        final ZeppOsFwInstallHandler handler = new ZeppOsFwInstallHandler(
+        final ZeppOsMapsInstallHandler mapsInstallHandler = new ZeppOsMapsInstallHandler(uri, context);
+        if (mapsInstallHandler.isValid()) {
+            return mapsInstallHandler;
+        }
+
+        final ZeppOsMusicInstallHandler musicInstallHandler = new ZeppOsMusicInstallHandler(uri, context);
+        if (musicInstallHandler.isValid()) {
+            return musicInstallHandler;
+        }
+
+        final ZeppOsFwInstallHandler fwInstallHandler = new ZeppOsFwInstallHandler(
                 uri,
                 context,
                 getDeviceBluetoothName(),
                 getDeviceSources()
         );
-        return handler.isValid() ? handler : null;
+        return fwInstallHandler.isValid() ? fwInstallHandler : null;
     }
 
     @Override
@@ -141,13 +167,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
 
     @Override
     public boolean supportsManualHeartRateMeasurement(final GBDevice device) {
-        // TODO: It should be supported, but not yet properly implemented
-        return false;
-    }
-
-    @Override
-    public boolean supportsRealtimeData() {
-        return true;
+        return false; // FIXME: this is still somewhat broken and sometimes never finishes
     }
 
     @Override
@@ -176,7 +196,17 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsSpo2(GBDevice device) {
+    public boolean supportsSpo2(final GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsVO2Max() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsVO2MaxRunning() {
         return true;
     }
 
@@ -203,6 +233,21 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     @Override
     public boolean supportsSleepAsAndroid() {
         return true;
+    }
+
+    @Override
+    public boolean supportsSleepScore(final GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsAwakeSleep() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsHrvMeasurement(final GBDevice device) {
+        return supportsDisplayItem(device, "hrv");
     }
 
     @Override
@@ -256,52 +301,8 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsAppReordering() {
-        return false;
-    }
-
-    @Override
     public boolean supportsCalendarEvents() {
         return true;
-    }
-
-    @Override
-    protected void deleteDevice(@NonNull final GBDevice gbDevice,
-                                @NonNull final Device device,
-                                @NonNull final DaoSession session) throws GBException {
-        final Long deviceId = device.getId();
-
-        session.getHuamiExtendedActivitySampleDao().queryBuilder()
-                .where(HuamiExtendedActivitySampleDao.Properties.DeviceId.eq(deviceId))
-                .buildDelete().executeDeleteWithoutDetachingEntities();
-
-        session.getHuamiStressSampleDao().queryBuilder()
-                .where(HuamiStressSampleDao.Properties.DeviceId.eq(deviceId))
-                .buildDelete().executeDeleteWithoutDetachingEntities();
-
-        session.getHuamiSpo2SampleDao().queryBuilder()
-                .where(HuamiSpo2SampleDao.Properties.DeviceId.eq(deviceId))
-                .buildDelete().executeDeleteWithoutDetachingEntities();
-
-        session.getHuamiHeartRateManualSampleDao().queryBuilder()
-                .where(HuamiHeartRateManualSampleDao.Properties.DeviceId.eq(deviceId))
-                .buildDelete().executeDeleteWithoutDetachingEntities();
-
-        session.getHuamiHeartRateMaxSampleDao().queryBuilder()
-                .where(HuamiHeartRateMaxSampleDao.Properties.DeviceId.eq(deviceId))
-                .buildDelete().executeDeleteWithoutDetachingEntities();
-
-        session.getHuamiHeartRateRestingSampleDao().queryBuilder()
-                .where(HuamiHeartRateRestingSampleDao.Properties.DeviceId.eq(deviceId))
-                .buildDelete().executeDeleteWithoutDetachingEntities();
-
-        session.getHuamiPaiSampleDao().queryBuilder()
-                .where(HuamiPaiSampleDao.Properties.DeviceId.eq(deviceId))
-                .buildDelete().executeDeleteWithoutDetachingEntities();
-
-        session.getHuamiSleepRespiratoryRateSampleDao().queryBuilder()
-                .where(HuamiSleepRespiratoryRateSampleDao.Properties.DeviceId.eq(deviceId))
-                .buildDelete().executeDeleteWithoutDetachingEntities();
     }
 
     @Override
@@ -310,8 +311,13 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device) {
-        return new ZeppOsActivitySummaryParser();
+    public Vo2MaxSampleProvider<? extends Vo2MaxSample> getVo2MaxSampleProvider(final GBDevice device, final DaoSession session) {
+        return new WorkoutVo2MaxSampleProvider(device, session);
+    }
+
+    @Override
+    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
+        return new ZeppOsActivitySummaryParser(context);
     }
 
     @Override
@@ -359,6 +365,23 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         return Arrays.asList(HeartRateCapability.MeasurementInterval.values());
     }
 
+    @Override
+    public boolean supportsAudioRecordings(final GBDevice device) {
+        return supportsDisplayItem(device, "voice_memos") && supportsBleFileTransfer(device, "voicememo");
+    }
+
+    @Override
+    public int[] getSupportedDeviceSpecificConnectionSettings() {
+        final List<Integer> settings = new ArrayList<>();
+
+        settings.add(R.xml.devicesettings_force_connection_type);
+
+        return ArrayUtils.addAll(
+                ArrayUtils.toPrimitive(settings.toArray(new Integer[0])),
+                super.getSupportedDeviceSpecificConnectionSettings()
+        );
+    }
+
     /**
      * Returns a superset of all settings supported by Zepp OS Devices. Unsupported settings are removed
      * by {@link ZeppOsSettingsCustomizer}.
@@ -374,16 +397,21 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         if (ZeppOsLoyaltyCardService.isSupported(getPrefs(device))) {
             deviceSpecificSettings.addRootScreen(R.xml.devicesettings_loyalty_cards);
         }
+        if (supportsAudioRecordings(device)) {
+            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_audio_recordings);
+        }
 
         //
         // Time
         //
         final List<Integer> dateTime = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DATE_TIME);
+        // FIXME: This "works", but the band does not update when the setting changes, so it's disabled for now
         //dateTime.add(R.xml.devicesettings_timeformat);
         dateTime.add(R.xml.devicesettings_dateformat_2);
         if (getWorldClocksSlotCount() > 0) {
             dateTime.add(R.xml.devicesettings_world_clocks);
         }
+        dateTime.add(R.xml.devicesettings_zeppos_sun_moon_utc);
 
         //
         // Display
@@ -487,8 +515,8 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         if (ZeppOsLogsService.isSupported(getPrefs(device))) {
             developer.add(R.xml.devicesettings_app_logs_start_stop);
         }
-        if (supportsAlexa(device)) {
-            developer.add(R.xml.devicesettings_huami2021_alexa);
+        if (supportsAssistant(device)) {
+            developer.add(R.xml.devicesettings_zeppos_assistant);
         }
         if (supportsWifiHotspot(device)) {
             developer.add(R.xml.devicesettings_wifi_hotspot);
@@ -517,7 +545,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
             notificationTypes.add(HuamiVibrationPatternNotificationType.EVENT_REMINDER);
         }
 
-        if (!supportsContinuousFindDevice()) {
+        if (!supportsContinuousFindDevice(device)) {
             notificationTypes.add(HuamiVibrationPatternNotificationType.FIND_BAND);
         }
 
@@ -539,9 +567,18 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         return BONDING_STYLE_REQUIRE_KEY;
     }
 
-    public boolean supportsContinuousFindDevice() {
-        // TODO: Auto-detect continuous find device?
-        return false;
+    public final boolean supportsContinuousFindDevice(final GBDevice device) {
+        return ZeppOsFindDeviceService.supportsContinuousFindDevice(getPrefs(device));
+    }
+
+    @Override
+    public boolean supportsTemperatureMeasurement(final GBDevice device) {
+        return supportsDisplayItem(device, "thermometer");
+    }
+
+    @Override
+    public boolean supportsContinuousTemperature(final GBDevice device) {
+        return supportsDisplayItem(device, "thermometer");
     }
 
     public boolean supportsAgpsUpdates() {
@@ -555,8 +592,8 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         return true;
     }
 
-    public boolean supportsGpxUploads() {
-        return false;
+    public boolean supportsGpxUploads(final GBDevice device) {
+        return supportsBleFileTransfer(device, "sport");
     }
 
     public boolean supportsControlCenter() {
@@ -584,7 +621,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     public boolean hasGps(final GBDevice device) {
-        return supportsConfig(device, ZeppOsConfigService.ConfigArg.WORKOUT_GPS_PRESET);
+        return supportsConfig(device, ZeppOsConfigService.ConfigArg.AGPS_UPDATE_TIME);
     }
 
     public boolean supportsAutoBrightness(final GBDevice device) {
@@ -599,16 +636,33 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         return ZeppOsShortcutCardsService.isSupported(getPrefs(device));
     }
 
-    public boolean supportsAlexa(final GBDevice device) {
-        return experimentalFeatures(device) && ZeppOsAlexaService.isSupported(getPrefs(device));
+    public boolean supportsAssistant(final GBDevice device) {
+        return experimentalFeatures(device) && ZeppOsAssistantService.isSupported(getPrefs(device));
+    }
+
+    public boolean supportsMaps(final GBDevice device) {
+        return supportsDisplayItem(device, "map");
+    }
+
+    public boolean supportsMusicUpload(final GBDevice device) {
+        return supportsDisplayItem(device, "music") && supportsBleFileTransfer(device, "music");
     }
 
     private boolean supportsConfig(final GBDevice device, final ZeppOsConfigService.ConfigArg config) {
         return ZeppOsConfigService.deviceHasConfig(getPrefs(device), config);
     }
 
-    public static boolean deviceHasConfig(final Prefs devicePrefs, final ZeppOsConfigService.ConfigArg config) {
-        return devicePrefs.getBoolean(DeviceSettingsUtils.getPrefKnownConfig(config.name()), false);
+    private boolean supportsDisplayItem(final GBDevice device, final String item) {
+        return getPrefs(device).getList(
+                DeviceSettingsUtils.getPrefPossibleValuesKey(HuamiConst.PREF_DISPLAY_ITEMS_SORTABLE),
+                Collections.emptyList()
+        ).contains(item);
+    }
+
+    private boolean supportsBleFileTransfer(final GBDevice device, final String service) {
+        return getPrefs(device)
+                .getStringSet(ZeppOsFileTransferImpl.PREF_SUPPORTED_SERVICES, Collections.emptySet())
+                .contains(service);
     }
 
     public static boolean experimentalFeatures(final GBDevice device) {

@@ -42,7 +42,7 @@ public class NotificationsHandler implements MessageHandler {
     private boolean enabled = false;
     // Keep track of Notification ID -> action handle, as BangleJSDeviceSupport.
     // TODO: This needs to be simplified.
-    private final LimitedQueue<Integer, Long> mNotificationReplyAction = new LimitedQueue<>(16);
+    private final LimitedQueue<Integer, Long> mNotificationReplyAction = new LimitedQueue<>(32);
 
 
     public NotificationsHandler() {
@@ -76,8 +76,9 @@ public class NotificationsHandler implements MessageHandler {
     public NotificationUpdateMessage onSetCallState(CallSpec callSpec) {
         if (!enabled)
             return null;
+        final int id = StringUtils.firstNonBlank(callSpec.number, "Gadgetbridge Call").hashCode();
         if (callSpec.command == CallSpec.CALL_INCOMING) {
-            NotificationSpec callNotificationSpec = new NotificationSpec(callSpec.number.hashCode());
+            NotificationSpec callNotificationSpec = new NotificationSpec(id);
             callNotificationSpec.phoneNumber = callSpec.number;
             callNotificationSpec.sourceAppId = callSpec.sourceAppId;
             callNotificationSpec.title = StringUtils.isEmpty(callSpec.name) ? callSpec.number : callSpec.name;
@@ -91,10 +92,8 @@ public class NotificationsHandler implements MessageHandler {
 
             return onNotification(callNotificationSpec);
         } else {
-            if (callSpec.number != null) // this happens in debug screen
-                return onDeleteNotification(callSpec.number.hashCode());
+            return onDeleteNotification(id);
         }
-        return null;
     }
 
     public NotificationUpdateMessage onNotification(NotificationSpec notificationSpec) {
@@ -112,12 +111,14 @@ public class NotificationsHandler implements MessageHandler {
             for (int i = 0; i < notificationSpec.attachedActions.size(); i++) {
                 final NotificationSpec.Action action = notificationSpec.attachedActions.get(i);
 
-                if (action.type == NotificationSpec.Action.TYPE_WEARABLE_REPLY || action.type == NotificationSpec.Action.TYPE_SYNTECTIC_REPLY_PHONENR) {
+                if (action.isReply()) {
                     mNotificationReplyAction.add(notificationSpec.getId(), action.handle);
                 }
             }
         }
-        return new NotificationUpdateMessage(notificationUpdateType, notificationSpec.type, getNotificationsCount(notificationSpec.type), notificationSpec.getId(), hasActions);
+
+        final boolean hasPicture = !StringUtils.isEmpty(notificationSpec.picturePath);
+        return new NotificationUpdateMessage(notificationUpdateType, notificationSpec.type, getNotificationsCount(notificationSpec.type), notificationSpec.getId(), hasActions, hasPicture);
     }
 
     private int getNotificationsCount(NotificationType notificationType) {
@@ -134,6 +135,14 @@ public class NotificationsHandler implements MessageHandler {
                 return e;
             }
         }
+        LOG.warn("Failed to find notificationSpec in queue for {}", id);
+        return null;
+    }
+
+    public String getNotificationAttachmentPath(int notificationId) {
+        NotificationSpec notificationSpec = getNotificationSpecFromQueue(notificationId);
+        if (null != notificationSpec)
+            return notificationSpec.picturePath;
         return null;
     }
 
@@ -146,12 +155,13 @@ public class NotificationsHandler implements MessageHandler {
             NotificationSpec e = iterator.next();
             if (e.getId() == id) {
                 iterator.remove();
-                return new NotificationUpdateMessage(NotificationUpdateMessage.NotificationUpdateType.REMOVE, e.type, getNotificationsCount(e.type), id, false);
+                return new NotificationUpdateMessage(NotificationUpdateMessage.NotificationUpdateType.REMOVE, e.type, getNotificationsCount(e.type), id, false, false);
             }
         }
         return null;
     }
 
+    @Override
     public GFDIMessage handle(GFDIMessage message) {
         if (!enabled)
             return null;
@@ -213,6 +223,30 @@ public class NotificationsHandler implements MessageHandler {
                 deviceEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.MUTE;
                 message.addGbDeviceEvent(deviceEvtNotificationControl);
                 break;
+            case CUSTOM_ACTION_1:
+            case CUSTOM_ACTION_2:
+            case CUSTOM_ACTION_3:
+            case CUSTOM_ACTION_4:
+            case CUSTOM_ACTION_5:
+                deviceEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.REPLY;
+
+                // We need to map back to the handle of the action - the custom actions are added in order
+                final int customActionIndex = message.getNotificationAction().ordinal();
+                int i = 0;
+                for (NotificationSpec.Action attachedAction : notificationSpec.attachedActions) {
+                    if (attachedAction.type == NotificationSpec.Action.TYPE_WEARABLE_SIMPLE || attachedAction.type == NotificationSpec.Action.TYPE_CUSTOM_SIMPLE) {
+                        if (i == customActionIndex) {
+                            deviceEvtNotificationControl.handle = attachedAction.handle;
+                            break;
+                        } else {
+                            i++;
+                        }
+                    }
+                }
+                message.addGbDeviceEvent(deviceEvtNotificationControl);
+                break;
+            default:
+                LOG.warn("Unknown notification action {}", message.getNotificationAction());
         }
     }
 
@@ -278,6 +312,7 @@ public class NotificationsHandler implements MessageHandler {
         // Garmin extensions
 //        PHONE_NUMBER(126, true),
         ACTIONS(127, false, true),
+        ATTACHMENTS(128),
         ;
         private static final SparseArray<NotificationAttribute> valueByCode;
 
@@ -320,7 +355,7 @@ public class NotificationsHandler implements MessageHandler {
                     break;
                 case TITLE:
                     if (NotificationType.GENERIC_SMS.equals(notificationSpec.type))
-                        toReturn = notificationSpec.sender == null ? "" : notificationSpec.sender;
+                        toReturn = StringUtils.firstNonBlank(notificationSpec.sender, notificationSpec.phoneNumber, "-");
                     else
                         toReturn = notificationSpec.title == null ? "" : notificationSpec.title;
                     break;
@@ -339,6 +374,10 @@ public class NotificationsHandler implements MessageHandler {
                 case ACTIONS:
                     toReturn = encodeNotificationActionsString(notificationSpec);
                     break;
+                case ATTACHMENTS:
+                    LOG.debug("Notification attachments requested for notification id {}", notificationSpec.getId());
+                    toReturn = "1"; // the number of attachments
+                    break;
             }
             if (maxLength == 0)
                 return toReturn.getBytes(StandardCharsets.UTF_8);
@@ -354,9 +393,12 @@ public class NotificationsHandler implements MessageHandler {
                 garminActions.add(encodeNotificationAction(NotificationAction.ACCEPT_INCOMING_CALL, " ")); //text is not shown on watch
             }
             if (null != notificationSpec.attachedActions) {
+                int customActionsIdx = 1;
+
                 for (NotificationSpec.Action action : notificationSpec.attachedActions) {
                     switch (action.type) {
                         case NotificationSpec.Action.TYPE_WEARABLE_REPLY:
+                        case NotificationSpec.Action.TYPE_CUSTOM_REPLY:
                         case NotificationSpec.Action.TYPE_SYNTECTIC_REPLY_PHONENR:
                             garminActions.add(encodeNotificationAction(NotificationAction.REPLY_MESSAGES, action.title));
                             break;
@@ -366,11 +408,20 @@ public class NotificationsHandler implements MessageHandler {
                         case NotificationSpec.Action.TYPE_SYNTECTIC_MUTE:
                             garminActions.add(encodeNotificationAction(NotificationAction.BLOCK_APPLICATION, action.title));
                             break;
-
+                        case NotificationSpec.Action.TYPE_WEARABLE_SIMPLE:
+                        case NotificationSpec.Action.TYPE_CUSTOM_SIMPLE:
+                            if (customActionsIdx <= 5) {
+                                garminActions.add(encodeNotificationAction(NotificationAction.valueOf("CUSTOM_ACTION_" + customActionsIdx), action.title));
+                            } else {
+                                LOG.error("Too many custom actions!");
+                            }
+                            customActionsIdx++;
+                            break;
                     }
 //                    LOG.info("Notification has action {} with title {}", action.type, action.title);
                 }
             }
+
             if (garminActions.isEmpty())
                 return new String(new byte[]{0x00, 0x00, 0x00, 0x00});
 
@@ -381,7 +432,7 @@ public class NotificationsHandler implements MessageHandler {
                 }
                 return byteArrayOutputStream.toString();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("this should never happen", e);
             }
 
         }
@@ -400,6 +451,11 @@ public class NotificationsHandler implements MessageHandler {
     }
 
     public enum NotificationAction {
+        CUSTOM_ACTION_1(1, null),
+        CUSTOM_ACTION_2(2, null),
+        CUSTOM_ACTION_3(3, null),
+        CUSTOM_ACTION_4(4, null),
+        CUSTOM_ACTION_5(5, null),
         REPLY_INCOMING_CALL(94, NotificationActionIconPosition.BOTTOM),
         REPLY_MESSAGES(95, NotificationActionIconPosition.BOTTOM),
         ACCEPT_INCOMING_CALL(96, NotificationActionIconPosition.RIGHT),

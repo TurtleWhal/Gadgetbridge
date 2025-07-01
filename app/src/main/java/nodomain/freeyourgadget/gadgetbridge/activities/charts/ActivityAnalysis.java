@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.List;
 
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityAmount;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityAmounts;
@@ -36,31 +35,35 @@ public class ActivityAnalysis {
     // max speed determined from samples
     private int maxSpeed = 0;
 
-    public ActivityAmounts calculateActivityAmounts(List<? extends ActivitySample> samples) {
-        ActivityAmount deepSleep = new ActivityAmount(ActivityKind.TYPE_DEEP_SLEEP);
-        ActivityAmount lightSleep = new ActivityAmount(ActivityKind.TYPE_LIGHT_SLEEP);
-        ActivityAmount remSleep = new ActivityAmount(ActivityKind.TYPE_REM_SLEEP);
-        ActivityAmount notWorn = new ActivityAmount(ActivityKind.TYPE_NOT_WORN);
-        ActivityAmount activity = new ActivityAmount(ActivityKind.TYPE_ACTIVITY);
+    public ActivityAmounts calculateActivityAmounts(Iterable<? extends ActivitySample> samples) {
+        ActivityAmount deepSleep = new ActivityAmount(ActivityKind.DEEP_SLEEP);
+        ActivityAmount lightSleep = new ActivityAmount(ActivityKind.LIGHT_SLEEP);
+        ActivityAmount remSleep = new ActivityAmount(ActivityKind.REM_SLEEP);
+        ActivityAmount awakeSleep = new ActivityAmount(ActivityKind.AWAKE_SLEEP);
+        ActivityAmount notWorn = new ActivityAmount(ActivityKind.NOT_WORN);
+        ActivityAmount activity = new ActivityAmount(ActivityKind.ACTIVITY);
 
         ActivityAmount previousAmount = null;
         ActivitySample previousSample = null;
         for (ActivitySample sample : samples) {
             ActivityAmount amount;
             switch (sample.getKind()) {
-                case ActivityKind.TYPE_DEEP_SLEEP:
+                case DEEP_SLEEP:
                     amount = deepSleep;
                     break;
-                case ActivityKind.TYPE_LIGHT_SLEEP:
+                case LIGHT_SLEEP:
                     amount = lightSleep;
                     break;
-                case ActivityKind.TYPE_REM_SLEEP:
+                case REM_SLEEP:
                     amount = remSleep;
                     break;
-                case ActivityKind.TYPE_NOT_WORN:
+                case AWAKE_SLEEP:
+                    amount = awakeSleep;
+                    break;
+                case NOT_WORN:
                     amount = notWorn;
                     break;
-                case ActivityKind.TYPE_ACTIVITY:
+                case ACTIVITY:
                 default:
                     amount = activity;
                     break;
@@ -69,6 +72,16 @@ public class ActivityAnalysis {
             int steps = sample.getSteps();
             if (steps > 0) {
                 amount.addSteps(steps);
+            }
+
+            final int distance = sample.getDistanceCm();
+            if (distance >= 0) {
+                amount.addDistance(distance);
+            }
+
+            final int activeCalories = sample.getActiveCalories();
+            if (activeCalories > 0) {
+                amount.addActiveCalories(activeCalories);
             }
 
             if (previousSample != null) {
@@ -82,7 +95,7 @@ public class ActivityAnalysis {
                 }
 
                 // add time
-                if (steps > 0 && sample.getKind() == ActivityKind.TYPE_ACTIVITY) {
+                if (steps > 0 && sample.getKind() == ActivityKind.ACTIVITY) {
                     if (steps > maxSpeed) {
                         maxSpeed = steps;
                     }
@@ -115,6 +128,9 @@ public class ActivityAnalysis {
         if (remSleep.getTotalSeconds() > 0) {
             result.addAmount(remSleep);
         }
+        if (awakeSleep.getTotalSeconds() > 0) {
+            result.addAmount(awakeSleep);
+        }
         if (activity.getTotalSeconds() > 0) {
             result.addAmount(activity);
         }
@@ -127,7 +143,7 @@ public class ActivityAnalysis {
         return result;
     }
 
-    int calculateTotalSteps(List<? extends ActivitySample> samples) {
+    int calculateTotalSteps(Iterable<? extends ActivitySample> samples) {
         int totalSteps = 0;
         for (ActivitySample sample : samples) {
             int steps = sample.getSteps();

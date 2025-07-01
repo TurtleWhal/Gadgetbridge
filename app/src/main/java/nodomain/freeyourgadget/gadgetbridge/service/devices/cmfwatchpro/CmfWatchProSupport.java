@@ -21,10 +21,17 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.location.Location;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.widget.Toast;
+
+import androidx.annotation.Nullable;
+
+import net.e175.klaus.solarpositioning.DeltaT;
+import net.e175.klaus.solarpositioning.SPA;
+import net.e175.klaus.solarpositioning.SunriseTransitSet;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -34,10 +41,12 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.Random;
 import java.util.TimeZone;
 import java.util.UUID;
 
@@ -48,7 +57,9 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventBatteryInf
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventFindPhone;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventMusicControl;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdateDeviceInfo;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
+import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.CmfWatchProCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
@@ -60,15 +71,15 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.webview.CurrentPosition;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.MediaManager;
 
-public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements CmfCharacteristic.Handler {
+public class CmfWatchProSupport extends AbstractBTLESingleDeviceSupport implements CmfCharacteristic.Handler {
     private static final Logger LOG = LoggerFactory.getLogger(CmfWatchProSupport.class);
 
     public static final UUID UUID_SERVICE_CMF_CMD = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb");
@@ -79,6 +90,14 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
     public static final UUID UUID_CHARACTERISTIC_CMF_DATA_WRITE = UUID.fromString("02f00000-0000-0000-0000-00000000ffe1");
     public static final UUID UUID_CHARACTERISTIC_CMF_DATA_READ = UUID.fromString("02f00000-0000-0000-0000-00000000ffe2");
 
+    public static final UUID UUID_SERVICE_CMF_SHELL = UUID.fromString("77d4e67c-2fe2-2334-0d35-9ccd078f529c");
+    public static final UUID UUID_CHARACTERISTIC_CMF_SHELL_WRITE = UUID.fromString("77d4ff01-2fe2-2334-0d35-9ccd078f529c");
+    public static final UUID UUID_CHARACTERISTIC_CMF_SHELL_READ = UUID.fromString("77d4ff02-2fe2-2334-0d35-9ccd078f529c");
+
+    public static final UUID UUID_SERVICE_CMF_FIRMWARE = UUID.fromString("02f00000-0000-0000-0000-00000000fe00");
+    public static final UUID UUID_CHARACTERISTIC_CMF_FIRMWARE_WRITE = UUID.fromString("02f00000-0000-0000-0000-00000000ff01");
+    public static final UUID UUID_CHARACTERISTIC_CMF_FIRMWARE_READ = UUID.fromString("02f00000-0000-0000-0000-00000000ff02");
+
     // An a5 byte is used a lot in single payloads, probably as a "proof of encryption"?
     public static final byte A5 = (byte) 0xa5;
 
@@ -86,6 +105,13 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
     private CmfCharacteristic characteristicCommandWrite;
     private CmfCharacteristic characteristicDataRead;
     private CmfCharacteristic characteristicDataWrite;
+    @Nullable
+    private CmfCharacteristic characteristicFirmwareRead;
+    @Nullable
+    private CmfCharacteristic characteristicFirmwareWrite;
+
+    private final byte[] authRandom1 = new byte[16];
+    private final byte[] authAppSecret = new byte[16];
 
     private final CmfActivitySync activitySync = new CmfActivitySync(this);
     private final CmfPreferences preferences = new CmfPreferences(this);
@@ -97,6 +123,8 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
         super(LOG);
         addSupportedService(UUID_SERVICE_CMF_CMD);
         addSupportedService(UUID_SERVICE_CMF_DATA);
+        addSupportedService(UUID_SERVICE_CMF_SHELL);
+        addSupportedService(UUID_SERVICE_CMF_FIRMWARE);
     }
 
     @Override
@@ -105,45 +133,55 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
     }
 
     @Override
-    public boolean getImplicitCallbackModify() {
-        return false;
-    }
-
-    @Override
-    public boolean getSendWriteRequestResponse() {
-        return true;
-    }
-
-    @Override
     protected TransactionBuilder initializeDevice(final TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
 
         final BluetoothGattCharacteristic btCharacteristicCommandRead = getCharacteristic(UUID_CHARACTERISTIC_CMF_COMMAND_READ);
         if (btCharacteristicCommandRead == null) {
             LOG.warn("Characteristic command read is null, will attempt to reconnect");
-            builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext()));
+            builder.setUpdateState(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext());
             return builder;
         }
 
         final BluetoothGattCharacteristic btCharacteristicCommandWrite = getCharacteristic(UUID_CHARACTERISTIC_CMF_COMMAND_WRITE);
         if (btCharacteristicCommandWrite == null) {
             LOG.warn("Characteristic command write is null, will attempt to reconnect");
-            builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext()));
+            builder.setUpdateState(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext());
             return builder;
         }
 
         final BluetoothGattCharacteristic btCharacteristicDataWrite = getCharacteristic(UUID_CHARACTERISTIC_CMF_DATA_WRITE);
         if (btCharacteristicDataWrite == null) {
             LOG.warn("Characteristic data write is null, will attempt to reconnect");
-            builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext()));
+            builder.setUpdateState(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext());
             return builder;
         }
 
         final BluetoothGattCharacteristic btCharacteristicDataRead = getCharacteristic(UUID_CHARACTERISTIC_CMF_DATA_READ);
         if (btCharacteristicDataRead == null) {
             LOG.warn("Characteristic data read is null, will attempt to reconnect");
-            builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext()));
+            builder.setUpdateState(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext());
             return builder;
+        }
+
+        final BluetoothGattCharacteristic btCharacteristicShellWrite = getCharacteristic(UUID_CHARACTERISTIC_CMF_SHELL_WRITE);
+        if (btCharacteristicShellWrite == null) {
+            LOG.warn("Characteristic shell write is null");
+        }
+
+        final BluetoothGattCharacteristic btCharacteristicShellRead = getCharacteristic(UUID_CHARACTERISTIC_CMF_SHELL_READ);
+        if (btCharacteristicShellRead == null) {
+            LOG.warn("Characteristic shell read is null");
+        }
+
+        final BluetoothGattCharacteristic btCharacteristicFirmwareWrite = getCharacteristic(UUID_CHARACTERISTIC_CMF_FIRMWARE_WRITE);
+        if (btCharacteristicFirmwareWrite == null) {
+            LOG.warn("Characteristic firmware write is null");
+        }
+
+        final BluetoothGattCharacteristic btCharacteristicFirmwareRead = getCharacteristic(UUID_CHARACTERISTIC_CMF_FIRMWARE_READ);
+        if (btCharacteristicFirmwareRead == null) {
+            LOG.warn("Characteristic firmware read is null");
         }
 
         dataUploader = new CmfDataUploader(this);
@@ -152,21 +190,43 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
         characteristicCommandWrite = new CmfCharacteristic(btCharacteristicCommandWrite, null);
         characteristicDataRead = new CmfCharacteristic(btCharacteristicDataRead, dataUploader);
         characteristicDataWrite = new CmfCharacteristic(btCharacteristicDataWrite, null);
+        if (btCharacteristicFirmwareRead != null && btCharacteristicFirmwareWrite != null) {
+            characteristicFirmwareRead = new CmfCharacteristic(btCharacteristicFirmwareRead, dataUploader);
+            characteristicFirmwareWrite = new CmfCharacteristic(btCharacteristicFirmwareWrite, null);
+        }
+
+        builder.notify(btCharacteristicCommandRead, true);
+        builder.notify(btCharacteristicDataRead, true);
+        if (btCharacteristicShellRead != null) {
+            builder.notify(btCharacteristicShellRead, true);
+        }
+        if (btCharacteristicFirmwareRead != null) {
+            builder.notify(btCharacteristicFirmwareRead, true);
+        }
+
+        builder.setUpdateState(getDevice(), GBDevice.State.AUTHENTICATING, getContext());
 
         final byte[] secretKey = getSecretKey(getDevice());
-        characteristicCommandRead.setSessionKey(secretKey);
-        characteristicCommandWrite.setSessionKey(secretKey);
-        characteristicDataRead.setSessionKey(secretKey);
-        characteristicDataWrite.setSessionKey(secretKey);
 
-        builder.notify(btCharacteristicCommandWrite, true);
-        builder.notify(btCharacteristicCommandRead, true);
-        builder.notify(btCharacteristicDataWrite, true);
-        builder.notify(btCharacteristicDataRead, true);
+        if (secretKey != null) {
+            characteristicCommandRead.setSessionKey(secretKey);
+            characteristicCommandWrite.setSessionKey(secretKey);
+            characteristicDataRead.setSessionKey(secretKey);
+            characteristicDataWrite.setSessionKey(secretKey);
+            if (characteristicFirmwareRead != null) {
+                characteristicFirmwareRead.setSessionKey(secretKey);
+            }
+            if (characteristicFirmwareWrite != null) {
+                characteristicFirmwareWrite.setSessionKey(secretKey);
+            }
 
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.AUTHENTICATING, getContext()));
-
-        sendCommand(builder, CmfCommand.AUTH_PHONE_NAME, ArrayUtils.addAll(new byte[]{A5}, Build.MODEL.getBytes(StandardCharsets.UTF_8)));
+            sendCommand(builder, CmfCommand.AUTH_PHONE_NAME, ArrayUtils.addAll(new byte[]{A5}, Build.MODEL.getBytes(StandardCharsets.UTF_8)));
+        } else if (btCharacteristicShellWrite != null) {
+            builder.write(getCharacteristic(UUID_CHARACTERISTIC_CMF_SHELL_WRITE), "AT GETSECRET".getBytes());
+        } else {
+            GB.toast(getContext(), R.string.authentication_failed_check_key, Toast.LENGTH_LONG, GB.WARN);
+            builder.setUpdateState(getDevice(), GBDevice.State.NOT_CONNECTED, getContext());
+        }
 
         return builder;
     }
@@ -180,19 +240,25 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
 
     @Override
     public boolean onCharacteristicChanged(final BluetoothGatt gatt,
-                                           final BluetoothGattCharacteristic characteristic) {
-        if (super.onCharacteristicChanged(gatt, characteristic)) {
+                                           final BluetoothGattCharacteristic characteristic,
+                                           final byte[] value) {
+        if (super.onCharacteristicChanged(gatt, characteristic, value)) {
             return true;
         }
 
         final UUID characteristicUUID = characteristic.getUuid();
-        final byte[] value = characteristic.getValue();
 
         if (characteristicUUID.equals(characteristicCommandRead.getCharacteristicUUID())) {
             characteristicCommandRead.onCharacteristicChanged(value);
             return true;
         } else if (characteristicUUID.equals(characteristicDataRead.getCharacteristicUUID())) {
             characteristicDataRead.onCharacteristicChanged(value);
+            return true;
+        } else if (characteristicFirmwareRead != null && characteristicUUID.equals(characteristicFirmwareRead.getCharacteristicUUID())) {
+            characteristicFirmwareRead.onCharacteristicChanged(value);
+            return true;
+        } else if (characteristicUUID.equals(UUID_CHARACTERISTIC_CMF_SHELL_READ)) {
+            handleShellCommand(value);
             return true;
         }
 
@@ -203,6 +269,10 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
     @Override
     public void onMtuChanged(final BluetoothGatt gatt, final int mtu, final int status) {
         super.onMtuChanged(gatt, mtu, status);
+
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+            return;
+        }
 
         characteristicCommandRead.setMtu(mtu);
         characteristicCommandWrite.setMtu(mtu);
@@ -221,6 +291,55 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
         }
 
         switch (cmd) {
+            case DATA_TRANSFER_FIRMWARE_INIT_1_REPLY:
+                // This one comes in the command characteristic because of reasons
+                dataUploader.onCommand(cmd, payload);
+                return;
+            case AUTH_PAIR_REPLY:
+                final byte[] authRandom2 = ArrayUtils.subarray(payload, 0, 16);
+                final byte[] signedAuthRandom2 = ArrayUtils.subarray(payload, 16, 48);
+
+                LOG.debug("authRandom2: {}", GB.hexdump(authRandom2));
+                LOG.debug("signedAuthRandom2: {}", GB.hexdump(signedAuthRandom2));
+
+                try {
+                    // Validate random2 signature
+                    final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+                    sha256.update(authRandom2);
+                    sha256.update(authAppSecret);
+                    byte[] random2verify = sha256.digest();
+
+                    if (!Arrays.equals(signedAuthRandom2, random2verify)) {
+                        LOG.error("random2 signature mismatch");
+                        authNegotiationFailed();
+                        return;
+                    }
+
+                    // Compute K1 and update preferences
+                    sha256.reset();
+                    sha256.update(authRandom1);
+                    sha256.update(authRandom2);
+                    sha256.update(authAppSecret);
+                    final byte[] k1full = sha256.digest();
+                    final byte[] secretKey = ArrayUtils.subarray(k1full, 0, 16);
+
+                    LOG.debug("Negotiated K1: {}", k1full);
+
+                    evaluateGBDeviceEvent(new GBDeviceEventUpdatePreferences("authkey", GB.hexdump(secretKey)));
+
+                    characteristicCommandRead.setSessionKey(secretKey);
+                    characteristicCommandWrite.setSessionKey(secretKey);
+                    characteristicDataRead.setSessionKey(secretKey);
+                    characteristicDataWrite.setSessionKey(secretKey);
+
+                    sendCommand("auth step 2", CmfCommand.AUTH_PHONE_NAME, ArrayUtils.addAll(new byte[]{A5}, Build.MODEL.getBytes(StandardCharsets.UTF_8)));
+                } catch (final Exception e) {
+                    LOG.error("Failed to negotiate K1", e);
+                    authNegotiationFailed();
+                    return;
+                }
+
+                return;
             case AUTH_FAILED:
                 LOG.error("Authentication failed, disconnecting");
                 GB.toast(getContext(), R.string.authentication_failed_check_key, Toast.LENGTH_LONG, GB.WARN);
@@ -247,7 +366,13 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
                     characteristicCommandWrite.setSessionKey(sessionKey);
                     characteristicDataRead.setSessionKey(sessionKey);
                     characteristicDataWrite.setSessionKey(sessionKey);
-                } catch (final GeneralSecurityException e) {
+                    if (characteristicFirmwareRead != null) {
+                        characteristicFirmwareRead.setSessionKey(sessionKey);
+                    }
+                    if (characteristicFirmwareWrite != null) {
+                        characteristicFirmwareWrite.setSessionKey(sessionKey);
+                    }
+                } catch (final Exception e) {
                     LOG.error("Failed to compute session key from auth nonce", e);
                     return;
                 }
@@ -261,12 +386,17 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
                 setTime(phase2builder);
                 sendCommand(phase2builder, CmfCommand.FIRMWARE_VERSION_GET);
                 sendCommand(phase2builder, CmfCommand.SERIAL_NUMBER_GET);
+                final Location location = new CurrentPosition().getLastKnownLocation();
+                if (location.getLatitude() != 0 && location.getLongitude() != 0) {
+                    sendGpsCoords(phase2builder, location);
+                }
                 //sendCommand(phase2builder, CmfCommand.STANDING_REMINDER_GET);
                 //sendCommand(phase2builder, CmfCommand.WATER_REMINDER_GET);
                 //sendCommand(phase2builder, CmfCommand.CONTACTS_GET);
                 //sendCommand(phase2builder, CmfCommand.ALARMS_GET);
+                //sendCommand(phase2builder, CmfCommand.CALL_REMINDER_REQUEST, 0x00);
                 // TODO premature to mark as initialized?
-                phase2builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+                phase2builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
                 phase2builder.queue(getQueue());
                 return;
             case BATTERY:
@@ -296,7 +426,7 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
                     LOG.warn("Unexpected serial number payload length: {}, expected {}", payload.length, (payload[0] & 0xff));
                     return;
                 }
-                final String serialNumber = new String(ArrayUtils.subarray(payload, 1, payload.length - 2));
+                final String serialNumber = new String(ArrayUtils.subarray(payload, 1, payload.length));
                 LOG.debug("Got serial number: {}", serialNumber);
                 final GBDeviceEventUpdateDeviceInfo gbDeviceEventUpdateDeviceInfo = new GBDeviceEventUpdateDeviceInfo("SERIAL: ", serialNumber);
                 evaluateGBDeviceEvent(gbDeviceEventUpdateDeviceInfo);
@@ -310,6 +440,12 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
                 }
                 evaluateGBDeviceEvent(findPhoneEvent);
                 return;
+            case CALL_REMINDER_RESPONSE:
+                LOG.debug("Got call reminder response: {}", GB.hexdump(payload));
+                // 00 -> ack set
+                // 01:00 -> disabled
+                // 01:01 -> enabled
+                break;
             case MUSIC_INFO_ACK:
                 LOG.debug("Got music info ack");
                 break;
@@ -362,24 +498,99 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
         builder.queue(getQueue());
     }
 
-    private static byte[] getSecretKey(final GBDevice device) {
-        final byte[] authKeyBytes = new byte[16];
+    public void sendFirmware(final String taskName, final CmfCommand cmd, final byte... payload) {
+        final TransactionBuilder builder = createTransactionBuilder(taskName);
+        characteristicFirmwareWrite.sendCommand(builder, cmd, payload);
+        builder.queue(getQueue());
+    }
 
+    private void handleShellCommand(final byte[] bytes) {
+        final String shellCommand = new String(bytes).strip();
+        if (!shellCommand.startsWith("GETSECRET:")) {
+            LOG.error("Got unknown shell command: {}", GB.hexdump(bytes));
+            return;
+        }
+
+        if (!shellCommand.endsWith(",OK")) {
+            LOG.error("Failed to get secret: {}", GB.hexdump(bytes));
+            authNegotiationFailed();
+            return;
+        }
+
+        final byte[] signedRandom1;
+        try {
+            new Random().nextBytes(authRandom1);
+            final byte[] secretBytes = GB.hexStringToByteArray(shellCommand.substring(10, 10 + 32));
+            System.arraycopy(secretBytes, 0, authAppSecret, 0, authAppSecret.length);
+
+            final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            sha256.update(authRandom1);
+            sha256.update(authAppSecret);
+            signedRandom1 = sha256.digest();
+
+            LOG.debug("authRandom1: {}", GB.hexdump(authRandom1));
+            LOG.debug("authAppSecret: {}", GB.hexdump(authAppSecret));
+            LOG.debug("signedRandom1: {}", GB.hexdump(signedRandom1));
+        } catch (final Exception e) {
+            LOG.error("Failed to generate signed random1", e);
+            authNegotiationFailed();
+            return;
+        }
+
+        sendCommand("auth send signed random1", CmfCommand.AUTH_PAIR_REQUEST, ArrayUtils.addAll(authRandom1, signedRandom1));
+    }
+
+    private void authNegotiationFailed() {
+        GB.toast(getContext(), R.string.authentication_failed_negotiation, Toast.LENGTH_LONG, GB.WARN);
+        final GBDevice device = getDevice();
+        if (device != null) {
+            GBApplication.deviceService(device).disconnect();
+        }
+    }
+
+    @Nullable
+    private static byte[] getSecretKey(final GBDevice device) {
         final SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress());
 
         final String authKey = sharedPrefs.getString("authkey", "").trim();
-        if (StringUtils.isNotBlank(authKey)) {
-            final byte[] srcBytes;
-            // Allow both with and without 0x, to avoid user mistakes
-            if (authKey.length() == 34 && authKey.startsWith("0x")) {
-                srcBytes = GB.hexStringToByteArray(authKey.trim().substring(2));
-            } else {
-                srcBytes = GB.hexStringToByteArray(authKey.trim());
-            }
-            System.arraycopy(srcBytes, 0, authKeyBytes, 0, Math.min(srcBytes.length, 16));
+        if (StringUtils.isBlank(authKey)) {
+            return null;
         }
 
+        final byte[] authKeyBytes = new byte[16];
+
+        final byte[] srcBytes;
+        // Allow both with and without 0x, to avoid user mistakes
+        if (authKey.length() == 34 && authKey.startsWith("0x")) {
+            srcBytes = GB.hexStringToByteArray(authKey.trim().substring(2));
+        } else {
+            srcBytes = GB.hexStringToByteArray(authKey.trim());
+        }
+        System.arraycopy(srcBytes, 0, authKeyBytes, 0, Math.min(srcBytes.length, 16));
+
         return authKeyBytes;
+    }
+
+    protected CmfWatchProCoordinator getCoordinator() {
+        return (CmfWatchProCoordinator) gbDevice.getDeviceCoordinator();
+    }
+
+    @Override
+    public void onSetGpsLocation(final Location location) {
+        final TransactionBuilder builder = createTransactionBuilder("set gps location");
+        sendGpsCoords(builder, location);
+        builder.queue(getQueue());
+    }
+
+    private void sendGpsCoords(final TransactionBuilder builder, final Location location) {
+        final ByteBuffer buf = ByteBuffer.allocate(16)
+                .order(ByteOrder.BIG_ENDIAN);
+
+        buf.putInt((int) (location.getTime() / 1000));
+        buf.putInt((int) (location.getLatitude() * 10000000));
+        buf.putInt((int) (location.getLongitude() * 10000000));
+
+        sendCommand(builder, CmfCommand.GPS_COORDS, buf.array());
     }
 
     @Override
@@ -594,22 +805,25 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
         // Each weather entry takes up 9 bytes
         // There are 7 of those weather entries - 7*9 bytes
         // Then there are 24-hour entries of temp and weather condition (2 bytes each)
-        // Then finally the location name as bytes - allow for 30 bytes, watch auto-scrolls
-        final ByteBuffer buf = ByteBuffer.allocate((7*9) + (24*2) + 30).order(ByteOrder.BIG_ENDIAN);
+        // Then the location name as bytes - allow for 30 bytes, watch auto-scrolls. Pad it to 32 bytes if it supports sunset/sunrise
+        // Then finally the sunrise / sunset pairs, for 7 days (7*8)
+        final boolean supportsSunriseSunset = getCoordinator().supportsSunriseSunset();
+        final int payloadLength = (7 * 9) + (24 * 2) + (supportsSunriseSunset ? 32 : 30) + (supportsSunriseSunset ? 7 * 8 : 0);
+        final ByteBuffer buf = ByteBuffer.allocate(payloadLength).order(ByteOrder.BIG_ENDIAN);
         // start with the current day's weather
         buf.put(Weather.mapToCmfCondition(weatherSpec.currentConditionCode));
         buf.put((byte) (weatherSpec.currentTemp - 273 + 100)); // convert Kelvin to C, add 100
         buf.put((byte) (weatherSpec.todayMaxTemp - 273 + 100)); // convert Kelvin to C, add 100
         buf.put((byte) (weatherSpec.todayMinTemp - 273 + 100)); // convert Kelvin to C, add 100
         buf.put((byte) weatherSpec.currentHumidity);
-        buf.putShort((short) weatherSpec.airQuality.aqi);
+        buf.putShort((short) (weatherSpec.airQuality != null ? weatherSpec.airQuality.aqi : 0));
         buf.put((byte) weatherSpec.uvIndex); // UV index isn't shown. uvi decimal/100, so 0x07 = 700 UVI.
         buf.put((byte) weatherSpec.windSpeed); // isn't shown by watch, unsure of correct units
 
         // find out how many future days' forecasts are available
         int maxForecastsAvailable = weatherSpec.forecasts.size();
         // For each day of the forecast
-        for (int i=0; i < 6; i++) {
+        for (int i = 0; i < 6; i++) {
             if (i < maxForecastsAvailable) {
                 WeatherSpec.Daily forecastDay = weatherSpec.forecasts.get(i);
                 buf.put((byte) (Weather.mapToCmfCondition(forecastDay.conditionCode)));  // weather condition flag
@@ -617,11 +831,7 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
                 buf.put((byte) (forecastDay.maxTemp - 273 + 100)); // max temp in C, + 100
                 buf.put((byte) (forecastDay.minTemp - 273 + 100)); // min temp in C, + 100
                 buf.put((byte) forecastDay.humidity); // humidity as a %
-                try { // AQI data might not be available for the full 7 day forecast.
-                    buf.putShort((short) weatherSpec.airQuality.aqi);
-                } catch (java.lang.NullPointerException ex) {
-                    buf.putShort((short) 0);
-                }
+                buf.putShort((short) (forecastDay.airQuality != null ? forecastDay.airQuality.aqi : 0));
                 buf.put((byte) forecastDay.uvIndex); // UV index isn't shown. uvi decimal/100, so 0x07 = 700 UVI.
                 buf.put((byte) forecastDay.windSpeed); // isn't shown by watch, unsure of correct units
             } else {
@@ -639,7 +849,7 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
         }
         // now add the hourly data for today - just condition and temperature
         int maxHourlyForecastsAvailable = weatherSpec.hourly.size();
-        for (int i=0; i < 24; i++) {
+        for (int i = 0; i < 24; i++) {
             if (i < maxHourlyForecastsAvailable) {
                 WeatherSpec.Hourly forecastHr = weatherSpec.hourly.get(i);
                 buf.put((byte) (forecastHr.temp - 273 + 100)); // temperature
@@ -649,9 +859,54 @@ public class CmfWatchProSupport extends AbstractBTLEDeviceSupport implements Cmf
                 buf.put((byte) (Weather.mapToCmfCondition(weatherSpec.currentConditionCode))); // current condition
             }
         }
-        // place name - watch scrolls after ~10 chars
-        buf.put(StringUtils.truncate(weatherSpec.location, 30).getBytes(StandardCharsets.UTF_8));
+        // place name - watch scrolls after ~10 chars. Pad up to 32 bytes.
+        final byte[] locationNameBytes = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateToBytes(weatherSpec.location, 30);
+        buf.put(locationNameBytes);
+
+        // Sunrise / sunset
+        if (supportsSunriseSunset) {
+            buf.put(new byte[32 - locationNameBytes.length]);
+
+            buf.order(ByteOrder.LITTLE_ENDIAN); // why...
+            final Location location = weatherSpec.getLocation() != null ? weatherSpec.getLocation() : new CurrentPosition().getLastKnownLocation();
+            final GregorianCalendar sunriseDate = new GregorianCalendar();
+
+            if (weatherSpec.sunRise != 0 && weatherSpec.sunSet != 0) {
+                buf.putInt(weatherSpec.sunRise);
+                buf.putInt(weatherSpec.sunSet);
+            } else {
+                putSunriseSunset(buf, location, sunriseDate);
+            }
+
+            for (int i = 0; i < 6; i++) {
+                sunriseDate.add(Calendar.DAY_OF_MONTH, 1);
+                if (i < weatherSpec.forecasts.size() && weatherSpec.forecasts.get(i).sunRise != 0 && weatherSpec.forecasts.get(i).sunSet != 0) {
+                    buf.putInt(weatherSpec.forecasts.get(i).sunRise);
+                    buf.putInt(weatherSpec.forecasts.get(i).sunSet);
+                } else {
+                    putSunriseSunset(buf, location, sunriseDate);
+                }
+            }
+        }
+
         sendCommand("send weather", CmfCommand.WEATHER_SET_1, buf.array());
+    }
+
+    private void putSunriseSunset(final ByteBuffer buf, final Location location, final GregorianCalendar date) {
+        final SunriseTransitSet sunriseTransitSet = SPA.calculateSunriseTransitSet(
+                date.toZonedDateTime(),
+                location.getLatitude(),
+                location.getLongitude(),
+                DeltaT.estimate(date.toZonedDateTime().toLocalDate())
+        );
+
+        if (sunriseTransitSet.getSunrise() != null && sunriseTransitSet.getSunset() != null) {
+            buf.putInt((int) sunriseTransitSet.getSunrise().toInstant().getEpochSecond());
+            buf.putInt((int) sunriseTransitSet.getSunset().toInstant().getEpochSecond());
+        } else {
+            buf.putInt(0);
+            buf.putInt(0);
+        }
     }
 
     @Override

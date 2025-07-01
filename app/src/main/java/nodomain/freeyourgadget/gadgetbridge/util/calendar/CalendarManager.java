@@ -23,19 +23,30 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.CalendarContract;
 import android.provider.CalendarContract.Instances;
+import android.provider.ContactsContract;
 import android.text.format.Time;
+
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
+import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -64,10 +75,11 @@ public class CalendarManager {
             CalendarContract.Calendars.ACCOUNT_NAME,
             Instances.CALENDAR_COLOR,
             Instances.ALL_DAY,
-            Instances.EVENT_ID //needed for reminders
+            Instances.EVENT_ID, //needed for reminders
+            CalendarContract.Calendars.ACCOUNT_TYPE,
+            Instances.CALENDAR_ID,
+            Instances.RRULE
     };
-
-    private static final int lookahead_days = 7;
 
     private final String deviceAddress;
     private final Context mContext;
@@ -82,11 +94,27 @@ public class CalendarManager {
     public List<CalendarEvent> getCalendarEventList() {
         loadCalendarsBlackList();
 
-        final List<CalendarEvent> calendarEventList = new ArrayList<CalendarEvent>();
+        final Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
+
+        final List<CalendarEvent> calendarEventList = new ArrayList<>();
+        final int lookaheadDays = Math.max(1, prefs.getInt("calendar_lookahead_days", 7));
+
+        if (prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_SYNC_CALENDAR, false)) {
+            calendarEventList.addAll(getCalendarEvents(lookaheadDays));
+        }
+        if (prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_SYNC_BIRTHDAYS, false)) {
+            calendarEventList.addAll(getBirthdays(lookaheadDays));
+            calendarEventList.sort(Comparator.comparingInt(CalendarEvent::getBeginSeconds));
+        }
+        return calendarEventList;
+    }
+
+    private List<CalendarEvent> getCalendarEvents(final int lookaheadDays) {
+        final List<CalendarEvent> calendarEventList = new ArrayList<>();
 
         Calendar cal = GregorianCalendar.getInstance();
         long dtStart = cal.getTimeInMillis();
-        cal.add(Calendar.DATE, lookahead_days);
+        cal.add(Calendar.DATE, lookaheadDays);
         long dtEnd = cal.getTimeInMillis();
 
         Uri.Builder eventsUriBuilder = Instances.CONTENT_URI.buildUpon();
@@ -107,6 +135,7 @@ public class CalendarManager {
                     time.parse(evtCursor.getString(evtCursor.getColumnIndexOrThrow(Instances.DURATION)));
                     end = start + time.toMillis(false);
                 }
+
                 CalendarEvent calEvent = new CalendarEvent(
                         start,
                         end,
@@ -118,33 +147,37 @@ public class CalendarManager {
                         evtCursor.getString(evtCursor.getColumnIndexOrThrow(CalendarContract.Calendars.ACCOUNT_NAME)),
                         evtCursor.getInt(evtCursor.getColumnIndexOrThrow(Instances.CALENDAR_COLOR)),
                         !evtCursor.getString(evtCursor.getColumnIndexOrThrow(Instances.ALL_DAY)).equals("0"),
-                        evtCursor.getString(evtCursor.getColumnIndexOrThrow(Instances.ORGANIZER))
+                        evtCursor.getString(evtCursor.getColumnIndexOrThrow(Instances.ORGANIZER)),
+                        evtCursor.getString(evtCursor.getColumnIndexOrThrow(CalendarContract.Calendars.ACCOUNT_TYPE)),
+                        evtCursor.getString(evtCursor.getColumnIndexOrThrow(Instances.CALENDAR_ID)),
+                        evtCursor.getString(evtCursor.getColumnIndexOrThrow(Instances.RRULE))
                 );
 
-
                 // Query reminders for this event
-                final Cursor reminderCursor = mContext.getContentResolver().query(
+                try (Cursor reminderCursor = mContext.getContentResolver().query(
                         CalendarContract.Reminders.CONTENT_URI,
                         null,
                         CalendarContract.Reminders.EVENT_ID + " = ?",
                         new String[]{String.valueOf(evtCursor.getLong(evtCursor.getColumnIndexOrThrow(Instances.EVENT_ID)))},
                         null
-                );
+                )) {
+                    if (reminderCursor != null && reminderCursor.getCount() > 0) {
+                        final List<Long> reminders = new ArrayList<>();
+                        while (reminderCursor.moveToNext()) {
+                            int minutes = reminderCursor.getInt(reminderCursor.getColumnIndexOrThrow(CalendarContract.Reminders.MINUTES));
+                            int method = reminderCursor.getInt(reminderCursor.getColumnIndexOrThrow(CalendarContract.Reminders.METHOD));
+                            LOG.trace("Reminder Method: {}, Minutes: {}", method, minutes);
 
-                if (reminderCursor != null && reminderCursor.getCount() > 0) {
-                    final List<Long> reminders = new ArrayList<>();
-                    while (reminderCursor.moveToNext()) {
-                        int minutes = reminderCursor.getInt(reminderCursor.getColumnIndexOrThrow(CalendarContract.Reminders.MINUTES));
-                        int method = reminderCursor.getInt(reminderCursor.getColumnIndexOrThrow(CalendarContract.Reminders.METHOD));
-                        LOG.debug("Reminder Method: {}, Minutes: {}", method, minutes);
+                            if (method == 1) //METHOD_ALERT
+                                reminders.add(calEvent.getBegin() - minutes * 60 * 1000L);
 
-                        if (method == 1) //METHOD_ALERT
-                            reminders.add(calEvent.getBegin() - minutes * 60 * 1000L);
+                        }
+                        reminderCursor.close();
 
+                        calEvent.setRemindersAbsoluteTs(reminders);
                     }
-                    reminderCursor.close();
-
-                    calEvent.setRemindersAbsoluteTs(reminders);
+                } catch (final Exception e) {
+                    LOG.warn("failed to get reminder for event", e);
                 }
 
                 if (!calendarIsBlacklisted(calEvent.getUniqueCalName())) {
@@ -158,6 +191,86 @@ public class CalendarManager {
             LOG.error("could not query calendar, permission denied?", e);
             return calendarEventList;
         }
+    }
+
+    public List<CalendarEvent> getBirthdays(final int lookaheadDays) {
+        final String[] projection = new String[]{
+                ContactsContract.CommonDataKinds.Event.CONTACT_ID,
+                ContactsContract.CommonDataKinds.Event.START_DATE,
+                ContactsContract.CommonDataKinds.Event.DISPLAY_NAME
+        };
+        final String selection = ContactsContract.Data.MIMETYPE + " = ? AND " +
+                ContactsContract.CommonDataKinds.Event.TYPE + " = ?";
+        final String[] selectionArgs = new String[]{
+                ContactsContract.CommonDataKinds.Event.CONTENT_ITEM_TYPE,
+                String.valueOf(ContactsContract.CommonDataKinds.Event.TYPE_BIRTHDAY)
+        };
+        final List<CalendarEvent> birthdays = new LinkedList<>();
+        final LocalDate maxDate = LocalDate.now().plusDays(lookaheadDays);
+
+        try (Cursor birthdayCursor = mContext.getContentResolver().query(ContactsContract.Data.CONTENT_URI, projection, selection, selectionArgs, ContactsContract.CommonDataKinds.Event.START_DATE + " ASC")) {
+            if (birthdayCursor == null || birthdayCursor.getCount() == 0) {
+                return birthdays;
+            }
+            while (birthdayCursor.moveToNext()) {
+                final String contactId = birthdayCursor.getString(birthdayCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Event.CONTACT_ID));
+                final String birthdayStr = birthdayCursor.getString(birthdayCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Event.START_DATE));
+                final String displayName = birthdayCursor.getString(birthdayCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Event.DISPLAY_NAME));
+                final LocalDate birthday = parseBirthday(birthdayStr);
+                if (birthday == null || birthday.isAfter(maxDate)) {
+                    continue;
+                }
+
+                // Follow the same logic as CalendarContract - all day events have the start
+                // timestamp at the UTC midnight boundary
+                final long startTimestampUtc = DateTimeUtils.dayStartUtc(birthday).getTime();
+
+                birthdays.add(new CalendarEvent(
+                        startTimestampUtc,
+                        startTimestampUtc + 86400000L - 1L,
+                        contactId.hashCode(),
+                        mContext.getString(R.string.contact_birthday, displayName),
+                        null,
+                        null,
+                        mContext.getString(R.string.birthdays),
+                        mContext.getString(R.string.pref_contacts_title),
+                        0,
+                        true,
+                        null,
+                        CalendarContract.ACCOUNT_TYPE_LOCAL,
+                        null,
+                        null
+                ));
+            }
+        } catch (final Exception e) {
+            LOG.error("could not query birthdays, permission denied?", e);
+        }
+        return birthdays;
+    }
+
+    @Nullable
+    private LocalDate parseBirthday(final String birthdayStr) {
+        final LocalDate birthday;
+        final LocalDate now = LocalDate.now();
+
+        try {
+            if (birthdayStr.startsWith("--")) {
+                // MM-DD
+                final String monthDay = birthdayStr.substring(2);
+                birthday = LocalDate.parse(now.getYear() + "-" + monthDay, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            } else {
+                birthday = LocalDate.parse(birthdayStr, DateTimeFormatter.ISO_LOCAL_DATE).withYear(now.getYear());
+            }
+        } catch (final DateTimeParseException e) {
+            LOG.error("Failed to parse birthday {}", birthdayStr, e);
+            return null;
+        }
+
+        if (birthday.isAfter(now) || birthday.isEqual(now)) {
+            return birthday;
+        }
+
+        return birthday.plusYears(1);
     }
 
     private static HashSet<String> calendars_blacklist = null;
@@ -182,7 +295,7 @@ public class CalendarManager {
 
     public void addCalendarToBlacklist(String calendarUniqueName) {
         if (calendars_blacklist.add(calendarUniqueName)) {
-            LOG.info("Blacklisted calendar " + calendarUniqueName);
+            LOG.info("Blacklisted calendar {}", calendarUniqueName);
             saveCalendarsBlackList();
         } else {
             LOG.warn("Calendar {} already blacklisted!", calendarUniqueName);
@@ -191,7 +304,7 @@ public class CalendarManager {
 
     public void removeFromCalendarBlacklist(String calendarUniqueName) {
         calendars_blacklist.remove(calendarUniqueName);
-        LOG.info("Unblacklisted calendar " + calendarUniqueName);
+        LOG.info("Unblacklisted calendar {}", calendarUniqueName);
         saveCalendarsBlackList();
     }
 

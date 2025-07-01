@@ -111,11 +111,6 @@ public class ServiceDeviceSupport implements DeviceSupport {
     }
 
     @Override
-    public boolean getImplicitCallbackModify() {
-        return delegate.getImplicitCallbackModify();
-    }
-
-    @Override
     public void dispose() {
         delegate.dispose();
     }
@@ -528,5 +523,26 @@ public class ServiceDeviceSupport implements DeviceSupport {
             return;
         }
         delegate.onCameraStatusChange(event, filename);
+    }
+
+    @Override
+    public void onMusicListReq() {
+        if (checkBusy("music list request")) {
+            return;
+        }
+        delegate.onMusicListReq();
+    }
+
+    @Override
+    public void onMusicOperation(int operation, int playlistIndex, String playlistName, ArrayList<Integer> musicIds) {
+        if (checkBusy("music operation")) {
+            return;
+        }
+        delegate.onMusicOperation(operation, playlistIndex, playlistName, musicIds);
+    }
+
+    @Override
+    public boolean canReconnect() {
+        return delegate.canReconnect();
     }
 }

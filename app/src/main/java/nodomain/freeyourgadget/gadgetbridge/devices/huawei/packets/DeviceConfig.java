@@ -16,19 +16,14 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets;
 
+import androidx.annotation.NonNull;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.TreeMap;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -65,6 +60,7 @@ public class DeviceConfig {
                 }
                 this.complete = true;
                 this.isEncrypted = false;
+                this.isSliced = false;
             }
         }
 
@@ -102,7 +98,7 @@ public class DeviceConfig {
                     this.interval = this.tlv.getShort(0x04);
 
                 System.arraycopy(this.tlv.getBytes(0x05), 2, this.serverNonce, 0, 16);
-                this.authVersion = (byte)this.tlv.getBytes(0x05)[1];
+                this.authVersion = this.tlv.getBytes(0x05)[1];
 
                 if (this.tlv.contains(0x07))
                     this.deviceSupportType = this.tlv.getByte(0x07);
@@ -122,15 +118,17 @@ public class DeviceConfig {
     public static class SupportedServices {
         public static final byte id = 0x02;
 
+        // device should always support service 0x01
 	    // notDeviceCapabilities = 0x1C, 0x1E, 0x1F, 0x28, 0x29, 0x2C, 0x2F, 0x31
         // but services = 0x1E, 0x28, 0x2C, 0x31
         // service 0x21 depends on MiddleWear support
+
         public static final byte[] knownSupportedServices = new byte[] {
-            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
-            0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14,
-            0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1D, 0x20,
-            0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x2A, 0x2B, 0x2D, 0x2E,
-            0x30, 0x32, 0x33, 0x34, 0x35
+                0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A,
+                0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14,
+                0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1D, 0x20,
+                0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x2A, 0x2B, 0x2D, 0x2E,
+                0x30, 0x32, 0x33, 0x34, 0x35
         };
 
         public static class Request extends HuaweiPacket {
@@ -180,7 +178,7 @@ public class DeviceConfig {
     public static class SupportedCommands {
         public static final byte id = 0x03;
 
-        public static final TreeMap<Integer, byte[]> commandsPerService = new TreeMap<Integer, byte[]>() {{
+        public static final TreeMap<Integer, byte[]> commandsPerService = new TreeMap<>() {{
             put(0x01, new byte[] {0x04, 0x07, 0x08, 0x09, 0x0A, 0x0D, 0x0E, 0x10, 0x11, 0x12, 0x13, 0x14, 0x1B, 0x1A, 0x1D, 0x21, 0x22, 0x23, 0x24, 0x29, 0x2A, 0x2B, 0x32, 0x2E, 0x31, 0x30, 0x35, 0x36, 0x37, 0x2F});
             put(0x02, new byte[] {0x01, 0x04, 0x05, 0x06, 0x07, 0x08});
             put(0x03, new byte[] {0x01, 0x03, 0x04});
@@ -283,6 +281,7 @@ public class DeviceConfig {
                 public int service;
                 public byte[] commands;
 
+                @NonNull
                 @Override
                 public String toString() {
                     StringBuilder sb = new StringBuilder();
@@ -399,6 +398,21 @@ public class DeviceConfig {
             this(paramsProvider, Calendar.getInstance());
         }
 
+        public static class Response extends HuaweiPacket {
+            public int deviceTime=0;
+
+            public Response(ParamsProvider paramsProvider) {
+                super(paramsProvider);
+            }
+
+            @Override
+            public void parseTlv() throws ParseException {
+                if (this.tlv.contains(0x01)) {
+                    this.deviceTime = this.tlv.getInteger(0x01);
+                }
+            }
+        }
+
         // TODO: implement parsing this request for the log parser support
     }
 
@@ -443,7 +457,12 @@ public class DeviceConfig {
 
             public String hardwareVersion;
             public String softwareVersion;
+            public String serialNumber;
             public String productModel;
+            public String packageName;
+            public String deviceName;
+            public int regionCode;
+            public int otaSignatureLength = 256;
 
             public Response(ParamsProvider paramsProvider) {
                 super(paramsProvider);
@@ -457,7 +476,23 @@ public class DeviceConfig {
                 if (this.tlv.contains(0x03))
                     this.hardwareVersion = this.tlv.getString(0x03);
                 this.softwareVersion = this.tlv.getString(0x07);
+
+                if(this.tlv.contains(0x09))
+                    this.serialNumber = this.tlv.getString(0x09);
+
                 this.productModel = this.tlv.getString(0x0A).trim();
+
+                if(this.tlv.contains(0x0F))
+                    this.packageName = this.tlv.getString(0x0F);
+
+                if(this.tlv.contains(0x11))
+                    this.deviceName = this.tlv.getString(0x11);
+
+                if(this.tlv.contains(0x14))
+                    this.regionCode = this.tlv.getAsInteger(0x14);
+
+                if(this.tlv.contains(0x27))
+                    this.otaSignatureLength = this.tlv.getAsInteger(0x27);
             }
         }
 
@@ -604,10 +639,27 @@ public class DeviceConfig {
                 this.tlv = new HuaweiTLV()
                         .put(0x01, challenge)
                         .put(0x02, nonce);
-                if (paramsProvider.getDeviceSupportType() == 0x02)
+                if (paramsProvider.getAuthMode() == 0x02)
                     this.tlv.put(0x03, paramsProvider.getAuthAlgo());
                 this.isEncrypted = false;
                 this.complete = true;
+            }
+
+        }
+
+        public static class OutgoingRequest extends HuaweiPacket {
+            public byte[] challenge;
+            public byte[] nonce;
+
+            public OutgoingRequest(ParamsProvider paramsProvider) {
+                super(paramsProvider);
+                this.complete = false;
+            }
+
+            @Override
+            public void parseTlv() throws ParseException {
+                this.challenge = this.tlv.getBytes(0x01);
+                this.nonce = this.tlv.getBytes(0x02);
             }
         }
 
@@ -633,6 +685,7 @@ public class DeviceConfig {
 
     public static class BatteryLevel {
         public static final byte id = 0x08;
+        public static final byte id_change = 0x27; // Same format, async (receive) only
 
         public static class Request extends HuaweiPacket {
             public Request(ParamsProvider paramsProvider) {
@@ -650,6 +703,9 @@ public class DeviceConfig {
         public static class Response extends HuaweiPacket {
             public byte level;
 
+            public byte[] multi_level;
+            public byte[] status; // TODO: enum
+
             public Response(ParamsProvider paramsProvider) {
                 super(paramsProvider);
 
@@ -660,6 +716,8 @@ public class DeviceConfig {
             @Override
             public void parseTlv() throws ParseException {
                 this.level = this.tlv.getByte(0x01);
+                this.multi_level = this.tlv.getBytes(0x02, null);
+                this.status = this.tlv.getBytes(0x03, null);
             }
         }
         // TODO: implement parsing this request for the log parser support
@@ -765,19 +823,31 @@ public class DeviceConfig {
                 this.tlv = new HuaweiTLV();
                 for (byte b : phoneInfo) {
                     switch (b) {
+                        case 0x0:
+                            break;
+                        case 0x2:
+                            this.tlv.put(b); // Force phone manufactures to ""
+                            break;
+                        case 0x4:
+                            this.tlv.put(b); // Force phone model to ""
+                            break;
+                        case 0x8:
+                            this.tlv.put(b, "14"); // Force android version to "14"
+                            break;
                         case 0xf:
                             break;
                         case 0x11:
-                            this.tlv.put((int)b, "1200107310"); // Force AppVersion to 12.1.7.310
+                            this.tlv.put(b, 1500012300); // Force AppVersion to 15.0.12.300
                             break;
                         case 0x15:
-                            this.tlv.put((int)b, ""); // Force buildOSPlatformVersion to ""
+                            this.tlv.put(b); // Force buildOSPlatformVersion to ""
                             break;
                         case 0x10: // Force EmuiBuildVersion to 0x00
                         case 0x13: // Force buildOsEnable to 0x00
                         case 0x14: // Force buildOSApiVersion to 0x00
+                        case 0x16: // Force phoneCapability to 0x00
                         default:
-                            this.tlv.put((int)b, "00");
+                            this.tlv.put(b, (byte)0);
                     }
                 }
                 this.complete = true;
@@ -923,6 +993,38 @@ public class DeviceConfig {
         // TODO: implement parsing this request for the log parser support
     }
 
+    // TODO: set (earphone) double tap action 0x1f
+    // TODO: get (earphone) double tap action 0x20
+
+    public static class GetDefaultSwitch {
+        public static final int id = 0x21;
+
+        public static class Request extends HuaweiPacket {
+            public Request(HuaweiPacket.ParamsProvider paramsProvider) {
+                super(paramsProvider);
+
+                this.serviceId = DeviceConfig.id;
+                this.commandId = id;
+
+                this.tlv = new HuaweiTLV()
+                        .put(0x01);
+                this.complete = true;
+            }
+        }
+
+        public static class Response extends HuaweiPacket {
+
+            public Response(ParamsProvider paramsProvider) {
+                super(paramsProvider);
+            }
+
+            @Override
+            public void parseTlv() throws ParseException {
+
+            }
+        }
+    }
+
     public static class HiChain {
         public static final int id = 0x28;
 
@@ -932,7 +1034,7 @@ public class DeviceConfig {
             private final byte[] selfAuthId;
             private final String groupId;
             private JSONObject version = null;
-            private JSONObject payload = null;
+            private JSONObject jsonPayload = null;
             private JSONObject value = null;
 
             public Request (int operationCode, long requestId, byte[] selfAuthId, String groupId) {
@@ -951,7 +1053,7 @@ public class DeviceConfig {
                     this.isEncrypted = false;
                     this.complete = true;
                     version = new JSONObject();
-                    payload = new JSONObject();
+                    jsonPayload = new JSONObject();
                     value = new JSONObject();
                     createJson(messageId);
                 }
@@ -968,14 +1070,14 @@ public class DeviceConfig {
                     super(paramsProvider, messageId);
                     // createJson(1); //messageId);
                     try {
-                        payload
+                        jsonPayload
                             .put("isoSalt", StringUtils.bytesToHex(isoSalt))
                             .put("peerAuthId",  StringUtils.bytesToHex(selfAuthId))
                             .put("operationCode", operationCode)
                             .put("seed", StringUtils.bytesToHex(seed))
                             .put("peerUserType", 0x00);
                         if (operationCode == 0x02) {
-                            payload
+                            jsonPayload
                                 .put("pkgName", "com.huawei.devicegroupmanage")
                                 .put("serviceType", groupId)
                                 .put("keyLength", 0x20);
@@ -1002,7 +1104,7 @@ public class DeviceConfig {
                     super(paramsProvider, messageId);
                     // createJson(2); //messageId);
                     try {
-                        payload
+                        jsonPayload
                             .put("peerAuthId", StringUtils.bytesToHex(selfAuthId))
                             .put("token", StringUtils.bytesToHex(token));
                         if (operationCode == 0x02) value.put("isDeviceLevel", false);
@@ -1026,7 +1128,7 @@ public class DeviceConfig {
                     super(paramsProvider, messageId);
                     // createJson(3);
                     try {
-                        payload
+                        jsonPayload
                             .put("nonce", StringUtils.bytesToHex(nonce))
                             .put("encData", StringUtils.bytesToHex(encData));
                         this.tlv = new HuaweiTLV()
@@ -1053,7 +1155,7 @@ public class DeviceConfig {
                     //     createJson(3);
                     // }
                     try {
-                        payload
+                        jsonPayload
                             .put("nonce", StringUtils.bytesToHex(nonce)) //generateRandom
                             .put("encResult", StringUtils.bytesToHex(encResult))
                             .put("operationCode", operationCode);
@@ -1075,11 +1177,11 @@ public class DeviceConfig {
                     version
                         .put("minVersion", "1.0.0")
                         .put("currentVersion", "2.0.16");
-                    payload
+                    jsonPayload
                         .put("version", version);
                     value
                         .put("authForm", 0x00)
-                        .put("payload", payload)
+                        .put("payload", jsonPayload)
                         .put("groupAndModuleVersion", "2.0.1")
                         .put("message", messageId);
                     if (operationCode == 0x01) {
@@ -1117,6 +1219,7 @@ public class DeviceConfig {
                     this.token = GB.hexStringToByteArray(payload.getString("token"));
                 }
 
+                @NonNull
                 @Override
                 public String toString() {
                     return "Step1Data{" +
@@ -1135,6 +1238,7 @@ public class DeviceConfig {
                     this.returnCodeMac = GB.hexStringToByteArray(payload.getString("returnCodeMac"));
                 }
 
+                @NonNull
                 @Override
                 public String toString() {
                     return "Step2Data{" +
@@ -1152,6 +1256,7 @@ public class DeviceConfig {
                     this.encAuthToken = GB.hexStringToByteArray(payload.getString("encAuthToken"));
                 }
 
+                @NonNull
                 @Override
                 public String toString() {
                     return "Step3Data{" +
@@ -1169,6 +1274,7 @@ public class DeviceConfig {
                         this.data = tlv.getString(0x01);
                 }
 
+                @NonNull
                 @Override
                 public String toString() {
                     return "Step4Data{" +
@@ -1183,7 +1289,7 @@ public class DeviceConfig {
             public byte type;
 
             public JSONObject value;
-            public JSONObject payload;
+            public JSONObject jsonPayload;
 
             public byte step;
             // public int operationCode; // TODO
@@ -1192,6 +1298,7 @@ public class DeviceConfig {
             public Step2Data step2Data;
             public Step3Data step3Data;
             public Step4Data step4Data;
+            public int errorCode = 0;
 
             public Response(ParamsProvider paramsProvider) {
                 super(paramsProvider);
@@ -1207,18 +1314,21 @@ public class DeviceConfig {
                 if (this.type == 0x00) {
                     try {
                         this.value = new JSONObject(this.tlv.getString(0x01));
-                        this.payload = value.getJSONObject("payload");
+                        this.jsonPayload = value.getJSONObject("payload");
 
                         // Ugly, but should work
-                        if (payload.has("isoSalt")) {
+                        if (jsonPayload.has("isoSalt")) {
                             this.step = 0x01;
-                            this.step1Data = new Step1Data(payload);
-                        } else if (payload.has("returnCodeMac")) {
+                            this.step1Data = new Step1Data(jsonPayload);
+                        } else if (jsonPayload.has("returnCodeMac")) {
                             this.step = 0x02;
-                            this.step2Data = new Step2Data(payload);
-                        } else if (payload.has("encAuthToken")) {
+                            this.step2Data = new Step2Data(jsonPayload);
+                        } else if (jsonPayload.has("encAuthToken")) {
                             this.step = 0x03;
-                            this.step3Data = new Step3Data(payload);
+                            this.step3Data = new Step3Data(jsonPayload);
+                        }
+                        if (jsonPayload.has("errorCode")) {
+                            this.errorCode = jsonPayload.getInt("errorCode");
                         }
                     } catch (JSONException e) {
                         throw new JsonException("", e);
@@ -1249,6 +1359,7 @@ public class DeviceConfig {
                         this.serviceType = payload.getString("serviceType");
                 }
 
+                @NonNull
                 @Override
                 public String toString() {
                     return "Step1Data{" +
@@ -1275,6 +1386,7 @@ public class DeviceConfig {
                         this.isDeviceLevel = payload.getBoolean("isDeviceLevel");
                 }
 
+                @NonNull
                 @Override
                 public String toString() {
                     return "Step2Data{" +
@@ -1294,6 +1406,7 @@ public class DeviceConfig {
                     this.encData = GB.hexStringToByteArray(payload.getString("encData"));
                 }
 
+                @NonNull
                 @Override
                 public String toString() {
                     return "Step3Data{" +
@@ -1312,6 +1425,7 @@ public class DeviceConfig {
                     this.encResult = GB.hexStringToByteArray(payload.getString("encResult"));
                 }
 
+                @NonNull
                 @Override
                 public String toString() {
                     return "Step4Data{" +
@@ -1326,7 +1440,7 @@ public class DeviceConfig {
             public long requestId;
             public byte[] selfAuthId;
             public String groupId;
-            public JSONObject payload = null;
+            public JSONObject jsonPayload = null;
             public JSONObject value = null;
 
             public Step1Data step1Data;
@@ -1343,20 +1457,20 @@ public class DeviceConfig {
             public void parseTlv() throws ParseException {
                 try {
                     value = new JSONObject(this.tlv.getString(0x01));
-                    payload = value.getJSONObject("payload");
+                    jsonPayload = value.getJSONObject("payload");
 
-                    if (payload.has("isoSalt")) {
+                    if (jsonPayload.has("isoSalt")) {
                         this.step = 1;
-                        this.step1Data = new Step1Data(payload);
-                    } else if (payload.has("token")) {
+                        this.step1Data = new Step1Data(jsonPayload);
+                    } else if (jsonPayload.has("token")) {
                         this.step = 2;
-                        this.step2Data = new Step2Data(payload);
-                    } else if (payload.has("encData")) {
+                        this.step2Data = new Step2Data(jsonPayload);
+                    } else if (jsonPayload.has("encData")) {
                         this.step = 3;
-                        this.step3Data = new Step3Data(payload);
-                    } else if (payload.has("encResult")) {
+                        this.step3Data = new Step3Data(jsonPayload);
+                    } else if (jsonPayload.has("encResult")) {
                         this.step = 4;
-                        this.step4Data = new Step4Data(payload);
+                        this.step4Data = new Step4Data(jsonPayload);
                     }
                 } catch (JSONException e) {
                     throw new JsonException("Cannot parse JSON", e);
@@ -1401,7 +1515,7 @@ public class DeviceConfig {
                 byte[] message = this.tlv.getBytes(0x01);
                 byte[] iv = this.tlv.getBytes(0x02);
 
-                HuaweiCrypto huaweiCrypto = new HuaweiCrypto(paramsProvider.getAuthVersion());
+                HuaweiCrypto huaweiCrypto = new HuaweiCrypto(paramsProvider.getAuthVersion(), paramsProvider.getAuthAlgo(), paramsProvider.getDeviceSupportType(), paramsProvider.getAuthMode());
                 try {
                     pinCode = huaweiCrypto.decryptPinCode(paramsProvider.getEncryptMethod(), message, iv);
                 } catch (HuaweiCrypto.CryptoException e) {
@@ -1422,28 +1536,27 @@ public class DeviceConfig {
                 this.serviceId = DeviceConfig.id;
                 this.commandId = id;
 
-                int timestamp = (int) (System.currentTimeMillis() / 1000);
+                long timestamp = System.currentTimeMillis();
 
                 HuaweiTLV software = new HuaweiTLV()
                                 .put(0x03, "software_update_service_statement")
-                                .put(0x04, 0x01)
+                                .put(0x04, (byte)0x01)
                                 .put(0x05, "20230508-20230508-0-0")
-                                .put(0x06, timestamp);
+                                .put(0x06, String.valueOf(timestamp));
                 HuaweiTLV device_information = new HuaweiTLV()
                                 .put(0x03, "device_information_management")
-                                .put(0x04,0x01)
+                                .put(0x04,(byte)0x01)
                                 .put(0x05, "20230508-20230508-0-0")
-                                .put(0x06,timestamp);
-
+                                .put(0x06,String.valueOf(timestamp));
                 HuaweiTLV user_license = new HuaweiTLV()
                                 .put(0x03, "user_license_agreement")
-                                .put(0x04,0x01)
+                                .put(0x04,(byte)0x01)
                                 .put(0x05, "20230508-20230508-0-0")
-                                .put(0x06,timestamp);
+                                .put(0x06,String.valueOf(timestamp));
                 HuaweiTLV tlvList = new HuaweiTLV()
                         .put(0x82, software)
-                        .put(0x82,device_information)
-                        .put(0x82,user_license);
+                        .put(0x82, device_information)
+                        .put(0x82, user_license);
                 this.tlv = new HuaweiTLV()
                         .put(0x81, tlvList);
             }
@@ -1475,6 +1588,10 @@ public class DeviceConfig {
         }
 
         public static class Response extends HuaweiPacket {
+            public boolean truSleepNewSync = false;
+            public boolean rriNewSync = false;
+            public boolean gpsNewSync = false;
+
             public Response(ParamsProvider paramsProvider) {
                 super(paramsProvider);
                 this.serviceId = DeviceConfig.id;
@@ -1483,8 +1600,18 @@ public class DeviceConfig {
 
             @Override
             public void parseTlv() throws ParseException {
+                // Works with bitmaps
+
                 // Tag 1 -> LegalStuff
-                // Tag 2 -> File support
+
+                if (this.tlv.contains(0x02)) {
+                    // Tag 2 -> File support
+                    byte value = this.tlv.getByte(0x02);
+                    truSleepNewSync = (value & 2) != 0;
+                    rriNewSync = (value & 4) != 0;
+                    gpsNewSync = (value & 8) != 0;
+                }
+
                 // Tag 3 -> SmartWatchVersion
                 // Tag 4 to 6 are HMS related
             }
@@ -1537,6 +1664,10 @@ public class DeviceConfig {
                 if (authMode == 0x04)
                     this.tlv.put(0x06)
                             .put(0x07, phoneModel);
+                if (paramsProvider.getEncryptMethod() == 1 )
+                        this.tlv.put(0xd, (byte)0x1);
+
+
                 this.complete = true;
                 this.isEncrypted = false;
             }
@@ -1624,6 +1755,48 @@ public class DeviceConfig {
 
     }
 
+    public static class PermissionCheck {
+        public static final byte id = 0x38;
+        // NOTE: request from the watch
+        public static class PermissionCheckRequest extends HuaweiPacket {
+            public short permission = 0;
+
+            public PermissionCheckRequest(ParamsProvider paramsProvider) {
+                super(paramsProvider);
+
+                this.serviceId = DeviceConfig.id;
+                this.commandId = id;
+            }
+
+            @Override
+            public void parseTlv() throws ParseException {
+                if (this.tlv.contains(0x01))
+                    this.permission = this.tlv.getShort(0x01);
+            }
+        }
+
+        public static class PermissionCheckResponse extends HuaweiPacket {
+
+            public PermissionCheckResponse(
+                    ParamsProvider paramsProvider,
+                    short permission,
+                    short status
+            ) {
+                super(paramsProvider);
+
+                this.serviceId = DeviceConfig.id;
+                this.commandId = id;
+
+                this.tlv = new HuaweiTLV()
+                        .put(0x01, permission)
+                        .put(0x02, status);
+
+                this.complete = true;
+            }
+        }
+
+    }
+
     public static class WearStatus {
         public static final int id = 0x3D;
 
@@ -1670,6 +1843,39 @@ public class DeviceConfig {
                 .put(0x03, (byte)0x00);
 
             this.complete = true;
+        }
+    }
+
+    public static class ReverseCapabilities {
+        public static final int id = 0x3f;
+
+        public static class Request extends HuaweiPacket {
+            public Request(ParamsProvider paramsProvider) {
+                super(paramsProvider);
+
+                this.serviceId = DeviceConfig.id;
+                this.commandId = id;
+
+                // Bits like ext capabilities
+                byte[] capabilities = {(byte) 0xFD, 0x17};
+                this.tlv = new HuaweiTLV()
+                        .put(0x01, capabilities);
+
+                this.complete = true;
+            }
+        }
+
+        public static class Response extends HuaweiPacket {
+
+            public Response(ParamsProvider paramsProvider) {
+                super(paramsProvider);
+                this.serviceId = DeviceConfig.id;
+                this.commandId = id;
+            }
+
+            @Override
+            public void parseTlv() throws ParseException {
+            }
         }
     }
 

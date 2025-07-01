@@ -1,6 +1,9 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin;
 
+import android.content.Intent;
+
 import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +19,10 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.deviceevents.FileDownloadedDeviceEvent;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.CreateFileMessage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.DownloadRequestMessage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.FileTransferDataMessage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.GFDIMessage;
@@ -27,6 +33,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.stat
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.status.FileTransferDataStatusMessage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.status.UploadRequestStatusMessage;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class FileTransferHandler implements MessageHandler {
     private static final Logger LOG = LoggerFactory.getLogger(FileTransferHandler.class);
@@ -42,6 +49,7 @@ public class FileTransferHandler implements MessageHandler {
         add(FileType.FILETYPE.CHANGELOG);
         add(FileType.FILETYPE.HRV_STATUS);
         add(FileType.FILETYPE.SLEEP);
+        add(FileType.FILETYPE.SKIN_TEMP);
     }};
 
     public FileTransferHandler(GarminSupport deviceSupport) {
@@ -58,6 +66,7 @@ public class FileTransferHandler implements MessageHandler {
         return upload.getCurrentlyUploading() != null;
     }
 
+    @Override
     public GFDIMessage handle(GFDIMessage message) {
         if (message instanceof DownloadRequestStatusMessage)
             download.processDownloadRequestStatusMessage((DownloadRequestStatusMessage) message);
@@ -87,10 +96,10 @@ public class FileTransferHandler implements MessageHandler {
 //        return new DownloadRequestMessage(0, 0, DownloadRequestMessage.REQUEST_TYPE.NEW, 0, 0);
 //    }
 //
-//    public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYPE filetype) {
-//        upload.setCurrentlyUploading(new FileFragment(new DirectoryEntry(0, filetype, 0, 0, 0, fileAsByteArray.length, null), fileAsByteArray));
-//        return new CreateFileMessage(fileAsByteArray.length, filetype);
-//    }
+public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYPE filetype) {
+    upload.setCurrentlyUploading(new FileFragment(new DirectoryEntry(0, filetype, 0, 0, 0, fileAsByteArray.length, null), fileAsByteArray));
+    return new CreateFileMessage(fileAsByteArray.length, filetype);
+}
 
 
     public class Download {
@@ -135,11 +144,13 @@ public class FileTransferHandler implements MessageHandler {
         }
 
         private void saveFileToExternalStorage() {
-            File dir;
+            File deviceDir;
             File outputFile;
             try {
-                dir = deviceSupport.getWritableExportDirectory();
-                outputFile = new File(dir, currentlyDownloading.getFileName());
+                deviceDir = deviceSupport.getWritableExportDirectory();
+                outputFile = new File(deviceDir, currentlyDownloading.directoryEntry.getOutputPath());
+                final File parentFile = outputFile.getParentFile();
+                parentFile.mkdirs();
                 FileUtils.copyStreamToFile(new ByteArrayInputStream(currentlyDownloading.dataHolder.array()), outputFile);
                 outputFile.setLastModified(currentlyDownloading.directoryEntry.fileDate.getTime());
             } catch (final IOException e) {
@@ -179,6 +190,10 @@ public class FileTransferHandler implements MessageHandler {
                 if (!FILE_TYPES_TO_PROCESS.contains(directoryEntry.filetype) && !fetchUnknownFiles) {
                     continue;
                 }
+                if (fileIndex == 0 && fileDataType == 0 && fileSubType == 0 && fileNumber == 0 && specificFlags == 0 && fileFlags == 0 && fileSize == 0) {
+                    LOG.warn("Ignoring {} to avoid infinite loop", directoryEntry);
+                    continue;
+                }
                 LOG.debug("Queueing {} for download", directoryEntry);
                 deviceSupport.addFileToDownloadList(directoryEntry);
             }
@@ -186,12 +201,41 @@ public class FileTransferHandler implements MessageHandler {
         }
     }
 
-    public static class Upload {
+    private void updateUploadProgress(final int percentage) {
+        final LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(GBApplication.getContext());
+
+        if (percentage < 0) {
+            // Failure
+            GB.updateInstallNotification(GBApplication.getContext().getString(R.string.installation_failed_), false, 100, GBApplication.getContext());
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_INFO_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, ""));
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, GBApplication.getContext().getString(R.string.installation_failed_)));
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_FINISHED));
+        } else if (percentage >= 100) {
+            // Success
+            GB.updateInstallNotification(GBApplication.getContext().getString(R.string.installation_successful), false, 100, GBApplication.getContext());
+
+            deviceSupport.getDevice().sendDeviceUpdateIntent(deviceSupport.getContext());
+
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_INFO_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, ""));
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, GBApplication.getContext().getString(R.string.installation_successful)));
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_FINISHED));
+        } else {
+            // In Progress
+            GB.updateInstallNotification(GBApplication.getContext().getString(R.string.uploading), true, percentage, GBApplication.getContext());
+
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_INFO_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, ""));
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, GBApplication.getContext().getString(R.string.uploading)));
+            broadcastManager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_BAR).putExtra(GB.PROGRESS_BAR_PROGRESS, percentage));
+        }
+    }
+
+    public class Upload {
         private FileFragment currentlyUploading;
 
         private UploadRequestMessage setCreateFileStatusMessage(CreateFileStatusMessage createFileStatusMessage) {
             if (createFileStatusMessage.canProceed()) {
                 LOG.info("SENDING UPLOAD FILE");
+                updateUploadProgress(0);
                 return new UploadRequestMessage(createFileStatusMessage.getFileIndex(), currentlyUploading.getDataSize());
             } else {
                 LOG.warn("Cannot proceed with upload");
@@ -209,6 +253,7 @@ public class FileTransferHandler implements MessageHandler {
                 return currentlyUploading.take();
             } else {
                 LOG.warn("Cannot proceed with upload");
+                updateUploadProgress(-1);
                 this.currentlyUploading = null;
             }
             return null;
@@ -218,16 +263,19 @@ public class FileTransferHandler implements MessageHandler {
             if (currentlyUploading.getDataSize() <= fileTransferDataStatusMessage.getDataOffset()) {
                 this.currentlyUploading = null;
                 LOG.info("SENDING SYNC COMPLETE!!!");
+                updateUploadProgress(100);
 
                 return new SystemEventMessage(SystemEventMessage.GarminSystemEventType.SYNC_COMPLETE, 0);
             } else {
                 if (fileTransferDataStatusMessage.canProceed()) {
                     LOG.info("SENDING NEXT CHUNK!!!");
+                    updateUploadProgress((100 * currentlyUploading.dataHolder.position()) / currentlyUploading.dataHolder.limit());
                     if (fileTransferDataStatusMessage.getDataOffset() != currentlyUploading.dataHolder.position())
                         throw new IllegalStateException("Received file transfer status with unaligned offset");
                     return currentlyUploading.take();
                 } else {
                     LOG.warn("Cannot proceed with upload");
+                    updateUploadProgress(-1);
                     this.currentlyUploading = null;
                 }
 
@@ -247,7 +295,7 @@ public class FileTransferHandler implements MessageHandler {
 
     public static class FileFragment {
         private final DirectoryEntry directoryEntry;
-        private final int maxBlockSize = 500;
+        private final int maxBlockSize = 500; //TODO: why 500?
         private int dataSize;
         private ByteBuffer dataHolder;
         private int runningCrc;
@@ -267,11 +315,7 @@ public class FileTransferHandler implements MessageHandler {
         }
 
         private int getMaxBlockSize() {
-            return Math.max(maxBlockSize, GFDIMessage.getMaxPacketSize());
-        }
-
-        public String getFileName() {
-            return directoryEntry.getFileName();
+            return Math.min(maxBlockSize, GFDIMessage.getMaxPacketSize()); //TODO: can we use GFDIMessage.getMaxPacketSize() directly?
         }
 
         private void setSize(DownloadRequestStatusMessage downloadRequestStatusMessage) {
@@ -296,7 +340,7 @@ public class FileTransferHandler implements MessageHandler {
 
         private FileTransferDataMessage take() {
             final int currentOffset = this.dataHolder.position();
-            final byte[] chunk = new byte[Math.min(this.dataHolder.remaining(), getMaxBlockSize())];
+            final byte[] chunk = new byte[Math.min(this.dataHolder.remaining(), getMaxBlockSize() - 13)]; //actual payload in FileTransferDataMessage
             this.dataHolder.get(chunk);
             setRunningCrc(ChecksumCalculator.computeCrc(getRunningCrc(), chunk, 0, chunk.length));
             return new FileTransferDataMessage(chunk, currentOffset, getRunningCrc());
@@ -320,7 +364,8 @@ public class FileTransferHandler implements MessageHandler {
     }
 
     public static class DirectoryEntry {
-        private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT);
+        private static final SimpleDateFormat SDF_FULL = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT);
+        private static final SimpleDateFormat SDF_YEAR = new SimpleDateFormat("yyyy", Locale.ROOT);
 
         private final int fileIndex;
         private final FileType.FILETYPE filetype;
@@ -348,19 +393,41 @@ public class FileTransferHandler implements MessageHandler {
             return filetype;
         }
 
-        public String getFileName() {
+        public Date getFileDate() {
+            return fileDate;
+        }
+
+        /**
+         * Builds the output path.
+         * Format: [FILE_TYPE]/[YEAR]/[FILE_TYPE]_[yyyy-MM-dd_HH-mm-ss]_[INDEX].[fit/bin]
+         */
+        public String getOutputPath() {
+            // [FILE_TYPE]/
             final StringBuilder sb = new StringBuilder(getFiletype().name());
+            sb.append("/");
+
+            // If we have a valid date, place the file inside a folder for each year
+            // [YEAR]/
             if (fileDate.getTime() != GarminTimeUtils.GARMIN_TIME_EPOCH * 1000L) {
-                sb.append("_").append(SDF.format(fileDate));
+                sb.append(SDF_YEAR.format(fileDate));
+                sb.append("/");
             }
-            sb.append("_").append(getFileIndex()).append(getFiletype().isFitFile() ? ".fit" : ".bin");
+
+            // Finally, the filename
+            sb.append(getFileName());
             return sb.toString();
         }
 
-        public String getLegacyFileName() {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-            String dateString = dateFormat.format(fileDate);
-            return getFiletype().name() + "_" + getFileIndex() + "_" + dateString + (getFiletype().isFitFile() ? ".fit" : ".bin");
+        /**
+         * [FILE_TYPE]_[yyyy-MM-dd_HH-mm-ss]_[INDEX].[fit/bin]
+         */
+        public String getFileName() {
+            final StringBuilder sb = new StringBuilder(getFiletype().name());
+            if (fileDate.getTime() != GarminTimeUtils.GARMIN_TIME_EPOCH * 1000L) {
+                sb.append("_").append(SDF_FULL.format(fileDate));
+            }
+            sb.append("_").append(getFileIndex()).append(getFiletype().isFitFile() ? ".fit" : ".bin");
+            return sb.toString();
         }
 
         @NonNull

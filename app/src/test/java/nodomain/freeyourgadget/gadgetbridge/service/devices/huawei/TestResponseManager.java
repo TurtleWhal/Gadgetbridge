@@ -36,6 +36,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
@@ -44,6 +45,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Workout;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.Transaction;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetEventAlarmList;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.Request;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -152,11 +154,6 @@ public class TestResponseManager {
         }
 
         @Override
-        public void addSleepActivity(int timestamp, short duration, byte type) {
-
-        }
-
-        @Override
         public void addStepData(int timestamp, short steps, short calories, short distance, byte spo, byte heartrate) {
 
         }
@@ -168,11 +165,6 @@ public class TestResponseManager {
 
         @Override
         public void addWorkoutSampleData(Long workoutId, List<Workout.WorkoutData.Response.Data> dataList) {
-
-        }
-
-        @Override
-        public void addWorkoutPaceData(Long workoutId, List<Workout.WorkoutPace.Response.Block> paceList) {
 
         }
 
@@ -234,6 +226,30 @@ public class TestResponseManager {
     }
 
     @Test
+    public void testRemoveHandlerClass() throws IllegalAccessException {
+        Request input1 = new GetEventAlarmList(supportProvider);
+        Request input2 = new GetEventAlarmList(supportProvider);
+        Request extra = new Request(supportProvider);
+
+        List<Request> inputHandlers = Collections.synchronizedList(new ArrayList<Request>());
+        inputHandlers.add(extra);
+        inputHandlers.add(input1);
+        inputHandlers.add(extra);
+        inputHandlers.add(input2);
+
+        List<Request> expectedHandlers = Collections.synchronizedList(new ArrayList<Request>());
+        expectedHandlers.add(extra);
+        expectedHandlers.add(extra);
+
+        ResponseManager responseManager = new ResponseManager(supportProvider);
+        handlersField.set(responseManager, inputHandlers);
+
+        responseManager.removeHandler(GetEventAlarmList.class);
+
+        Assert.assertEquals(expectedHandlers, handlersField.get(responseManager));
+    }
+
+    @Test
     public void testHandleDataCompletePacketSynchronous() throws Exception {
         // Note that this is not a proper packet, but that doesn't matter as we're not testing
         // the packet parsing.
@@ -249,10 +265,9 @@ public class TestResponseManager {
         Request request1 = Mockito.mock(Request.class);
         when(request1.handleResponse((HuaweiPacket) any()))
                 .thenReturn(true);
+        when(request1.autoRemoveFromResponseHandler())
+                .thenReturn(true);
         Request request2 = Mockito.mock(Request.class);
-        // FIXME: Removed due to UnnecessaryStubbingException after mockito-core update
-        //when(request2.handleResponse((HuaweiPacket) any()))
-        //        .thenReturn(false);
 
         List<Request> inputHandlers = Collections.synchronizedList(new ArrayList<Request>());
         inputHandlers.add(request1);
@@ -342,10 +357,9 @@ public class TestResponseManager {
         Request request1 = Mockito.mock(Request.class);
         when(request1.handleResponse((HuaweiPacket) any()))
                 .thenReturn(true);
+        when(request1.autoRemoveFromResponseHandler())
+                .thenReturn(true);
         Request request2 = Mockito.mock(Request.class);
-        // FIXME: Removed due to UnnecessaryStubbingException after mockito-core update
-        //when(request2.handleResponse((HuaweiPacket) any()))
-        //        .thenReturn(false);
 
         List<Request> inputHandlers = Collections.synchronizedList(new ArrayList<Request>());
         inputHandlers.add(request1);
@@ -447,5 +461,25 @@ public class TestResponseManager {
         verify(request1, times(0)).handleResponse();
         verify(request2, times(1)).handleResponse((HuaweiPacket) any());
         verify(request2, times(0)).handleResponse();
+    }
+
+    @Test
+    public void testOnSocketReadMultiplePacketSplit() throws IllegalAccessException, HuaweiPacket.ParseException {
+        byte[] expected = {(byte) 0x5A, (byte) 0x00, (byte) 0x06, (byte) 0x00, (byte) 0x04, (byte) 0x01, (byte) 0x01, (byte) 0x01, (byte) 0x02, (byte) 0x99, (byte) 0x6B};
+
+        byte[] data1 = {(byte) 0x5A, (byte) 0x00, (byte) 0x06, (byte) 0x00, (byte) 0x04, (byte) 0x01, (byte) 0x01};
+        byte[] data2 = {(byte) 0x01, (byte) 0x02, (byte) 0x99, (byte) 0x6B, (byte) 0x5A, (byte) 0x00, (byte) 0x06, (byte) 0x00, (byte) 0x04, (byte) 0x01, (byte) 0x01, (byte) 0x01, (byte) 0x02, (byte) 0x99, (byte) 0x6B};
+
+        HuaweiPacket expectedPacket = new HuaweiPacket(supportProvider.getParamsProvider()).parse(expected);
+
+        AsynchronousResponse mockAsynchronousResponse = Mockito.mock(AsynchronousResponse.class);
+
+        ResponseManager responseManager = new ResponseManager(supportProvider);
+        asynchronousResponseField.set(responseManager, mockAsynchronousResponse);
+
+        responseManager.handleData(data1);
+        responseManager.handleData(data2);
+
+        verify(mockAsynchronousResponse, times(2)).handleResponse(expectedPacket);
     }
 }

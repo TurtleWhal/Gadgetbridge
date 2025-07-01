@@ -23,35 +23,29 @@ import android.net.Uri;
 import android.os.ParcelUuid;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
-import de.greenrobot.dao.query.QueryBuilder;
-import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
-import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.GBException;
+import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLClassicDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.AbstractActivitySample;
-import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummaryDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiActivitySampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutDataSampleDao;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSummarySample;
-import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSummarySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
+import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiBRSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiWorkoutGbParser;
 
 public abstract class HuaweiBRCoordinator extends AbstractBLClassicDeviceCoordinator implements HuaweiCoordinatorSupplier {
 
@@ -88,21 +82,7 @@ public abstract class HuaweiBRCoordinator extends AbstractBLClassicDeviceCoordin
 
     @Override
     protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
-        long deviceId = device.getId();
-        QueryBuilder<?> qb = session.getHuaweiActivitySampleDao().queryBuilder();
-        qb.where(HuaweiActivitySampleDao.Properties.DeviceId.eq(deviceId)).buildDelete().executeDeleteWithoutDetachingEntities();
-
-        QueryBuilder<HuaweiWorkoutSummarySample> qb2 = session.getHuaweiWorkoutSummarySampleDao().queryBuilder();
-        List<HuaweiWorkoutSummarySample> workouts = qb2.where(HuaweiWorkoutSummarySampleDao.Properties.DeviceId.eq(deviceId)).build().list();
-        for (HuaweiWorkoutSummarySample sample : workouts) {
-            session.getHuaweiWorkoutDataSampleDao().queryBuilder().where(
-                    HuaweiWorkoutDataSampleDao.Properties.WorkoutId.eq(sample.getWorkoutId())
-            ).buildDelete().executeDeleteWithoutDetachingEntities();
-        }
-
-        session.getHuaweiWorkoutSummarySampleDao().queryBuilder().where(HuaweiWorkoutSummarySampleDao.Properties.DeviceId.eq(deviceId)).buildDelete().executeDeleteWithoutDetachingEntities();
-
-        session.getBaseActivitySummaryDao().queryBuilder().where(BaseActivitySummaryDao.Properties.DeviceId.eq(deviceId)).buildDelete().executeDeleteWithoutDetachingEntities();
+        huaweiCoordinator.deleteDevice(gbDevice, device, session);
     }
 
     @Override
@@ -165,12 +145,37 @@ public abstract class HuaweiBRCoordinator extends AbstractBLClassicDeviceCoordin
     }
 
     @Override
+    public boolean supportsFlashing() {
+        return huaweiCoordinator.getSupportsFlashing();
+    }
+
+    @Override
     public int getAlarmSlotCount(GBDevice device) {
         return huaweiCoordinator.getAlarmSlotCount(device);
     }
 
     @Override
+    public int getContactsSlotCount(GBDevice device) {
+        return huaweiCoordinator.getContactsSlotCount(device);
+    }
+
+    @Override
+    public int getCannedRepliesSlotCount(GBDevice device) {
+        return huaweiCoordinator.getCannedRepliesSlotCount(device);
+    }
+
+    @Override
+    public boolean supportsCalendarEvents() {
+        return huaweiCoordinator.supportsCalendarEvents();
+    }
+
+    @Override
     public boolean supportsActivityDataFetching() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsActiveCalories() {
         return true;
     }
 
@@ -200,8 +205,33 @@ public abstract class HuaweiBRCoordinator extends AbstractBLClassicDeviceCoordin
     }
 
     @Override
+    public boolean supportsTemperatureMeasurement(final GBDevice device) {
+        return huaweiCoordinator.supportsTemperature();
+    }
+
+    @Override
+    public boolean supportsContinuousTemperature(final GBDevice device) {
+        return huaweiCoordinator.supportsTemperature();
+    }
+
+    @Override
+    public boolean supportsStressMeasurement() {
+        return huaweiCoordinator.supportsAutoStress();
+    }
+
+    @Override
+    public boolean supportsFindDevice() {
+        return huaweiCoordinator.supportsFindDeviceAbility();
+    }
+
+    @Override
     public InstallHandler findInstallHandler(Uri uri, Context context) {
         return huaweiCoordinator.getInstallHandler(uri, context);
+    }
+
+    @Override
+    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
+        return new HuaweiWorkoutGbParser(device, context);
     }
 
     @Override
@@ -214,6 +244,32 @@ public abstract class HuaweiBRCoordinator extends AbstractBLClassicDeviceCoordin
         return new HuaweiSpo2SampleProvider(device, session);
     }
 
+    @Override
+    public TimeSampleProvider<? extends TemperatureSample> getTemperatureSampleProvider(final GBDevice device, final DaoSession session) {
+        return new HuaweiTemperatureSampleProvider(device, session);
+    }
+
+    @Override
+    public TimeSampleProvider<? extends StressSample> getStressSampleProvider(final GBDevice device, final DaoSession session) {
+        return new HuaweiStressSampleProvider(device, session);
+    }
+
+    @Override
+    public int[] getStressRanges() {
+        return huaweiCoordinator.getStressRanges();
+    }
+
+    @Override
+    public boolean showStressLevelInPercents() {
+        return true;
+    }
+
+    @Override
+    public int[] getStressChartParameters() {
+        return huaweiCoordinator.getStressChartParameters();
+    }
+
+    @Override
     public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
         return huaweiCoordinator.getDeviceSpecificSettings(device);
     }
@@ -235,7 +291,12 @@ public abstract class HuaweiBRCoordinator extends AbstractBLClassicDeviceCoordin
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return HuaweiBRSupport.class;
+    }
+
+    @Override
+    public boolean addBatteryPollingSettings() {
+        return true;
     }
 }

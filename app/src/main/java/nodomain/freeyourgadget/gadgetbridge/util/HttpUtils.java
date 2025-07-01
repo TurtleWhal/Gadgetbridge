@@ -17,6 +17,9 @@ public class HttpUtils {
         // utility class
     }
 
+    /**
+     * @noinspection CharsetObjectCanBeUsed not supported by SDK 21
+     **/
     public static Map<String, String> urlQueryParameters(final URL url) {
         final String query = url.getQuery();
         if (StringUtils.isBlank(query)) {

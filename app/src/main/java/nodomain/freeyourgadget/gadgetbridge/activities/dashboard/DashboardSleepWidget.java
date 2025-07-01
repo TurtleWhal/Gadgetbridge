@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2024 Arjan Schrijver
+/*  Copyright (C) 2023-2024 Arjan Schrijver, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -16,32 +16,22 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.dashboard;
 
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ImageView;
-import android.widget.TextView;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Locale;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.DashboardFragment;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 /**
  * A simple {@link AbstractDashboardWidget} subclass.
  * Use the {@link DashboardSleepWidget#newInstance} factory method to
  * create an instance of this fragment.
  */
-public class DashboardSleepWidget extends AbstractDashboardWidget {
-    private static final Logger LOG = LoggerFactory.getLogger(DashboardSleepWidget.class);
-    private TextView sleepAmount;
-    private ImageView sleepGauge;
-
+public class DashboardSleepWidget extends AbstractGaugeWidget {
     public DashboardSleepWidget() {
-        // Required empty public constructor
+        super(R.string.menuitem_sleep, "sleep");
     }
 
     /**
@@ -51,63 +41,39 @@ public class DashboardSleepWidget extends AbstractDashboardWidget {
      * @param dashboardData An instance of DashboardFragment.DashboardData.
      * @return A new instance of fragment DashboardSleepWidget.
      */
-    public static DashboardSleepWidget newInstance(DashboardFragment.DashboardData dashboardData) {
-        DashboardSleepWidget fragment = new DashboardSleepWidget();
-        Bundle args = new Bundle();
+    public static DashboardSleepWidget newInstance(final DashboardFragment.DashboardData dashboardData) {
+        final DashboardSleepWidget fragment = new DashboardSleepWidget();
+        final Bundle args = new Bundle();
         args.putSerializable(ARG_DASHBOARD_DATA, dashboardData);
         fragment.setArguments(args);
         return fragment;
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View fragmentView = inflater.inflate(R.layout.dashboard_widget_sleep, container, false);
-        sleepAmount = fragmentView.findViewById(R.id.sleep_text);
-        sleepGauge = fragmentView.findViewById(R.id.sleep_gauge);
-
-        fillData();
-
-        return fragmentView;
+    protected boolean isSupportedBy(final GBDevice device) {
+        return device.getDeviceCoordinator().supportsSleepMeasurement();
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        if (sleepAmount != null && sleepGauge != null) fillData();
+    protected void populateData(final DashboardFragment.DashboardData dashboardData) {
+        dashboardData.getSleepMinutesTotal();
+        dashboardData.getSleepMinutesGoalFactor();
     }
 
     @Override
-    protected void fillData() {
-        if (sleepGauge == null) return;
-        sleepGauge.post(new Runnable() {
-            @Override
-            public void run() {
-                FillDataAsyncTask myAsyncTask = new FillDataAsyncTask();
-                myAsyncTask.execute();
-            }
-        });
-    }
+    protected void draw(final DashboardFragment.DashboardData dashboardData) {
+        final long totalSleepMinutes = dashboardData.getSleepMinutesTotal();
+        final String valueText = String.format(
+                Locale.ROOT,
+                "%d:%02d",
+                (int) Math.floor(totalSleepMinutes / 60f),
+                (int) (totalSleepMinutes % 60f)
+        );
 
-    private class FillDataAsyncTask extends AsyncTask<Void, Void, Void> {
-        @Override
-        protected Void doInBackground(Void... params) {
-            dashboardData.getSleepMinutesTotal();
-            dashboardData.getSleepMinutesGoalFactor();
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void unused) {
-            super.onPostExecute(unused);
-
-            // Update text representation
-            long totalSleepMinutes = dashboardData.getSleepMinutesTotal();
-            String sleepHours = String.format("%d", (int) Math.floor(totalSleepMinutes / 60f));
-            String sleepMinutes = String.format("%02d", (int) (totalSleepMinutes % 60f));
-            sleepAmount.setText(sleepHours + ":" + sleepMinutes);
-
-            // Draw gauge
-            sleepGauge.setImageBitmap(drawGauge(200, 15, color_light_sleep, dashboardData.getSleepMinutesGoalFactor()));
-        }
+        setText(valueText);
+        drawSimpleGauge(
+                color_light_sleep,
+                dashboardData.getSleepMinutesGoalFactor()
+        );
     }
 }

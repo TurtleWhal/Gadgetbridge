@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- this only shows up when a device is set
+    <com.mobeta.android.dslv.DragSortListPreference
+        android:icon="@drawable/ic_tabs"
+        android:defaultValue="@array/pref_charts_tabs_items_default"
+        android:dialogTitle="@string/prefs_charts_tabs"
+        android:entries="@array/pref_charts_tabs_items"
+        android:entryValues="@array/pref_charts_tabs_values"
+        android:key="charts_tabs"
+        android:persistent="false"
+        android:summary="@string/prefs_charts_tabs_summary"
+        android:title="@string/prefs_charts_tabs" />-->
+
     <PreferenceCategory
         android:key="pref_charts"
         android:title="@string/activity_prefs_charts"
@@ -63,6 +76,22 @@
             android:summaryOff="@string/pref_charts_range_off"
             android:summaryOn="@string/pref_charts_range_on"
             android:title="@string/pref_title_charts_range"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="charts_show_balance_sleep"
+            android:layout="@layout/preference_checkbox"
+            android:summary="@string/charts_show_balance_sleep_summary"
+            android:title="@string/charts_show_balance_sleep_title"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="charts_show_balance_steps"
+            android:layout="@layout/preference_checkbox"
+            android:summary="@string/charts_show_balance_steps_summary"
+            android:title="@string/charts_show_balance_steps_title"
             app:iconSpaceReserved="false" />
 
         <SwitchPreferenceCompat

@@ -34,6 +34,8 @@ public class NotificationSpec {
     public String body;
     public NotificationType type;
     public String sourceName;
+    public String channelId;
+    public String category;
     public String[] cannedReplies;
     /**
      * Wearable actions that were attached to the incoming notifications and will be passed to the gadget (includes the "reply" action)
@@ -48,6 +50,7 @@ public class NotificationSpec {
      */
     public int iconId;
 
+    public String picturePath;
     /**
      * The color that should be assigned to this notification when displayed on a Pebble
      */
@@ -80,9 +83,15 @@ public class NotificationSpec {
         public static final int TYPE_SYNTECTIC_DISMISS_ALL = 4;
         public static final int TYPE_SYNTECTIC_MUTE = 5;
         public static final int TYPE_SYNTECTIC_OPEN = 6;
+        public static final int TYPE_CUSTOM_SIMPLE = 7;
+        public static final int TYPE_CUSTOM_REPLY = 8;
 
         public int type = TYPE_UNDEFINED;
         public long handle;
         public String title;
+
+        public boolean isReply() {
+            return type == TYPE_WEARABLE_REPLY || type == TYPE_SYNTECTIC_REPLY_PHONENR || type == TYPE_CUSTOM_REPLY;
+        }
     }
 }

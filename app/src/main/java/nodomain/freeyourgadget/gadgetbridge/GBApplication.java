@@ -21,9 +21,11 @@
 package nodomain.freeyourgadget.gadgetbridge;
 
 import android.annotation.TargetApi;
+import android.app.AlarmManager;
 import android.app.Application;
 import android.app.NotificationManager;
 import android.app.NotificationManager.Policy;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
@@ -39,6 +41,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Build.VERSION;
+import android.os.StrictMode;
 import android.preference.PreferenceManager;
 import android.provider.ContactsContract.PhoneLookup;
 import android.util.Log;
@@ -62,12 +65,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import nodomain.freeyourgadget.gadgetbridge.activities.ControlCenterv2;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.database.DBOpenHelper;
 import nodomain.freeyourgadget.gadgetbridge.database.PeriodicExporter;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceManager;
+import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoMaster;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
@@ -81,10 +86,12 @@ import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
 import nodomain.freeyourgadget.gadgetbridge.service.NotificationCollectorMonitorService;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.BondingUtil;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.LimitedQueue;
+import nodomain.freeyourgadget.gadgetbridge.util.PendingIntentUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
@@ -122,7 +129,7 @@ public class GBApplication extends Application {
     private static SharedPreferences sharedPrefs;
     private static final String PREFS_VERSION = "shared_preferences_version";
     //if preferences have to be migrated, increment the following and add the migration logic in migratePrefs below; see http://stackoverflow.com/questions/16397848/how-can-i-migrate-android-preferences-with-a-new-version
-    private static final int CURRENT_PREFS_VERSION = 30;
+    private static final int CURRENT_PREFS_VERSION = 49;
 
     private static final LimitedQueue<Integer, String> mIDSenderLookup = new LimitedQueue<>(16);
     private static GBPrefs prefs;
@@ -163,27 +170,79 @@ public class GBApplication extends Application {
 
     public static void quit() {
         GB.log("Quitting Gadgetbridge...", GB.INFO, null);
+        BondingUtil.StopObservingAll(getContext());
         Intent quitIntent = new Intent(GBApplication.ACTION_QUIT);
         LocalBroadcastManager.getInstance(context).sendBroadcast(quitIntent);
         GBApplication.deviceService().quit();
         System.exit(0);
     }
 
+    public static void restart() {
+        GB.log("Restarting Gadgetbridge...", GB.INFO, null);
+        BondingUtil.StopObservingAll(getContext());
+        final Intent quitIntent = new Intent(GBApplication.ACTION_QUIT);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(quitIntent);
+        GBApplication.deviceService().quit();
+
+        final Intent startActivity = new Intent(context, ControlCenterv2.class);
+        final PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 1337, startActivity, PendingIntent.FLAG_CANCEL_CURRENT, false);
+        final AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + 1500, pendingIntent);
+
+        Runtime.getRuntime().exit(0);
+    }
+
     public GBApplication() {
         context = this;
         // don't do anything here, add it to onCreate instead
 
-        //if (BuildConfig.DEBUG) {
-        //    // detect everything
-        //    //StrictMode.enableDefaults();
-        //    // detect closeable objects
-        //    //StrictMode.setVmPolicy(
-        //    //        new StrictMode.VmPolicy.Builder()
-        //    //                .detectLeakedClosableObjects()
-        //    //                .penaltyLog()
-        //    //                .build()
-        //    //);
-        //}
+        if (BuildConfig.DEBUG) {
+            StrictMode.ThreadPolicy.Builder thread = new StrictMode.ThreadPolicy.Builder();
+            thread.detectCustomSlowCalls();
+            thread.permitDiskReads(); // log requires disk access
+            thread.permitDiskWrites(); // log requires disk access
+            thread.detectNetwork();
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                thread.detectResourceMismatches();
+            }
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                thread.detectUnbufferedIo();
+            }
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                thread.detectExplicitGc();
+            }
+            StrictMode.setThreadPolicy(thread.penaltyLog().build());
+
+            StrictMode.VmPolicy.Builder vm = new StrictMode.VmPolicy.Builder();
+            vm.detectLeakedSqlLiteObjects();
+            vm.detectLeakedClosableObjects();
+            vm.detectLeakedRegistrationObjects();
+            vm.detectFileUriExposure();
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                vm.detectCleartextNetwork();
+            }
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vm.detectContentUriWithoutPermission();
+                vm.detectUntaggedSockets();
+            }
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                // androidx.appcompat causes:
+                // NonSdkApiUsedViolation: Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V
+                // vm.detectNonSdkApiUsage();
+            }
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vm.detectImplicitDirectBoot();
+                vm.detectCredentialProtectedWhileLocked();
+            }
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                vm.detectIncorrectContextUse();
+                vm.detectUnsafeIntentLaunch();
+            }
+            if (VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+                vm.detectBlockedBackgroundActivityLaunch();
+            }
+            StrictMode.setVmPolicy(vm.penaltyLog().build());
+        }
     }
 
     public static Logging getLogging() {
@@ -226,7 +285,7 @@ public class GBApplication extends Application {
         // the devicetype.json file
         //migrateDeviceTypes();
 
-        setupExceptionHandler();
+        setupExceptionHandler(prefs.getBoolean("crash_notification", isDebug()));
 
         Weather.getInstance().setCacheFile(getCacheDir(), prefs.getBoolean("cache_weather", true));
 
@@ -244,27 +303,33 @@ public class GBApplication extends Application {
             notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (isRunningOreoOrLater()) {
                 bluetoothStateChangeReceiver = new BluetoothStateChangeReceiver();
-                registerReceiver(bluetoothStateChangeReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
+                final IntentFilter bif = new IntentFilter();
+                bif.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+                if (isRunningPieOrLater())
+                    bif.addAction(BluetoothStateChangeReceiver.ANDROID_BLUETOOTH_DEVICE_ACTION_BATTERY_LEVEL_CHANGED);
+                registerReceiver(bluetoothStateChangeReceiver, bif);
             }
             try {
                 //the following will ensure the notification manager is kept alive
                 startService(new Intent(this, NotificationCollectorMonitorService.class));
             } catch (IllegalStateException e) {
                 String message = e.toString();
-                if (message == null) {
-                    message = getString(R.string._unknown_);
-                }
+                final Intent instructionsIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://gadgetbridge.org/basics/topics/background-service/"));
+                final PendingIntent pi = PendingIntentUtils.getActivity(context, 0, instructionsIntent, PendingIntent.FLAG_ONE_SHOT, false);
                 GB.notify(NOTIFICATION_ID_ERROR,
                         new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_HIGH_PRIORITY_ID)
-                                .setSmallIcon(R.drawable.gadgetbridge_img)
+                                .setSmallIcon(R.drawable.ic_notification)
                                 .setContentTitle(getString(R.string.error_background_service))
                                 .setContentText(getString(R.string.error_background_service_reason_truncated))
+                                .setContentIntent(pi)
                                 .setStyle(new NotificationCompat.BigTextStyle()
-                                        .bigText(getString(R.string.error_background_service_reason) + "\"" + message + "\""))
+                                        .bigText(getString(R.string.error_background_service_reason) + " \"" + message + "\""))
                                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                                 .build(), context);
             }
         }
+
+        BondingUtil.StartObservingAll(getBaseContext());
     }
 
     @Override
@@ -300,8 +365,8 @@ public class GBApplication extends Application {
         return logging.getLogPath();
     }
 
-    private void setupExceptionHandler() {
-        LoggingExceptionHandler handler = new LoggingExceptionHandler(Thread.getDefaultUncaughtExceptionHandler());
+    private void setupExceptionHandler(final boolean notifyOnCrash) {
+        final GBExceptionHandler handler = new GBExceptionHandler(Thread.getDefaultUncaughtExceptionHandler(), notifyOnCrash);
         Thread.setDefaultUncaughtExceptionHandler(handler);
     }
 
@@ -403,8 +468,16 @@ public class GBApplication extends Application {
         return VERSION.SDK_INT >= Build.VERSION_CODES.Q;
     }
 
+    public static boolean isRedVelvetCakeOrLater() {
+        return VERSION.SDK_INT >= Build.VERSION_CODES.R;
+    }
+
     public static boolean isRunningTwelveOrLater() {
-        return VERSION.SDK_INT >= 31;  // Build.VERSION_CODES.S, but our target SDK is lower
+        return VERSION.SDK_INT >= Build.VERSION_CODES.S;
+    }
+
+    public static boolean isRunningTiramisuOrLater() {
+        return VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU;
     }
 
     public static boolean isRunningPieOrLater() {
@@ -496,7 +569,7 @@ public class GBApplication extends Application {
     }
 
     private static void saveAppsNotifBlackList() {
-       saveAppsNotifBlackList(sharedPrefs.edit());
+        saveAppsNotifBlackList(sharedPrefs.edit());
     }
 
     private static void saveAppsNotifBlackList(SharedPreferences.Editor editor) {
@@ -555,7 +628,7 @@ public class GBApplication extends Application {
     }
 
     private static void saveAppsPebbleBlackList() {
-       saveAppsPebbleBlackList(sharedPrefs.edit());
+        saveAppsPebbleBlackList(sharedPrefs.edit());
     }
 
     private static void saveAppsPebbleBlackList(SharedPreferences.Editor editor) {
@@ -640,7 +713,7 @@ public class GBApplication extends Application {
                     DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
 
                     if (deviceTypes.contains(deviceType)) {
-                        Log.i(TAG, "migrating global string preference " + globalPref + " for " + deviceType.name() + " " + dbDevice.getIdentifier() );
+                        Log.i(TAG, "migrating global string preference " + globalPref + " for " + deviceType.name() + " " + dbDevice.getIdentifier());
                         deviceSharedPrefsEdit.putString(perDevicePref, globalPrefValue);
                     }
                     deviceSharedPrefsEdit.apply();
@@ -666,7 +739,7 @@ public class GBApplication extends Application {
                     DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
 
                     if (deviceTypes.contains(deviceType)) {
-                        Log.i(TAG, "migrating global boolean preference " + globalPref + " for " + deviceType.name() + " " + dbDevice.getIdentifier() );
+                        Log.i(TAG, "migrating global boolean preference " + globalPref + " for " + deviceType.name() + " " + dbDevice.getIdentifier());
                         deviceSharedPrefsEdit.putBoolean(perDevicePref, globalPrefValue);
                     }
                     deviceSharedPrefsEdit.apply();
@@ -675,7 +748,7 @@ public class GBApplication extends Application {
             editor.remove(globalPref);
             editor.apply();
         } catch (Exception e) {
-            Log.w(TAG, "error acquiring DB lock");
+            Log.e(TAG, "Failed to migrate " + globalPref, e);
         }
     }
 
@@ -693,7 +766,7 @@ public class GBApplication extends Application {
 
             for (Device dbDevice : activeDevices) {
                 String deviceTypeName = dbDevice.getTypeName();
-                if(deviceTypeName.isEmpty() || deviceTypeName.equals("UNKNOWN")){
+                if (deviceTypeName.isEmpty() || deviceTypeName.equals("UNKNOWN")) {
                     deviceTypeName = deviceIdNameMapping.optString(
                             String.valueOf(dbDevice.getType()),
                             "UNKNOWN"
@@ -703,7 +776,7 @@ public class GBApplication extends Application {
                 }
             }
         } catch (Exception e) {
-            Log.w(TAG, "error acquiring DB lock");
+            Log.e(TAG, "Failed to migrate device types", e);
         }
     }
 
@@ -711,7 +784,7 @@ public class GBApplication extends Application {
         SharedPreferences.Editor editor = sharedPrefs.edit();
 
         // this comes before all other migrations since the new column DeviceTypeName was added as non-null
-        if (oldVersion < 25){
+        if (oldVersion < 25) {
             migrateDeviceTypes();
         }
 
@@ -734,7 +807,7 @@ public class GBApplication extends Application {
                 editor.remove("mi_user_weight_kg");
             }
             if (legacyYOB != null) {
-                editor.putString(ActivityUser.PREF_USER_YEAR_OF_BIRTH, legacyYOB);
+                editor.putString("activity_user_year_of_birth", legacyYOB);
                 editor.remove("mi_user_year_of_birth");
             }
         }
@@ -860,7 +933,7 @@ public class GBApplication extends Application {
                 editor.remove("miband3_language");
 
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 3", e);
             }
         }
         if (oldVersion < 4) {
@@ -873,14 +946,14 @@ public class GBApplication extends Application {
                     DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
 
                     if (deviceType == MIBAND) {
-                        int deviceTimeOffsetHours = deviceSharedPrefs.getInt("device_time_offset_hours",0);
-                        deviceSharedPrefsEdit.putString("device_time_offset_hours", Integer.toString(deviceTimeOffsetHours) );
+                        int deviceTimeOffsetHours = deviceSharedPrefs.getInt("device_time_offset_hours", 0);
+                        deviceSharedPrefsEdit.putString("device_time_offset_hours", Integer.toString(deviceTimeOffsetHours));
                     }
 
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 4", e);
             }
         }
         if (oldVersion < 5) {
@@ -944,7 +1017,7 @@ public class GBApplication extends Application {
                 editor.remove("zetime_wrist");
 
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 5", e);
             }
         }
         if (oldVersion < 6) {
@@ -977,10 +1050,10 @@ public class GBApplication extends Application {
             try (DBHandler db = acquireDB()) {
                 DaoSession daoSession = db.getDaoSession();
                 List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
-                migrateBooleanPrefToPerDevicePref("transliteration", false, "pref_transliteration_enabled", (ArrayList)activeDevices);
+                migrateBooleanPrefToPerDevicePref("transliteration", false, "pref_transliteration_enabled", (ArrayList) activeDevices);
                 Log.w(TAG, "migrating transliteration settings");
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock and migrating prefs");
+                Log.e(TAG, "Failed to migrate prefs to version 9", e);
             }
         }
         if (oldVersion < 10) {
@@ -1001,7 +1074,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 10", e);
             }
         }
         if (oldVersion < 11) {
@@ -1092,7 +1165,7 @@ public class GBApplication extends Application {
                 editor.remove("mi2_inactivity_warnings_end");
                 editor.remove("mi_fitness_goal");
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 11", e);
             }
         }
         if (oldVersion < 12) {
@@ -1132,7 +1205,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 13", e);
             }
         }
 
@@ -1156,7 +1229,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 14", e);
             }
         }
 
@@ -1175,7 +1248,7 @@ public class GBApplication extends Application {
                     }
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 15", e);
             }
         }
 
@@ -1199,7 +1272,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 16", e);
             }
         }
 
@@ -1223,7 +1296,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 17", e);
             }
 
             editor.remove(GBPrefs.CALENDAR_BLACKLIST);
@@ -1249,7 +1322,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 18", e);
             }
         }
 
@@ -1284,7 +1357,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 20", e);
             }
         }
 
@@ -1314,7 +1387,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 21", e);
             }
         }
 
@@ -1334,7 +1407,7 @@ public class GBApplication extends Application {
                     }
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 22", e);
             }
         }
 
@@ -1363,7 +1436,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 26", e);
             }
         }
 
@@ -1394,7 +1467,7 @@ public class GBApplication extends Application {
                     deviceSharedPrefsEdit.apply();
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 27", e);
             }
         }
 
@@ -1435,7 +1508,7 @@ public class GBApplication extends Application {
                     }
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 28", e);
             }
         }
 
@@ -1457,7 +1530,7 @@ public class GBApplication extends Application {
                     }
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 29", e);
             }
         }
 
@@ -1479,7 +1552,491 @@ public class GBApplication extends Application {
                     }
                 }
             } catch (Exception e) {
-                Log.w(TAG, "error acquiring DB lock");
+                Log.e(TAG, "Failed to migrate prefs to version 30", e);
+            }
+        }
+
+        if (oldVersion < 31) {
+            // Add the new HRV Status tab to all devices
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (final Device dbDevice : activeDevices) {
+                    final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+
+                    final String chartsTabsValue = deviceSharedPrefs.getString("charts_tabs", null);
+                    if (chartsTabsValue == null) {
+                        continue;
+                    }
+
+                    final String newPrefValue;
+                    if (!StringUtils.isBlank(chartsTabsValue)) {
+                        newPrefValue = chartsTabsValue + ",hrvstatus";
+                    } else {
+                        newPrefValue = "hrvstatus";
+                    }
+
+                    final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                    deviceSharedPrefsEdit.putString("charts_tabs", newPrefValue);
+                    deviceSharedPrefsEdit.apply();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 31", e);
+            }
+        }
+
+        if (oldVersion < 32) {
+            // Add the new body energy tab to all devices
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (final Device dbDevice : activeDevices) {
+                    final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+
+                    final String chartsTabsValue = deviceSharedPrefs.getString("charts_tabs", null);
+                    if (chartsTabsValue == null) {
+                        continue;
+                    }
+
+                    final String newPrefValue;
+                    if (!StringUtils.isBlank(chartsTabsValue)) {
+                        newPrefValue = chartsTabsValue + ",bodyenergy";
+                    } else {
+                        newPrefValue = "bodyenergy";
+                    }
+
+                    final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                    deviceSharedPrefsEdit.putString("charts_tabs", newPrefValue);
+                    deviceSharedPrefsEdit.apply();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 32", e);
+            }
+        }
+
+        if (oldVersion < 33) {
+            // Remove sleep week tab from all devices, since it does not exist anymore
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (final Device dbDevice : activeDevices) {
+                    final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+
+                    final String chartsTabsValue = deviceSharedPrefs.getString("charts_tabs", null);
+                    if (chartsTabsValue == null) {
+                        continue;
+                    }
+
+                    final String newPrefValue;
+                    if (!StringUtils.isBlank(chartsTabsValue)) {
+                        newPrefValue = chartsTabsValue.replace(",sleepweek", "");
+                    } else {
+                        newPrefValue = chartsTabsValue;
+                    }
+
+                    final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                    deviceSharedPrefsEdit.putString("charts_tabs", newPrefValue);
+                    deviceSharedPrefsEdit.apply();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 33", e);
+            }
+        }
+
+        if (oldVersion < 34) {
+            // Migrate Mi Band preferences to device-specific
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (Device dbDevice : activeDevices) {
+                    final DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
+                    if (deviceType == MIBAND || deviceType == MIBAND2 || deviceType == MIBAND2_HRX) {
+                        final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+                        final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+
+                        deviceSharedPrefsEdit.putString("mi_vibration_profile_generic_sms", sharedPrefs.getString("mi_vibration_profile_generic_sms", "staccato"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_count_generic_sms", sharedPrefs.getString("mi_vibration_count_generic_sms", "3"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_profile_incoming_call", sharedPrefs.getString("mi_vibration_profile_incoming_call", "ring"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_count_incoming_call", sharedPrefs.getString("mi_vibration_count_incoming_call", "60"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_profile_generic_email", sharedPrefs.getString("mi_vibration_profile_generic_email", "medium"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_count_generic_email", sharedPrefs.getString("mi_vibration_count_generic_email", "2"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_profile_generic_chat", sharedPrefs.getString("mi_vibration_profile_generic_chat", "waterdrop"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_count_generic_chat", sharedPrefs.getString("mi_vibration_count_generic_chat", "3"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_profile_generic_social", sharedPrefs.getString("mi_vibration_profile_generic_social", "waterdrop"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_count_generic_social", sharedPrefs.getString("mi_vibration_count_generic_social", "3"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_profile_alarm_clock", sharedPrefs.getString("mi_vibration_profile_alarm_clock", "alarm_clock"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_count_alarm_clock", sharedPrefs.getString("mi_vibration_count_alarm_clock", "3"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_profile_generic_navigation", sharedPrefs.getString("mi_vibration_profile_generic_navigation", "waterdrop"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_count_generic_navigation", sharedPrefs.getString("mi_vibration_count_generic_navigation", "3"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_profile_generic", sharedPrefs.getString("mi_vibration_profile_generic", "waterdrop"));
+                        deviceSharedPrefsEdit.putString("mi_vibration_count_generic", sharedPrefs.getString("mi_vibration_count_generic", "3"));
+
+                        if (deviceType == MIBAND) {
+                            deviceSharedPrefsEdit.putBoolean("keep_activity_data_on_device", sharedPrefs.getBoolean("mi_dont_ack_transfer", false));
+                        }
+
+                        deviceSharedPrefsEdit.apply();
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 34", e);
+            }
+        }
+
+        if (oldVersion < 35) {
+            // Migrate ZeTime preferences to device-specific
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (Device dbDevice : activeDevices) {
+                    final DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
+                    if (deviceType == DeviceType.ZETIME) {
+                        final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+                        final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+
+                        // Vibration Profiles
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_sms", sharedPrefs.getString("zetime_vibration_profile_sms", "2"));
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_incoming_call", sharedPrefs.getString("zetime_vibration_profile_incoming_call", "13"));
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_missed_call", sharedPrefs.getString("zetime_vibration_profile_missed_call", "12"));
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_generic_email", sharedPrefs.getString("zetime_vibration_profile_generic_email", "12"));
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_generic_social", sharedPrefs.getString("zetime_vibration_profile_generic_social", "12"));
+                        deviceSharedPrefsEdit.putString("zetime_alarm_signaling", sharedPrefs.getString("zetime_alarm_signaling", "11"));
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_calendar", sharedPrefs.getString("zetime_vibration_profile_calendar", "12"));
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_inactivity", sharedPrefs.getString("zetime_vibration_profile_inactivity", "12"));
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_lowpower", sharedPrefs.getString("zetime_vibration_profile_lowpower", "4"));
+                        deviceSharedPrefsEdit.putString("zetime_vibration_profile_antiloss", sharedPrefs.getString("zetime_vibration_profile_antiloss", "13"));
+                        // DND
+                        deviceSharedPrefsEdit.putString("do_not_disturb_no_auto", sharedPrefs.getString("do_not_disturb", "off"));
+                        deviceSharedPrefsEdit.putString("do_not_disturb_no_auto_start", sharedPrefs.getString("do_not_disturb_start", "22:00"));
+                        deviceSharedPrefsEdit.putString("do_not_disturb_no_auto_end", sharedPrefs.getString("do_not_disturb_end", "07:00"));
+                        // HR
+                        deviceSharedPrefsEdit.putString("heartrate_measurement_interval", sharedPrefs.getString("heartrate_measurement_interval", "0"));
+                        deviceSharedPrefsEdit.putBoolean("zetime_heartrate_alarm_enable", sharedPrefs.getBoolean("zetime_heartrate_alarm_enable", false));
+                        deviceSharedPrefsEdit.putString("alarm_max_heart_rate", sharedPrefs.getString("alarm_max_heart_rate", "180"));
+                        deviceSharedPrefsEdit.putString("alarm_min_heart_rate", sharedPrefs.getString("alarm_min_heart_rate", "60"));
+                        // Inactivity warnings
+                        deviceSharedPrefsEdit.putBoolean("inactivity_warnings_enable", sharedPrefs.getBoolean("inactivity_warnings_enable", false));
+                        deviceSharedPrefsEdit.putString("inactivity_warnings_threshold", sharedPrefs.getString("inactivity_warnings_threshold", "60"));
+                        deviceSharedPrefsEdit.putString("inactivity_warnings_start", sharedPrefs.getString("inactivity_warnings_start", "06:00"));
+                        deviceSharedPrefsEdit.putString("inactivity_warnings_end", sharedPrefs.getString("inactivity_warnings_end", "22:00"));
+                        deviceSharedPrefsEdit.putBoolean("inactivity_warnings_mo", sharedPrefs.getBoolean("inactivity_warnings_mo", false));
+                        deviceSharedPrefsEdit.putBoolean("inactivity_warnings_tu", sharedPrefs.getBoolean("inactivity_warnings_tu", false));
+                        deviceSharedPrefsEdit.putBoolean("inactivity_warnings_we", sharedPrefs.getBoolean("inactivity_warnings_we", false));
+                        deviceSharedPrefsEdit.putBoolean("inactivity_warnings_th", sharedPrefs.getBoolean("inactivity_warnings_th", false));
+                        deviceSharedPrefsEdit.putBoolean("inactivity_warnings_fr", sharedPrefs.getBoolean("inactivity_warnings_fr", false));
+                        deviceSharedPrefsEdit.putBoolean("inactivity_warnings_sa", sharedPrefs.getBoolean("inactivity_warnings_sa", false));
+                        deviceSharedPrefsEdit.putBoolean("inactivity_warnings_su", sharedPrefs.getBoolean("inactivity_warnings_su", false));
+                        // Developer settings
+                        deviceSharedPrefsEdit.putBoolean("keep_activity_data_on_device", sharedPrefs.getBoolean("zetime_dont_del_actdata", false));
+                        // Activity info
+                        deviceSharedPrefsEdit.putBoolean("zetime_activity_tracking", sharedPrefs.getBoolean("zetime_activity_tracking", false));
+                        deviceSharedPrefsEdit.putString("zetime_calories_type", sharedPrefs.getString("zetime_calories_type", "0"));
+                        // Display
+                        deviceSharedPrefsEdit.putString("zetime_screentime", sharedPrefs.getString("zetime_screentime", "30"));
+                        deviceSharedPrefsEdit.putBoolean("zetime_handmove_display", sharedPrefs.getBoolean("zetime_handmove_display", false));
+                        deviceSharedPrefsEdit.putString("zetime_analog_mode", sharedPrefs.getString("zetime_analog_mode", "0"));
+                        // Date format
+                        deviceSharedPrefsEdit.putString("zetime_date_format", sharedPrefs.getString("zetime_date_format", "2"));
+                        // Unused, but migrate it anyway
+                        deviceSharedPrefsEdit.putString("zetime_shock_strength", sharedPrefs.getString("zetime_shock_strength", "255"));
+
+                        deviceSharedPrefsEdit.apply();
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 35", e);
+            }
+        }
+        if (oldVersion < 36) {
+            // Migrate Pebble preferences to device-specific
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (Device dbDevice : activeDevices) {
+                    final DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
+                    if (deviceType == PEBBLE) {
+                        final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+                        final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+
+                        deviceSharedPrefsEdit.putBoolean("pebble_enable_outgoing_call", sharedPrefs.getBoolean("pebble_enable_outgoing_call", true));
+                        deviceSharedPrefsEdit.putString("pebble_pref_privacy_mode", sharedPrefs.getString("pebble_pref_privacy_mode", getString(R.string.p_pebble_privacy_mode_off)));
+                        deviceSharedPrefsEdit.putBoolean("send_sunrise_sunset", sharedPrefs.getBoolean("send_sunrise_sunset", false));
+                        deviceSharedPrefsEdit.putString("pebble_activitytracker", sharedPrefs.getString("pebble_activitytracker", String.valueOf(SampleProvider.PROVIDER_PEBBLE_HEALTH)));
+                        deviceSharedPrefsEdit.putBoolean("pebble_sync_health", sharedPrefs.getBoolean("pebble_sync_health", true));
+                        deviceSharedPrefsEdit.putBoolean("pebble_health_store_raw", sharedPrefs.getBoolean("pebble_health_store_raw", true));
+                        deviceSharedPrefsEdit.putBoolean("pebble_sync_misfit", sharedPrefs.getBoolean("pebble_sync_misfit", true));
+                        deviceSharedPrefsEdit.putBoolean("pebble_sync_morpheuz", sharedPrefs.getBoolean("pebble_sync_morpheuz", true));
+                        deviceSharedPrefsEdit.putBoolean("pebble_force_protocol", sharedPrefs.getBoolean("pebble_force_protocol", false));
+                        deviceSharedPrefsEdit.putBoolean("pebble_force_untested", sharedPrefs.getBoolean("pebble_force_untested", false));
+                        deviceSharedPrefsEdit.putBoolean("pebble_force_le", sharedPrefs.getBoolean("pebble_force_le", false));
+                        deviceSharedPrefsEdit.putString("pebble_mtu_limit", sharedPrefs.getString("pebble_mtu_limit", "512"));
+                        deviceSharedPrefsEdit.putBoolean("pebble_gatt_clientonly", sharedPrefs.getBoolean("pebble_gatt_clientonly", false));
+                        deviceSharedPrefsEdit.putBoolean("pebble_enable_applogs", sharedPrefs.getBoolean("pebble_enable_applogs", false));
+                        deviceSharedPrefsEdit.putBoolean("third_party_apps_set_settings", sharedPrefs.getBoolean("pebble_enable_pebblekit", false));
+                        deviceSharedPrefsEdit.putBoolean("pebble_always_ack_pebblekit", sharedPrefs.getBoolean("pebble_always_ack_pebblekit", false));
+                        deviceSharedPrefsEdit.putBoolean("pebble_enable_background_javascript", sharedPrefs.getBoolean("pebble_enable_background_javascript", false));
+
+                        deviceSharedPrefsEdit.apply();
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 36", e);
+            }
+        }
+
+        if (oldVersion < 37) {
+            // Add new dashboard widgets
+            final String dashboardWidgetsOrder = sharedPrefs.getString("pref_dashboard_widgets_order", null);
+            if (!StringUtils.isBlank(dashboardWidgetsOrder) && !dashboardWidgetsOrder.contains("bodyenergy")) {
+                editor.putString("pref_dashboard_widgets_order", dashboardWidgetsOrder + ",bodyenergy,stress_segmented,hrv");
+            }
+        }
+
+        if (oldVersion < 38) {
+            // Migrate year of birth to date of birth
+            try {
+                final String yearOfBirth = sharedPrefs.getString("activity_user_year_of_birth", null);
+                if (StringUtils.isNotBlank(yearOfBirth)) {
+                    final int yearOfBirthValue = Integer.parseInt(yearOfBirth);
+                    if (yearOfBirthValue > 1800 && yearOfBirthValue < 3000) {
+                        editor.putString("activity_user_date_of_birth", String.format(Locale.ROOT, "%s-01-01", yearOfBirth.trim()));
+                    } else {
+                        Log.e(TAG, "Year of birth out of range, not migrating - " + yearOfBirth);
+                    }
+                }
+            } catch (final Exception e) {
+                Log.e(TAG, "Failed to migrate year of birth to date of birth in version 38", e);
+            }
+        }
+
+        if (oldVersion < 39) {
+            // Add the new Heart Rate tab to all devices
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (final Device dbDevice : activeDevices) {
+                    final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+
+                    final String chartsTabsValue = deviceSharedPrefs.getString("charts_tabs", null);
+                    if (chartsTabsValue == null) {
+                        continue;
+                    }
+
+                    String newPrefValue = chartsTabsValue;
+                    if (!StringUtils.isBlank(chartsTabsValue)) {
+                        if (!chartsTabsValue.contains("heartrate")) {
+                            newPrefValue = newPrefValue + ",heartrate";
+                        }
+                    } else {
+                        newPrefValue = "heartrate";
+                    }
+
+                    final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                    deviceSharedPrefsEdit.putString("charts_tabs", newPrefValue);
+                    deviceSharedPrefsEdit.apply();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 39", e);
+            }
+        }
+
+        if (oldVersion < 40) {
+            // Add the new VO2Max tab to all devices
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (final Device dbDevice : activeDevices) {
+                    final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+
+                    final String chartsTabsValue = deviceSharedPrefs.getString("charts_tabs", null);
+                    if (chartsTabsValue == null) {
+                        continue;
+                    }
+
+                    final String newPrefValue;
+                    if (!StringUtils.isBlank(chartsTabsValue)) {
+                        newPrefValue = chartsTabsValue + ",vo2max";
+                    } else {
+                        newPrefValue = "vo2max";
+                    }
+
+                    final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                    deviceSharedPrefsEdit.putString("charts_tabs", newPrefValue);
+                    deviceSharedPrefsEdit.apply();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 40", e);
+            }
+        }
+
+        if (oldVersion < 41) {
+            // Add vo2max widget.
+            final String dashboardWidgetsOrder = sharedPrefs.getString("pref_dashboard_widgets_order", null);
+            if (!StringUtils.isBlank(dashboardWidgetsOrder) && !dashboardWidgetsOrder.contains("vo2max")) {
+                editor.putString("pref_dashboard_widgets_order", dashboardWidgetsOrder + ",vo2max");
+            }
+        }
+
+        if (oldVersion < 42) {
+            // Enable crash notification by default on debug builds
+            if (!prefs.contains("crash_notification")) {
+                editor.putBoolean("crash_notification", isDebug());
+            }
+        }
+
+        if (oldVersion < 43) {
+            // Add the new calories tab to all devices.
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (final Device dbDevice : activeDevices) {
+                    final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+
+                    final String chartsTabsValue = deviceSharedPrefs.getString("charts_tabs", null);
+                    if (chartsTabsValue == null) {
+                        continue;
+                    }
+
+                    final String newPrefValue;
+                    if (!StringUtils.isBlank(chartsTabsValue)) {
+                        if (!chartsTabsValue.contains("calories")) {
+                            newPrefValue = chartsTabsValue + ",calories";
+                        } else {
+                            newPrefValue = chartsTabsValue;
+                        }
+                    } else {
+                        newPrefValue = "calories";
+                    }
+
+                    final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                    deviceSharedPrefsEdit.putString("charts_tabs", newPrefValue);
+                    deviceSharedPrefsEdit.apply();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 43", e);
+            }
+        }
+
+        if (oldVersion < 44) {
+            // Users upgrading to this version don't need to see the welcome screen
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                if (!activeDevices.isEmpty()) {
+                    editor.putBoolean("first_run", false);
+                }
+            } catch (final Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 44", e);
+            }
+        }
+
+        if (oldVersion < 45) {
+            // Add the new respiratory rate tab to all devices.
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (final Device dbDevice : activeDevices) {
+                    final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+
+                    final String chartsTabsValue = deviceSharedPrefs.getString("charts_tabs", null);
+                    if (chartsTabsValue == null) {
+                        continue;
+                    }
+
+                    final String newPrefValue;
+                    if (!StringUtils.isBlank(chartsTabsValue)) {
+                        if (!chartsTabsValue.contains("respiratoryrate")) {
+                            newPrefValue = chartsTabsValue + ",respiratoryrate";
+                        } else {
+                            newPrefValue = chartsTabsValue;
+                        }
+                    } else {
+                        newPrefValue = "respiratoryrate";
+                    }
+
+                    final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                    deviceSharedPrefsEdit.putString("charts_tabs", newPrefValue);
+                    deviceSharedPrefsEdit.apply();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 45", e);
+            }
+        }
+
+        if (oldVersion < 46) {
+            // Enable calendar sync on Garmin devices by default
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (Device dbDevice : activeDevices) {
+                    if (dbDevice.getTypeName().startsWith("GARMIN")) {
+                        final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+                        final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                        deviceSharedPrefsEdit.putBoolean("sync_calendar", true);
+                        deviceSharedPrefsEdit.apply();
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 46", e);
+            }
+        }
+
+        if (oldVersion < 47) {
+            if (prefs.contains("activity_user_goal_standing_time_minutes")) {
+                editor.putString("activity_user_goal_standing_hours", prefs.getString("activity_user_goal_standing_time_minutes", "12"));
+                editor.remove("activity_user_goal_standing_time_minutes");
+            }
+        }
+
+        if (oldVersion < 48) {
+            // Fix the reversed notification time prefs
+            if (prefs.getNotificationTimesEnabled()) {
+                final String start = prefs.getString("notification_times_start", "08:00");
+                final String end = prefs.getString("notification_times_end", "22:00");
+                editor.putString("notification_times_start", end);
+                editor.putString("notification_times_end", start);
+            }
+        }
+
+        if (oldVersion < 49) {
+            // Migrate Lenovo Watch X language preference
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (Device dbDevice : activeDevices) {
+                    final DeviceType deviceType = DeviceType.fromName(dbDevice.getTypeName());
+                    if (deviceType == WATCHXPLUS) {
+                        final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+                        final String languageVal = deviceSharedPrefs.getString("language", "1");
+                        final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                        switch (languageVal) {
+                            case "0":
+                                deviceSharedPrefsEdit.putString("language", "zh_CN");
+                                break;
+                            case "1":
+                            default:
+                                deviceSharedPrefsEdit.putString("language", "en_US");
+                                break;
+
+                        }
+                        deviceSharedPrefsEdit.apply();
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 49", e);
             }
         }
 
@@ -1487,19 +2044,19 @@ public class GBApplication extends Application {
         editor.apply();
     }
 
-    public static SharedPreferences getDeviceSpecificSharedPrefs(String deviceIdentifier) {
-        if (deviceIdentifier == null || deviceIdentifier.isEmpty()) {
+    public static SharedPreferences getDeviceSpecificSharedPrefs(CharSequence deviceIdentifier) {
+        if (deviceIdentifier == null || deviceIdentifier.length() < 1) {
             return null;
         }
         return context.getSharedPreferences("devicesettings_" + deviceIdentifier, Context.MODE_PRIVATE);
     }
 
-    public static DevicePrefs getDevicePrefs(final String deviceIdentifier) {
-        return new DevicePrefs(getDeviceSpecificSharedPrefs(deviceIdentifier));
+    public static DevicePrefs getDevicePrefs(GBDevice gbDevice) {
+        return new DevicePrefs(getDeviceSpecificSharedPrefs(gbDevice.getAddress()), gbDevice);
     }
 
-    public static void deleteDeviceSpecificSharedPrefs(String deviceIdentifier) {
-        if (deviceIdentifier == null || deviceIdentifier.isEmpty()) {
+    public static void deleteDeviceSpecificSharedPrefs(CharSequence deviceIdentifier) {
+        if (deviceIdentifier == null || deviceIdentifier.length() < 1) {
             return;
         }
         context.getSharedPreferences("devicesettings_" + deviceIdentifier, Context.MODE_PRIVATE).edit().clear().apply();
@@ -1509,8 +2066,16 @@ public class GBApplication extends Application {
     public static void setLanguage(String lang) {
         if (lang.equals("default")) {
             language = Resources.getSystem().getConfiguration().locale;
-        } else {
+        } else if (lang.length() == 2) {
             language = new Locale(lang);
+        } else {
+            final String[] split = lang.split("_");
+            if (split.length == 2) {
+                language = new Locale(split[0], split[1]);
+            } else {
+                // Unexpected format, fallback to system default
+                language = Resources.getSystem().getConfiguration().locale;
+            }
         }
         updateLanguage(language);
     }
@@ -1597,6 +2162,7 @@ public class GBApplication extends Application {
     }
 
     public static boolean isNightly() {
+        //noinspection ConstantValue - false positive
         return BuildConfig.APPLICATION_ID.contains("nightly");
     }
 

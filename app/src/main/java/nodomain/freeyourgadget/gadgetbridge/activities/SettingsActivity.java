@@ -65,10 +65,8 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.charts.ChartsPreferencesActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.discovery.DiscoveryPairingPreferenceActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.maps.MapsSettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.database.PeriodicExporter;
-import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandPreferencesActivity;
-import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleSettingsActivity;
-import nodomain.freeyourgadget.gadgetbridge.devices.zetime.ZeTimePreferenceActivity;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.TimeChangeReceiver;
 import nodomain.freeyourgadget.gadgetbridge.model.Weather;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
@@ -123,33 +121,6 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
             if (pref != null) {
                 pref.setOnPreferenceClickListener(preference -> {
                     Intent enableIntent = new Intent(requireContext(), ChartsPreferencesActivity.class);
-                    startActivity(enableIntent);
-                    return true;
-                });
-            }
-
-            pref = findPreference("pref_key_miband");
-            if (pref != null) {
-                pref.setOnPreferenceClickListener(preference -> {
-                    Intent enableIntent = new Intent(requireContext(), MiBandPreferencesActivity.class);
-                    startActivity(enableIntent);
-                    return true;
-                });
-            }
-
-            pref = findPreference("pref_key_pebble");
-            if (pref != null) {
-                pref.setOnPreferenceClickListener(preference -> {
-                    Intent enableIntent = new Intent(requireContext(), PebbleSettingsActivity.class);
-                    startActivity(enableIntent);
-                    return true;
-                });
-            }
-
-            pref = findPreference("pref_key_zetime");
-            if (pref != null) {
-                pref.setOnPreferenceClickListener(preference -> {
-                    Intent enableIntent = new Intent(requireContext(), ZeTimePreferenceActivity.class);
                     startActivity(enableIntent);
                     return true;
                 });
@@ -402,10 +373,28 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                 });
             }
 
+            pref = findPreference("pref_category_maps");
+            if (pref != null) {
+                pref.setOnPreferenceClickListener(preference -> {
+                    Intent enableIntent = new Intent(requireContext(), MapsSettingsActivity.class);
+                    startActivity(enableIntent);
+                    return true;
+                });
+            }
+
             pref = findPreference("pref_category_sleepasandroid");
             if (pref != null) {
                 pref.setOnPreferenceClickListener(preference -> {
                     Intent enableIntent = new Intent(requireContext(), SleepAsAndroidPreferencesActivity.class);
+                    startActivity(enableIntent);
+                    return true;
+                });
+            }
+
+            pref = findPreference("pref_category_notifications");
+            if (pref != null) {
+                pref.setOnPreferenceClickListener(preference -> {
+                    Intent enableIntent = new Intent(requireContext(), NotificationManagementActivity.class);
                     startActivity(enableIntent);
                     return true;
                 });
@@ -588,7 +577,7 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
         private void setLocationPreferences(Location location) {
             String latitude = String.format(Locale.US, "%.6g", location.getLatitude());
             String longitude = String.format(Locale.US, "%.6g", location.getLongitude());
-            LOG.info("got location. Lat: " + latitude + " Lng: " + longitude);
+            LOG.info("got location. Lat: {} Lng: {}", latitude, longitude);
             GB.toast(requireContext(), getString(R.string.toast_aqurired_networklocation), 2000, 0);
             GBApplication.getPrefs().getPreferences()
                     .edit()

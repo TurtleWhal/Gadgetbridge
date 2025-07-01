@@ -36,7 +36,6 @@ import java.util.Collections;
 import java.util.List;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
@@ -45,13 +44,14 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
+import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
@@ -60,7 +60,6 @@ import nodomain.freeyourgadget.gadgetbridge.util.Version;
 public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     private static final Logger LOG = LoggerFactory.getLogger(QHybridCoordinator.class);
 
-    @NonNull
     @Override
     public boolean supports(GBDeviceCandidate candidate) {
         for(ParcelUuid uuid : candidate.getServiceUuids()){
@@ -101,6 +100,11 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public SampleProvider<? extends ActivitySample> getSampleProvider(GBDevice device, DaoSession session) {
         return new HybridHRActivitySampleProvider(device, session);
+    }
+
+    @Override
+    public TimeSampleProvider<? extends Spo2Sample> getSpo2SampleProvider(GBDevice device, DaoSession session) {
+        return new HybridHRSpo2SampleProvider(device, session);
     }
 
     @Override
@@ -187,6 +191,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
      * Returns the directory containing the watch app cache.
      * @throws IOException when the external files directory cannot be accessed
      */
+    @Override
     public File getAppCacheDir() throws IOException {
         return new File(FileUtils.getExternalFilesDir(), "qhybrid-app-cache");
     }
@@ -218,8 +223,13 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
+    public boolean supportsFlashing() {
+        return true;
+    }
 
+    @Override
+    public boolean supportsCalendarEvents() {
+        return isHybridHR();
     }
 
     @Override
@@ -255,6 +265,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
         // Settings applicable to all firmware versions
         generic.add(R.xml.devicesettings_fossilhybridhr_calibration);
         generic.add(R.xml.devicesettings_fossilhybridhr_navigation);
+        generic.add(R.xml.devicesettings_sync_calendar);
         final List<Integer> health = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH);
         health.add(R.xml.devicesettings_fossilhybridhr_workout_detection);
         health.add(R.xml.devicesettings_inactivity);
@@ -277,7 +288,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return QHybridSupport.class;
     }
 
@@ -330,12 +341,12 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_zetime_disabled;
+    public boolean supportsNavigation() {
+        return isHybridHR();
     }
 
     @Override
-    public boolean supportsNavigation() {
-        return isHybridHR();
+    public boolean supportsSpo2(GBDevice device) {
+        return device.getName().equals("Fossil Gen. 6 Hybrid");
     }
 }

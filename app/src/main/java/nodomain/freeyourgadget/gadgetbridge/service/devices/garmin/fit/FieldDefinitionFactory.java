@@ -2,13 +2,19 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit;
 
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.baseTypes.BaseType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionAlarm;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionArray;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionCoordinate;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionDayOfWeek;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionFileType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionGoalSource;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionGoalType;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionHrTimeInZone;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionHrZoneHighBoundary;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionHrvStatus;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionLanguage;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionMeasurementSystem;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionSleepStage;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionSwimStyle;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionTemperature;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionTimestamp;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionWeatherAqi;
@@ -22,6 +28,8 @@ public class FieldDefinitionFactory {
         switch (field) {
             case ALARM:
                 return new FieldDefinitionAlarm(localNumber, size, baseType, name);
+            case ARRAY:
+                return new FieldDefinitionArray(localNumber, size, baseType, name, scale, offset);
             case DAY_OF_WEEK:
                 return new FieldDefinitionDayOfWeek(localNumber, size, baseType, name);
             case FILE_TYPE:
@@ -30,6 +38,12 @@ public class FieldDefinitionFactory {
                 return new FieldDefinitionGoalSource(localNumber, size, baseType, name);
             case GOAL_TYPE:
                 return new FieldDefinitionGoalType(localNumber, size, baseType, name);
+            case HRV_STATUS:
+                return new FieldDefinitionHrvStatus(localNumber, size, baseType, name);
+            case HR_TIME_IN_ZONE:
+                return new FieldDefinitionHrTimeInZone(localNumber, size, baseType, name);
+            case HR_ZONE_HIGH_BOUNDARY:
+                return new FieldDefinitionHrZoneHighBoundary(localNumber, size, baseType, name);
             case MEASUREMENT_SYSTEM:
                 return new FieldDefinitionMeasurementSystem(localNumber, size, baseType, name);
             case TEMPERATURE:
@@ -44,6 +58,10 @@ public class FieldDefinitionFactory {
                 return new FieldDefinitionSleepStage(localNumber, size, baseType, name);
             case WEATHER_AQI:
                 return new FieldDefinitionWeatherAqi(localNumber, size, baseType, name);
+            case COORDINATE:
+                return new FieldDefinitionCoordinate(localNumber, size, baseType, name);
+            case SWIM_STYLE:
+                return new FieldDefinitionSwimStyle(localNumber, size, baseType, name);
             default:
                 return new FieldDefinition(localNumber, size, baseType, name);
         }
@@ -51,10 +69,14 @@ public class FieldDefinitionFactory {
 
     public enum FIELD {
         ALARM,
+        ARRAY,
         DAY_OF_WEEK,
         FILE_TYPE,
         GOAL_SOURCE,
         GOAL_TYPE,
+        HRV_STATUS,
+        HR_TIME_IN_ZONE,
+        HR_ZONE_HIGH_BOUNDARY,
         MEASUREMENT_SYSTEM,
         TEMPERATURE,
         TIMESTAMP,
@@ -62,5 +84,7 @@ public class FieldDefinitionFactory {
         LANGUAGE,
         SLEEP_STAGE,
         WEATHER_AQI,
+        COORDINATE,
+        SWIM_STYLE,
     }
 }

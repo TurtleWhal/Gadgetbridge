@@ -16,13 +16,22 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests;
 
+import android.widget.Toast;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Comparator;
 import java.util.List;
 
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Workout;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiSupportProvider;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class GetWorkoutCountRequest extends Request {
+    private static final Logger LOG = LoggerFactory.getLogger(GetWorkoutCountRequest.class);
+
     private final int start;
     private final int end;
 
@@ -72,8 +81,29 @@ public class GetWorkoutCountRequest extends Request {
 
         Workout.WorkoutCount.Response packet = (Workout.WorkoutCount.Response) receivedPacket;
 
-        if (packet.count != packet.workoutNumbers.size())
-            throw new WorkoutParseException("Packet count and workout numbers size do not match.");
+        if (packet.count == 0 || packet.workoutNumbers == null || packet.error != null) {
+            if(packet.error != null) {
+                LOG.warn("Error occurred during workout sync: {}", packet.error);
+                GB.toast("Error occurred during workout sync", Toast.LENGTH_LONG, GB.WARN);
+            }
+            this.supportProvider.endOfWorkoutSync();
+            return;
+        }
+
+        if (packet.count > packet.workoutNumbers.size()) {
+            LOG.warn("Packet count is greater than workoutNumbers size: {} > {}", packet.count, packet.workoutNumbers.size());
+            GB.toast("Workout count mismatch, after this sync is complete, try synchronising again", Toast.LENGTH_LONG, GB.WARN);
+
+            packet.count = (short) packet.workoutNumbers.size();
+        } else if (packet.count < packet.workoutNumbers.size()) {
+            LOG.warn("Packet count is smaller than workoutNumbers size: {} < {}", packet.count, packet.workoutNumbers.size());
+            GB.toast("Workout count mismatch, after this sync is complete, try synchronising again", Toast.LENGTH_LONG, GB.WARN);
+
+            packet.workoutNumbers.subList(packet.count, packet.workoutNumbers.size()).clear();
+        }
+
+        // Has to be sorted for the timestamp-based sync start that we use in the HuaweiSupportProvider
+        packet.workoutNumbers.sort(Comparator.comparingInt(o -> o.workoutNumber));
 
         if (packet.count > 0) {
             GetWorkoutTotalsRequest nextRequest = new GetWorkoutTotalsRequest(

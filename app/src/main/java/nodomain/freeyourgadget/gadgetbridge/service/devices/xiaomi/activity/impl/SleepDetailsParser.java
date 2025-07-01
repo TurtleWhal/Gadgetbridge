@@ -30,10 +30,12 @@ import java.util.List;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
+import nodomain.freeyourgadget.gadgetbridge.devices.HeartPulseSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.XiaomiSleepStageSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.XiaomiSleepTimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
+import nodomain.freeyourgadget.gadgetbridge.entities.HeartPulseSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.User;
 import nodomain.freeyourgadget.gadgetbridge.entities.XiaomiSleepStageSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.XiaomiSleepTimeSample;
@@ -59,6 +61,12 @@ public class SleepDetailsParser extends XiaomiActivityParser {
         int versionDependentFields = 0;
 
         final ByteBuffer buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+        buf.get(new byte[7]); // skip fileId bytes
+        final byte fileIdPadding = buf.get();
+        if (fileIdPadding != 0) {
+            LOG.warn("Expected 0 padding after fileId, got {} - parsing might fail", fileIdPadding);
+        }
+
         final byte header = buf.get();
 
         final int isAwake = buf.get() & 0xff; // 0/1 - more correctly this would be !isSleepFinish
@@ -69,6 +77,19 @@ public class SleepDetailsParser extends XiaomiActivityParser {
             versionDependentFields += 1;
             sleepQuality = buf.get() & 0xff;
         }
+
+        // note on RR-intervals (msg type 1) on Xiaomi band 9, FW 2.3.93, HW M2345B1:
+        //
+        // the band collects RR interval in groups of ~10 minutes, which are then sent as msg type 1
+        // along with an associated RTC timestamp. RTC timestamp jitter and drift of up to
+        // +/-several seconds was observed, compared to the sum of intervals in a given msg.
+        //
+        // In order to preserve RR-interval continuity throughout the entire duration of sleep, as
+        // is necessary for breath-detection algorithm, and to avoid negative or impossibly large
+        // (false) RR intervals, we maintain an running timestamp of last heart pulse.
+        // While processing msgs, in case the detected jitter is too large, the running timestamp
+        // is reset to the current msg timestamp.
+        long lastHeartPulseTimestamp = 0;  // tracks the true timestamp of last heart pulse across the jittery 10-minute segments
 
         LOG.debug("Sleep sample: bedTime: {}, wakeupTime: {}, isAwake: {}", bedTime, wakeupTime, isAwake);
 
@@ -134,6 +155,7 @@ public class SleepDetailsParser extends XiaomiActivityParser {
         }
 
         final List<XiaomiSleepStageSample> stages = new ArrayList<>();
+        final List<HeartPulseSample> heartPulseSamples = new ArrayList<>();
         LOG.debug("Sleep stage packets from offset {}", Integer.toHexString(buf.position()));
 
         // Do not crash if we face a buffer underflow, as the next parsing is not 100% fool-proof,
@@ -175,7 +197,25 @@ public class SleepDetailsParser extends XiaomiActivityParser {
 
                 final ByteBuffer dataBuf = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
 
-                if (type == 16) {
+                if (type == 1) {
+                    // RR intervals: https://en.wikipedia.org/wiki/RR_interval
+                    // add first heartbeat before intervals, if necessary
+                    if (Math.abs(lastHeartPulseTimestamp - ts) > 30000) {  // 30 seconds
+                        // we drifted too far from RTC timestamp, or this is the very first sample:
+                        lastHeartPulseTimestamp = ts;  // resync
+                        final HeartPulseSample heartPulseSample = new HeartPulseSample();
+                        heartPulseSample.setTimestamp(lastHeartPulseTimestamp);
+                        heartPulseSamples.add(heartPulseSample);
+                    }
+                    // add heartbeats after intervals
+                    while (dataBuf.position() < dataBuf.limit()) {
+                        final int delta = dataBuf.get() & 0xff;  // delta is in 10msec units
+                        lastHeartPulseTimestamp += 10 * delta;  // convert to 1msec units for timestamps
+                        final HeartPulseSample heartPulseSample = new HeartPulseSample();
+                        heartPulseSample.setTimestamp(lastHeartPulseTimestamp);
+                        heartPulseSamples.add(heartPulseSample);
+                    }
+                } else if (type == 16) {
                     final int data_0 = dataBuf.get() & 0xFF;
                     final int sleep_index = data_0 >> 4;
                     final int wake_count = data_0 & 0x0F;
@@ -237,6 +277,8 @@ public class SleepDetailsParser extends XiaomiActivityParser {
             summaries.add(sample);
         }
 
+        boolean persistSuccess = !stagesParseFailed;
+
         // save all the samples that we got
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
@@ -265,7 +307,7 @@ public class SleepDetailsParser extends XiaomiActivityParser {
         } catch (final Exception e) {
             GB.toast(support.getContext(), "Error saving sleep sample", Toast.LENGTH_LONG, GB.ERROR);
             LOG.error("Error saving sleep sample", e);
-            return false;
+            persistSuccess = false;
         }
 
         if (!stagesParseFailed && !stages.isEmpty()) {
@@ -289,11 +331,32 @@ public class SleepDetailsParser extends XiaomiActivityParser {
             } catch (final Exception e) {
                 GB.toast(support.getContext(), "Error saving sleep stage samples", Toast.LENGTH_LONG, GB.ERROR);
                 LOG.error("Error saving sleep stage samples", e);
-                return false;
+                persistSuccess = false;
             }
         }
 
-        return !stagesParseFailed;
+        // Save the heart pulse samples
+        try (DBHandler handler = GBApplication.acquireDB()) {
+            final DaoSession session = handler.getDaoSession();
+            final GBDevice gbDevice = support.getDevice();
+            final Device device = DBHelper.getDevice(gbDevice, session);
+            final User user = DBHelper.getUser(session);
+
+            final HeartPulseSampleProvider sampleProvider = new HeartPulseSampleProvider(gbDevice, session);
+
+            for (final HeartPulseSample stageSample : heartPulseSamples) {
+                stageSample.setDevice(device);
+                stageSample.setUser(user);
+            }
+
+            sampleProvider.addSamples(heartPulseSamples);
+        } catch (final Exception e) {
+            GB.toast(support.getContext(), "Error saving heart pulse samples", Toast.LENGTH_LONG, GB.ERROR);
+            LOG.error("Error saving heart pulse samples", e);
+            persistSuccess = false;
+        }
+
+        return persistSuccess;
     }
 
     private static boolean readStagePacketHeader(final ByteBuffer buffer) {

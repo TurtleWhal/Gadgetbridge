@@ -39,6 +39,8 @@ import nodomain.freeyourgadget.gadgetbridge.util.UriHelper;
 public class ZeppOsGpxRouteInstallHandler implements InstallHandler {
     private static final Logger LOG = LoggerFactory.getLogger(ZeppOsGpxRouteInstallHandler.class);
 
+    private static final int MAX_EXPECTED_SIZE = 1024 * 1024; // 1MB, they're usually ~128KB
+
     protected final Context mContext;
     private ZeppOsGpxRouteFile file;
 
@@ -52,8 +54,14 @@ public class ZeppOsGpxRouteInstallHandler implements InstallHandler {
             LOG.error("Failed to get uri", e);
             return;
         }
+
+        if (uriHelper.getFileSize() > MAX_EXPECTED_SIZE) {
+            LOG.debug("Not gpx - file too large");
+            return;
+        }
+
         try (InputStream in = new BufferedInputStream(uriHelper.openInputStream())) {
-            final byte[] rawBytes = FileUtils.readAll(in, 1024 * 1024); // 1MB
+            final byte[] rawBytes = FileUtils.readAll(in, MAX_EXPECTED_SIZE);
             final ZeppOsGpxRouteFile gpxFile = new ZeppOsGpxRouteFile(rawBytes);
             if (gpxFile.isValid()) {
                 this.file = gpxFile;
@@ -65,7 +73,7 @@ public class ZeppOsGpxRouteInstallHandler implements InstallHandler {
 
     @Override
     public boolean isValid() {
-        return file != null;
+        return file != null && file.isValid();
     }
 
     @Override
@@ -84,7 +92,7 @@ public class ZeppOsGpxRouteInstallHandler implements InstallHandler {
             return;
         }
         final ZeppOsCoordinator zeppOsCoordinator = (ZeppOsCoordinator) coordinator;
-        if (!zeppOsCoordinator.supportsGpxUploads()) {
+        if (!zeppOsCoordinator.supportsGpxUploads(device)) {
             installActivity.setInfoText(mContext.getString(R.string.fwapp_install_device_not_supported));
             installActivity.setInstallEnabled(false);
             return;

@@ -66,6 +66,7 @@ public class AndroidUtils {
      * @param uuids an array of {@link ParcelUuid} elements
      * @return a {@link ParcelUuid} array instance with the same contents
      */
+    @Nullable
     public static ParcelUuid[] toParcelUuids(Parcelable[] uuids) {
         if (uuids == null) {
             return null;
@@ -111,6 +112,8 @@ public class AndroidUtils {
 
         // FIXME: I have no idea what I am doing
         context.getResources().updateConfiguration(config, context.getResources().getDisplayMetrics());
+
+        Locale.setDefault(language);
     }
 
     /**
@@ -265,14 +268,14 @@ public class AndroidUtils {
         throw new IllegalArgumentException("Unable to decode the given uri to a file path: " + uri);
     }
 
-    public static void viewFile(String path, String action, Context context) throws IOException {
-        Intent intent = new Intent(action);
+    public static void viewFile(String path, String mimeType, Context context) throws IOException {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
         File file = new File(path);
 
         Uri contentUri = FileProvider.getUriForFile(context,
                 context.getApplicationContext().getPackageName() + ".screenshot_provider", file);
         intent.setFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        intent.setDataAndType(contentUri,"application/gpx+xml");
+        intent.setDataAndType(contentUri, mimeType);
         try {
             context.startActivity(intent);
         } catch (ActivityNotFoundException e) {
@@ -339,6 +342,7 @@ public class AndroidUtils {
         GBApplication.getContext().startActivity(launchIntent);
     }
 
+    @Nullable
     public static PowerManager.WakeLock acquirePartialWakeLock(Context context, String tag, long timeout) {
         try {
             PowerManager powermanager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);

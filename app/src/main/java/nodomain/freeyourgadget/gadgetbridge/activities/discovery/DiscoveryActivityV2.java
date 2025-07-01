@@ -47,6 +47,9 @@ import android.os.Parcelable;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Pair;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
@@ -62,17 +65,22 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.RequiresPermission;
+import androidx.annotation.StringRes;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.MenuProvider;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -86,6 +94,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.BleNamesResolver;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.BondingInterface;
 import nodomain.freeyourgadget.gadgetbridge.util.BondingUtil;
@@ -97,9 +106,11 @@ import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterView.OnItemClickListener,
         AdapterView.OnItemLongClickListener,
         BondingInterface,
-        GBScanEventProcessor.Callback {
+        GBScanEventProcessor.Callback,
+        MenuProvider {
     private static final Logger LOG = LoggerFactory.getLogger(DiscoveryActivityV2.class);
 
+    private static final int CHILD_RESULT = 0x826983; // "RES" as ASCII hex
     private final Handler handler = new Handler();
 
     private static final long SCAN_DURATION = 30000; // 30s
@@ -109,7 +120,6 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     private final ScanCallback bleScanCallback = new BleScanCallback();
 
     private ProgressBar bluetoothProgress;
-    private ProgressBar bluetoothLEProgress;
 
     private DeviceCandidateAdapter deviceCandidateAdapter;
     private GBDeviceCandidate deviceTarget;
@@ -136,7 +146,13 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     @Override
     public void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        BondingUtil.handleActivityResult(this, requestCode, resultCode, data);
+        if (requestCode == CHILD_RESULT && resultCode == RESULT_OK) {
+            // A device with a custom pairing activity has finished and indicated that the discovery activity should be
+            // closed.
+            finish();
+        } else {
+            BondingUtil.handleActivityResult(this, requestCode, resultCode, data);
+        }
     }
 
     @Nullable
@@ -157,24 +173,15 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
 
         setContentView(R.layout.activity_discovery);
 
+        addMenuProvider(this);
+
         startButton = findViewById(R.id.discovery_start);
         startButton.setOnClickListener(v -> toggleDiscovery());
-
-        final Button settingsButton = findViewById(R.id.discovery_preferences);
-        settingsButton.setOnClickListener(v -> {
-            final Intent enableIntent = new Intent(DiscoveryActivityV2.this, DiscoveryPairingPreferenceActivity.class);
-            startActivity(enableIntent);
-        });
 
         bluetoothProgress = findViewById(R.id.discovery_progressbar);
         bluetoothProgress.setProgress(0);
         bluetoothProgress.setIndeterminate(true);
         bluetoothProgress.setVisibility(View.GONE);
-
-        bluetoothLEProgress = findViewById(R.id.discovery_ble_progressbar);
-        bluetoothLEProgress.setProgress(0);
-        bluetoothLEProgress.setIndeterminate(true);
-        bluetoothLEProgress.setVisibility(View.GONE);
 
         deviceCandidateAdapter = new DeviceCandidateAdapter(this, deviceCandidates);
 
@@ -282,6 +289,26 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
 
         refreshDeviceList(false);
 
+        // Pre-add currently connected devices, as those will not trigger discovery events
+        // Paired devices that are not connected do not need to be added, as those will be discovered
+        try {
+            final Set<BluetoothDevice> pairedDevices = BluetoothAdapter.getDefaultAdapter().getBondedDevices();
+            for (final BluetoothDevice device : pairedDevices) {
+                try {
+                    final Method isConnectedMethod = device.getClass().getMethod("isConnected");
+                    final Boolean isConnected = (Boolean) isConnectedMethod.invoke(device);
+                    if (isConnected!= null && isConnected) {
+                        LOG.debug("Pre-adding already bonded device {}", device.getAddress());
+                        deviceFoundProcessor.scheduleProcessing(new GBScanEvent(device, (short) -1, null));
+                    }
+                } catch (final Exception e) {
+                    LOG.error("Failed to check whether {} is connected", device.getAddress());
+                }
+            }
+        } catch (final SecurityException e) {
+            LOG.error("Failed to pre-add paired devices", e);
+        }
+
         try {
             if (!ensureBluetoothReady()) {
                 toast(DiscoveryActivityV2.this, getString(R.string.discovery_enable_bluetooth), Toast.LENGTH_SHORT, GB.ERROR);
@@ -292,6 +319,8 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
                 startBTLEDiscovery();
             }
             startBTDiscovery();
+
+            bluetoothProgress.setVisibility(View.VISIBLE);
         } catch (final SecurityException e) {
             LOG.error("SecurityException on startDiscovery");
             deviceFoundProcessor.stop();
@@ -326,7 +355,6 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
         } else {
             startButton.setText(getString(R.string.discovery_start_scanning));
             bluetoothProgress.setVisibility(View.GONE);
-            bluetoothLEProgress.setVisibility(View.GONE);
         }
     }
 
@@ -343,7 +371,6 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
         adapter.getBluetoothLeScanner().startScan(null, getScanSettings(), bleScanCallback);
 
         LOG.debug("Bluetooth LE discovery started successfully");
-        bluetoothLEProgress.setVisibility(View.VISIBLE);
     }
 
     @RequiresPermission("android.permission.BLUETOOTH_SCAN")
@@ -390,7 +417,6 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
 
         if (adapter.startDiscovery()) {
             LOG.debug("Discovery started successfully");
-            bluetoothProgress.setVisibility(View.VISIBLE);
         } else {
             LOG.error("Discovery starting failed");
         }
@@ -411,7 +437,6 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
             this.adapter = null;
             startButton.setEnabled(false);
             bluetoothProgress.setVisibility(View.GONE);
-            bluetoothLEProgress.setVisibility(View.GONE);
         }
     }
 
@@ -498,6 +523,13 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
         final Message message = Message.obtain(handler, runnable);
         message.obj = runnable;
         return message;
+    }
+
+    private void showWarnDialog(@StringRes final int message) {
+        new MaterialAlertDialogBuilder(getContext())
+                .setMessage(message)
+                .setPositiveButton(R.string.ok, (dialog, whichButton) -> {})
+                .show();
     }
 
     private void checkAndRequestLocationPermission() {
@@ -603,10 +635,10 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
 
             final String authKey = sharedPrefs.getString("authkey", null);
             if (authKey == null || authKey.isEmpty()) {
-                toast(DiscoveryActivityV2.this, getString(R.string.discovery_need_to_enter_authkey), Toast.LENGTH_LONG, GB.WARN);
+                showWarnDialog(R.string.discovery_need_to_enter_authkey);
                 return;
             } else if (!coordinator.validateAuthKey(authKey)) {
-                toast(DiscoveryActivityV2.this, getString(R.string.discovery_entered_invalid_authkey), Toast.LENGTH_LONG, GB.WARN);
+                showWarnDialog(R.string.discovery_entered_invalid_authkey);
                 return;
             }
         }
@@ -631,7 +663,8 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
         if (pairingActivity != null) {
             final Intent intent = new Intent(this, pairingActivity);
             intent.putExtra(DeviceCoordinator.EXTRA_DEVICE_CANDIDATE, deviceCandidate);
-            startActivity(intent);
+            intent.putParcelableArrayListExtra(DeviceCoordinator.EXTRA_DEVICE_ALL_CANDIDATES, deviceCandidates);
+            startActivityForResult(intent, CHILD_RESULT);
         } else {
             if (coordinator.getBondingStyle() == DeviceCoordinator.BONDING_STYLE_NONE ||
                     coordinator.getBondingStyle() == DeviceCoordinator.BONDING_STYLE_LAZY) {
@@ -747,7 +780,12 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
                 .setView(linearLayout)
                 .setPositiveButton(R.string.ok, (dialog, which) -> {
                     if (selectedUnsupportedDeviceKey != DebugActivity.SELECT_DEVICE) {
-                        DebugActivity.createTestDevice(DiscoveryActivityV2.this, selectedUnsupportedDeviceKey, deviceCandidate.getMacAddress());
+                        DebugActivity.createTestDevice(
+                                DiscoveryActivityV2.this,
+                                selectedUnsupportedDeviceKey,
+                                deviceCandidate.getMacAddress(),
+                                deviceCandidate.getName()
+                        );
                         finish();
                     }
                 })
@@ -767,11 +805,6 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     }
 
     @Override
-    public String getMacAddress() {
-        return deviceTarget.getDevice().getAddress();
-    }
-
-    @Override
     public boolean getAttemptToConnect() {
         return true;
     }
@@ -785,7 +818,7 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
         bluetoothIntents.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
         bluetoothIntents.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
 
-        registerReceiver(bluetoothReceiver, bluetoothIntents);
+        ContextCompat.registerReceiver(this, bluetoothReceiver, bluetoothIntents, ContextCompat.RECEIVER_EXPORTED);
     }
 
     @Override
@@ -808,7 +841,24 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
         refreshDeviceList(true);
     }
 
+    @Override
+    public void onCreateMenu(@NonNull final Menu menu, @NonNull final MenuInflater menuInflater) {
+        menuInflater.inflate(R.menu.menu_discovery, menu);
+    }
+
+    @Override
+    public boolean onMenuItemSelected(@NonNull final MenuItem menuItem) {
+        final int itemId = menuItem.getItemId();
+        if (itemId == R.id.prefs_discovery_pairing) {
+            final Intent intent = new Intent(DiscoveryActivityV2.this, DiscoveryPairingPreferenceActivity.class);
+            startActivity(intent);
+            return true;
+        }
+        return false;
+    }
+
     private final class BluetoothReceiver extends BroadcastReceiver {
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         @Override
         public void onReceive(final Context context, final Intent intent) {
             switch (Objects.requireNonNull(intent.getAction())) {
@@ -849,10 +899,22 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
                     LOG.debug("ACTION_BOND_STATE_CHANGED");
                     final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                     if (device != null) {
-                        final int bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE);
-                        LOG.debug("Bond state: {}", bondState);
+                        final String macAddress = device.getAddress();
+                        final String targetMacAddress = getMacAddress();
+                        final int bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR);
+                        final int prevBondState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR);
+                        LOG.info("Bond state changed for {} from {} to {}, target address {}",
+                                macAddress,
+                                BleNamesResolver.getBondStateString(prevBondState),
+                                BleNamesResolver.getBondStateString(bondState),
+                                targetMacAddress
+                        );
 
-                        if (bondState == BluetoothDevice.BOND_BONDED) {
+                        if (targetMacAddress == null || !targetMacAddress.equalsIgnoreCase(macAddress)) {
+                            LOG.debug("ignore due to MAC address: got {} but expected {}", macAddress, targetMacAddress);
+                        } else if (bondState != BluetoothDevice.BOND_BONDED) {
+                            LOG.debug("ignore due bonding state: {}", BleNamesResolver.getBondStateString(bondState));
+                        } else {
                             BondingUtil.handleDeviceBonded((BondingInterface) context, getCandidateFromMAC(device));
                         }
                     }

@@ -28,10 +28,9 @@ import org.slf4j.LoggerFactory;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceCommunicationService;
-import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 
 public class BluetoothPairingRequestReceiver extends BroadcastReceiver {
-    private static final Logger LOG = LoggerFactory.getLogger(BluetoothConnectReceiver.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BluetoothPairingRequestReceiver.class);
 
     final DeviceCommunicationService service;
 
@@ -44,7 +43,7 @@ public class BluetoothPairingRequestReceiver extends BroadcastReceiver {
         String action = intent.getAction();
 
 
-        if (!action.equals(BluetoothDevice.ACTION_PAIRING_REQUEST)) {
+        if (!BluetoothDevice.ACTION_PAIRING_REQUEST.equals(action)) {
             return;
         }
         BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
@@ -66,7 +65,7 @@ public class BluetoothPairingRequestReceiver extends BroadcastReceiver {
                 LOG.warn("Could not abort pairing request process");
             }
         } catch (DeviceCommunicationService.DeviceNotFoundException e) {
-            e.printStackTrace();
+            LOG.warn("exception in onReceive", e);
         }
     }
 }

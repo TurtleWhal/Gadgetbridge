@@ -21,6 +21,7 @@ import android.bluetooth.BluetoothGatt;
 
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEAction;
 
+/// Calls {@link BluetoothGatt#requestConnectionPriority(int)}.
 public class RequestConnectionPriorityAction extends BtLEAction {
     private int priority;
 
@@ -31,12 +32,17 @@ public class RequestConnectionPriorityAction extends BtLEAction {
 
     @Override
     public boolean expectsResult() {
-        return true;
+        return false;
     }
 
     @Override
     @SuppressLint("MissingPermission")
     public boolean run(final BluetoothGatt gatt) {
         return gatt.requestConnectionPriority(priority);
+    }
+
+    @Override
+    public String toString() {
+        return getCreationTime() + ": " + getClass().getSimpleName() + " priority=" + priority;
     }
 }

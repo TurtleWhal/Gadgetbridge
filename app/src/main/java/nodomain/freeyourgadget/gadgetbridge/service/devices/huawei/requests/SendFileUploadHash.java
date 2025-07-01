@@ -40,8 +40,8 @@ public class SendFileUploadHash extends Request{
     protected List<byte[]> createRequest() throws RequestCreationException {
         try {
             return new FileUpload.FileHashSend.Request(this.paramsProvider,
-                    huaweiUploadManager.getFileSHA256(),
-                    huaweiUploadManager.getFileType()
+                    huaweiUploadManager.getFileUploadInfo().getFileSHA256(),
+                    huaweiUploadManager.getFileUploadInfo().getFileId()
             ).serialize();
         } catch (HuaweiPacket.CryptoException e) {
             throw new RequestCreationException(e);

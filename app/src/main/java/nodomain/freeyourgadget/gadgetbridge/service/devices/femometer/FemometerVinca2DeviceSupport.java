@@ -40,11 +40,11 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCharacteristic;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfoProfile;
@@ -53,7 +53,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.Dev
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.healthThermometer.HealthThermometerProfile;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.healthThermometer.TemperatureInfo;
 
-public class FemometerVinca2DeviceSupport extends AbstractBTLEDeviceSupport {
+public class FemometerVinca2DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private final DeviceInfoProfile<FemometerVinca2DeviceSupport> deviceInfoProfile;
     private final BatteryInfoProfile<FemometerVinca2DeviceSupport> batteryInfoProfile;
@@ -142,7 +142,7 @@ public class FemometerVinca2DeviceSupport extends AbstractBTLEDeviceSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZING, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
 
         // Init Battery
         batteryInfoProfile.requestBatteryInfo(builder);
@@ -169,7 +169,7 @@ public class FemometerVinca2DeviceSupport extends AbstractBTLEDeviceSupport {
         healthThermometerProfile.setMeasurementInterval(builder, new byte[]{(byte) 0x01, (byte) 0x00});
 
         // mark the device as initialized
-        builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.INITIALIZED, getContext()));
+        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
         return builder;
     }
 
@@ -229,7 +229,7 @@ public class FemometerVinca2DeviceSupport extends AbstractBTLEDeviceSupport {
             }
             builder.queue(getQueue());
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.warn("exception in onSendConfiguration", e);
         }
     }
 
@@ -295,5 +295,15 @@ public class FemometerVinca2DeviceSupport extends AbstractBTLEDeviceSupport {
         } catch (Exception e) {
             LOG.error("Error acquiring database", e);
         }
+    }
+
+    @Override
+    public boolean getImplicitCallbackModify() {
+        return true;
+    }
+
+    @Override
+    public boolean getSendWriteRequestResponse() {
+        return false;
     }
 }

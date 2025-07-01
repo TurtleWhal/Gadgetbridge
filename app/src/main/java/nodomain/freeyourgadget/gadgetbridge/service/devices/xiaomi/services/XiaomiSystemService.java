@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -60,10 +59,10 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiPrefere
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.CheckSums;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.SilentMode;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
 public class XiaomiSystemService extends AbstractXiaomiService implements XiaomiDataUploadService.Callback {
     private static final Logger LOG = LoggerFactory.getLogger(XiaomiSystemService.class);
@@ -71,7 +70,6 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
     // We persist the settings code when receiving the display items,
     // so we can enforce it when sending them
     private static final String PREF_SETTINGS_DISPLAY_ITEM_CODE = "xiaomi_settings_display_item_code";
-    private static final int BATTERY_STATE_REQUEST_INTERVAL = (int) TimeUnit.MINUTES.toMillis(15);
 
     public static final int COMMAND_TYPE = 2;
 
@@ -88,6 +86,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
     public static final int CMD_FIND_PHONE = 17;
     public static final int CMD_FIND_WATCH = 18;
     public static final int CMD_PASSWORD_SET = 21;
+    public static final int CMD_DND_MODE_SET = 23;
     public static final int CMD_DISPLAY_ITEMS_GET = 29;
     public static final int CMD_DISPLAY_ITEMS_SET = 30;
     public static final int CMD_WORKOUT_TYPES_GET = 39;
@@ -103,7 +102,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
 
     // Not null if we're installing a firmware
     private XiaomiFWHelper fwHelper = null;
-    private Handler handler = new Handler(Looper.getMainLooper());
+    private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable batteryStateRequestRunnable = () -> {
         getSupport().sendCommand("get device status", COMMAND_TYPE, CMD_DEVICE_STATE_GET);
         getSupport().sendCommand("get battery state", COMMAND_TYPE, CMD_BATTERY);
@@ -119,6 +118,12 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
 
     @Override
     public void initialize() {
+        fwHelper = null;
+        handler.removeCallbacksAndMessages(null);
+        currentWearingState = WearingState.UNKNOWN;
+        currentBatteryState = BatteryState.UNKNOWN;
+        currentSleepDetectionState = SleepState.UNKNOWN;
+
         // Request device info and configs
         getSupport().sendCommand("get device info", COMMAND_TYPE, CMD_DEVICE_INFO);
         getSupport().sendCommand("get device status", COMMAND_TYPE, CMD_DEVICE_STATE_GET);
@@ -133,6 +138,11 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
         getSupport().sendCommand("get workout types", COMMAND_TYPE, CMD_WORKOUT_TYPES_GET);
 
         rearmBatteryStateRequestTimer();
+    }
+
+    @Override
+    public void dispose() {
+        handler.removeCallbacksAndMessages(null);
     }
 
     @Override
@@ -159,6 +169,9 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
             case CMD_PASSWORD_GET:
                 handlePassword(cmd.getSystem().getPassword());
                 return;
+            case CMD_DND_MODE_SET:
+                LOG.debug("Got set DND, status={}", cmd.getSystem().getDndStatus());
+                return;
             case CMD_MISC_SETTING_SET:
                 LOG.debug("Got misc setting set ack, status={}", cmd.getStatus());
                 return;
@@ -169,8 +182,8 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
                 LOG.debug("Got camera remote set ack, status={}", cmd.getStatus());
                 return;
             case CMD_FIND_PHONE:
-                LOG.debug("Got find phone: {}", cmd.getSystem().getFindDevice());
                 if (cmd.hasSystem()) {
+                    LOG.debug("Got find phone: {}", cmd.getSystem().getFindDevice());
                     final GBDeviceEventFindPhone findPhoneEvent = new GBDeviceEventFindPhone();
                     if (cmd.getSystem().getFindDevice() == 0) {
                         findPhoneEvent.event = GBDeviceEventFindPhone.Event.START;
@@ -178,6 +191,12 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
                         findPhoneEvent.event = GBDeviceEventFindPhone.Event.STOP;
                     }
                     getSupport().evaluateGBDeviceEvent(findPhoneEvent);
+                }
+                return;
+            case CMD_FIND_WATCH:
+                if (cmd.hasSystem()) {
+                    LOG.debug("Got find device: {}", cmd.getSystem().getFindDevice());
+                    // TODO mark device as found
                 }
                 return;
             case CMD_DISPLAY_ITEMS_GET:
@@ -222,6 +241,10 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
     @Override
     public boolean onSendConfiguration(final String config, final Prefs prefs) {
         switch (config) {
+            case DeviceSettingsPreferenceConst.PREF_BATTERY_POLLING_ENABLE:
+            case DeviceSettingsPreferenceConst.PREF_BATTERY_POLLING_INTERVAL:
+                rearmBatteryStateRequestTimer();
+                break;
             case DeviceSettingsPreferenceConst.PREF_WEARMODE:
                 setWearMode();
                 return true;
@@ -284,8 +307,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
         final Calendar now = GregorianCalendar.getInstance();
         final TimeZone tz = TimeZone.getDefault();
 
-        final GBPrefs gbPrefs = new GBPrefs(new Prefs(GBApplication.getDeviceSpecificSharedPrefs(getSupport().getDevice().getAddress())));
-        final String timeFormat = gbPrefs.getTimeFormat();
+        final String timeFormat = getDevicePrefs().getTimeFormat();
         final boolean is24hour = DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_24H.equals(timeFormat);
 
         final XiaomiProto.Clock clock = XiaomiProto.Clock.newBuilder()
@@ -667,8 +689,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
         LOG.debug("Current wearing state = {}, new wearing state = {}", currentWearingState, newState);
 
         if (currentWearingState != WearingState.UNKNOWN && currentWearingState != newState) {
-            GBDeviceEventWearState event = new GBDeviceEventWearState();
-            event.wearingState = newState;
+            GBDeviceEventWearState event = new GBDeviceEventWearState(newState);
             getSupport().evaluateGBDeviceEvent(event);
         }
 
@@ -693,8 +714,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
         LOG.debug("Current sleep detection state = {}, new sleep detection state = {}", currentSleepDetectionState, newState);
 
         if (currentSleepDetectionState != SleepState.UNKNOWN && currentSleepDetectionState != newState) {
-            GBDeviceEventSleepStateDetection event = new GBDeviceEventSleepStateDetection();
-            event.sleepState = newState;
+            GBDeviceEventSleepStateDetection event = new GBDeviceEventSleepStateDetection(newState);
             getSupport().evaluateGBDeviceEvent(event);
         }
 
@@ -771,8 +791,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
 
             // send event if the previous state is known and the new state is different from cached
             if (currentSleepDetectionState != SleepState.UNKNOWN && currentSleepDetectionState != newSleepState) {
-                GBDeviceEventSleepStateDetection event = new GBDeviceEventSleepStateDetection();
-                event.sleepState = newSleepState;
+                GBDeviceEventSleepStateDetection event = new GBDeviceEventSleepStateDetection(newSleepState);
                 getSupport().evaluateGBDeviceEvent(event);
             }
 
@@ -785,8 +804,7 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
             LOG.debug("Previous wearing state: {}, new wearing state: {}", currentWearingState, newWearingState);
 
             if (currentWearingState != WearingState.UNKNOWN && currentWearingState != newWearingState) {
-                GBDeviceEventWearState event = new GBDeviceEventWearState();
-                event.wearingState = newWearingState;
+                GBDeviceEventWearState event = new GBDeviceEventWearState(newWearingState);
                 getSupport().evaluateGBDeviceEvent(event);
             }
 
@@ -981,7 +999,10 @@ public class XiaomiSystemService extends AbstractXiaomiService implements Xiaomi
 
     private void rearmBatteryStateRequestTimer() {
         this.handler.removeCallbacks(this.batteryStateRequestRunnable);
-        this.handler.postDelayed(this.batteryStateRequestRunnable, BATTERY_STATE_REQUEST_INTERVAL);
+        final DevicePrefs devicePrefs = getDevicePrefs();
+        if (devicePrefs.getBatteryPollingEnabled()) {
+            this.handler.postDelayed(this.batteryStateRequestRunnable, devicePrefs.getBatteryPollingIntervalMinutes() * 60 * 1000L);
+        }
     }
 
     @Override

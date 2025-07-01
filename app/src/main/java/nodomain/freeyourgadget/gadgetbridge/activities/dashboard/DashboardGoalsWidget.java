@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2024 Arjan Schrijver
+/*  Copyright (C) 2023-2024 Arjan Schrijver, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -16,6 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.dashboard;
 
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -89,8 +90,6 @@ public class DashboardGoalsWidget extends AbstractDashboardWidget {
         Prefs prefs = GBApplication.getPrefs();
         legend.setVisibility(prefs.getBoolean("dashboard_widget_goals_legend", true) ? View.VISIBLE : View.GONE);
 
-        fillData();
-
         return goalsView;
     }
 
@@ -117,9 +116,11 @@ public class DashboardGoalsWidget extends AbstractDashboardWidget {
 
         @Override
         protected Void doInBackground(Void... params) {
-            int width = 500;
-            int height = 500;
-            int barWidth = 20;
+            final long nanoStart = System.nanoTime();
+
+            int width = Resources.getSystem().getDisplayMetrics().widthPixels;
+            int height = width;
+            int barWidth = Math.round(height * 0.04f);
             int barMargin = (int) Math.ceil(barWidth / 2f);
 
             goalsBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
@@ -159,6 +160,11 @@ public class DashboardGoalsWidget extends AbstractDashboardWidget {
             paint.setStrokeWidth(barWidth);
             paint.setColor(color_light_sleep);
             canvas.drawArc(barMargin, barMargin, width - barMargin, height - barMargin, 270, 360 * dashboardData.getSleepMinutesGoalFactor(), false, paint);
+
+            final long nanoEnd = System.nanoTime();
+            final long executionTime = (nanoEnd - nanoStart) / 1000000;
+            LOG.debug("fillData for {} took {}ms", DashboardGoalsWidget.this.getClass().getSimpleName(), executionTime);
+
             return null;
         }
 

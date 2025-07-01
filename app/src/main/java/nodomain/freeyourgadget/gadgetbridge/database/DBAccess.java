@@ -20,11 +20,18 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public abstract class DBAccess extends AsyncTask {
+    private static final Logger LOG = LoggerFactory.getLogger(DBAccess.class);
+
     private final String mTask;
     private final Context mContext;
     private Exception mError;
@@ -45,6 +52,7 @@ public abstract class DBAccess extends AsyncTask {
         try (DBHandler db = GBApplication.acquireDB()) {
             doInBackground(db);
         } catch (Exception e) {
+            LOG.error("Error during DBAccess for {}", mTask, e);
             mError = e;
         }
         return null;
@@ -57,7 +65,10 @@ public abstract class DBAccess extends AsyncTask {
         }
     }
 
-
+    @Nullable
+    public Exception getTaskError() {
+        return mError;
+    }
 
     protected void displayError(Throwable error) {
         GB.toast(getContext(), getContext().getString(R.string.dbaccess_error_executing, error.getMessage()), Toast.LENGTH_LONG, GB.ERROR, error);

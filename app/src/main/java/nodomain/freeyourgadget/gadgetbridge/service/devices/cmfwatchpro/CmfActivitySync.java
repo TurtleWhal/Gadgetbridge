@@ -382,27 +382,33 @@ public class CmfActivitySync {
     }
 
     private void handleWorkoutSummary(final byte[] payload) {
-        if (payload.length % 32 != 0) {
-            LOG.error("Workout summary payload size {} not divisible by 32", payload.length);
+        final int bytesPerWorkout;
+
+        if (payload.length % 32 == 0) {
+            bytesPerWorkout = 32;
+        } else if (payload.length % 54 == 0) {
+            bytesPerWorkout = 54;
+        } else {
+            LOG.error("Workout summary payload size {} not divisible by 32 or 54", payload.length);
             return;
         }
 
-        LOG.debug("Got {} workout summary samples", payload.length / 32);
+        LOG.debug("Got {} workout summary samples", payload.length / bytesPerWorkout);
 
         final ByteBuffer buf = ByteBuffer.wrap(payload).order(ByteOrder.LITTLE_ENDIAN);
 
-        final CmfWorkoutSummaryParser summaryParser = new CmfWorkoutSummaryParser(getDevice());
+        final CmfWorkoutSummaryParser summaryParser = new CmfWorkoutSummaryParser(getDevice(), getContext());
 
         while (buf.remaining() > 0) {
-            final byte[] summaryBytes = new byte[32];
+            final byte[] summaryBytes = new byte[bytesPerWorkout];
             buf.get(summaryBytes);
 
             BaseActivitySummary summary = new BaseActivitySummary();
             summary.setRawSummaryData(summaryBytes);
-            summary.setActivityKind(ActivityKind.TYPE_UNKNOWN);
+            summary.setActivityKind(ActivityKind.UNKNOWN.getCode());
 
             try {
-                summary = summaryParser.parseBinaryData(summary);
+                summary = summaryParser.parseBinaryData(summary, true);
             } catch (final Exception e) {
                 LOG.error("Failed to parse workout summary", e);
                 GB.toast(getContext(), "Failed to parse workout summary", Toast.LENGTH_LONG, GB.ERROR, e);
@@ -432,8 +438,8 @@ public class CmfActivitySync {
                 return;
             }
 
-            // Previous to last byte indicates if it has gps
-            if (summaryBytes[summaryBytes.length - 2] == 1) {
+            // FIXME: This should be set by CmfWorkoutSummaryParser
+            if (summaryBytes[30] == 1) {
                 activitiesWithGps.add(summary);
             }
         }
@@ -489,8 +495,8 @@ public class CmfActivitySync {
 
         activitiesWithGps.clear();
 
-        GB.signalActivityDataFinish();
         getDevice().unsetBusyTask();
+        GB.signalActivityDataFinish(getDevice());
         GB.updateTransferNotification(null, "", false, 100, getContext());
     }
 
@@ -538,7 +544,6 @@ public class CmfActivitySync {
     @Nullable
     private File exportGpx(final BaseActivitySummary summary, final ActivityTrack activityTrack) {
         final GPXExporter exporter = new GPXExporter();
-        exporter.setCreator(GBApplication.app().getNameAndVersion());
 
         final String gpxFileName = FileUtils.makeValidFileName("gadgetbridge-" + DateTimeUtils.formatIso8601(summary.getStartTime()) + ".gpx");
         final File gpxTargetFile;

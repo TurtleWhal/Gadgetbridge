@@ -19,6 +19,8 @@ package nodomain.freeyourgadget.gadgetbridge.service;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 
+import androidx.annotation.CallSuper;
+
 import nodomain.freeyourgadget.gadgetbridge.devices.EventHandler;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
@@ -92,6 +94,7 @@ public interface DeviceSupport extends EventHandler {
      * Disposes of this instance, closing all connections and freeing all resources.
      * Instances will not be reused after having been disposed.
      */
+    @CallSuper
     void dispose();
 
     /**
@@ -119,16 +122,6 @@ public interface DeviceSupport extends EventHandler {
     boolean getScanReconnect();
 
     /**
-     * Returns whether the gatt callback should be implicitly set to the one on the transaction,
-     * even if it was not set directly on the transaction. If true, the gatt callback will always
-     * be set to the one in the transaction, even if null and not explicitly set to null.
-     * See https://codeberg.org/Freeyourgadget/Gadgetbridge/pulls/2912 for more information.
-     * This should be false by default, but we are making it configurable to avoid breaking
-     * older devices that rely on this behavior.
-     */
-    boolean getImplicitCallbackModify();
-
-    /**
      * Returns the associated device this instance communicates with.
      */
     GBDevice getDevice();
@@ -149,4 +142,12 @@ public interface DeviceSupport extends EventHandler {
      * converts String in a device specific way, e.g. re-map characters for a custom font
      */
     String customStringFilter(String inputString);
+
+    /**
+     * can this DeviceSupport instance's {@link #connect} be used to re-establish a
+     * lost connection or must {@link DeviceCommunicationService#connectToDevice} call
+     * {@link #dispose}, {@link DeviceSupportFactory#createDeviceSupport} and only
+     * then {@link #connect}
+     */
+    boolean canReconnect();
 }

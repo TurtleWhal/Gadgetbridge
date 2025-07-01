@@ -20,8 +20,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -39,8 +37,6 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 
 public class TestSampleProvider extends AbstractSampleProvider<TestSampleProvider.TestActivitySample> {
-    private static final Logger LOG = LoggerFactory.getLogger(TestSampleProvider.class);
-
     public TestSampleProvider(final GBDevice device, final DaoSession session) {
         super(device, session);
     }
@@ -59,23 +55,25 @@ public class TestSampleProvider extends AbstractSampleProvider<TestSampleProvide
     @NonNull
     @Override
     protected Property getTimestampSampleProperty() {
+        //noinspection DataFlowIssue not database-backed
         return null;
     }
 
     @NonNull
     @Override
     protected Property getDeviceIdentifierSampleProperty() {
+        //noinspection DataFlowIssue not database-backed
         return null;
     }
 
     @Override
-    public int normalizeType(final int rawType) {
-        return rawType;
+    public ActivityKind normalizeType(final int rawType) {
+        return ActivityKind.fromCode(rawType);
     }
 
     @Override
-    public int toRawActivityKind(final int activityKind) {
-        return activityKind;
+    public int toRawActivityKind(final ActivityKind activityKind) {
+        return activityKind.getCode();
     }
 
     @Override
@@ -89,15 +87,15 @@ public class TestSampleProvider extends AbstractSampleProvider<TestSampleProvide
     }
 
     @Override
-    protected List<TestActivitySample> getGBActivitySamples(final int timestamp_from, final int timestamp_to, final int activityType) {
+    protected List<TestActivitySample> getGBActivitySamples(final int timestamp_from, final int timestamp_to) {
         final List<TestActivitySample> samples = new ArrayList<>();
 
         int[] sleepStages = new int[] {
-                ActivityKind.TYPE_LIGHT_SLEEP,
-                ActivityKind.TYPE_DEEP_SLEEP,
+                ActivityKind.LIGHT_SLEEP.getCode(),
+                ActivityKind.DEEP_SLEEP.getCode(),
         };
         if (getDevice().getDeviceCoordinator().supportsRemSleep()) {
-            sleepStages = ArrayUtils.add(sleepStages, ActivityKind.TYPE_REM_SLEEP);
+            sleepStages = ArrayUtils.add(sleepStages, ActivityKind.REM_SLEEP.getCode());
         }
         int sleepStageCurrent = 0;
         int sleepStageDirection = 1;
@@ -141,7 +139,7 @@ public class TestSampleProvider extends AbstractSampleProvider<TestSampleProvide
             if (TestDeviceRand.randBool(ts, 0.85f)) {
                 samples.add(new TestActivitySample(
                         (int) (ts / 1000),
-                        isSleep ? sleepStages[sleepStageCurrent] : ActivityKind.TYPE_UNKNOWN,
+                        isSleep ? sleepStages[sleepStageCurrent] : ActivityKind.UNKNOWN.getCode(),
                         isActive ? steps : 0,
                         intensity,
                         hr
@@ -159,7 +157,7 @@ public class TestSampleProvider extends AbstractSampleProvider<TestSampleProvide
                 }
             }
 
-            steps += TestDeviceRand.randInt(ts, -steps, 100 - steps) * dayActivityFactor;
+            steps += (int) (TestDeviceRand.randInt(ts, -steps, 100 - steps) * dayActivityFactor);
             intensity += TestDeviceRand.randInt(ts, -1, 1);
             hr += TestDeviceRand.randInt(ts, -2, 2);
         }
@@ -187,7 +185,7 @@ public class TestSampleProvider extends AbstractSampleProvider<TestSampleProvide
         }
 
         @Override
-        public SampleProvider getProvider() {
+        public SampleProvider<?> getProvider() {
             return TestSampleProvider.this;
         }
 
@@ -222,8 +220,8 @@ public class TestSampleProvider extends AbstractSampleProvider<TestSampleProvide
         }
 
         @Override
-        public int getKind() {
-            return kind;
+        public ActivityKind getKind() {
+            return ActivityKind.fromCode(kind);
         }
 
         @Override
@@ -249,6 +247,16 @@ public class TestSampleProvider extends AbstractSampleProvider<TestSampleProvide
         @Override
         public int getSteps() {
             return steps;
+        }
+
+        @Override
+        public int getDistanceCm() {
+            return steps * 67;
+        }
+
+        @Override
+        public int getActiveCalories() {
+            return (int) Math.round(steps * 0.04);
         }
     }
 }

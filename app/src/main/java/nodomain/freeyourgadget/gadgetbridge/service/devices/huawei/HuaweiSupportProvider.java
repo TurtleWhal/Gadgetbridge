@@ -16,27 +16,39 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei;
 
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ACTIVITY_REMINDER_GOAL_REACHED;
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ACTIVITY_REMINDER_PROGRESS;
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ACTIVITY_REMINDER_STAND;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivityUser.PREF_USER_GOAL_STANDING_TIME_HOURS;
+
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.Looper;
+import android.text.TextUtils;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import de.greenrobot.dao.query.DeleteQuery;
 import de.greenrobot.dao.query.QueryBuilder;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -45,29 +57,50 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSett
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppInfo;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventDisplayMessage;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCoordinatorSupplier;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCoordinatorSupplier.HuaweiDeviceType;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCrypto;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiDictTypes;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiGpsParser;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiStressParser;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiStressSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiTruSleepParser;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.CameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.GpsAndTime;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Weather;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Workout;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.ui.HuaweiStressCalibrationFragment;
 import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummary;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummaryDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiActivitySample;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiDictData;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiDictDataDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiDictDataValues;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiDictDataValuesDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiStressSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutDataSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutDataSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutPaceSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutPaceSampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSectionsSample;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSectionsSampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSpO2Sample;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSpO2SampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSummarySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSummarySampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSwimSegmentsSample;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSwimSegmentsSampleDao;
+import nodomain.freeyourgadget.gadgetbridge.export.ActivityTrackExporter;
+import nodomain.freeyourgadget.gadgetbridge.export.GPXExporter;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationProviderType;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -75,40 +108,66 @@ import nodomain.freeyourgadget.gadgetbridge.entities.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.User;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityPoint;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrack;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
+import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.Contact;
+import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 
+import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.datasync.HuaweiDataSyncFindDevice;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.datasync.HuaweiDataSyncGoals;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.p2p.HuaweiP2PAppIcon;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.p2p.HuaweiP2PCalendarService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.p2p.HuaweiP2PCannedRepliesService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.p2p.HuaweiP2PTrackService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.p2p.HuaweiP2PDataDictionarySyncService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.AcceptAgreementsRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetAppInfoParams;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetContactsCount;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetEventAlarmList;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetGpsParameterRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetExtendedMusicInfoParams;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetMusicInfoParams;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetNotificationConstraintsRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetOTAChangeLog;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetSmartAlarmList;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetWatchfaceParams;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetWorkoutTotalsRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendCameraRemoteSetupEvent;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendDeviceReportThreshold;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendExtendedAccountRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendFitnessUserInfoRequest;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendGpsAndTimeToDeviceRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendGetDefaultSwitch;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendGpsDataRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendFileUploadInfo;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherCurrentRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendHeartRateZonesConfig;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendOTASetAutoUpdate;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendReverseCapabilitiesRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendRunPaceConfigRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendSetContactsRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendNotifyHeartRateCapabilityRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendNotifyRestHeartRateCapabilityRequest;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherExtendedSupportRequest;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherForecastRequest;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherStartRequest;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherSunMoonSupportRequest;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherSupportRequest;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherUnitRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetAutomaticHeartrateRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetAutomaticSpoRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetDisconnectNotification;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetHeartRateHighAlert;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetHeartRateLowAlert;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetMediumToStrengthThresholdRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetSkinTemperatureMeasurement;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetSpO2LowAlert;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetStressRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetTemperatureUnitSetting;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.StopFindPhoneRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.StopNotificationRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetFitnessTotalsRequest;
@@ -159,6 +218,8 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetN
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.FitnessData;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SetWorkModeRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
+import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.MediaManager;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
@@ -166,12 +227,24 @@ import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 public class HuaweiSupportProvider {
     private static final Logger LOG = LoggerFactory.getLogger(HuaweiSupportProvider.class);
 
+    // TODO: Potentially use translatable messages for the toast messages
+
+    private final HuaweiSyncState syncState = new HuaweiSyncState(this);
+
+    private final int initTimeout = 2000;
+
     private HuaweiBRSupport brSupport;
     private HuaweiLESupport leSupport;
 
     private GBDevice gbDevice;
     private Context context;
     private HuaweiCoordinatorSupplier.HuaweiDeviceType huaweiType;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable batteryRunner = () -> {
+        LOG.info("Running retrieving battery through runner.");
+        getBatteryLevel();
+    };
 
     private boolean firstConnection = false;
     protected byte protocolVersion;
@@ -184,6 +257,7 @@ public class HuaweiSupportProvider {
 
     private GpsAndTime.GpsParameters.Response gpsParametersResponse = null;
     private boolean gpsEnabled = false;
+    private Location gpsLastLocation;
 
     private final HuaweiPacket.ParamsProvider paramsProvider = new HuaweiPacket.ParamsProvider();
 
@@ -192,6 +266,31 @@ public class HuaweiSupportProvider {
 
     protected HuaweiWatchfaceManager huaweiWatchfaceManager = new HuaweiWatchfaceManager(this);
 
+    protected HuaweiFileDownloadManager huaweiFileDownloadManager = new HuaweiFileDownloadManager(this);
+
+    protected HuaweiAppManager huaweiAppManager = new HuaweiAppManager(this);
+
+    protected HuaweiWeatherManager huaweiWeatherManager = new HuaweiWeatherManager(this);
+
+    protected HuaweiEphemerisManager huaweiEphemerisManager = new HuaweiEphemerisManager(this);
+
+    protected HuaweiMusicManager huaweiMusicManager = new HuaweiMusicManager(this);
+
+    protected HuaweiNotificationsManager huaweiNotificationsManager = new HuaweiNotificationsManager(this);
+
+    //TODO: we need only one instance of manager and all it services.
+    protected HuaweiP2PManager huaweiP2PManager = new HuaweiP2PManager(this);
+
+    protected HuaweiDataSyncManager huaweiDataSyncManager = new HuaweiDataSyncManager(this);
+
+    private HuaweiDataSyncGoals huaweiDataSyncTreeCircleGoals = null;
+
+    private HuaweiDataSyncFindDevice huaweiDataSyncFindDevice = null;
+
+    protected HuaweiOTAManager huaweiOTAManager = new HuaweiOTAManager(this);
+
+    HuaweiStressCalibration stressCalibration = null;
+
     public HuaweiCoordinatorSupplier getCoordinator() {
         return ((HuaweiCoordinatorSupplier) this.gbDevice.getDeviceCoordinator());
     }
@@ -199,8 +298,41 @@ public class HuaweiSupportProvider {
     public HuaweiCoordinator getHuaweiCoordinator() {
         return getCoordinator().getHuaweiCoordinator();
     }
+
+    public HuaweiUploadManager getUploadManager() {
+        return huaweiUploadManager;
+    }
+
     public HuaweiWatchfaceManager getHuaweiWatchfaceManager() {
         return huaweiWatchfaceManager;
+    }
+
+    public HuaweiAppManager getHuaweiAppManager() {
+        return huaweiAppManager;
+    }
+
+    public HuaweiP2PManager getHuaweiP2PManager() {
+        return huaweiP2PManager;
+    }
+
+    public HuaweiEphemerisManager getHuaweiEphemerisManager() {
+        return huaweiEphemerisManager;
+    }
+
+    public HuaweiNotificationsManager getHuaweiNotificationsManager() {
+        return huaweiNotificationsManager;
+    }
+
+    public HuaweiMusicManager getHuaweiMusicManager() {
+        return huaweiMusicManager;
+    }
+
+    public HuaweiDataSyncManager getHuaweiDataSyncManager() {
+        return huaweiDataSyncManager;
+    }
+
+    public HuaweiOTAManager getHuaweiOTAManager() {
+        return huaweiOTAManager;
     }
 
     public HuaweiSupportProvider(HuaweiBRSupport support) {
@@ -247,6 +379,14 @@ public class HuaweiSupportProvider {
         }
     }
 
+    public void handleGBDeviceEvent(GBDeviceEventDisplayMessage message) {
+        if (isBLE()) {
+            leSupport.handleGBDeviceEvent(message);
+        } else {
+            brSupport.handleGBDeviceEvent(message);
+        }
+    }
+
     public void setGps(boolean start) {
         if (start) {
             if (!GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREF_WORKOUT_SEND_GPS_TO_BAND, false))
@@ -283,6 +423,7 @@ public class HuaweiSupportProvider {
         } else {
             gpsEnabled = false;
             GBLocationService.stop(getContext(), getDevice());
+            gpsLastLocation = null;
         }
     }
 
@@ -290,13 +431,23 @@ public class HuaweiSupportProvider {
         this.gpsParametersResponse = response;
     }
 
-    protected nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder initializeDevice(nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder builder) {
-        this.gbDevice = leSupport.getDevice();
-        this.context = leSupport.getContext();
+    public void setup(GBDevice device, Context context) {
+        this.gbDevice = device;
+        this.context = context;
         this.huaweiType = getCoordinator().getHuaweiType();
         this.paramsProvider.setTransactionsCrypted(this.getHuaweiCoordinator().isTransactionCrypted());
+    }
+
+    protected nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder initializeDevice(nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder builder) {
+        setup(leSupport.getDevice(), leSupport.getContext());
         builder.setCallback(leSupport);
-        builder.notify(leSupport.getCharacteristic(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_READ), true);
+        final BluetoothGattCharacteristic characteristicRead = leSupport.getCharacteristic(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_READ);
+        if (characteristicRead == null) {
+            LOG.warn("Read characteristic is null, will attempt to reconnect");
+            builder.add(new SetDeviceStateAction(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext()));
+            return builder;
+        }
+        builder.notify(characteristicRead, true);
         builder.add(new nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction(getDevice(), GBDevice.State.AUTHENTICATING, getContext()));
         final GetLinkParamsRequest linkParamsReq = new GetLinkParamsRequest(this, builder);
         initializeDevice(linkParamsReq);
@@ -305,10 +456,7 @@ public class HuaweiSupportProvider {
     }
 
     protected nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder initializeDevice(nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder builder) {
-        this.gbDevice = brSupport.getDevice();
-        this.context = brSupport.getContext();
-        this.huaweiType = getCoordinator().getHuaweiType();
-        this.paramsProvider.setTransactionsCrypted(this.getHuaweiCoordinator().isTransactionCrypted());
+        setup(brSupport.getDevice(), brSupport.getContext());
         builder.setCallback(brSupport);
         builder.add(new nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.SetDeviceStateAction(getDevice(), GBDevice.State.AUTHENTICATING, getContext()));
         final GetLinkParamsRequest linkParamsReq = new GetLinkParamsRequest(this, builder);
@@ -353,7 +501,7 @@ public class HuaweiSupportProvider {
             RequestCallback finalizeReq = new RequestCallback() {
                 @Override
                 public void call() {
-                    int status = (int)deviceStatusReq.status;
+                    int status = deviceStatusReq.status;
                     if (status == -0x01 || status == 0x00 || status == 0x01) {
                         initializeDeviceDealHiChain(linkParamsReq);
                     } else {
@@ -367,14 +515,14 @@ public class HuaweiSupportProvider {
                 }
             };
             if (huaweiType == HuaweiDeviceType.BLE) { //Only BLE known, check later for AW and SMART
-               initializeDeviceDealHiChain(linkParamsReq);
+                initializeDeviceDealHiChain(linkParamsReq);
             } else {
                 deviceStatusReq.setFinalizeReq(finalizeReq);
                 deviceStatusReq.doPerform();
             }
         } catch (IOException e) {
             GB.toast(context, "Status of authenticating to Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
-            e.printStackTrace();
+            LOG.error("Status of authenticating to Huawei device failed", e);
         }
     }
 
@@ -404,13 +552,18 @@ public class HuaweiSupportProvider {
     protected void initializeDeviceDealHiChain(final Request linkParamsReq) {
         try {
             if (isHiChain()) {
+
+                if (paramsProvider.getDeviceSupportType() == 4)
+                    paramsProvider.setAuthMode((byte) 4);
+                else
+                    paramsProvider.setAuthMode((byte) 2);
                 final GetSecurityNegotiationRequest securityNegoReq = new GetSecurityNegotiationRequest(this);
                 RequestCallback securityFinalizeReq = new RequestCallback(this) {
                     @Override
                     public void call() {
                         if (securityNegoReq.authType == 0x0186A0 || isHiChain3(securityNegoReq.authType)) {
                             LOG.debug("HiChain mode");
-                            initializeDeviceHiChainMode(securityNegoReq.authType);
+                            initializeDeviceHiChainMode();
                         } else if (securityNegoReq.authType == 0x01 || securityNegoReq.authType == 0x02) {
                             LOG.debug("HiChain Lite mode");
                             // Keep track the gadget is connected
@@ -425,22 +578,45 @@ public class HuaweiSupportProvider {
                 initializeDeviceNormalMode(linkParamsReq);
             }
         } catch (IOException e) {
-            // TODO: use translatable string
-            GB.toast(context, "init Deal with HiChain of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
-            LOG.error("Step of authenticating to Huawei device failed", e);
+            GB.toast(context, "Init deal with HiChain of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Init deal with HiChain of Huawei device failed", e);
         }
     }
 
-    protected void initializeDeviceNotify() {} //TODO
+    protected void initializeDeviceNotify() {
+        // TODO: Implement
+    }
 
     RequestCallback configureReq = new RequestCallback() {
         @Override
         public void call() {
             initializeDeviceConfigure();
         }
+
+        @Override
+        public void timeout(Request request) {
+            LOG.error("Authentication timed out");
+            GB.toast(context, R.string.authentication_failed_negotiation, Toast.LENGTH_LONG, GB.ERROR);
+            // Reconnect as no communication can succeed after this point
+            final GBDevice device = getDevice();
+            if (device != null) {
+                device.setUpdateState(GBDevice.State.WAITING_FOR_RECONNECT, getContext());
+            }
+        }
+
+        @Override
+        public void handleException(Request.ResponseParseException e) {
+            LOG.error("Authentication exception", e);
+            GB.toast(context, R.string.authentication_failed_negotiation, Toast.LENGTH_LONG, GB.ERROR);
+            // Disconnect as no communication can succeed after this point
+            final GBDevice device = getDevice();
+            if (device != null) {
+                GBApplication.deviceService(device).disconnect();
+            }
+        }
     };
 
-    protected void initializeDeviceHiChainMode(int authType) {
+    protected void initializeDeviceHiChainMode() {
         try {
             GetHiChainRequest hiChainReq = new GetHiChainRequest(this, firstConnection);
             hiChainReq.setFinalizeReq(configureReq);
@@ -451,8 +627,8 @@ public class HuaweiSupportProvider {
             } else
                 hiChainReq.doPerform();
         } catch (IOException e) {
-            GB.toast(context, "init HiCHain Mode of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
-            e.printStackTrace();
+            GB.toast(context, "HiChain Mode init of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("HiChain Mode init of Huawei device failed", e);
         }
     }
 
@@ -474,8 +650,8 @@ public class HuaweiSupportProvider {
                 authReq.doPerform();
             }
         } catch (IOException e) {
-            GB.toast(context, "init HiCHainLite Mode Mode of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
-            e.printStackTrace();
+            GB.toast(context, "HiChainLite mode init of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("HiChainLite mode init of Huawei device failed", e);
         }
     }
 
@@ -495,32 +671,24 @@ public class HuaweiSupportProvider {
             }
             authReq.doPerform();
         } catch (IOException e) {
-            GB.toast(context, "init Normal Mode of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
-            e.printStackTrace();
+            GB.toast(context, "Normal mode init of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Normal mode init of Huawei device failed", e);
         }
-
     }
 
     protected void initializeDeviceConfigure() {
-        nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder leBuilder = null;
-        nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder brBuilder = null;
         if (isBLE()) {
-            leBuilder = createLeTransactionBuilder("Initializing");
+            nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder leBuilder = createLeTransactionBuilder("Initializing");
             leBuilder.setCallback(leSupport);
-            leBuilder.notify(leSupport.getCharacteristic(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_READ), true);
+            if (!GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean("force_new_protocol", false))
+                leBuilder.notify(leSupport.getCharacteristic(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_READ), true);
             leBuilder.add(new nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction(gbDevice, GBDevice.State.INITIALIZING, context));
         } else {
-            brBuilder = createBrTransactionBuilder("Initializing");
+            nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder brBuilder = createBrTransactionBuilder("Initializing");
             brBuilder.setCallback(brSupport);
             brBuilder.add(new nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.SetDeviceStateAction(gbDevice, GBDevice.State.INITIALIZING, context));
         }
         try {
-            GetProductInformationRequest productInformationReq = new GetProductInformationRequest(this);
-            Request setTimeReq = setTime();
-            GetSupportedServicesRequest supportedServicesReq = new GetSupportedServicesRequest(this);
-            productInformationReq.nextRequest(setTimeReq);
-            setTimeReq.nextRequest(supportedServicesReq);
-            productInformationReq.doPerform();
             if (firstConnection) {
                 // Workaround to enable PREF_HUAWEI_ROTATE_WRIST_TO_SWITCH_INFO preference
                 SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(deviceMac);
@@ -528,20 +696,36 @@ public class HuaweiSupportProvider {
                 editor.putString(DeviceSettingsPreferenceConst.PREF_ACTIVATE_DISPLAY_ON_LIFT, "p_on");
                 editor.apply();
             }
-            onSetTime();
-            getBatteryLevel();
-            sendUserInfo();
-            if (isBLE()) {
-                assert leBuilder != null;
-                leBuilder.add(new nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction(gbDevice, GBDevice.State.INITIALIZED, context));
-                leSupport.performConnected(leBuilder.getTransaction());
-            } else {
-                assert brBuilder != null;
-                brBuilder.add(new nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.SetDeviceStateAction(gbDevice, GBDevice.State.INITIALIZED, context));
-                brSupport.performConnected(brBuilder.getTransaction());
+
+            huaweiP2PManager.unregisterAllService();
+            huaweiDataSyncManager.unregisterAll();
+            this.huaweiDataSyncTreeCircleGoals = null;
+            stopBatteryRunnerDelayed();
+            GetBatteryLevelRequest batteryLevelReq = new GetBatteryLevelRequest(this);
+            batteryLevelReq.setFinalizeReq(new RequestCallback() {
+                @Override
+                public void timeout(Request request) {
+                    request.handleNext();
+                    // Start the battery runner again so it keeps running even if the timeout is hit
+                    startBatteryRunnerDelayed();
+                }
+            });
+
+            final List<Request> initRequestQueue = new ArrayList<>();
+            initRequestQueue.add(new GetProductInformationRequest(this));
+            initRequestQueue.add(new SetTimeRequest(this, true));
+            initRequestQueue.add(batteryLevelReq);
+            initRequestQueue.add(new GetSupportedServicesRequest(this)); // MUST BE LAST - it indirectly kicks off initializeDynamicServices
+
+            // Queue all the requests
+            for (int i = 1; i < initRequestQueue.size(); i++) {
+                initRequestQueue.get(i - 1).setupTimeoutUntilNext(initTimeout);
+                initRequestQueue.get(i - 1).nextRequest(initRequestQueue.get(i));
             }
+            initRequestQueue.get(initRequestQueue.size() - 1).setupTimeoutUntilNext(initTimeout);
+
+            initRequestQueue.get(0).doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Final initialization of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Final initialization of Huawei device failed", e);
         }
@@ -565,6 +749,9 @@ public class HuaweiSupportProvider {
         SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(deviceMac);
 
         String authKey = sharedPrefs.getString("authkey", null);
+
+        // TODO: Handle null key - maybe error out of the entire connection?
+
         return GB.hexStringToByteArray(authKey);
     }
 
@@ -593,7 +780,7 @@ public class HuaweiSupportProvider {
     protected void createRandomMacAddress() {
         SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(deviceMac);
 
-        macAddress =  sharedPrefs.getString(HuaweiConstants.PREF_HUAWEI_ADDRESS, null);
+        macAddress = sharedPrefs.getString(HuaweiConstants.PREF_HUAWEI_ADDRESS, null);
         if (macAddress == null || macAddress.isEmpty()) {
             StringBuilder mac = new StringBuilder("FF:FF:FF");
             Random r = new Random();
@@ -623,10 +810,10 @@ public class HuaweiSupportProvider {
     protected void createAndroidID() {
         SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(deviceMac);
 
-        androidID =  sharedPrefs.getString(DeviceSettingsPreferenceConst.PREF_FAKE_ANDROID_ID, null);
+        androidID = sharedPrefs.getString(DeviceSettingsPreferenceConst.PREF_FAKE_ANDROID_ID, null);
         if (androidID == null || androidID.isEmpty()) {
             androidID = StringUtils.bytesToHex(HuaweiCrypto.generateNonce());
-            LOG.debug("Created androidID: " + androidID);
+            LOG.debug("Created androidID: {}", androidID);
             SharedPreferences.Editor editor = sharedPrefs.edit();
             editor.putString(DeviceSettingsPreferenceConst.PREF_FAKE_ANDROID_ID, androidID);
             editor.apply();
@@ -650,136 +837,122 @@ public class HuaweiSupportProvider {
      * To be called after the commandsPerService is filled in the coordinator
      */
     public void initializeDynamicServices() {
-
-        // Setup the alarms
-        if (!getHuaweiCoordinator().supportsChangingAlarm()) {
-            if (firstConnection) {
-                // TODO: not really sure if this is necessary, but it probably won't do any harm
-                initializeAlarms();
-            }
-        } else {
-            getAlarms();
-        }
         try {
-            if (getHuaweiCoordinator().supportsExpandCapability()) {
-                GetExpandCapabilityRequest expandCapabilityReq = new GetExpandCapabilityRequest(this);
-                expandCapabilityReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsAccountJudgment() && getHuaweiCoordinator().supportsAccountSwitch()) {
-                SendExtendedAccountRequest sendExtendedAccountRequest = new SendExtendedAccountRequest(this);
-                sendExtendedAccountRequest.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsSettingRelated()) { // GetSettingRelated
-                GetSettingRelatedRequest getSettingRelatedReq = new GetSettingRelatedRequest(this);
-                getSettingRelatedReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsAcceptAgreement()) {
-	            AcceptAgreementsRequest acceptAgreementsRequest = new AcceptAgreementsRequest(this);
-		        acceptAgreementsRequest.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsActivityType()) {
-                GetActivityTypeRequest activityTypeReq = new GetActivityTypeRequest(this);
-                activityTypeReq.doPerform();
+            // All of the below check that they are supported and otherwise they skip themselves
+            final List<Request> initRequestQueue = new ArrayList<>();
+            initRequestQueue.add(new GetExpandCapabilityRequest(this));
+            initRequestQueue.add(new SendExtendedAccountRequest(this));
+            initRequestQueue.add(new GetSettingRelatedRequest(this));
+            initRequestQueue.add(new AcceptAgreementsRequest(this));
+            initRequestQueue.add(new SendReverseCapabilitiesRequest(this));
+            initRequestQueue.add(new SendSetUpDeviceStatusRequest(this));
+            initRequestQueue.add(new GetActivityTypeRequest(this));
+            initRequestQueue.add(new GetWearStatusRequest(this));
+            initRequestQueue.add(new GetConnectStatusRequest(this));
+            initRequestQueue.add(new GetDndLiftWristTypeRequest(this));
+            initRequestQueue.add(new SendDndDeleteRequest(this));
+            initRequestQueue.add(new SendDndAddRequest(this));
+            initRequestQueue.add(new SendMenstrualCapabilityRequest(this));
+            initRequestQueue.add(new SendNotifyHeartRateCapabilityRequest(this));
+            initRequestQueue.add(new SendNotifyRestHeartRateCapabilityRequest(this));
+            initRequestQueue.add(new SendFitnessUserInfoRequest(this));
+            initRequestQueue.add(new SendRunPaceConfigRequest(this));
+            initRequestQueue.add(new SendDeviceReportThreshold(this));
+            initRequestQueue.add(new SendHeartRateZonesConfig(this));
+            initRequestQueue.add(new SetMediumToStrengthThresholdRequest(this));
+            initRequestQueue.add(new SendFitnessGoalRequest(this));
+            initRequestQueue.add(new GetNotificationCapabilitiesRequest(this));
+            initRequestQueue.add(new GetNotificationConstraintsRequest(this));
+            initRequestQueue.add(new GetWatchfaceParams(this));
+            initRequestQueue.add(new SendCameraRemoteSetupEvent(this, CameraRemote.CameraRemoteSetup.Request.Event.ENABLE_CAMERA));
+            initRequestQueue.add(new GetAppInfoParams(this));
+            initRequestQueue.add(new SendGetDefaultSwitch(this));
+            initRequestQueue.add(new GetMusicInfoParams(this));
+            initRequestQueue.add(new GetExtendedMusicInfoParams(this));
+            initRequestQueue.add(new SetActivateOnLiftRequest(this));
+            initRequestQueue.add(new SetWearLocationRequest(this));
+            initRequestQueue.add(new SetNavigateOnRotateRequest(this));
+            initRequestQueue.add(new SetNotificationRequest(this));
+            initRequestQueue.add(new SetWearMessagePushRequest(this));
+            initRequestQueue.add(new SetTimeZoneIdRequest(this));
+            initRequestQueue.add(new SetLanguageSettingRequest(this));
+            initRequestQueue.add(new SetDateFormatRequest(this));
+            initRequestQueue.add(new SetActivityReminderRequest(this));
+            initRequestQueue.add(new SetTruSleepRequest(this));
+            initRequestQueue.add(new GetContactsCount(this));
+            initRequestQueue.add(new SendOTASetAutoUpdate(this));
+            initRequestQueue.add(new GetOTAChangeLog(this));
+            //initRequestQueue.add(new GetWorkoutCapability(this)); // TODO: in current stage I don't understand how to parse new steps.
+            initRequestQueue.add(new GetEventAlarmList(this));
+            initRequestQueue.add(new GetSmartAlarmList(this));
+
+
+            // Setup the alarms if necessary
+            if (!getHuaweiCoordinator().supportsChangingAlarm() && firstConnection)
+                initializeAlarms();
+
+            // Queue all the requests
+            for (int i = 1; i < initRequestQueue.size(); i++) {
+                initRequestQueue.get(i - 1).setupTimeoutUntilNext(initTimeout);
+                if (initRequestQueue.get(i - 1) instanceof SendSetUpDeviceStatusRequest) {
+                    // NOTE: The watch is never answer to this command. To decrease init time timeout for it is 50 ms
+                    initRequestQueue.get(i - 1).setupTimeoutUntilNext(50);
+                }
+                initRequestQueue.get(i - 1).nextRequest(initRequestQueue.get(i));
             }
 
-            if (getHuaweiCoordinator().supportsConnectStatus()) {
-                GetConnectStatusRequest getConnectStatusReq = new GetConnectStatusRequest(this);
-                getConnectStatusReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsActivateOnLift()) {
-                setActivateOnLift();
-            }
-            if (getHuaweiCoordinator().supportsWearLocation(getDevice())) {
-                setWearLocation();
-            }
-            if (getHuaweiCoordinator().supportsRotateToCycleInfo()) {
-                setNavigateOnRotate();
-            }
-            if (getHuaweiCoordinator().supportsQueryDndLiftWristDisturbType()) {
-                GetDndLiftWristTypeRequest getDndLiftWristTypeReq = new GetDndLiftWristTypeRequest(this);
-                getDndLiftWristTypeReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsDoNotDisturb(gbDevice)) {
-                SendDndDeleteRequest sendDndDeleteReq = new SendDndDeleteRequest(this);
-                SendDndAddRequest sendDndAddReq = new SendDndAddRequest(this);
-                sendDndDeleteReq.nextRequest(sendDndAddReq);
-                sendDndDeleteReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsNotification()) { // 0x02 - 0x04
-                setNotificationStatus();
-            }
-            if (getHuaweiCoordinator().supportsDoNotDisturb(gbDevice) && getHuaweiCoordinator().supportsWearMessagePush()) {
-                setDndNotWear();
-            }
-            if (getHuaweiCoordinator().supportsTimeAndZoneId()) {
-                setTimeZoneId();
-            }
-            // Nothing usefull yet with this requests
-            if (getHuaweiCoordinator().supportsMultiDevice()) {
-                SendSetUpDeviceStatusRequest sendSetUpDeviceStatusReq = new SendSetUpDeviceStatusRequest(this);
-                sendSetUpDeviceStatusReq.doPerform();
-                GetWearStatusRequest getWearStatusReq = new GetWearStatusRequest(this);
-                getWearStatusReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsMenstrual()) {
-                SendMenstrualCapabilityRequest sendMenstrualCapabilityReq = new SendMenstrualCapabilityRequest(this);
-                sendMenstrualCapabilityReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsLanguageSetting()) { // 0x0c - 0x01
-                setLanguageSetting();
-            }
-            if (getHuaweiCoordinator().supportsWorkoutsTrustHeartRate()) {
-                SendNotifyHeartRateCapabilityRequest sendNotifyHeartRateCapabilityReq = new SendNotifyHeartRateCapabilityRequest(this);
-                sendNotifyHeartRateCapabilityReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsFitnessRestHeartRate()) {
-                SendNotifyRestHeartRateCapabilityRequest sendNotifyRestHeartRateCapabilityReq = new SendNotifyRestHeartRateCapabilityRequest(this);
-                sendNotifyRestHeartRateCapabilityReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsFitnessThresholdValue()) {
-                SetMediumToStrengthThresholdRequest setMediumToStrengthThresholdReq = new SetMediumToStrengthThresholdRequest(this);
-                setMediumToStrengthThresholdReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsDateFormat()) { //0x01 - 0x04
-                setDateFormat();
-            }
-            if (getHuaweiCoordinator().supportsMotionGoal()) {
-                SendFitnessGoalRequest sendFitnessGoalReq = new SendFitnessGoalRequest(this);
-                sendFitnessGoalReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsActivityReminder()) {
-                setActivityReminder();
-            }
-            if (getHuaweiCoordinator().supportsTruSleep()) {
-                setTrusleep();
-            }
-            if (getHuaweiCoordinator().supportsPromptPushMessage() && getProtocolVersion() == 2) {
-                GetNotificationCapabilitiesRequest getNotificationCapabilitiesReq = new GetNotificationCapabilitiesRequest(this);
-                getNotificationCapabilitiesReq.doPerform();
-            }
-            if (getHuaweiCoordinator().supportsNotificationAlert() && getProtocolVersion() == 2) {
-                GetNotificationConstraintsRequest getNotificationConstraintsReq = new GetNotificationConstraintsRequest(this);
-                getNotificationConstraintsReq.doPerform();
-            }
+            initRequestQueue.get(initRequestQueue.size() - 1).setupTimeoutUntilNext(initTimeout);
+            initRequestQueue.get(initRequestQueue.size() - 1).setFinalizeReq(new RequestCallback() {
+                @Override
+                public void call() {
+                    gbDevice.setUpdateState(GBDevice.State.INITIALIZED, getContext());
 
-            if (getHuaweiCoordinator().supportsWatchfaceParams()) {
-                GetWatchfaceParams getWatchfaceParams = new GetWatchfaceParams(this);
-                getWatchfaceParams.doPerform();
-            }
+                    if (getHuaweiCoordinator().supportsP2PService()) {
+                        if (getHuaweiCoordinator().supportsCalendar()) {
+                            if (HuaweiP2PCalendarService.getRegisteredInstance(huaweiP2PManager) == null) {
+                                HuaweiP2PCalendarService calendarService = new HuaweiP2PCalendarService(huaweiP2PManager);
+                                calendarService.register();
+                            }
+                        }
+                        if (getHuaweiCoordinator().supportsTrack()) {
+                            if (HuaweiP2PTrackService.getRegisteredInstance(huaweiP2PManager) == null) {
+                                HuaweiP2PTrackService trackService = new HuaweiP2PTrackService(huaweiP2PManager);
+                                trackService.register();
+                            }
+                        }
+                        if (getHuaweiCoordinator().supportsCannedReplies()) {
+                            if (HuaweiP2PCannedRepliesService.getRegisteredInstance(huaweiP2PManager) == null) {
+                                HuaweiP2PCannedRepliesService cannedRepliesService = new HuaweiP2PCannedRepliesService(huaweiP2PManager);
+                                cannedRepliesService.register();
+                            }
+                        }
+                        if (HuaweiP2PDataDictionarySyncService.getRegisteredInstance(huaweiP2PManager) == null) {
+                            HuaweiP2PDataDictionarySyncService trackService = new HuaweiP2PDataDictionarySyncService(huaweiP2PManager);
+                            trackService.register();
+                        }
+                        if(getHuaweiCoordinator().supportsNotificationsAddIconTimestamp()) {
+                            if (HuaweiP2PAppIcon.getRegisteredInstance(huaweiP2PManager) == null) {
+                                HuaweiP2PAppIcon appIconService = new HuaweiP2PAppIcon(huaweiP2PManager);
+                                appIconService.register();
+                            }
+                        }
+                    }
 
-            if (getHuaweiCoordinator().supportsCameraRemote() && GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREF_CAMERA_REMOTE, false)) {
-                SendCameraRemoteSetupEvent sendCameraRemoteSetupEvent = new SendCameraRemoteSetupEvent(this, CameraRemote.CameraRemoteSetup.Request.Event.ENABLE_CAMERA);
-                sendCameraRemoteSetupEvent.doPerform();
-            }
+                    if(getHuaweiCoordinator().supportsThreeCircle() || getHuaweiCoordinator().supportsThreeCircleLite()) {
+                        huaweiDataSyncTreeCircleGoals = new HuaweiDataSyncGoals(HuaweiSupportProvider.this);
+                    }
+
+                    if(getHuaweiCoordinator().supportsFindDeviceAbility()) {
+                        huaweiDataSyncFindDevice = new HuaweiDataSyncFindDevice(HuaweiSupportProvider.this);
+                    }
+                }
+            });
+
+            initRequestQueue.get(0).doPerform();
         } catch (IOException e) {
-            GB.toast(getContext(), "Initialize dynamic services of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR,
-                    e);
-            e.printStackTrace();
+            GB.toast("Initialize dynamic services of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Initializing dynamic services of Huawei device failed", e);
         }
-
-        // Properly update the device card
-        gbDevice.sendDeviceUpdateIntent(GBApplication.getContext());
-        GB.signalActivityDataFinish();
     }
 
     public void setProtocolVersion(byte protocolVersion) {
@@ -798,13 +971,13 @@ public class HuaweiSupportProvider {
         List<Alarm> alarms = DBHelper.getAlarms(gbDevice);
         DeviceCoordinator coordinator = this.gbDevice.getDeviceCoordinator();
         int supportedNumAlarms = coordinator.getAlarmSlotCount(gbDevice);
-        if (alarms.size() == 0) {
+        if (alarms.isEmpty()) {
             try (DBHandler db = GBApplication.acquireDB()) {
                 DaoSession daoSession = db.getDaoSession();
                 Device device = DBHelper.getDevice(gbDevice, daoSession);
                 User user = DBHelper.getUser(daoSession);
                 for (int position = 0; position < supportedNumAlarms; position++) {
-                    LOG.info("adding missing alarm at position " + position);
+                    LOG.info("Adding missing alarm at position {}", position);
                     DBHelper.store(createDefaultAlarm(device, user, position));
                 }
             } catch (Exception e) {
@@ -832,7 +1005,6 @@ public class HuaweiSupportProvider {
             return;
 
         GetEventAlarmList getEventAlarmList = new GetEventAlarmList(this);
-        responseManager.addHandler(getEventAlarmList);
         getEventAlarmList.setFinalizeReq(new RequestCallback() {
             @Override
             public void call() {
@@ -840,11 +1012,9 @@ public class HuaweiSupportProvider {
                     return; // Don't get smart alarms when not supported
 
                 GetSmartAlarmList getSmartAlarmList = new GetSmartAlarmList(HuaweiSupportProvider.this);
-                responseManager.addHandler(getSmartAlarmList);
                 try {
                     getSmartAlarmList.doPerform();
                 } catch (IOException e) {
-                    // TODO: Use translatable string
                     GB.toast(context, "Error sending smart alarm list request", Toast.LENGTH_SHORT, GB.ERROR, e);
                     LOG.error("Error sending smart alarm list request", e);
                 }
@@ -852,7 +1022,6 @@ public class HuaweiSupportProvider {
 
             @Override
             public void handleException(Request.ResponseParseException e) {
-                // TODO: Use translatable string
                 GB.toast(context, "Error parsing event list", Toast.LENGTH_SHORT, GB.ERROR, e);
                 LOG.error("Error parsing event list", e);
             }
@@ -860,7 +1029,6 @@ public class HuaweiSupportProvider {
         try {
             getEventAlarmList.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Error sending event alarm list request", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Error sending event alarm list request", e);
         }
@@ -877,36 +1045,18 @@ public class HuaweiSupportProvider {
                 DBHelper.store(alarm);
             }
         } catch (Exception e) {
-            // TODO: Use translatable string
             GB.toast(context, "Error saving alarms", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Error saving alarms", e);
         }
     }
 
-    public boolean onCharacteristicChanged(BluetoothGattCharacteristic characteristic) {
-        byte[] data = characteristic.getValue();
+    public boolean onCharacteristicChanged(BluetoothGattCharacteristic characteristic, byte[] data) {
         responseManager.handleData(data);
         return true;
     }
 
     public void onSocketRead(byte[] data) {
-        // The data can contain multiple packets, which need to be split.
-        // But we also need to take into account partial packets (where data does not contain a full packet)
-        if (data[0] != 0x5a) {
-            // Part of partial packet, just parse
-            responseManager.handleData(data);
-            return;
-        }
-
-        ByteBuffer bData = ByteBuffer.wrap(data);
-        while (bData.remaining() != 0) {
-            int dataLen = bData.getShort(bData.position() + 1) + 0x05;
-            if (dataLen > bData.remaining())
-                dataLen = bData.remaining(); // Part of partial packet, just parse the remainder
-            byte[] newData = new byte[dataLen];
-            bData.get(newData, 0, dataLen);
-            responseManager.handleData(newData);
-        }
+        responseManager.handleData(data);
     }
 
     public void removeInProgressRequests(Request req) {
@@ -956,6 +1106,14 @@ public class HuaweiSupportProvider {
                     setTrusleep();
                     break;
                 }
+                case HuaweiConstants.PREF_HUAWEI_CONTINUOUS_SKIN_TEMPERATURE_MEASUREMENT: {
+                    setContinuousSkinTemperatureMeasurement();
+                    break;
+                }
+                case DeviceSettingsPreferenceConst.PREF_TEMPERATURE_SCALE_CF: {
+                    setTemperatureUnit();
+                    break;
+                }
                 case DeviceSettingsPreferenceConst.PREF_NOTIFICATION_ENABLE: {
                     setNotificationStatus();
                     break;
@@ -989,10 +1147,26 @@ public class HuaweiSupportProvider {
                     setDisconnectNotification();
                     break;
                 case DeviceSettingsPreferenceConst.PREF_HEARTRATE_AUTOMATIC_ENABLE:
+                case HuaweiConstants.PREF_HUAWEI_HEART_RATE_REALTIME_MODE:
                     setHeartrateAutomatic();
+                    break;
+                case HuaweiConstants.PREF_HUAWEI_HEART_RATE_LOW_ALERT:
+                    setHeartRateLowAlert();
+                    break;
+                case HuaweiConstants.PREF_HUAWEI_HEART_RATE_HIGH_ALERT:
+                    setHeartRateHighAlert();
                     break;
                 case DeviceSettingsPreferenceConst.PREF_SPO_AUTOMATIC_ENABLE:
                     setSpoAutomatic();
+                    break;
+                case HuaweiConstants.PREF_HUAWEI_SPO_LOW_ALERT:
+                    setSpoLowAlert();
+                    break;
+                case HuaweiConstants.PREF_HUAWEI_STRESS_SWITCH:
+                    setStress();
+                    break;
+                case HuaweiConstants.PREF_HUAWEI_STRESS_CALIBRATE:
+                    calibrateStress();
                     break;
                 case DeviceSettingsPreferenceConst.PREF_FORCE_ENABLE_SMART_ALARM:
                     getAlarms();
@@ -1001,7 +1175,25 @@ public class HuaweiSupportProvider {
                     sendDebugRequest();
                     break;
                 case ActivityUser.PREF_USER_STEPS_GOAL:
-                    new SendFitnessGoalRequest(this).doPerform();
+                    setStepsGoal();
+                    break;
+                case ActivityUser.PREF_USER_CALORIES_BURNT:
+                    setCaloriesBurntGoal();
+                    break;
+                case ActivityUser.PREF_USER_GOAL_FAT_BURN_TIME_MINUTES:
+                    setFatBurnTime();
+                    break;
+                case ActivityUser.PREF_USER_GOAL_STANDING_TIME_HOURS:
+                    setStandingTime();
+                    break;
+                case PREF_HUAWEI_ACTIVITY_REMINDER_STAND:
+                    setActivityReminderStand();
+                    break;
+                case PREF_HUAWEI_ACTIVITY_REMINDER_PROGRESS:
+                    setActivityReminderProgress();
+                    break;
+                case PREF_HUAWEI_ACTIVITY_REMINDER_GOAL_REACHED:
+                    setActivityReminderGoalReached();
                     break;
                 case DeviceSettingsPreferenceConst.PREF_CAMERA_REMOTE:
                     if (GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREF_CAMERA_REMOTE, false)) {
@@ -1012,45 +1204,166 @@ public class HuaweiSupportProvider {
                         // But it will disappear after reconnection - until it is enabled again
                         GB.toast(context, context.getString(R.string.toast_setting_requires_reconnect), Toast.LENGTH_SHORT, GB.INFO);
                     }
+                case DeviceSettingsPreferenceConst.PREF_BATTERY_POLLING_ENABLE:
+                    if (!GBApplication.getDevicePrefs(gbDevice).getBatteryPollingEnabled()) {
+                        stopBatteryRunnerDelayed();
+                        break;
+                    }
+                    // Fall through if enabled
+                case DeviceSettingsPreferenceConst.PREF_BATTERY_POLLING_INTERVAL:
+                    if (!startBatteryRunnerDelayed()) {
+                        GB.toast(context, R.string.battery_polling_failed_start, Toast.LENGTH_SHORT, GB.ERROR);
+                        LOG.error("Failed to start the battery polling");
+                    }
+                    break;
                 case ActivityUser.PREF_USER_WEIGHT_KG:
                 case ActivityUser.PREF_USER_HEIGHT_CM:
                 case ActivityUser.PREF_USER_GENDER:
-                case ActivityUser.PREF_USER_YEAR_OF_BIRTH:
+                case ActivityUser.PREF_USER_DATE_OF_BIRTH:
                     sendUserInfo();
+                    break;
+                case DeviceSettingsPreferenceConst.PREF_SYNC_CALENDAR:
+                case DeviceSettingsPreferenceConst.PREF_CALENDAR_LOOKAHEAD_DAYS:
+                    HuaweiP2PCalendarService.getRegisteredInstance(huaweiP2PManager).restartSynchronization();
+                    break;
+                case DeviceSettingsPreferenceConst.PREF_UPLOAD_NOTIFICATIONS_APP_ICON:
+                    startUploadNotificationsAppIcons();
                     break;
             }
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Configuration of Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Configuration of Huawei device failed", e);
-            // TODO: handle this?
+        }
+    }
+
+    public void setStepsGoal() {
+        if(huaweiDataSyncTreeCircleGoals != null) {
+            int stepGoal = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_STEPS_GOAL, ActivityUser.defaultUserStepsGoal);
+            if(! huaweiDataSyncTreeCircleGoals.sendStepsGoal(stepGoal)) {
+                LOG.error("Error to set stand goal");
+            }
+        } else {
+            try {
+                new SendFitnessGoalRequest(this).doPerform();
+            } catch (IOException e) {
+                LOG.error("SendFitnessGoalRequest failed", e);
+            }
+        }
+    }
+
+    public void setCaloriesBurntGoal() {
+        if(huaweiDataSyncTreeCircleGoals != null) {
+            int caloriesBurntGoal = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_CALORIES_BURNT, ActivityUser.defaultUserCaloriesBurntGoal);
+            if(!huaweiDataSyncTreeCircleGoals.sendCaloriesBurntGoal(caloriesBurntGoal)) {
+                LOG.error("Error to set calories burnt goal");
+            }
+        } else {
+            try {
+                new SendFitnessGoalRequest(this).doPerform();
+            } catch (IOException e) {
+                LOG.error("SendFitnessGoalRequest failed", e);
+            }
+        }
+    }
+
+    public void setFatBurnTime() {
+        if(huaweiDataSyncTreeCircleGoals != null) {
+            int fatBurnTimeGoal = GBApplication.getPrefs().getInt(ActivityUser.PREF_USER_GOAL_FAT_BURN_TIME_MINUTES, ActivityUser.defaultUserFatBurnTimeMinutes);
+            if(!huaweiDataSyncTreeCircleGoals.sendExerciseGoal(fatBurnTimeGoal)) {
+                LOG.error("Error to set exercise goal");
+            }
+        } else {
+            try {
+                new SendFitnessGoalRequest(this).doPerform();
+            } catch (IOException e) {
+                LOG.error("SendFitnessGoalRequest failed", e);
+            }
+        }
+    }
+
+    public void setStandingTime() {
+        if(huaweiDataSyncTreeCircleGoals != null) {
+            int standingTimeGoal = GBApplication.getPrefs().getInt(PREF_USER_GOAL_STANDING_TIME_HOURS, ActivityUser.defaultUserGoalStandingTimeHours);
+            if(!huaweiDataSyncTreeCircleGoals.sendStandGoal(standingTimeGoal)) {
+                LOG.error("Error to set stand goal");
+            }
+        } else {
+            try {
+                new SendFitnessGoalRequest(this).doPerform();
+            } catch (IOException e) {
+                LOG.error("SendFitnessGoalRequest failed", e);
+            }
+        }
+    }
+
+    public void setActivityReminderStand() {
+        if(huaweiDataSyncTreeCircleGoals != null) {
+            boolean state = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(PREF_HUAWEI_ACTIVITY_REMINDER_STAND, true);
+            if(!huaweiDataSyncTreeCircleGoals.sendRemindersStand(state)) {
+                LOG.error("Error to set stand reminder");
+            }
+        }
+    }
+
+    public void setActivityReminderProgress() {
+        if(huaweiDataSyncTreeCircleGoals != null) {
+            boolean state = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(PREF_HUAWEI_ACTIVITY_REMINDER_PROGRESS, true);
+            if(!huaweiDataSyncTreeCircleGoals.sendRemindersProgress(state)) {
+                LOG.error("Error to set progress reminder");
+            }
+        }
+    }
+
+    public void setActivityReminderGoalReached() {
+        if(huaweiDataSyncTreeCircleGoals != null) {
+            boolean state = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(PREF_HUAWEI_ACTIVITY_REMINDER_GOAL_REACHED, true);
+            if(!huaweiDataSyncTreeCircleGoals.sendRemindersGoalReached(state)) {
+                LOG.error("Error to set goal reached reminder");
+            }
+        }
+    }
+
+    public void startUploadNotificationsAppIcons() {
+        SharedPreferences prefs = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress());
+        HashSet<String> iconsToUpload = (HashSet<String>) prefs.getStringSet(DeviceSettingsPreferenceConst.PREF_UPLOAD_NOTIFICATIONS_APP_ICON, null);
+        if (iconsToUpload == null) {
+            iconsToUpload = new HashSet<>();
+        }
+        LOG.debug("startUploadNotificationsAppIcons: {}", iconsToUpload);
+        HuaweiP2PAppIcon appIconService = HuaweiP2PAppIcon.getRegisteredInstance(this.huaweiP2PManager);
+        if(appIconService != null) {
+            appIconService.addPackageName(new ArrayList<>(iconsToUpload));
         }
     }
 
     public void onFetchRecordedData(int dataTypes) {
-        if (gbDevice.isBusy()) {
-            LOG.warn("Device is already busy with " + gbDevice.getBusyTask() + ", so won't fetch data now.");
-            // TODO: better way of letting user know?
-            // TODO: use string that can be translated
-            GB.toast("Device is already busy with " + gbDevice.getBusyTask() + ", so won't fetch data now.", Toast.LENGTH_LONG, 0);
-            return;
+        for (int i = 1; i > -1; i <<= 1) {
+            if ((dataTypes & i) != 0) {
+                switch (i) {
+                    case RecordedDataTypes.TYPE_ACTIVITY:
+                        this.syncState.addActivitySyncToQueue();
+                        break;
+                    case RecordedDataTypes.TYPE_GPS_TRACKS:
+                        this.syncState.addWorkoutSyncToQueue();
+                        break;
+                    // Ignore the following because we know/they are included in the others
+                    case RecordedDataTypes.TYPE_SPO2:
+                    case RecordedDataTypes.TYPE_STRESS:
+                    case RecordedDataTypes.TYPE_HEART_RATE:
+                    case RecordedDataTypes.TYPE_PAI:
+                    case RecordedDataTypes.TYPE_SLEEP_RESPIRATORY_RATE:
+                        break;
+                    default:
+                        LOG.warn("Recorded data type {} not implemented yet.", i);
+                }
+            }
         }
+        if (gbDevice.isBusy())
+            LOG.warn("Device is already busy with {}, so won't fetch data now.", gbDevice.getBusyTask());
+        else
+            fetchRecodedDataFromQueue();
 
-        // TODO: An exception during the parsing can leave GB thinking that the sync is not yet
-        //       finished, but it won't ever complete because of the parsing exception
-        //       Maybe this can be fixed with an exception handler from the callback? If then
-        //       called from the ResponseManager, it may not be too much work to implement.
-
-        if ((dataTypes & RecordedDataTypes.TYPE_ACTIVITY) != 0) {
-            fetchActivityData();
-        } else if (dataTypes == RecordedDataTypes.TYPE_GPS_TRACKS) {
-            fetchWorkoutData();
-        } else {
-            // TODO: tell user
-            LOG.warn("Recorded data type {} not implemented yet.", dataTypes);
-        }
-
-        // Get the battery level, as that isn't shared nicely for now
+        // Get the battery level as well
         getBatteryLevel();
 
         // Get the alarms as they cannot be retrieved on opening the alarm window
@@ -1058,10 +1371,25 @@ public class HuaweiSupportProvider {
         getAlarms();
     }
 
+    protected void fetchRecodedDataFromQueue() {
+        int dataType = this.syncState.getCurrentSyncType();
+        if (dataType == -1)
+            return; // Empty queue
+
+        if (dataType == RecordedDataTypes.TYPE_ACTIVITY) {
+            fetchActivityData();
+        } else if (dataType == RecordedDataTypes.TYPE_GPS_TRACKS) {
+            fetchWorkoutData();
+        }
+    }
+
     private void fetchActivityData() {
+        syncState.setActivitySync(true);
+        fetchActivityDataP2P();
+
         int sleepStart = 0;
         int stepStart = 0;
-        int end = (int) (System.currentTimeMillis() / 1000);
+        final int end = (int) (System.currentTimeMillis() / 1000);
 
         SharedPreferences sharedPreferences = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress());
         long prefLastSyncTime = sharedPreferences.getLong("lastSyncTimeMillis", 0);
@@ -1098,20 +1426,24 @@ public class HuaweiSupportProvider {
         }
 
         final GetStepDataCountRequest getStepDataCountRequest = new GetStepDataCountRequest(this, stepStart, end);
+        //noinspection ExtractMethodRecommender
         final GetFitnessTotalsRequest getFitnessTotalsRequest = new GetFitnessTotalsRequest(this);
 
+        final int start = sleepStart;
         getFitnessTotalsRequest.setFinalizeReq(new RequestCallback() {
             @Override
             public void call() {
-                handleSyncFinished();
+                if (!(downloadTruSleepData(start, end) && downloadStressData(start, end)))
+                    syncState.setActivitySync(false);
             }
 
             @Override
             public void handleException(Request.ResponseParseException e) {
                 LOG.error("Fitness totals exception", e);
-                handleSyncFinished();
+                syncState.setActivitySync(false);
             }
         });
+
 
         getStepDataCountRequest.setFinalizeReq(new RequestCallback() {
             @Override
@@ -1120,14 +1452,14 @@ public class HuaweiSupportProvider {
                     getFitnessTotalsRequest.doPerform();
                 } catch (IOException e) {
                     LOG.error("Exception on starting fitness totals request", e);
-                    handleSyncFinished();
+                    syncState.setActivitySync(false);
                 }
             }
 
             @Override
             public void handleException(Request.ResponseParseException e) {
                 LOG.error("Step data count exception", e);
-                handleSyncFinished();
+                syncState.setActivitySync(false);
             }
         });
 
@@ -1138,14 +1470,14 @@ public class HuaweiSupportProvider {
                     getStepDataCountRequest.doPerform();
                 } catch (IOException e) {
                     LOG.error("Exception on starting step data count request", e);
-                    handleSyncFinished();
+                    syncState.setActivitySync(false);
                 }
             }
 
             @Override
             public void handleException(Request.ResponseParseException e) {
                 LOG.error("Sleep data count exception", e);
-                handleSyncFinished();
+                syncState.setActivitySync(false);
             }
         });
 
@@ -1153,11 +1485,28 @@ public class HuaweiSupportProvider {
             getSleepDataCountRequest.doPerform();
         } catch (IOException e) {
             LOG.error("Exception on starting sleep data count request", e);
-            handleSyncFinished();
+            syncState.setActivitySync(false);
+        }
+    }
+
+    private void fetchActivityDataP2P() {
+        HuaweiP2PDataDictionarySyncService P2PSyncService = HuaweiP2PDataDictionarySyncService.getRegisteredInstance(huaweiP2PManager);
+
+        if (P2PSyncService != null) {
+            List<Integer> list = P2PSyncService.checkSupported(this.getHuaweiCoordinator(), Arrays.asList(HuaweiDictTypes.SKIN_TEMPERATURE_CLASS, HuaweiDictTypes.BLOOD_PRESSURE_CLASS));
+            if(!list.isEmpty()) {
+                syncState.setP2pSync(true);
+                P2PSyncService.startSync(list, complete -> {
+                    LOG.info("Sync P2P Data complete");
+                    syncState.setP2pSync(false);
+                });
+            }
         }
     }
 
     private void fetchWorkoutData() {
+        syncState.setWorkoutSync(true);
+
         int start = 0;
         int end = (int) (System.currentTimeMillis() / 1000);
 
@@ -1207,53 +1556,40 @@ public class HuaweiSupportProvider {
         final GetWorkoutCountRequest getWorkoutCountRequest;
         if (isBLE()) {
             nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder leBuilder = createLeTransactionBuilder("FetchWorkoutData");
-            // TODO: maybe use a different string from the other synchronization
             leBuilder.add(new nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction(gbDevice, context.getString(R.string.busy_task_fetch_activity_data), context));
             getWorkoutCountRequest = new GetWorkoutCountRequest(this, leBuilder, start, end);
         } else {
             nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder brBuilder = createBrTransactionBuilder("FetchWorkoutData");
-            // TODO: maybe use a different string from the other synchronization
             brBuilder.add(new nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.SetDeviceBusyAction(gbDevice, context.getString(R.string.busy_task_fetch_activity_data), context));
             getWorkoutCountRequest = new GetWorkoutCountRequest(this, brBuilder, start, end);
         }
 
         getWorkoutCountRequest.setFinalizeReq(new RequestCallback() {
             @Override
-            public void call() {
-                handleSyncFinished();
-            }
-
-            @Override
             public void handleException(Request.ResponseParseException e) {
-                LOG.error("Workout parsing exception", e);
-                handleSyncFinished();
+                // This is propagated through the workout requests, hence the slightly generic error message
+                GB.toast(context, "Exception synchronizing workout", Toast.LENGTH_SHORT, GB.ERROR);
+                LOG.error("Exception synchronizing workout", e);
+                endOfWorkoutSync();
             }
         });
 
         try {
             getWorkoutCountRequest.doPerform();
         } catch (IOException e) {
-            LOG.error("Exception on starting workout count request", e);
-            handleSyncFinished();
+            GB.toast(context, "Exception synchronizing workout", Toast.LENGTH_SHORT, GB.ERROR);
+            LOG.error("Error sending workout count - showing user that the workout sync failed", e);
+            endOfWorkoutSync();
         }
-    }
-
-    private void handleSyncFinished() {
-        if (gbDevice.isBusy()) {
-            gbDevice.unsetBusyTask();
-            gbDevice.sendDeviceUpdateIntent(context);
-        }
-        GB.signalActivityDataFinish();
     }
 
     public void onReset(int flags) {
         try {
-            if(flags== GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET) {
+            if (flags == GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET) {
                 SendFactoryResetRequest sendFactoryResetReq = new SendFactoryResetRequest(this);
                 sendFactoryResetReq.doPerform();
             }
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Factory resetting Huawei device failed", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Factory resetting Huawei device failed", e);
         }
@@ -1273,7 +1609,6 @@ public class HuaweiSupportProvider {
 //            SetWearMessagePushRequest setWearMessagePushReq = new SetWearMessagePushRequest(this);
 //            setWearMessagePushReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Setting notification failed", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Setting notification failed", e);
         }
@@ -1287,21 +1622,17 @@ public class HuaweiSupportProvider {
         }
         return msgId;
     }
-
     public void onNotification(NotificationSpec notificationSpec) {
         if (!GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREF_NOTIFICATION_ENABLE, false)) {
             // Don't send notifications when they are disabled
             LOG.info("Stopped notification as they are disabled.");
             return;
         }
+        huaweiNotificationsManager.onNotification(notificationSpec);
+    }
 
-        SendNotificationRequest sendNotificationReq = new SendNotificationRequest(this);
-        try {
-            sendNotificationReq.buildNotificationTLVFromNotificationSpec(notificationSpec);
-            sendNotificationReq.doPerform();
-        } catch (IOException e) {
-            LOG.error("Sending notification failed", e);
-        }
+    public void onDeleteNotification(int id) {
+        huaweiNotificationsManager.onDeleteNotification(id);
     }
 
     public void setDateFormat() {
@@ -1309,7 +1640,6 @@ public class HuaweiSupportProvider {
             SetDateFormatRequest setDateFormatReq = new SetDateFormatRequest(this);
             setDateFormatReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to configure date format", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to configure date format", e);
         }
@@ -1317,26 +1647,10 @@ public class HuaweiSupportProvider {
 
     public void onSetTime() {
         try {
-            setTime().doPerform();
+            new SetTimeRequest(this, true).doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to configure time", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to configure time", e);
-        }
-    }
-
-    private Request setTime() {
-        SetTimeRequest setTimeReq = new SetTimeRequest(this);
-        return setTimeReq;
-    }
-
-    public void setTimeZoneId() {
-        try {
-            SetTimeZoneIdRequest setTimeZoneIdReq = new SetTimeZoneIdRequest(this);
-            setTimeZoneIdReq.doPerform();
-        } catch (IOException e) {
-            // TODO: Use translatable string
-            GB.toast(context, "Failed to configure time and zoneId", Toast.LENGTH_SHORT, GB.ERROR, e);
         }
     }
 
@@ -1357,7 +1671,6 @@ public class HuaweiSupportProvider {
                 smartAlarmReq.doPerform();
             eventAlarmReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to configure alarms", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to configure alarms", e);
         }
@@ -1374,9 +1687,9 @@ public class HuaweiSupportProvider {
             }
         } else if (
                 callSpec.command == CallSpec.CALL_ACCEPT ||
-                callSpec.command == CallSpec.CALL_START ||
-                callSpec.command == CallSpec.CALL_REJECT ||
-                callSpec.command == CallSpec.CALL_END
+                        callSpec.command == CallSpec.CALL_START ||
+                        callSpec.command == CallSpec.CALL_REJECT ||
+                        callSpec.command == CallSpec.CALL_END
         ) {
             StopNotificationRequest stopNotificationRequest = new StopNotificationRequest(this);
             try {
@@ -1424,18 +1737,20 @@ public class HuaweiSupportProvider {
         responseManager.addHandler(request);
     }
 
-    public void addSleepActivity(int timestamp, short duration, byte type) {
+    public void addSleepActivity(int timestamp_start, int timestamp_end, byte type, byte source) {
+        LOG.debug("Adding sleep activity between {} and {}", timestamp_start, timestamp_end);
+
         try (DBHandler db = GBApplication.acquireDB()) {
             Long userId = DBHelper.getUser(db.getDaoSession()).getId();
             Long deviceId = DBHelper.getDevice(gbDevice, db.getDaoSession()).getId();
             HuaweiSampleProvider sampleProvider = new HuaweiSampleProvider(gbDevice, db.getDaoSession());
 
             HuaweiActivitySample activitySample = new HuaweiActivitySample(
-                    timestamp,
+                    timestamp_start,
                     deviceId,
                     userId,
-                    timestamp + duration,
-                    FitnessData.MessageData.sleepId,
+                    timestamp_end,
+                    source,
                     type,
                     1,
                     ActivitySample.NOT_MEASURED,
@@ -1480,10 +1795,30 @@ public class HuaweiSupportProvider {
         }
     }
 
+    public void addStressData(long startTime, long endTime, byte stress, byte level) {
+        try (DBHandler db = GBApplication.acquireDB()) {
+            final Device device = DBHelper.getDevice(getDevice(), db.getDaoSession());
+            final User user = DBHelper.getUser(db.getDaoSession());
+            HuaweiStressSampleProvider sampleProvider = new HuaweiStressSampleProvider(gbDevice, db.getDaoSession());
+
+            HuaweiStressSample stressSample = new HuaweiStressSample();
+            stressSample.setTimestamp(endTime);
+            stressSample.setStartTime(startTime);
+            stressSample.setStress(stress);
+            stressSample.setLevel(level);
+            stressSample.setDevice(device);
+            stressSample.setUser(user);
+
+            sampleProvider.addSample(stressSample);
+        } catch (Exception e) {
+            LOG.error("Failed to add step data to database", e);
+        }
+    }
+
     public void addTotalFitnessData(int steps, int calories, int distance) {
-        LOG.debug("FITNESS total steps: " + steps);
-        LOG.debug("FITNESS total calories: " + calories); // TODO: May actually be kilocalories
-        LOG.debug("FITNESS total distance: " + distance + " m");
+        LOG.debug("FITNESS total steps: {}", steps);
+        LOG.debug("FITNESS total calories: {}", calories); // TODO: May actually be kilocalories
+        LOG.debug("FITNESS total distance: {} m", distance);
 
         // TODO: potentially do more with this, maybe through realtime data?
     }
@@ -1512,6 +1847,13 @@ public class HuaweiSupportProvider {
             else
                 raw = StringUtils.bytesToHex(packet.rawData).getBytes(StandardCharsets.UTF_8);
 
+
+            byte[] recoveryHeartRates;
+            if (packet.recoveryHeartRates == null)
+                recoveryHeartRates = null;
+            else
+                recoveryHeartRates = StringUtils.bytesToHex(packet.recoveryHeartRates).getBytes(StandardCharsets.UTF_8);
+
             HuaweiWorkoutSummarySample summarySample = new HuaweiWorkoutSummarySample(
                     workoutId,
                     deviceId,
@@ -1531,8 +1873,40 @@ public class HuaweiSupportProvider {
                     packet.poolLength,
                     packet.laps,
                     packet.avgSwolf,
-                    raw
+                    raw,
+                    null,
+                    packet.maxAltitude,
+                    packet.minAltitude,
+                    packet.elevationGain,
+                    packet.elevationLoss,
+                    packet.workoutLoad,
+                    packet.workoutAerobicEffect,
+                    packet.workoutAnaerobicEffect,
+                    packet.recoveryTime,
+                    packet.minHeartRatePeak,
+                    packet.maxHeartRatePeak,
+                    recoveryHeartRates,
+                    packet.swimType,
+                    packet.maxMET,
+                    packet.hrZoneType,
+                    packet.runPaceZone1Min,
+                    packet.runPaceZone2Min,
+                    packet.runPaceZone3Min,
+                    packet.runPaceZone4Min,
+                    packet.runPaceZone5Min,
+                    packet.runPaceZone5Max,
+                    packet.runPaceZone1Time,
+                    packet.runPaceZone2Time,
+                    packet.runPaceZone3Time,
+                    packet.runPaceZone4Time,
+                    packet.runPaceZone5Time,
+                    packet.algType,
+                    packet.trainingPoints,
+                    packet.longestStreak,
+                    packet.tripped
             );
+
+
             db.getDaoSession().getHuaweiWorkoutSummarySampleDao().insertOrReplace(summarySample);
 
             return summarySample.getWorkoutId();
@@ -1577,7 +1951,18 @@ public class HuaweiSupportProvider {
                         data.calories,
                         data.cyclingPower,
                         data.frequency,
-                        data.altitude
+                        data.altitude,
+                        data.hangTime,
+                        data.impactHangRate,
+                        data.rideCadence,
+                        data.ap,
+                        data.vo,
+                        data.gtb,
+                        data.vr,
+                        data.ceiling,
+                        data.temp,
+                        data.spo2,
+                        data.cns
                 );
                 dao.insertOrReplace(dataSample);
             }
@@ -1586,20 +1971,32 @@ public class HuaweiSupportProvider {
         }
     }
 
-    public void addWorkoutPaceData(Long workoutId, List<Workout.WorkoutPace.Response.Block> paceList) {
+    public void addWorkoutPaceData(Long workoutId, List<Workout.WorkoutPace.Response.Block> paceList, short number) {
         if (workoutId == null)
             return;
 
         try (DBHandler db = GBApplication.acquireDB()) {
             HuaweiWorkoutPaceSampleDao dao = db.getDaoSession().getHuaweiWorkoutPaceSampleDao();
 
+            if (number == 0) {
+                final DeleteQuery<HuaweiWorkoutPaceSample> tableDeleteQuery = dao.queryBuilder()
+                        .where(HuaweiWorkoutPaceSampleDao.Properties.WorkoutId.eq(workoutId))
+                        .buildDelete();
+                tableDeleteQuery.executeDeleteWithoutDetachingEntities();
+            }
+
+            int paceIndex = (int) dao.queryBuilder().where(HuaweiWorkoutPaceSampleDao.Properties.WorkoutId.eq(workoutId)).count();
             for (Workout.WorkoutPace.Response.Block block : paceList) {
+
+                Integer correction = block.hasCorrection ? (int) block.correction : null;
                 HuaweiWorkoutPaceSample paceSample = new HuaweiWorkoutPaceSample(
                         workoutId,
+                        paceIndex++,
                         block.distance,
                         block.type,
                         block.pace,
-                        block.correction
+                        block.pointIndex,
+                        correction
                 );
                 dao.insertOrReplace(paceSample);
             }
@@ -1608,12 +2005,210 @@ public class HuaweiSupportProvider {
         }
     }
 
+
+    public void addWorkoutSwimSegmentsData(Long workoutId, List<Workout.WorkoutSwimSegments.Response.Block> paceList, short number) {
+        if (workoutId == null)
+            return;
+
+        try (DBHandler db = GBApplication.acquireDB()) {
+            HuaweiWorkoutSwimSegmentsSampleDao dao = db.getDaoSession().getHuaweiWorkoutSwimSegmentsSampleDao();
+
+            if (number == 0) {
+                final DeleteQuery<HuaweiWorkoutSwimSegmentsSample> tableDeleteQuery = dao.queryBuilder()
+                        .where(HuaweiWorkoutSwimSegmentsSampleDao.Properties.WorkoutId.eq(workoutId))
+                        .buildDelete();
+                tableDeleteQuery.executeDeleteWithoutDetachingEntities();
+            }
+
+            int paceIndex = (int) dao.queryBuilder().where(HuaweiWorkoutSwimSegmentsSampleDao.Properties.WorkoutId.eq(workoutId)).count();
+            for (Workout.WorkoutSwimSegments.Response.Block block : paceList) {
+                HuaweiWorkoutSwimSegmentsSample swimSectionSample = new HuaweiWorkoutSwimSegmentsSample(
+                        workoutId,
+                        paceIndex++,
+                        block.distance,
+                        block.type,
+                        block.pace,
+                        block.pointIndex,
+                        block.segment,
+                        block.swimType,
+                        block.strokes,
+                        block.avgSwolf,
+                        block.time
+                );
+                dao.insertOrReplace(swimSectionSample);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to add workout swim section data to database", e);
+        }
+    }
+
+    public void addWorkoutSpO2Data(Long workoutId, List<Workout.WorkoutSpO2.Response.Block> spO2List, short number) {
+        if (workoutId == null)
+            return;
+
+        try (DBHandler db = GBApplication.acquireDB()) {
+            HuaweiWorkoutSpO2SampleDao dao = db.getDaoSession().getHuaweiWorkoutSpO2SampleDao();
+
+            if (number == 0) {
+                final DeleteQuery<HuaweiWorkoutSpO2Sample> tableDeleteQuery = dao.queryBuilder()
+                        .where(HuaweiWorkoutSpO2SampleDao.Properties.WorkoutId.eq(workoutId))
+                        .buildDelete();
+                tableDeleteQuery.executeDeleteWithoutDetachingEntities();
+            }
+
+            for (Workout.WorkoutSpO2.Response.Block block : spO2List) {
+                HuaweiWorkoutSpO2Sample spO2Sample = new HuaweiWorkoutSpO2Sample(
+                        workoutId,
+                        block.interval,
+                        block.value
+                );
+                dao.insertOrReplace(spO2Sample);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to add workout SpO2 data to database", e);
+        }
+    }
+
+    public void addWorkoutSectionsData(Long workoutId, List<Workout.WorkoutSections.Response.Block> spO2List, short number) {
+        if (workoutId == null)
+            return;
+
+        // NOTE: All fields of this data is optional. At this point I don't all workouts that this data used.
+        // I decided to add two additional fields dataIdx and rowIdx as primary keys that should identify each row
+        try (DBHandler db = GBApplication.acquireDB()) {
+            HuaweiWorkoutSectionsSampleDao dao = db.getDaoSession().getHuaweiWorkoutSectionsSampleDao();
+
+            if (number == 0) {
+                final DeleteQuery<HuaweiWorkoutSectionsSample> tableDeleteQuery = dao.queryBuilder()
+                        .where(HuaweiWorkoutSectionsSampleDao.Properties.WorkoutId.eq(workoutId))
+                        .buildDelete();
+                tableDeleteQuery.executeDeleteWithoutDetachingEntities();
+            }
+
+            int i = 0;
+            for (Workout.WorkoutSections.Response.Block block : spO2List) {
+                HuaweiWorkoutSectionsSample huaweiWorkoutSectionsSample = new HuaweiWorkoutSectionsSample(
+                        workoutId,
+                        number,
+                        i++,
+                        block.num,
+                        block.time,
+                        block.distance,
+                        block.pace,
+                        block.heartRate,
+                        block.cadence,
+                        block.stepLength,
+                        block.totalRise,
+                        block.totalDescend,
+                        block.groundContactTime,
+                        block.groundImpact,
+                        block.swingAngle,
+                        block.eversion,
+                        block.avgCadence,
+                        block.divingUnderwaterTime,
+                        block.divingMaxDepth,
+                        block.divingUnderwaterTime,
+                        block.divingBreakTime
+                );
+                dao.insertOrReplace(huaweiWorkoutSectionsSample);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to add workout sections data to database", e);
+        }
+    }
+
+    public void addDictData(List<HuaweiP2PDataDictionarySyncService.DictData> dictData) {
+        try (DBHandler db = GBApplication.acquireDB()) {
+            Long userId = DBHelper.getUser(db.getDaoSession()).getId();
+            Long deviceId = DBHelper.getDevice(gbDevice, db.getDaoSession()).getId();
+
+            for (HuaweiP2PDataDictionarySyncService.DictData data : dictData) {
+                // Avoid duplicates
+                QueryBuilder<HuaweiDictData> qb = db.getDaoSession().getHuaweiDictDataDao().queryBuilder().where(
+                        HuaweiDictDataDao.Properties.UserId.eq(userId),
+                        HuaweiDictDataDao.Properties.DeviceId.eq(deviceId),
+                        HuaweiDictDataDao.Properties.DictClass.eq(data.getDictClass()),
+                        HuaweiDictDataDao.Properties.StartTimestamp.eq(data.getStartTimestamp())
+                );
+                List<HuaweiDictData> results = qb.build().list();
+                Long dictId = null;
+                if (!results.isEmpty())
+                    dictId = results.get(0).getDictId();
+
+                HuaweiDictData dictSample = new HuaweiDictData(
+                        dictId,
+                        deviceId,
+                        userId,
+                        data.getDictClass(),
+                        data.getStartTimestamp(),
+                        data.getEndTimestamp(),
+                        data.getModifyTimestamp()
+                );
+                db.getDaoSession().getHuaweiDictDataDao().insertOrReplace(dictSample);
+                addDictDataValue(dictSample.getDictId(), data.getData());
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to add dict data", e);
+        }
+    }
+
+    public void addDictDataValue(Long dictId, List<HuaweiP2PDataDictionarySyncService.DictData.DictDataValue> dictDataValues) {
+        if (dictId == null)
+            return;
+
+        try (DBHandler db = GBApplication.acquireDB()) {
+            HuaweiDictDataValuesDao dao = db.getDaoSession().getHuaweiDictDataValuesDao();
+
+            for (HuaweiP2PDataDictionarySyncService.DictData.DictDataValue dataValues : dictDataValues) {
+
+                HuaweiDictDataValues dictValue = new HuaweiDictDataValues(
+                        dictId,
+                        dataValues.getDataType(),
+                        dataValues.getTag(),
+                        dataValues.getValue()
+                );
+                dao.insertOrReplace(dictValue);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to add dict value to database", e);
+        }
+    }
+
+    public long getLastDataDictLastTimestamp(int dictClass) {
+        long lastTimestamp = 0;
+        if (dictClass == 0)
+            return lastTimestamp;
+
+        try (DBHandler db = GBApplication.acquireDB()) {
+            Long userId = DBHelper.getUser(db.getDaoSession()).getId();
+            Long deviceId = DBHelper.getDevice(gbDevice, db.getDaoSession()).getId();
+
+            QueryBuilder<HuaweiDictData> qb = db.getDaoSession().getHuaweiDictDataDao().queryBuilder().where(
+                    HuaweiDictDataDao.Properties.UserId.eq(userId),
+                    HuaweiDictDataDao.Properties.DeviceId.eq(deviceId),
+                    HuaweiDictDataDao.Properties.DictClass.eq(dictClass)
+            );
+            List<HuaweiDictData> results = qb.build().list();
+            for (HuaweiDictData data : results) {
+                if (data.getModifyTimestamp() != null) {
+                    lastTimestamp = Math.max(lastTimestamp, data.getModifyTimestamp());
+                }
+                if (data.getEndTimestamp() != null) {
+                    lastTimestamp = Math.max(lastTimestamp, data.getEndTimestamp());
+                }
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to select last timestamp value to database", e);
+        }
+        return lastTimestamp;
+    }
+
+
     public void setWearLocation() {
         try {
             SetWearLocationRequest setWearLocationReq = new SetWearLocationRequest(this);
             setWearLocationReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to configure Wear Location", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to configure Wear Location", e);
         }
@@ -1621,10 +2216,10 @@ public class HuaweiSupportProvider {
 
     public void getBatteryLevel() {
         try {
+            stopBatteryRunnerDelayed();
             GetBatteryLevelRequest batteryLevelReq = new GetBatteryLevelRequest(this);
             batteryLevelReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to get battery Level", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to get battery Level", e);
         }
@@ -1640,7 +2235,6 @@ public class HuaweiSupportProvider {
         }
     }
 
-
     public void setActivateOnLift() {
         try {
             SetActivateOnLiftRequest setActivateOnLiftReq = new SetActivateOnLiftRequest(this);
@@ -1651,7 +2245,6 @@ public class HuaweiSupportProvider {
                 setDnd();
             }
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to configure Activate on Rotate", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to configure Activate on Rotate", e);
         }
@@ -1662,7 +2255,6 @@ public class HuaweiSupportProvider {
             SetNavigateOnRotateRequest setNavigateOnRotateReq = new SetNavigateOnRotateRequest(this);
             setNavigateOnRotateReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to configure Navigate on Rotate", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to configure Navigate on Rotate", e);
         }
@@ -1673,7 +2265,6 @@ public class HuaweiSupportProvider {
             SetActivityReminderRequest setActivityReminderReq = new SetActivityReminderRequest(this);
             setActivityReminderReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to configure Activity reminder", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to configure Activity reminder", e);
         }
@@ -1684,9 +2275,28 @@ public class HuaweiSupportProvider {
             SetTruSleepRequest setTruSleepReq = new SetTruSleepRequest(this);
             setTruSleepReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to configure truSleep", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to configure truSleep", e);
+        }
+    }
+
+    public void setTemperatureUnit() {
+        try {
+            SetTemperatureUnitSetting setTemperatureUnitSetting = new SetTemperatureUnitSetting(this);
+            setTemperatureUnitSetting.doPerform();
+        } catch (IOException e) {
+            GB.toast(context, "Failed to set temperature unit", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Failed to configure TemperatureUnitSetting", e);
+        }
+    }
+
+    public void setContinuousSkinTemperatureMeasurement() {
+        try {
+            SetSkinTemperatureMeasurement skinTemperatureMeasurement = new SetSkinTemperatureMeasurement(this);
+            skinTemperatureMeasurement.doPerform();
+        } catch (IOException e) {
+            GB.toast(context, "Failed to configure continuous skin temperature measurement", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Failed to configure SkinTemperatureMeasurement", e);
         }
     }
 
@@ -1697,7 +2307,6 @@ public class HuaweiSupportProvider {
             sendDndDeleteReq.nextRequest(sendDndAddReq);
             sendDndDeleteReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to set DND", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to set DND", e);
         }
@@ -1708,7 +2317,6 @@ public class HuaweiSupportProvider {
             SetWearMessagePushRequest setWearMessagePushReq = new SetWearMessagePushRequest(this);
             setWearMessagePushReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Setting DND not wear failed", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Setting DND not wear failed", e);
         }
@@ -1720,7 +2328,6 @@ public class HuaweiSupportProvider {
             SetDisconnectNotification req = new SetDisconnectNotification(this);
             req.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to set disconnect notification", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to set disconnect notification", e);
         }
@@ -1731,9 +2338,28 @@ public class HuaweiSupportProvider {
             SetAutomaticHeartrateRequest req = new SetAutomaticHeartrateRequest(this);
             req.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to set automatic heart rate", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to set automatic heart rate", e);
+        }
+    }
+
+    private void setHeartRateLowAlert() {
+        try {
+            SetHeartRateLowAlert req = new SetHeartRateLowAlert(this);
+            req.doPerform();
+        } catch (IOException e) {
+            GB.toast(context, "Failed to set heart rate low alert", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Failed to set heart rate low alert", e);
+        }
+    }
+
+    private void setHeartRateHighAlert() {
+        try {
+            SetHeartRateHighAlert req = new SetHeartRateHighAlert(this);
+            req.doPerform();
+        } catch (IOException e) {
+            GB.toast(context, "Failed to set heart rate high alert", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Failed to set heart rate high alert", e);
         }
     }
 
@@ -1742,10 +2368,111 @@ public class HuaweiSupportProvider {
             SetAutomaticSpoRequest req = new SetAutomaticSpoRequest(this);
             req.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to set automatic SpO", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to set automatic SpO", e);
         }
+    }
+
+    private void setSpoLowAlert() {
+        try {
+            SetSpO2LowAlert req = new SetSpO2LowAlert(this);
+            req.doPerform();
+        } catch (IOException e) {
+            GB.toast(context, "Failed to set spo low alert", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Failed to set spo low alert", e);
+        }
+    }
+
+    private void setStress() {
+        boolean automaticStressEnabled = GBApplication
+                .getDeviceSpecificSharedPrefs(getDevice().getAddress())
+                .getBoolean(HuaweiConstants.PREF_HUAWEI_STRESS_SWITCH, false);
+        if(automaticStressEnabled && getLastStressData() == null) {
+            SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(this.getDevice().getAddress());
+            SharedPreferences.Editor editor = sharedPrefs.edit();
+            editor.putBoolean(HuaweiConstants.PREF_HUAWEI_STRESS_SWITCH, false);
+            editor.apply();
+            GB.toast(context, context.getString(R.string.huawei_stress_no_calibration_data), Toast.LENGTH_SHORT, GB.ERROR);
+            return;
+        }
+
+        try {
+            SetStressRequest req = new SetStressRequest(this, automaticStressEnabled);
+            req.doPerform();
+        } catch (IOException e) {
+            GB.toast(context, "Failed to set stress", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Failed to set stress", e);
+        }
+    }
+
+    private void calibrateStress() {
+
+        if(stressCalibration != null) {
+            GB.toast(context.getString(R.string.huawei_stress_calibrate_in_progress), Toast.LENGTH_SHORT, GB.INFO);
+            return;
+        }
+
+        stressCalibration = new HuaweiStressCalibration(this);
+        boolean ret = stressCalibration.startMeasurements(new HuaweiStressCalibration.HuaweiStressCalibrateCallback() {
+            @Override
+            public void onFinish(HuaweiStressParser.StressData stressData) {
+                stressCalibration = null;
+                GB.toast(context.getString(R.string.huawei_stress_calibrate_done), Toast.LENGTH_SHORT, GB.INFO);
+                final Intent intent = new Intent(HuaweiStressCalibrationFragment.ACTION_STRESS_RESULT);
+                String str = HuaweiStressParser.stressDataToJsonStr(stressData);
+                if(!TextUtils.isEmpty(str)) {
+                    intent.putExtra(HuaweiStressCalibrationFragment.EXTRA_STRESS_ERROR, false);
+                    intent.putExtra(HuaweiStressCalibrationFragment.EXTRA_STRESS_DATA, str);
+                } else {
+                    intent.putExtra(HuaweiStressCalibrationFragment.EXTRA_STRESS_ERROR, true);
+                }
+                LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
+            }
+
+            @Override
+            public void onProgress(long j) {
+                final Intent intent = new Intent(HuaweiStressCalibrationFragment.ACTION_STRESS_UPDATE);
+                intent.putExtra(HuaweiStressCalibrationFragment.EXTRA_STRESS_PROGRESS, j);
+                LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
+            }
+
+            @Override
+            public void onError() {
+                stressCalibration = null;
+                final Intent intent = new Intent(HuaweiStressCalibrationFragment.ACTION_STRESS_RESULT);
+                intent.putExtra(HuaweiStressCalibrationFragment.EXTRA_STRESS_ERROR, true);
+                LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
+                GB.toast(context.getString(R.string.huawei_stress_calibrate_error), Toast.LENGTH_SHORT, GB.ERROR);
+            }
+        });
+        if(ret) {
+            GB.toast(context.getString(R.string.huawei_stress_calibrate_started), Toast.LENGTH_SHORT, GB.INFO);
+        } else {
+            GB.toast(context.getString(R.string.huawei_stress_calibrate_in_progress), Toast.LENGTH_SHORT, GB.INFO);
+        }
+    }
+
+    public void storeLastStressData(HuaweiStressParser.StressData data) {
+        String str = HuaweiStressParser.stressDataToJsonStr(data);
+        if(TextUtils.isEmpty(str)) {
+            LOG.error("Failed to store stress data");
+            return;
+        }
+        SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(deviceMac);
+        SharedPreferences.Editor editor = sharedPrefs.edit();
+        editor.putString(HuaweiConstants.PREF_HUAWEI_STRESS_LAST_DATA, str);
+        editor.apply();
+    }
+
+    public HuaweiStressParser.StressData getLastStressData() {
+        String str = GBApplication
+                .getDeviceSpecificSharedPrefs(this.getDevice().getAddress())
+                .getString(HuaweiConstants.PREF_HUAWEI_STRESS_LAST_DATA, "");
+        if(TextUtils.isEmpty(str)) {
+            LOG.error("Failed to get saved stress data");
+            return null;
+        }
+        return HuaweiStressParser.stressDataFromJsonStr(str);
     }
 
     public void sendDebugRequest() {
@@ -1754,7 +2481,6 @@ public class HuaweiSupportProvider {
             DebugRequest req = new DebugRequest(this);
             req.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to send debug request", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to send debug request", e);
         }
@@ -1766,7 +2492,6 @@ public class HuaweiSupportProvider {
             StopFindPhoneRequest stopFindPhoneRequest = new StopFindPhoneRequest(this);
             stopFindPhoneRequest.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to send stop find phone request", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to send stop find phone request", e);
         }
@@ -1777,137 +2502,17 @@ public class HuaweiSupportProvider {
             SetLanguageSettingRequest setLocaleReq = new SetLanguageSettingRequest(this);
             setLocaleReq.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to set language settings request", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to set language settings request", e);
         }
     }
 
     public Weather.WeatherIcon openWeatherMapConditionCodeToHuaweiIcon(int conditionCode) {
-        // More exact first, groups after
-        switch (conditionCode) {
-            case 500:
-                return Weather.WeatherIcon.LIGHT_RAIN;
-            case 501:
-                return Weather.WeatherIcon.RAIN;
-            case 502:
-                return Weather.WeatherIcon.HEAVY_RAIN;
-            case 503:
-                return Weather.WeatherIcon.RAIN_STORM;
-            case 504:
-                return Weather.WeatherIcon.SEVERE_RAIN_STORMS;
-            case 511:
-                return Weather.WeatherIcon.FREEZING_RAIN;
-            case 600:
-                return Weather.WeatherIcon.LIGHT_SNOW;
-            case 601:
-                return Weather.WeatherIcon.SNOW;
-            case 602:
-                return Weather.WeatherIcon.HEAVY_SNOW;
-            case 611:
-                return Weather.WeatherIcon.SLEET;
-            case 701:
-            case 741:
-                return Weather.WeatherIcon.FOG;
-            case 721:
-                return Weather.WeatherIcon.HAZY;
-            case 751:
-                return Weather.WeatherIcon.SAND;
-            case 761:
-                return Weather.WeatherIcon.DUST;
-            case 800:
-                return Weather.WeatherIcon.SUNNY;
-            case 801:
-            case 802:
-                return Weather.WeatherIcon.CLOUDY;
-            case 803:
-            case 804:
-                return Weather.WeatherIcon.OVERCAST;
-        }
-        if (conditionCode >= 200 && conditionCode < 300)
-            return Weather.WeatherIcon.THUNDERSTORMS;
-        if (conditionCode >= 300 && conditionCode < 400)
-            return Weather.WeatherIcon.LIGHT_RAIN;
-        if (conditionCode >= 500 && conditionCode < 600)
-            return Weather.WeatherIcon.RAIN;
-        if (conditionCode >= 600 && conditionCode < 700)
-            return Weather.WeatherIcon.SNOW;
-        return Weather.WeatherIcon.UNKNOWN;
+        return huaweiWeatherManager.openWeatherMapConditionCodeToHuaweiIcon(conditionCode);
     }
 
     public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        // Initialize weather settings and send weather
-        if (!getHuaweiCoordinator().supportsWeather()) {
-            LOG.error("onSendWeather called while weather is not supported.");
-            return;
-        }
-
-        WeatherSpec weatherSpec = weatherSpecs.get(0);
-
-        Weather.Settings weatherSettings = new Weather.Settings();
-
-        SendWeatherStartRequest weatherStartRequest = new SendWeatherStartRequest(this, weatherSettings);
-        try {
-            weatherStartRequest.doPerform();
-        } catch (IOException e) {
-            // TODO: Use translatable string
-            GB.toast(context, "Failed to send start weather", Toast.LENGTH_SHORT, GB.ERROR, e);
-            LOG.error("Failed to send start weather", e);
-        }
-
-        Request firstRequest = null;
-        Request lastRequest = null;
-
-        if (getHuaweiCoordinator().supportsWeatherUnit()) {
-            SendWeatherUnitRequest weatherUnitRequest = new SendWeatherUnitRequest(this);
-            firstRequest = weatherUnitRequest;
-            lastRequest = weatherUnitRequest;
-        }
-
-        SendWeatherSupportRequest weatherSupportRequest = new SendWeatherSupportRequest(this, weatherSettings);
-        if (firstRequest == null) {
-            firstRequest = weatherSupportRequest;
-        } else {
-            lastRequest.nextRequest(weatherSupportRequest);
-        }
-        lastRequest = weatherSupportRequest;
-
-
-        if (getHuaweiCoordinator().supportsWeatherExtended()) {
-            SendWeatherExtendedSupportRequest weatherExtendedSupportRequest = new SendWeatherExtendedSupportRequest(this, weatherSettings);
-            lastRequest.nextRequest(weatherExtendedSupportRequest);
-            lastRequest = weatherExtendedSupportRequest;
-        }
-
-        if (getHuaweiCoordinator().supportsWeatherMoonRiseSet()) {
-            SendWeatherSunMoonSupportRequest weatherSunMoonSupportRequest = new SendWeatherSunMoonSupportRequest(this, weatherSettings);
-            lastRequest.nextRequest(weatherSunMoonSupportRequest);
-            lastRequest = weatherSunMoonSupportRequest;
-        }
-
-        // End of initialization and start of actually sending weather
-
-        SendWeatherCurrentRequest sendWeatherCurrentRequest = new SendWeatherCurrentRequest(this, weatherSettings, weatherSpec);
-        lastRequest.nextRequest(sendWeatherCurrentRequest);
-        lastRequest = sendWeatherCurrentRequest;
-
-        SendGpsAndTimeToDeviceRequest sendGpsAndTimeToDeviceRequest = new SendGpsAndTimeToDeviceRequest(this);
-        lastRequest.nextRequest(sendGpsAndTimeToDeviceRequest);
-        lastRequest = sendGpsAndTimeToDeviceRequest;
-
-        if (getHuaweiCoordinator().supportsWeatherForecasts()) {
-            SendWeatherForecastRequest sendWeatherForecastRequest = new SendWeatherForecastRequest(this, weatherSettings, weatherSpec);
-            lastRequest.nextRequest(sendWeatherForecastRequest);
-            lastRequest = sendWeatherForecastRequest;
-        }
-
-        try {
-            firstRequest.doPerform();
-        } catch (IOException e) {
-            // TODO: Use translatable string
-            GB.toast(context, "Failed to send weather", Toast.LENGTH_SHORT, GB.ERROR, e);
-            LOG.error("Failed to send weather", e);
-        }
+        huaweiWeatherManager.sendWeather(weatherSpecs.get(0));
     }
 
     public void onSetGpsLocation(Location location) {
@@ -1923,26 +2528,72 @@ public class HuaweiSupportProvider {
             return;
         }
 
-        SendGpsDataRequest sendGpsDataRequest = new SendGpsDataRequest(this, location, gpsParametersResponse);
+        SendGpsDataRequest sendGpsDataRequest = new SendGpsDataRequest(this, location, gpsLastLocation, gpsParametersResponse);
         try {
             sendGpsDataRequest.doPerform();
         } catch (IOException e) {
-            // TODO: Use translatable string
             GB.toast(context, "Failed to send GPS data", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Failed to send GPS data", e);
         }
+        gpsLastLocation = location;
     }
 
     public void onInstallApp(Uri uri) {
-        LOG.info("enter onAppInstall uri: "+uri);
+        LOG.info("enter onAppInstall uri: {}", uri);
         HuaweiFwHelper huaweiFwHelper = new HuaweiFwHelper(uri, getContext());
-        huaweiUploadManager.setBytes(huaweiFwHelper.getBytes());
-        huaweiUploadManager.setFileType(huaweiFwHelper.getFileType());
-        if (huaweiFwHelper.isWatchface()) {
-            huaweiUploadManager.setFileName(huaweiWatchfaceManager.getRandomName());
-        } else {
-            huaweiUploadManager.setFileName(huaweiFwHelper.getFileName());
+
+        if(huaweiFwHelper.isFirmware) {
+            huaweiOTAManager.startFwUpdate(huaweiFwHelper.fwInfo, uri);
+            return;
         }
+
+        HuaweiUploadManager.FileUploadInfo fileInfo = new HuaweiUploadManager.FileUploadInfo();
+
+        if (huaweiFwHelper.isMusic()) {
+            getHuaweiMusicManager().addUploadMusic(huaweiFwHelper.getMusicInfo());
+        }
+
+        fileInfo.setFileType(huaweiFwHelper.getFileType());
+        if (huaweiFwHelper.isWatchface()) {
+            fileInfo.setFileName(huaweiWatchfaceManager.getRandomName());
+        } else {
+            fileInfo.setFileName(huaweiFwHelper.getFileName());
+        }
+        fileInfo.setBytes(huaweiFwHelper.getBytes());
+
+        fileInfo.setFileUploadCallback(new HuaweiUploadManager.FileUploadCallback() {
+            @Override
+            public void onUploadStart() {
+                HuaweiSupportProvider.this.huaweiUploadManager.setDeviceBusy();
+            }
+
+            @Override
+            public void onUploadProgress(int progress) {
+                HuaweiSupportProvider.this.onUploadProgress(R.string.updatefirmwareoperation_update_in_progress, progress, true);
+            }
+
+            @Override
+            public void onUploadComplete() {
+                HuaweiSupportProvider.this.huaweiUploadManager.unsetDeviceBusy();
+                HuaweiSupportProvider.this.onUploadProgress(R.string.updatefirmwareoperation_update_complete, 100, false);
+            }
+
+            @Override
+            public void onError(int code) {
+                if (code == 140004) {
+                    LOG.error("Too many watchfaces installed or musics uploaded");
+                    HuaweiSupportProvider.this.handleGBDeviceEvent(new GBDeviceEventDisplayMessage(HuaweiSupportProvider.this.getContext().getString(R.string.cannot_upload_watchface_too_many_watchfaces_installed), Toast.LENGTH_LONG, GB.ERROR));
+                } else if (code == 140008) {
+                    LOG.error("File already exists");
+                    HuaweiSupportProvider.this.handleGBDeviceEvent(new GBDeviceEventDisplayMessage(HuaweiSupportProvider.this.getContext().getString(R.string.file_already_exists), Toast.LENGTH_LONG, GB.ERROR));
+                } else if (code == 140009) {
+                    LOG.error("Insufficient space for upload");
+                    HuaweiSupportProvider.this.handleGBDeviceEvent(new GBDeviceEventDisplayMessage(HuaweiSupportProvider.this.getContext().getString(R.string.insufficient_space_for_upload), Toast.LENGTH_LONG, GB.ERROR));
+                }
+            }
+        });
+
+        huaweiUploadManager.setFileUploadInfo(fileInfo);
 
         try {
             SendFileUploadInfo sendFileUploadInfo = new SendFileUploadInfo(this, huaweiUploadManager);
@@ -1980,34 +2631,64 @@ public class HuaweiSupportProvider {
         }
     }
 
-    public void onAppInfoReq() {
-        huaweiWatchfaceManager.requestWatchfaceList();
+    private List<GBDeviceApp> gbWatchFaces = null;
+    private List<GBDeviceApp> gbWatchApps = null;
+
+    public void setGbWatchFaces(List<GBDeviceApp> gbWatchFaces) {
+        this.gbWatchFaces = gbWatchFaces;
+        updateAppList();
     }
-    
+
+    public void setGbWatchApps(List<GBDeviceApp> gbWatchApps) {
+        this.gbWatchApps = gbWatchApps;
+        updateAppList();
+    }
+
+    private void updateAppList() {
+        ArrayList<GBDeviceApp> gbDeviceApps = new ArrayList<>();
+        if (this.gbWatchFaces != null)
+            gbDeviceApps.addAll(this.gbWatchFaces);
+        if (this.gbWatchApps != null)
+            gbDeviceApps.addAll(this.gbWatchApps);
+        final GBDeviceEventAppInfo appInfoCmd = new GBDeviceEventAppInfo();
+        appInfoCmd.apps = gbDeviceApps.toArray(new GBDeviceApp[0]);
+        evaluateGBDeviceEvent(appInfoCmd);
+    }
+
+    public void onAppInfoReq() {
+        this.gbWatchFaces = null;
+        this.gbWatchApps = null;
+        huaweiWatchfaceManager.requestWatchfaceList();
+        huaweiAppManager.requestAppList();
+    }
+
     public void onAppStart(final UUID uuid, boolean start) {
         if (start) {
-            huaweiWatchfaceManager.setWatchface(uuid);
+            //NOTE: to prevent exception in watchfaces code
+            if (!huaweiAppManager.startApp(uuid)) {
+                huaweiWatchfaceManager.setWatchface(uuid);
+            }
         }
     }
 
     public void onAppDelete(final UUID uuid) {
-        huaweiWatchfaceManager.deleteWatchface(uuid);
+        //NOTE: to prevent exception in watchfaces code
+        if (!huaweiAppManager.deleteApp(uuid)) {
+            huaweiWatchfaceManager.deleteWatchface(uuid);
+        }
     }
 
     public void onCameraStatusChange(GBDeviceEventCameraRemote.Event event, String filename) {
         if (event == GBDeviceEventCameraRemote.Event.OPEN_CAMERA) {
             // Somehow a delay is necessary for the watch
             new Handler(GBApplication.getContext().getMainLooper()).postDelayed(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            SendCameraRemoteSetupEvent sendCameraRemoteSetupEvent = new SendCameraRemoteSetupEvent(HuaweiSupportProvider.this, CameraRemote.CameraRemoteSetup.Request.Event.CAMERA_STARTED);
-                            try {
-                                sendCameraRemoteSetupEvent.doPerform();
-                            } catch (IOException e) {
-                                GB.toast("Failed to send open camera request", Toast.LENGTH_SHORT, GB.ERROR, e);
-                                LOG.error("Failed to send open camera request", e);
-                            }
+                    () -> {
+                        SendCameraRemoteSetupEvent sendCameraRemoteSetupEvent = new SendCameraRemoteSetupEvent(HuaweiSupportProvider.this, CameraRemote.CameraRemoteSetup.Request.Event.CAMERA_STARTED);
+                        try {
+                            sendCameraRemoteSetupEvent.doPerform();
+                        } catch (IOException e) {
+                            GB.toast("Failed to send open camera request", Toast.LENGTH_SHORT, GB.ERROR, e);
+                            LOG.error("Failed to send open camera request", e);
                         }
                     },
                     3000
@@ -2022,4 +2703,382 @@ public class HuaweiSupportProvider {
             }
         }
     }
+
+    public void onSetContacts(ArrayList<? extends Contact> contacts) {
+        SendSetContactsRequest sendSetContactsRequest = new SendSetContactsRequest(
+                this,
+                contacts,
+                this.getHuaweiCoordinator().getContactsSlotCount(getDevice())
+        );
+        try {
+            sendSetContactsRequest.doPerform();
+        } catch (IOException e) {
+            GB.toast(context, "Failed to set contacts", Toast.LENGTH_SHORT, GB.ERROR, e);
+            LOG.error("Failed to send set contacts request", e);
+        }
+
+    }
+
+    public void onAddCalendarEvent(final CalendarEventSpec calendarEventSpec) {
+        HuaweiP2PCalendarService service = HuaweiP2PCalendarService.getRegisteredInstance(huaweiP2PManager);
+        if (service != null) {
+            service.onAddCalendarEvent(calendarEventSpec);
+        }
+    }
+
+    public void onDeleteCalendarEvent(final byte type, long id) {
+        HuaweiP2PCalendarService service = HuaweiP2PCalendarService.getRegisteredInstance(huaweiP2PManager);
+        if (service != null) {
+            service.onDeleteCalendarEvent(type, id);
+        }
+    }
+
+    public boolean startBatteryRunnerDelayed() {
+        int interval_minutes = GBApplication.getDevicePrefs(gbDevice).getBatteryPollingIntervalMinutes();
+        int interval = interval_minutes * 60 * 1000;
+        LOG.debug("Starting battery runner delayed by {} ({} minutes)", interval, interval_minutes);
+        handler.removeCallbacks(batteryRunner);
+        return handler.postDelayed(batteryRunner, interval);
+    }
+
+    public void stopBatteryRunnerDelayed() {
+        LOG.debug("Stopping battery runner delayed");
+        handler.removeCallbacks(batteryRunner);
+    }
+
+    public void dispose() {
+        stopBatteryRunnerDelayed();
+        huaweiFileDownloadManager.dispose();
+        huaweiP2PManager.unregisterAllService();
+        huaweiDataSyncManager.unregisterAll();
+        this.huaweiDataSyncTreeCircleGoals = null;
+    }
+
+    public void deviceFileDownloadRequest(String filename, byte fileType, byte fileId, int fileSize, String srcPackage, String dstPackage, String srcFingerprint, String dstFingerprint) {
+        HuaweiFileDownloadManager.FileRequest request = HuaweiFileDownloadManager.FileRequest.IncomingFileRequest(filename, new HuaweiFileDownloadManager.FileDownloadCallback() {
+            @Override
+            public void downloadComplete(HuaweiFileDownloadManager.FileRequest fileRequest) {
+                    LOG.info("Download file: {}", fileRequest.getFilename());
+                    huaweiP2PManager.handleFile(fileRequest.getSrcPackage(), fileRequest.getDstPackage(), fileRequest.getSrcFingerprint(), fileRequest.getDstFingerprint(), fileRequest.getFilename(), fileRequest.getData());
+            }
+
+            @Override
+            public void downloadException(HuaweiFileDownloadManager.HuaweiFileDownloadException e) {
+                super.downloadException(e);
+                LOG.debug("Download exception");
+            }
+        });
+
+        request.setInitFormDevice(true);
+        request.setInFileType(fileType);
+        request.setFileId(fileId);
+        request.setFileSize(fileSize);
+        request.setSrcPackage(srcPackage);
+        request.setDstPackage(dstPackage);
+        request.setSrcFingerprint(srcFingerprint);
+        request.setDstFingerprint(dstFingerprint);
+        request.setNeedVerify(true);
+
+        huaweiFileDownloadManager.addToQueue(request, false);
+
+    }
+
+    public boolean downloadTruSleepData(int start, int end) {
+        // We only get the data if TruSleep is supported
+        if (!getHuaweiCoordinator().supportsTruSleep())
+            return false;
+
+        huaweiFileDownloadManager.addToQueue(HuaweiFileDownloadManager.FileRequest.sleepStateFileRequest(
+                getHuaweiCoordinator().getSupportsTruSleepNewSync(),
+                start,
+                end,
+                new HuaweiFileDownloadManager.FileDownloadCallback() {
+                    @Override
+                    public void downloadComplete(HuaweiFileDownloadManager.FileRequest fileRequest) {
+                        if (fileRequest.getData().length != 0) {
+                            LOG.debug("Parsing sleep state file");
+                            HuaweiTruSleepParser.TruSleepStatus[] results = HuaweiTruSleepParser.parseState(fileRequest.getData());
+                            for (HuaweiTruSleepParser.TruSleepStatus status : results)
+                                addSleepActivity(status.startTime, status.endTime, (byte) 0x06, (byte) 0x0a);
+                        } else
+                            LOG.debug("Sleep state file empty");
+                        syncState.setActivitySync(false);
+                    }
+
+                    @Override
+                    public void downloadException(HuaweiFileDownloadManager.HuaweiFileDownloadException e) {
+                        super.downloadException(e);
+                        syncState.setActivitySync(false);
+                    }
+                }
+        ), true);
+        return true;
+    }
+
+    public boolean downloadStressData(int start, int end) {
+        if (!getHuaweiCoordinator().supportsAutoStress())
+            return false;
+
+        huaweiFileDownloadManager.addToQueue(HuaweiFileDownloadManager.FileRequest.rriFileRequest(
+                getHuaweiCoordinator().getSupportsRriNewSync(),
+                start,
+                end,
+                new HuaweiFileDownloadManager.FileDownloadCallback() {
+                    @Override
+                    public void downloadComplete(HuaweiFileDownloadManager.FileRequest fileRequest) {
+                        if (fileRequest.getData().length != 0) {
+                            LOG.debug("Parsing stress file");
+                            HuaweiStressParser.RriFileData results = HuaweiStressParser.parseRri(fileRequest.getData());
+                            LOG.info("stress result: {}", results);
+                            if(results != null && !results.stressData.isEmpty()) {
+                                HuaweiStressParser.StressData stressData = results.stressData.get(results.stressData.size() - 1);
+                                LOG.info("Last stored stress data: {}", stressData);
+                                HuaweiStressParser.StressData currentStressData = getLastStressData();
+                                if(currentStressData == null || stressData.endTime > currentStressData.endTime) {
+                                    storeLastStressData(stressData);
+                                }
+                                for(HuaweiStressParser.StressData dt: results.stressData) {
+                                    addStressData(dt.startTime, dt.endTime, dt.score, dt.level);
+                                }
+                            }
+
+                        } else {
+                            LOG.debug("Stress file empty");
+                        }
+                        syncState.setActivitySync(false);
+                    }
+
+                    @Override
+                    public void downloadException(HuaweiFileDownloadManager.HuaweiFileDownloadException e) {
+                        super.downloadException(e);
+                        syncState.setActivitySync(false);
+                    }
+                }
+        ), true);
+        return true;
+    }
+
+    public void nextWorkoutSync(List<Workout.WorkoutCount.Response.WorkoutNumbers> remainder, RequestCallback finalizeReq) {
+        if (!remainder.isEmpty()) {
+            GetWorkoutTotalsRequest nextRequest = new GetWorkoutTotalsRequest(
+                    this,
+                    remainder.remove(0),
+                    remainder
+            );
+            nextRequest.setFinalizeReq(finalizeReq);
+            // Cannot do this with nextRequest because it's in a callback
+            try {
+                nextRequest.doPerform();
+            } catch (IOException e) {
+                finalizeReq.handleException(new Request.ResponseParseException("Cannot send next request", e));
+            }
+        } else {
+            this.endOfWorkoutSync();
+        }
+    }
+
+
+    public void endOfWorkoutSync() {
+        this.syncState.setWorkoutSync(false);
+    }
+
+    public void downloadWorkoutGpsFiles(short workoutId, Long databaseId, Runnable extraCallbackAction) {
+        syncState.startWorkoutGpsDownload();
+
+        huaweiFileDownloadManager.addToQueue(HuaweiFileDownloadManager.FileRequest.workoutGpsFileRequest(
+                getHuaweiCoordinator().isSupportsGpsNewSync(),
+                workoutId,
+                databaseId,
+                new HuaweiFileDownloadManager.FileDownloadCallback() {
+                    @Override
+                    public void downloadComplete(HuaweiFileDownloadManager.FileRequest fileRequest) {
+                        extraCallbackAction.run();
+
+                        if (fileRequest.getData().length == 0) {
+                            LOG.debug("GPS file empty");
+                            syncState.stopWorkoutGpsDownload();
+                            return;
+                        }
+
+                        LOG.debug("Parsing GPS file");
+
+                        HuaweiGpsParser.GpsPoint[] points = HuaweiGpsParser.parseHuaweiGps(fileRequest.getData());
+
+                        LOG.debug("Received {} GPS points", points.length);
+
+                        if (points.length == 0) {
+                            LOG.debug("No GPS points returned");
+                            syncState.stopWorkoutGpsDownload();
+                            return;
+                        }
+
+                        ActivityTrack track = new ActivityTrack();
+
+                        track.setName("Workout " + fileRequest.getWorkoutId());
+                        track.setBaseTime(DateTimeUtils.parseTimeStamp(points[0].timestamp));
+
+                        try (DBHandler db = GBApplication.acquireDB()) {
+                            track.setUser(DBHelper.getUser(db.getDaoSession()));
+                            track.setDevice(DBHelper.getDevice(gbDevice, db.getDaoSession()));
+                        } catch (Exception e) {
+                            LOG.error("Cannot acquire DB, set user, or set device for Activity track, continuing anyway");
+                        }
+
+                        for (HuaweiGpsParser.GpsPoint point : points) {
+                            GPSCoordinate coordinate;
+                            if (point.altitudeSupported)
+                                coordinate = new GPSCoordinate(point.longitude, point.latitude, point.altitude);
+                            else
+                                coordinate = new GPSCoordinate(point.longitude, point.latitude);
+
+                            ActivityPoint activityPoint = new ActivityPoint();
+                            activityPoint.setTime(DateTimeUtils.parseTimeStamp(point.timestamp));
+                            activityPoint.setLocation(coordinate);
+
+                            track.addTrackPoint(activityPoint);
+                        }
+
+                        String filename = FileUtils.makeValidFileName("workout_" + fileRequest.getWorkoutId() + "_" + points[0].timestamp + ".gpx");
+                        File targetFile;
+                        try {
+                            targetFile = new File(
+                                    getDevice().getDeviceCoordinator().getWritableExportDirectory(getDevice()),
+                                    filename
+                            );
+                        } catch (IOException e) {
+                            GB.toast(context, "Could not open Workout GPS file to write to", Toast.LENGTH_SHORT, GB.ERROR, e);
+                            LOG.error("Could not open Workout GPS file to write to", e);
+                            syncState.stopWorkoutGpsDownload();
+                            return;
+                        }
+
+                        GPXExporter exporter = new GPXExporter();
+                        exporter.setCreator(GBApplication.app().getNameAndVersion());
+                        try {
+                            exporter.performExport(track, targetFile);
+                        } catch (IOException | ActivityTrackExporter.GPXTrackEmptyException e) {
+                            GB.toast(context, "Failed to export Workout GPX file", Toast.LENGTH_SHORT, GB.ERROR, e);
+                            LOG.error("Failed to export Workout GPX file", e);
+                            syncState.stopWorkoutGpsDownload();
+                            return;
+                        }
+
+                        Long databaseId = fileRequest.getDatabaseId();
+                        if (databaseId == null) {
+                            GB.toast(context, "Cannot link GPX to workout", Toast.LENGTH_SHORT, GB.ERROR);
+                            LOG.error("Cannot link GPX to workout");
+                            syncState.stopWorkoutGpsDownload();
+                            return;
+                        }
+
+                        try (DBHandler db = GBApplication.acquireDB()) {
+                            DaoSession daoSession = db.getDaoSession();
+                            HuaweiWorkoutSummarySample sample = daoSession.getHuaweiWorkoutSummarySampleDao().load(databaseId);
+                            sample.setGpxFileLocation(targetFile.getAbsolutePath());
+                            sample.update();
+                        } catch (Exception e) {
+                            GB.toast(context, "Failed to save Workout GPX file location", Toast.LENGTH_SHORT, GB.ERROR, e);
+                            LOG.error("Failed to save Workout GPX file location", e);
+                            syncState.stopWorkoutGpsDownload();
+                            return;
+                        }
+
+                        new HuaweiWorkoutGbParser(getDevice(), getContext()).parseWorkout(databaseId);
+
+                        LOG.debug("Completed workout GPS parsing and inserting");
+                        syncState.stopWorkoutGpsDownload();
+                    }
+
+                    @Override
+                    public void downloadException(HuaweiFileDownloadManager.HuaweiFileDownloadException e) {
+                        super.downloadException(e);
+                        syncState.stopWorkoutGpsDownload();
+
+                        extraCallbackAction.run();
+                    }
+                }
+        ), true);
+    }
+
+    /**
+     * Called when there are no more files left to download
+     */
+    public void downloadQueueEmpty(boolean needSync) {
+        syncState.updateState(needSync);
+    }
+
+
+    public void onTestNewFunction() {
+        // Show to user
+        gbDevice.setBusyTask("Downloading files...");
+        gbDevice.sendDeviceUpdateIntent(getContext());
+
+        HuaweiTruSleepParser.SleepFileDownloadCallback callback = new HuaweiTruSleepParser.SleepFileDownloadCallback(this) {
+            @Override
+            public void syncComplete(byte[] statusData, byte[] sleepData) {
+                LOG.debug("Sync of TruSleep status and data finished");
+
+                if (statusData == null || statusData.length == 0)
+                    return;
+
+                HuaweiTruSleepParser.TruSleepStatus[] results = HuaweiTruSleepParser.parseState(statusData);
+                if (results.length == 0)
+                    return;
+
+                HuaweiTruSleepParser.TruSleepData data = HuaweiTruSleepParser.parseData(sleepData);
+                HuaweiTruSleepParser.analyze(this.provider, results, data);
+            }
+        };
+
+        huaweiFileDownloadManager.addToQueue(HuaweiFileDownloadManager.FileRequest.sleepStateFileRequest(
+                getHuaweiCoordinator().getSupportsTruSleepNewSync(),
+                0,
+                (int) (System.currentTimeMillis() / 1000),
+                callback
+        ), true);
+        huaweiFileDownloadManager.addToQueue(HuaweiFileDownloadManager.FileRequest.sleepDataFileRequest(
+                getHuaweiCoordinator().getSupportsTruSleepNewSync(),
+                0,
+                (int) (System.currentTimeMillis() / 1000),
+                callback
+        ), true);
+    }
+
+    public void onMusicListReq() {
+        getHuaweiMusicManager().startSyncMusicData();
+    }
+
+    public void onMusicOperation(int operation, int playlistIndex, String playlistName, ArrayList<Integer> musicIds) {
+        getHuaweiMusicManager().onMusicOperation(operation, playlistIndex, playlistName,  musicIds);
+    }
+
+    public void onSetCannedMessages(final CannedMessagesSpec cannedMessagesSpec) {
+        if (cannedMessagesSpec.type != CannedMessagesSpec.TYPE_GENERIC) {
+            LOG.warn("Got unsupported canned messages type: {}", cannedMessagesSpec.type);
+            return;
+        }
+
+        if(cannedMessagesSpec.cannedMessages.length == 0) {
+            GB.toast(context, HuaweiSupportProvider.this.getContext().getString(R.string.canned_replies_not_empty), Toast.LENGTH_SHORT, GB.WARN);
+            LOG.warn(HuaweiSupportProvider.this.getContext().getString(R.string.canned_replies_not_empty));
+        }
+
+        HuaweiP2PCannedRepliesService cannedRepliesService = HuaweiP2PCannedRepliesService.getRegisteredInstance(huaweiP2PManager);
+        if(cannedRepliesService == null) {
+            LOG.warn("P2P canned replies service is not registered");
+            return;
+        }
+        cannedRepliesService.sendReplies(cannedMessagesSpec.cannedMessages);
+    }
+
+    public void onFindDevice(boolean start) {
+        if(huaweiDataSyncFindDevice != null) {
+            if (start) {
+                huaweiDataSyncFindDevice.sendStartFindDevice();
+            } else {
+                huaweiDataSyncFindDevice.sendStopFindDevice();
+            }
+        }
+    }
+
 }

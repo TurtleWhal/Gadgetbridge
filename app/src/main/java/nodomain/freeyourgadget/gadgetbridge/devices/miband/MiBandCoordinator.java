@@ -35,12 +35,16 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 
 import de.greenrobot.dao.query.QueryBuilder;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
@@ -51,7 +55,6 @@ import nodomain.freeyourgadget.gadgetbridge.entities.MiBandActivitySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
-import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.ServiceDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.MiBandSupport;
@@ -73,7 +76,6 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
         return Collections.singletonList(filter);
     }
 
-    @NonNull
     @Override
     public boolean supports(GBDeviceCandidate candidate) {
         String macAddress = candidate.getMacAddress().toUpperCase();
@@ -129,11 +131,6 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots(final GBDevice device) {
-        return false;
-    }
-
-    @Override
     public int getAlarmSlotCount(GBDevice device) {
         return 3;
     }
@@ -154,28 +151,8 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsAppsManagement(final GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public Class<? extends Activity> getAppsManagementActivity() {
-        return null;
-    }
-
-    @Override
-    public boolean supportsCalendarEvents() {
-        return false;
-    }
-
-    @Override
     public boolean supportsRealtimeData() {
         return true;
-    }
-
-    @Override
-    public boolean supportsWeather() {
-        return false;
     }
 
     @Override
@@ -183,10 +160,11 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
         return true;
     }
 
+    /** @noinspection BooleanMethodIsAlwaysInverted*/
     public static boolean hasValidUserInfo() {
         String dummyMacAddress = MiBandService.MAC_ADDRESS_FILTER_1_1A + ":00:00:00";
         try {
-            UserInfo userInfo = getConfiguredUserInfo(dummyMacAddress);
+            getConfiguredUserInfo(dummyMacAddress);
             return true;
         } catch (IllegalArgumentException ex) {
             return false;
@@ -197,13 +175,12 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
      * Returns the configured user info, or, if that is not available or invalid,
      * a default user info.
      *
-     * @param miBandAddress
      */
     public static UserInfo getAnyUserInfo(String miBandAddress) {
         try {
             return getConfiguredUserInfo(miBandAddress);
         } catch (Exception ex) {
-            LOG.error("Error creating user info from settings, using default user instead: " + ex);
+            LOG.error("Error creating user info from settings, using default user instead", ex);
             return UserInfo.getDefault(miBandAddress);
         }
     }
@@ -211,14 +188,13 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
     /**
      * Returns the user info from the user configured data in the preferences.
      *
-     * @param miBandAddress
      * @throws IllegalArgumentException when the user info can not be created
      */
     public static UserInfo getConfiguredUserInfo(String miBandAddress) throws IllegalArgumentException {
         ActivityUser activityUser = new ActivityUser();
         Prefs prefs = GBApplication.getPrefs();
 
-        UserInfo info = UserInfo.create(
+        return UserInfo.create(
                 miBandAddress,
                 prefs.getString(PREF_USER_NAME, null),
                 activityUser.getGender(),
@@ -227,7 +203,6 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
                 activityUser.getWeightKg(),
                 0
         );
-        return info;
     }
 
     public static int getWearLocation(String deviceAddress) throws IllegalArgumentException {
@@ -261,19 +236,32 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public int[] getSupportedDeviceSpecificSettings(GBDevice device) {
-        return new int[]{
-                R.xml.devicesettings_wearlocation,
-                R.xml.devicesettings_heartrate_sleep,
-                R.xml.devicesettings_lowlatency_fwupdate,
-                R.xml.devicesettings_reserve_alarms_calendar,
-                R.xml.devicesettings_fake_timeoffset
-        };
+    public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
+        final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
+
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_wearlocation);
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_heartrate_sleep);
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_miband_vibrationpatterns);
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_reserve_alarms_calendar);
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_fake_timeoffset);
+
+        final List<Integer> connection = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CONNECTION);
+        connection.add(R.xml.devicesettings_lowlatency_fwupdate);
+
+        final List<Integer> developer = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
+        developer.add(R.xml.devicesettings_keep_activity_data_on_device);
+
+        return deviceSpecificSettings;
+    }
+
+    @Override
+    public DeviceSpecificSettingsCustomizer getDeviceSpecificSettingsCustomizer(final GBDevice device) {
+        return new MiBandSettingsCustomizer(device);
     }
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass() {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return MiBandSupport.class;
     }
 
@@ -305,16 +293,9 @@ public class MiBandCoordinator extends AbstractBLEDeviceCoordinator {
         return R.string.devicetype_miband;
     }
 
-
     @Override
     @DrawableRes
     public int getDefaultIconResource() {
         return R.drawable.ic_device_miband;
-    }
-
-    @Override
-    @DrawableRes
-    public int getDisabledIconResource() {
-        return R.drawable.ic_device_miband_disabled;
     }
 }

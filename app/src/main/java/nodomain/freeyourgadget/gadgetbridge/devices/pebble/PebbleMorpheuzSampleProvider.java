@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.pebble;
 
+import androidx.annotation.NonNull;
+
 import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractSampleProvider;
@@ -23,6 +25,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.PebbleMorpheuzSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.PebbleMorpheuzSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 
 public class PebbleMorpheuzSampleProvider extends AbstractSampleProvider<PebbleMorpheuzSample> {
 
@@ -37,6 +40,7 @@ public class PebbleMorpheuzSampleProvider extends AbstractSampleProvider<PebbleM
         return getSession().getPebbleMorpheuzSampleDao();
     }
 
+    @NonNull
     @Override
     protected Property getTimestampSampleProperty() {
         return PebbleMorpheuzSampleDao.Properties.Timestamp;
@@ -47,6 +51,7 @@ public class PebbleMorpheuzSampleProvider extends AbstractSampleProvider<PebbleM
         return null; // not supported
     }
 
+    @NonNull
     @Override
     protected Property getDeviceIdentifierSampleProperty() {
         return PebbleMorpheuzSampleDao.Properties.DeviceId;
@@ -64,12 +69,12 @@ public class PebbleMorpheuzSampleProvider extends AbstractSampleProvider<PebbleM
     }
 
     @Override
-    public int normalizeType(int rawType) {
-        return rawType;
+    public ActivityKind normalizeType(int rawType) {
+        return ActivityKind.fromCode(rawType);
     }
 
     @Override
-    public int toRawActivityKind(int activityKind) {
-        return activityKind;
+    public int toRawActivityKind(ActivityKind activityKind) {
+        return activityKind.getCode();
     }
 }
