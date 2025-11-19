@@ -62,17 +62,17 @@ public class MiBand4Coordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracks() {
+    public boolean supportsActivityTracks(final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsMusicInfo() {
+    public boolean supportsMusicInfo(@NonNull GBDevice device) {
         return true;
     }
 
@@ -176,5 +176,10 @@ public class MiBand4Coordinator extends HuamiCoordinator {
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_miband2;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.FITNESS_BAND;
     }
 }

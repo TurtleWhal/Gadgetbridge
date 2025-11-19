@@ -51,7 +51,7 @@ public abstract class BtClassicIoThread extends GBDeviceIoThread {
     private BluetoothSocket mBtSocket = null;
     private InputStream mInStream = null;
     private OutputStream mOutStream = null;
-    private boolean mQuit = false;
+    private volatile boolean mQuit = false;
 
     @Override
     public void quit() {
@@ -87,9 +87,16 @@ public abstract class BtClassicIoThread extends GBDeviceIoThread {
 
     @Override
     public void run() {
+        LOG.debug("started thread {}", getName());
         mIsConnected = connect();
         if (!mIsConnected) {
-            setUpdateState(GBDevice.State.NOT_CONNECTED);
+            if (GBApplication.getPrefs().getAutoReconnect(getDevice()) && !mQuit) {
+                LOG.debug("Failed to connect IO thread, will wait for reconnect");
+                gbDevice.setUpdateState(GBDevice.State.WAITING_FOR_RECONNECT, getContext());
+            } else {
+                LOG.debug("Failed to connect IO thread, disconnecting");
+                gbDevice.setUpdateState(GBDevice.State.NOT_CONNECTED, getContext());
+            }
             return;
         }
         mQuit = false;
@@ -122,8 +129,15 @@ public abstract class BtClassicIoThread extends GBDeviceIoThread {
 
         cleanup();
 
+        if (mQuit || !GBApplication.getPrefs().getAutoReconnect(getDevice())) {
+            LOG.debug("Exited read thread loop, disconnecting");
+            gbDevice.setUpdateState(GBDevice.State.NOT_CONNECTED, getContext());
+        } else {
+            LOG.debug("Exited read thread loop, will wait for reconnect");
+            gbDevice.setUpdateState(GBDevice.State.WAITING_FOR_RECONNECT, getContext());
+        }
 
-        setUpdateState(GBDevice.State.NOT_CONNECTED);
+        LOG.debug("finished thread {}", getName());
     }
 
     @Override

@@ -12,8 +12,6 @@
     <string name="pref_header_charts">Настройки на Графиката</string>
     <string name="pref_title_charts_average">Показвай средни стойности</string>
     <string name="activity_prefs_charts">Настройки на графика</string>
-    <string name="activity_prefs_chart_max_heart_rate">Max сърдечен ритъм</string>
-    <string name="activity_prefs_chart_min_heart_rate">Min сърдечен ритъм</string>
     <string name="pref_title_charts_range">Обхват на Графиката</string>
     <string name="pref_charts_range_on">Обхвата е Месец</string>
     <string name="pref_charts_range_off">Обхвата е Седмица</string>
@@ -349,8 +347,6 @@
     <string name="zetime_title_heart_rate_alarm">Сърдечен ритъм аларма</string>
     <string name="zetime_title_heart_rate_alarm_summary">Часовникът ще ви предупреди, когато сърдечният ритъм премине границите.</string>
     <string name="zetime_heart_rate_alarm_enable">Включване на алармата за сърдечния ритъм</string>
-    <string name="activity_prefs_alarm_max_heart_rate">Максимален сърдечен ритъм</string>
-    <string name="activity_prefs_alarm_min_heart_rate">Минимален сърдечен ритъм</string>
     <string name="zetime_analog_mode">Аналогов режим</string>
     <string name="zetime_analog_mode_hands">Само ръце</string>
     <string name="zetime_analog_mode_handsandsteps">Ръце и крачки</string>
@@ -577,16 +573,6 @@
     <string name="prefs_hr_alarm_low">Долна граница</string>
     <string name="preferences_rtl_settings">От ляво на дясно</string>
     <string name="pref_screen_notification_profile_alarm_clock">Аларми</string>
-    <string name="p_unit_metric">метрични</string>
-    <string name="p_unit_imperial">инчови</string>
-    <string name="p_steps">крачки</string>
-    <string name="p_scheduled">разписание</string>
-    <string name="p_pebble_privacy_mode_off">изкл.</string>
-    <string name="p_on">вкл.</string>
-    <string name="p_off">изкл.</string>
-    <string name="p_menuitem_weather">прогноза</string>
-    <string name="p_menuitem_settings">настройки</string>
-    <string name="p_menuitem_notifications">известия</string>
     <string name="off">Изкл.</string>
     <string name="on">Вкл.</string>
     <string name="no_data">Няма данни</string>
@@ -597,4 +583,18 @@
     <string name="sonyswr12_settings_low_vibration_summary">Активирайте ниската интензивност на вибрациите на маншета</string>
     <string name="sonyswr12_settings_stamina_summary">Режимът за пестене на енергия изключва периодичното автоматично измерване на сърдечната честота, като по този начин увеличава работното време</string>
     <string name="sonyswr12_settings_alarm_interval_summary">Интелигентният алармен интервал е интервал преди инсталираната аларма. В този интервал устройството се опитва да открие най-леката фаза на сън за събуждане на потребителя</string>
+    <string name="about_activity_title_generic">Относно Gadgetbridge</string>
+    <string name="application_name_banglejs_main">Bangle.js Gadgetbridge</string>
+    <string name="title_activity_controlcenter_banglejs_main">Bangle.js Gadgetbridge</string>
+    <string name="about_activity_title_banglejs_main">Относно Bangle.js Gadgetbridge</string>
+    <string name="gadgetbridge_running_banglejs_main">Bangle.js върви</string>
+    <string name="application_name_banglejs_nightly">Bangle.js Gadgetbridge (Еженощно)</string>
+    <string name="title_activity_controlcenter_banglejs_nightly">Bangle.js Gadgetbridge (Еженощно)</string>
+    <string name="about_activity_title_banglejs_nightly">Относно Bangle.js Gadgetbridge (Еженощно)</string>
+    <string name="gadgetbridge_running_banglejs_nightly">Еженощен Bangle.js върви</string>
+    <string name="application_name_main_nightly">Gadgetbridge (Еженощно)</string>
+    <string name="title_activity_controlcenter_main_nightly">Gadgetbridge Еженощен</string>
+    <string name="about_activity_title_main_nightly">Относно Gadgetbridge Еженощен</string>
+    <string name="gadgetbridge_running_main_nightly">Еженощен GB върви</string>
+    <string name="application_name_main_nopebble">Gadgetbridge (Еженощен, без Pebble доставчик)</string>
 </resources>

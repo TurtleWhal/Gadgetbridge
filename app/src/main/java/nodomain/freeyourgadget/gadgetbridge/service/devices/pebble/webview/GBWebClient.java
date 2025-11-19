@@ -32,6 +32,7 @@ import net.e175.klaus.solarpositioning.SPA;
 import net.e175.klaus.solarpositioning.SunriseTransitSet;
 
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -44,8 +45,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
+import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.util.WebViewSingleton;
 
 public class GBWebClient extends WebViewClient {
@@ -144,15 +146,16 @@ public class GBWebClient extends WebViewClient {
 
     private WebResourceResponse mimicOpenWeatherMapResponse(String type, String units) {
 
-        if (Weather.getInstance() == null) {
-            LOG.warn("WEBVIEW - Weather instance is null, cannot update weather");
+        if (Weather.getWeatherSpecs().isEmpty()) {
+            LOG.warn("WEBVIEW - WeatherSpecs is empty, cannot update weather");
             return null;
         }
 
         CurrentPosition currentPosition = new CurrentPosition();
+        WeatherSpec current = Weather.getWeatherSpec();
 
         try {
-            JSONObject resp = Weather.getInstance().createReconstructedOWMWeatherReply();
+            JSONObject resp = createReconstructedOWMWeatherReply(current);
             if ("/data/2.5/weather".equals(type) && resp != null) {
                 JSONObject main = resp.getJSONObject("main");
 
@@ -163,8 +166,8 @@ public class GBWebClient extends WebViewClient {
                 resp.put("cod", 200);
                 resp.put("coord", coordObject(currentPosition));
                 resp.put("sys", sysObject(currentPosition));
-//            } else if ("/data/2.5/forecast".equals(type) && Weather.getInstance().getWeather2().reconstructedOWMForecast != null) { //this is wrong, as we only have daily data. Unfortunately it looks like daily forecasts cannot be reconstructed
-//                resp = new JSONObject(Weather.getInstance().getWeather2().reconstructedOWMForecast.toString());
+//            } else if ("/data/2.5/forecast".equals(type) && Weather.getWeather2().reconstructedOWMForecast != null) { //this is wrong, as we only have daily data. Unfortunately it looks like daily forecasts cannot be reconstructed
+//                resp = new JSONObject(Weather.getWeather2().reconstructedOWMForecast.toString());
 //
 //                JSONObject city = resp.getJSONObject("city");
 //                city.put("coord", coordObject(currentPosition));
@@ -196,6 +199,45 @@ public class GBWebClient extends WebViewClient {
 
         return null;
 
+    }
+
+    public JSONObject createReconstructedOWMWeatherReply(WeatherSpec weatherSpec) {
+        if (weatherSpec == null) {
+            return null;
+        }
+        JSONObject reconstructedOWMWeather = new JSONObject();
+        JSONArray weather = new JSONArray();
+        JSONObject condition = new JSONObject();
+        JSONObject main = new JSONObject();
+        JSONObject wind = new JSONObject();
+
+        try {
+            condition.put("id", weatherSpec.getCurrentConditionCode());
+            condition.put("main", weatherSpec.getCurrentCondition());
+            condition.put("description", weatherSpec.getCurrentCondition());
+            condition.put("icon", WeatherMapper.mapToOpenWeatherMapIcon(weatherSpec.getCurrentConditionCode()));
+            weather.put(condition);
+
+
+            main.put("temp", weatherSpec.getCurrentTemp());
+            main.put("humidity", weatherSpec.getCurrentHumidity());
+            main.put("temp_min", weatherSpec.getTodayMinTemp());
+            main.put("temp_max", weatherSpec.getTodayMaxTemp());
+
+            wind.put("speed", (weatherSpec.getWindSpeed() / 3.6f)); //meter per second
+            wind.put("deg", weatherSpec.getWindDirection());
+
+            reconstructedOWMWeather.put("weather", weather);
+            reconstructedOWMWeather.put("main", main);
+            reconstructedOWMWeather.put("name", weatherSpec.getLocation());
+            reconstructedOWMWeather.put("wind", wind);
+
+        } catch (JSONException e) {
+            LOG.error("Error while reconstructing OWM weather reply");
+            return null;
+        }
+        LOG.debug("Weather JSON for WEBVIEW: " + reconstructedOWMWeather);
+        return reconstructedOWMWeather;
     }
 
 

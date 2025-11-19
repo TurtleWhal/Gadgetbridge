@@ -85,8 +85,8 @@ public class ZeppOsActivitySummaryParser extends HuamiActivitySummaryParser {
         }
 
         if (summaryProto.hasType()) {
-            final ZeppOsActivityType activityType = ZeppOsActivityType
-                    .fromCode((byte) summaryProto.getType().getType());
+            final byte typeCode = (byte) summaryProto.getType().getType();
+            final ZeppOsActivityType activityType = ZeppOsActivityType.fromCode(typeCode);
 
             final ActivityKind activityKind;
             if (activityType != null) {
@@ -94,6 +94,7 @@ public class ZeppOsActivitySummaryParser extends HuamiActivitySummaryParser {
             } else {
                 LOG.warn("Unknown workout activity type code {}", String.format("0x%X", summaryProto.getType().getType()));
                 activityKind = ActivityKind.UNKNOWN;
+                summaryData.add(ACTIVITY_TYPE_CODE, typeCode, UNIT_NONE);
             }
             summary.setActivityKind(activityKind.getCode());
         }
@@ -219,6 +220,14 @@ public class ZeppOsActivitySummaryParser extends HuamiActivitySummaryParser {
             summaryData.add(SWOLF_INDEX, summaryProto.getSwimmingData().getSwolf(), UNIT_NONE);
         }
 
+        if(summaryProto.hasMovementEvaluation()) {
+            summaryData.add(MOVEMENT_CONSISTENCY, summaryProto.getMovementEvaluation().getConsistency(), UNIT_NONE);
+            summaryData.add(MOVEMENT_STABILITY, summaryProto.getMovementEvaluation().getStability(), UNIT_NONE);
+            summaryData.add(MOVEMENT_CONTINUITY, summaryProto.getMovementEvaluation().getContinuity(), UNIT_NONE);
+            summaryData.add(MOVEMENT_RHYTHM, summaryProto.getMovementEvaluation().getRhythm(), UNIT_NONE);
+            summaryData.add(MOVEMENT_SPEED_DECAY, summaryProto.getMovementEvaluation().getSpeedDecay(), UNIT_NONE);
+        }
+
         if (forDetails && !StringUtils.isBlank(summary.getRawDetailsPath())) {
             try {
                 enrichWithDetails(summary);
@@ -255,12 +264,36 @@ public class ZeppOsActivitySummaryParser extends HuamiActivitySummaryParser {
                         "set_" + i,
                         Arrays.asList(
                                 new ActivitySummaryValue(i, UNIT_NONE),
-                                new ActivitySummaryValue(String.valueOf(strengthSet.getReps())),
-                                new ActivitySummaryValue(strengthSet.getWeightKg() >= 0 ? strengthSet.getWeightKg() : null, UNIT_KG)
+                                new ActivitySummaryValue(String.valueOf(strengthSet.reps())),
+                                new ActivitySummaryValue(strengthSet.weightKg() >= 0 ? strengthSet.weightKg() : null, UNIT_KG)
                         )
                 );
 
                 i++;
+            }
+
+            tableBuilder.addToSummaryData(summaryData);
+        }
+
+        final List<ZeppOsActivityTrack.Lap> laps = activityTrack.getLaps();
+        if (!laps.isEmpty()) {
+            final ActivitySummaryTableBuilder tableBuilder = new ActivitySummaryTableBuilder(LAPS, "laps_header", Arrays.asList(
+                    "workout_lap",
+                    "distanceMeters",
+                    "Speed",
+                    "lap_time"
+            ));
+
+            for (final ZeppOsActivityTrack.Lap lap : laps) {
+                tableBuilder.addRow(
+                        "lap_" + lap.number(),
+                        Arrays.asList(
+                                new ActivitySummaryValue(lap.number(), UNIT_NONE),
+                                new ActivitySummaryValue(lap.distance(), UNIT_METERS),
+                                new ActivitySummaryValue(1000f / lap.pace(), UNIT_METERS_PER_SECOND),
+                                new ActivitySummaryValue(lap.duration() / 1000, UNIT_SECONDS)
+                        )
+                );
             }
 
             tableBuilder.addToSummaryData(summaryData);

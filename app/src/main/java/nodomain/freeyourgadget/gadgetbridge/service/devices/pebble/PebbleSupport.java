@@ -20,8 +20,10 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.pebble;
 
 import android.content.IntentFilter;
 import android.net.Uri;
+import android.os.Bundle;
 import android.util.Pair;
 
+import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
 import org.json.JSONArray;
@@ -44,7 +46,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.AbstractSerialDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceIoThread;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
@@ -55,8 +56,10 @@ public class PebbleSupport extends AbstractSerialDeviceSupport {
 
     @Override
     public void dispose() {
-        super.dispose();
-        unregisterSunriseSunsetAlarmReceiver();
+        synchronized (ConnectionMonitor) {
+            super.dispose();
+            unregisterSunriseSunsetAlarmReceiver();
+        }
     }
 
     private void registerSunriseSunsetAlarmReceiver() {
@@ -79,8 +82,13 @@ public class PebbleSupport extends AbstractSerialDeviceSupport {
 
     @Override
     public boolean connect() {
-        getDeviceIOThread().start();
-        registerSunriseSunsetAlarmReceiver();
+        synchronized (ConnectionMonitor) {
+            final PebbleIoThread deviceIOThread = getDeviceIOThread();
+            if (!deviceIOThread.isAlive()) {
+                deviceIOThread.start();
+            }
+            registerSunriseSunsetAlarmReceiver();
+        }
         return true;
     }
 
@@ -100,7 +108,7 @@ public class PebbleSupport extends AbstractSerialDeviceSupport {
     }
 
     @Override
-    public void onInstallApp(Uri uri) {
+    public void onInstallApp(Uri uri, @NonNull final Bundle options) {
         PebbleProtocol pebbleProtocol = (PebbleProtocol) getDeviceProtocol();
         PebbleIoThread pebbleIoThread = getDeviceIOThread();
         // Catch fake URLs first
@@ -255,9 +263,9 @@ public class PebbleSupport extends AbstractSerialDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+    public void onSendWeather() {
         if (reconnect()) {
-            super.onSendWeather(weatherSpecs);
+            super.onSendWeather();
         }
     }
 }

@@ -21,7 +21,6 @@ package nodomain.freeyourgadget.gadgetbridge.deviceevents;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
@@ -50,9 +49,6 @@ public abstract class GBDeviceEvent {
     /**
      * Helper method to run specific actions configured in the device preferences, upon wear state
      * or awake/asleep events.
-     *
-     * @param actions
-     * @param message
      */
     protected void handleDeviceAction(final Context context, final GBDevice device, Set<String> actions, String message, String broadcastPackage) {
         if (actions.isEmpty()) {
@@ -112,31 +108,29 @@ public abstract class GBDeviceEvent {
             deviceEventMusicControl.evaluate(context, device);
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            final NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        final NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-            final int interruptionFilter;
-            if (actions.contains(actionDndOff)) {
-                interruptionFilter = NotificationManager.INTERRUPTION_FILTER_ALL;
-            } else if (actions.contains(actionDndpriority)) {
-                interruptionFilter = NotificationManager.INTERRUPTION_FILTER_PRIORITY;
-            } else if (actions.contains(actionDndAlarms)) {
-                interruptionFilter = NotificationManager.INTERRUPTION_FILTER_ALARMS;
-            } else if (actions.contains(actionDndOn)) {
-                interruptionFilter = NotificationManager.INTERRUPTION_FILTER_NONE;
-            } else {
-                interruptionFilter = NotificationManager.INTERRUPTION_FILTER_UNKNOWN;
+        final int interruptionFilter;
+        if (actions.contains(actionDndOff)) {
+            interruptionFilter = NotificationManager.INTERRUPTION_FILTER_ALL;
+        } else if (actions.contains(actionDndpriority)) {
+            interruptionFilter = NotificationManager.INTERRUPTION_FILTER_PRIORITY;
+        } else if (actions.contains(actionDndAlarms)) {
+            interruptionFilter = NotificationManager.INTERRUPTION_FILTER_ALARMS;
+        } else if (actions.contains(actionDndOn)) {
+            interruptionFilter = NotificationManager.INTERRUPTION_FILTER_NONE;
+        } else {
+            interruptionFilter = NotificationManager.INTERRUPTION_FILTER_UNKNOWN;
+        }
+
+        if (interruptionFilter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN) {
+            LOG.debug("Setting do not disturb to {}", interruptionFilter);
+
+            if (!notificationManager.isNotificationPolicyAccessGranted()) {
+                LOG.warn("Do not disturb permissions not granted");
             }
 
-            if (interruptionFilter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN) {
-                LOG.debug("Setting do not disturb to {}", interruptionFilter);
-
-                if (!notificationManager.isNotificationPolicyAccessGranted()) {
-                    LOG.warn("Do not disturb permissions not granted");
-                }
-
-                notificationManager.setInterruptionFilter(interruptionFilter);
-            }
+            notificationManager.setInterruptionFilter(interruptionFilter);
         }
     }
 }

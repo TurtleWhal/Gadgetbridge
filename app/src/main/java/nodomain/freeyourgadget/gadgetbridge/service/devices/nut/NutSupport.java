@@ -125,8 +125,8 @@ public class NutSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
 
         // Init prefs
         prefs = GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress());
@@ -145,20 +145,20 @@ public class NutSupport extends AbstractBTLESingleDeviceSupport {
              * Part of {@link NutConstants.SERVICE_PROPRIETARY_NUT}
              * Enables proprietary notification
              */
-            builder.notify(getCharacteristic(NutConstants.CHARAC_AUTH_STATUS), true);
+            builder.notify(NutConstants.CHARAC_AUTH_STATUS, true);
             LOG.info("Enabled authentication status notify");
 
             /**
              * Part of {@link NutConstants.SERVICE_UNKNOWN_2}
              * Enables button-press notify
              */
-            builder.notify(getCharacteristic(NutConstants.CHARAC_UNKNOWN_2), true);
+            builder.notify(NutConstants.CHARAC_UNKNOWN_2, true);
         } else {
             /**
              * Part of {@link NutConstants.SERVICE_UNKNOWN_1_WEIRDNESS}
              * Enables button-press notify
              */
-            builder.notify(getCharacteristic(NutConstants.CHARAC_CHANGE_POWER), true);
+            builder.notify(NutConstants.CHARAC_CHANGE_POWER, true);
         }
 
         readDeviceInfo();
@@ -455,11 +455,9 @@ public class NutSupport extends AbstractBTLESingleDeviceSupport {
      * @param data     the data to write
      */
     private void writeCharacteristic(String taskName, UUID charac, byte[] data) {
-        BluetoothGattCharacteristic characteristic = getCharacteristic(charac);
-
-        TransactionBuilder builder = new TransactionBuilder(taskName);
-        builder.write(characteristic, data);
-        builder.queue(getQueue());
+        TransactionBuilder builder = createTransactionBuilder(taskName);
+        builder.write(charac, data);
+        builder.queue();
     }
 
     /**
@@ -469,11 +467,9 @@ public class NutSupport extends AbstractBTLESingleDeviceSupport {
      * @param charac   the characteristic to read
      */
     private void readCharacteristic(String taskName, UUID charac) {
-        BluetoothGattCharacteristic characteristic = getCharacteristic(charac);
-
-        TransactionBuilder builder = new TransactionBuilder(taskName);
-        builder.read(characteristic);
-        builder.queue(getQueue());
+        TransactionBuilder builder = createTransactionBuilder(taskName);
+        builder.read(charac);
+        builder.queue();
     }
 
     @Override

@@ -33,13 +33,10 @@ import java.util.UUID;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventDisplayMessage;
-import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandFWHelper;
 import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.PlainAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetProgressAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.AbstractMiFirmwareInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.MiBandSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
@@ -323,7 +320,7 @@ public class UpdateFirmwareOperation extends AbstractMiBand1Operation {
                 int progressPercent = (int) ((((float) firmwareProgress) / len) * 100);
                 if ((i > 0) && (i % 50 == 0)) {
                     builder.write(characteristicControlPoint, new byte[]{MiBandService.COMMAND_SYNC});
-                    builder.add(new SetProgressAction(getContext().getString(R.string.updatefirmwareoperation_update_in_progress), true, progressPercent, getContext()));
+                    builder.setProgress(R.string.updatefirmwareoperation_update_in_progress, true, progressPercent);
                 }
             }
 
@@ -334,7 +331,7 @@ public class UpdateFirmwareOperation extends AbstractMiBand1Operation {
             }
 
             builder.write(characteristicControlPoint, new byte[]{MiBandService.COMMAND_SYNC});
-            builder.queue(getQueue());
+            builder.queue();
 
         } catch (IOException ex) {
             LOG.error("Unable to send fw to MI", ex);
@@ -361,10 +358,10 @@ public class UpdateFirmwareOperation extends AbstractMiBand1Operation {
             try {
                 TransactionBuilder builder = performInitialized("send firmware info");
 //                getSupport().setLowLatency(builder);
-                builder.add(new SetDeviceBusyAction(getDevice(), getContext().getString(R.string.updating_firmware), getContext()));
+                builder.setBusyTask(R.string.updating_firmware);
                 builder.add(new FirmwareInfoSentAction()); // Note: *before* actually sending the info, otherwise it's too late!
-                builder.write(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_CONTROL_POINT), getFirmwareInfo());
-                builder.queue(getQueue());
+                builder.write(MiBandService.UUID_CHARACTERISTIC_CONTROL_POINT, getFirmwareInfo());
+                builder.queue();
                 return true;
             } catch (IOException e) {
                 LOG.error("Error sending firmware info: " + e.getLocalizedMessage(), e);

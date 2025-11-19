@@ -60,7 +60,6 @@ public class GalaxyBuds2ProDeviceCoordinator extends GalaxyBudsGenericCoordinato
         return R.string.devicetype_galaxybuds_2_pro;
     }
 
-
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_galaxy_buds_pro;

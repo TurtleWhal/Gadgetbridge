@@ -274,15 +274,15 @@ public class ZeppOsAssistantService extends AbstractZeppOsService {
             baos.write(0x00); // ?
             baos.write(0x00); // ?
 
-            baos.write(BLETypeConversions.fromUint32(weather.timestamp));
+            baos.write(BLETypeConversions.fromUint32(weather.getTimestamp()));
 
-            baos.write(StringUtils.ensureNotNull(weather.location).getBytes(StandardCharsets.UTF_8));
+            baos.write(StringUtils.ensureNotNull(weather.getLocation()).getBytes(StandardCharsets.UTF_8));
             baos.write(0);
 
             // FIXME long date string
             baos.write(0);
 
-            baos.write(StringUtils.ensureNotNull(weather.currentCondition).getBytes(StandardCharsets.UTF_8));
+            baos.write(StringUtils.ensureNotNull(weather.getCurrentCondition()).getBytes(StandardCharsets.UTF_8));
             baos.write(0);
 
             // FIXME Second line for the condition
@@ -290,8 +290,8 @@ public class ZeppOsAssistantService extends AbstractZeppOsService {
 
             // FIXME
 
-            baos.write(weather.forecasts.size());
-            for (final WeatherSpec.Daily forecast : weather.forecasts) {
+            baos.write(weather.getForecasts().size());
+            for (final WeatherSpec.Daily forecast : weather.getForecasts()) {
                 // FIXME
             }
         } catch (final IOException e) {
@@ -326,7 +326,7 @@ public class ZeppOsAssistantService extends AbstractZeppOsService {
                 // TODO encode
             }
 
-            builder.queue(getSupport());
+            builder.queue();
         } catch (final Exception e) {
             LOG.error("Failed to send voice reply", e);
         }
@@ -423,7 +423,7 @@ public class ZeppOsAssistantService extends AbstractZeppOsService {
         if (DUMP_RAW_VOICE) {
             // for decoding debug
             try {
-                final File writableExportDirectory = getCoordinator().getWritableExportDirectory(getSupport().getDevice());
+                final File writableExportDirectory = getCoordinator().getWritableExportDirectory(getSupport().getDevice(), true);
                 final File targetDir = new File(writableExportDirectory, "assistantRawVoice");
                 targetDir.mkdirs();
                 final String filename = DateTimeUtils.formatIso8601(new Date()) + ".opus";

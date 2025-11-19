@@ -37,9 +37,9 @@ import cyanogenmod.weather.WeatherLocation;
 import cyanogenmod.weather.util.WeatherUtils;
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
-import nodomain.freeyourgadget.gadgetbridge.util.PendingIntentUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 import static cyanogenmod.providers.WeatherContract.WeatherColumns.TempUnit.FAHRENHEIT;
@@ -105,7 +105,7 @@ public class CMWeatherReceiver extends BroadcastReceiver implements CMWeatherMan
         if (enable) {
             Intent intent = new Intent("GB_UPDATE_WEATHER");
             intent.setPackage(BuildConfig.APPLICATION_ID);
-            mPendingIntent = PendingIntentUtils.getBroadcast(mContext, 0, intent, 0, false);
+            mPendingIntent = PendingIntent.getBroadcast(mContext, 0, intent, PendingIntent.FLAG_IMMUTABLE);
             am.setInexactRepeating(AlarmManager.RTC_WAKEUP, Calendar.getInstance().getTimeInMillis() + 10000, AlarmManager.INTERVAL_HOUR, mPendingIntent);
         } else {
             am.cancel(mPendingIntent);
@@ -139,47 +139,47 @@ public class CMWeatherReceiver extends BroadcastReceiver implements CMWeatherMan
         if (weatherInfo != null) {
             LOG.info("weather: " + weatherInfo.toString());
             WeatherSpec weatherSpec = new WeatherSpec();
-            weatherSpec.timestamp = (int) (weatherInfo.getTimestamp() / 1000);
-            weatherSpec.location = weatherInfo.getCity();
+            weatherSpec.setTimestamp((int) (weatherInfo.getTimestamp() / 1000));
+            weatherSpec.setLocation(weatherInfo.getCity());
 
             if (weatherInfo.getTemperatureUnit() == FAHRENHEIT) {
-                weatherSpec.currentTemp = (int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTemperature()) + 273;
-                weatherSpec.todayMaxTemp = (int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTodaysHigh()) + 273;
-                weatherSpec.todayMinTemp = (int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTodaysLow()) + 273;
+                weatherSpec.setCurrentTemp((int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTemperature()) + 273);
+                weatherSpec.setTodayMaxTemp((int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTodaysHigh()) + 273);
+                weatherSpec.setTodayMinTemp((int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTodaysLow()) + 273);
             } else {
-                weatherSpec.currentTemp = (int) weatherInfo.getTemperature() + 273;
-                weatherSpec.todayMaxTemp = (int) weatherInfo.getTodaysHigh() + 273;
-                weatherSpec.todayMinTemp = (int) weatherInfo.getTodaysLow() + 273;
+                weatherSpec.setCurrentTemp((int) weatherInfo.getTemperature() + 273);
+                weatherSpec.setTodayMaxTemp((int) weatherInfo.getTodaysHigh() + 273);
+                weatherSpec.setTodayMinTemp((int) weatherInfo.getTodaysLow() + 273);
             }
             if (weatherInfo.getWindSpeedUnit() == MPH) {
-                weatherSpec.windSpeed = (float) weatherInfo.getWindSpeed() * 1.609344f;
+                weatherSpec.setWindSpeed((float) weatherInfo.getWindSpeed() * 1.609344f);
             } else {
-                weatherSpec.windSpeed = (float) weatherInfo.getWindSpeed();
+                weatherSpec.setWindSpeed((float) weatherInfo.getWindSpeed());
             }
-            weatherSpec.windDirection = (int) weatherInfo.getWindDirection();
+            weatherSpec.setWindDirection((int) weatherInfo.getWindDirection());
 
-            weatherSpec.currentConditionCode = Weather.mapToOpenWeatherMapCondition(CMtoYahooCondintion(weatherInfo.getConditionCode()));
-            weatherSpec.currentCondition = Weather.getConditionString(mContext, weatherSpec.currentConditionCode);
-            weatherSpec.currentHumidity = (int) weatherInfo.getHumidity();
+            weatherSpec.setCurrentConditionCode(WeatherMapper.mapToOpenWeatherMapCondition(CMtoYahooCondintion(weatherInfo.getConditionCode())));
+            weatherSpec.setCurrentCondition(WeatherMapper.getConditionString(mContext, weatherSpec.getCurrentConditionCode()));
+            weatherSpec.setCurrentHumidity((int) weatherInfo.getHumidity());
 
-            weatherSpec.forecasts = new ArrayList<>();
+            weatherSpec.setForecasts(new ArrayList<>());
             List<WeatherInfo.DayForecast> forecasts = weatherInfo.getForecasts();
             for (int i = 1; i < forecasts.size(); i++) {
                 WeatherInfo.DayForecast cmForecast = forecasts.get(i);
                 WeatherSpec.Daily gbForecast = new WeatherSpec.Daily();
                 if (weatherInfo.getTemperatureUnit() == FAHRENHEIT) {
-                    gbForecast.maxTemp = (int) WeatherUtils.fahrenheitToCelsius(cmForecast.getHigh()) + 273;
-                    gbForecast.minTemp = (int) WeatherUtils.fahrenheitToCelsius(cmForecast.getLow()) + 273;
+                    gbForecast.setMaxTemp((int) WeatherUtils.fahrenheitToCelsius(cmForecast.getHigh()) + 273);
+                    gbForecast.setMinTemp((int) WeatherUtils.fahrenheitToCelsius(cmForecast.getLow()) + 273);
                 } else {
-                    gbForecast.maxTemp = (int) cmForecast.getHigh() + 273;
-                    gbForecast.minTemp = (int) cmForecast.getLow() + 273;
+                    gbForecast.setMaxTemp((int) cmForecast.getHigh() + 273);
+                    gbForecast.setMinTemp((int) cmForecast.getLow() + 273);
                 }
-                gbForecast.conditionCode = Weather.mapToOpenWeatherMapCondition(CMtoYahooCondintion(cmForecast.getConditionCode()));
-                weatherSpec.forecasts.add(gbForecast);
+                gbForecast.setConditionCode(WeatherMapper.mapToOpenWeatherMapCondition(CMtoYahooCondintion(cmForecast.getConditionCode())));
+                weatherSpec.getForecasts().add(gbForecast);
             }
             ArrayList<WeatherSpec> weatherSpecs = new ArrayList<>(Collections.singletonList(weatherSpec));
-            Weather.getInstance().setWeatherSpec(weatherSpecs);
-            GBApplication.deviceService().onSendWeather(weatherSpecs);
+            Weather.setWeatherSpec(weatherSpecs);
+            GBApplication.deviceService().onSendWeather();
         } else {
             LOG.info("request has returned null for WeatherInfo");
         }

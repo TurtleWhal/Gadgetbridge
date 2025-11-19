@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -53,7 +54,7 @@ public class DashboardUtils {
         int totalSteps = 0;
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking()) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
                     totalSteps += (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getSteps();
                 }
             }
@@ -68,7 +69,7 @@ public class DashboardUtils {
         int totalActiveCalories = 0;
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActiveCalories()) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActiveCalories(dev)) {
                     totalActiveCalories += (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getActiveCalories();
                 }
             }
@@ -85,7 +86,7 @@ public class DashboardUtils {
         int totalRestingCaloriesDevices = 0;
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActiveCalories()) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActiveCalories(dev)) {
                     final int restingCalories = (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getRestingCalories();
                     if (restingCalories > 0) {
                         totalRestingCalories += restingCalories;
@@ -122,7 +123,7 @@ public class DashboardUtils {
         long totalSleepMinutes = 0;
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking()) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
                     totalSleepMinutes += getSleep(dev, dbHandler, dashboardData.timeTo);
                 }
             }
@@ -134,7 +135,7 @@ public class DashboardUtils {
 
     public static float getSleepMinutesGoalFactor(DashboardFragment.DashboardData dashboardData) {
         ActivityUser activityUser = new ActivityUser();
-        int sleepMinutesGoal = activityUser.getSleepDurationGoal() * 60;
+        int sleepMinutesGoal = activityUser.getSleepDurationGoal();
         float goalFactor = (float) getSleepMinutesTotal(dashboardData) / sleepMinutesGoal;
         if (goalFactor > 1) goalFactor = 1;
 
@@ -149,7 +150,7 @@ public class DashboardUtils {
         long totalDistanceCm = 0;
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking()) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
                     final DailyTotals dailyTotals = getDailyTotals(dev, dbHandler, dashboardData.timeTo);
                     if (dailyTotals.getSteps() > 0 && dailyTotals.getDistance() > 0) {
                         totalDistanceCm += dailyTotals.getDistance();
@@ -187,7 +188,7 @@ public class DashboardUtils {
         long totalActiveMinutes = 0;
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking()) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
                     totalActiveMinutes += getActiveMinutes(dev, dbHandler, dashboardData);
                 }
             }
@@ -226,7 +227,7 @@ public class DashboardUtils {
 
     public static List<? extends ActivitySample> getAllSamples(DBHandler db, GBDevice device, DashboardFragment.DashboardData dashboardData) {
         SampleProvider<? extends ActivitySample> provider = getProvider(db, device);
-        return provider.getAllActivitySamples(dashboardData.timeFrom, dashboardData.timeTo);
+        return provider != null ? provider.getAllActivitySamples(dashboardData.timeFrom, dashboardData.timeTo) : Collections.emptyList();
     }
 
     protected static SampleProvider<? extends AbstractActivitySample> getProvider(DBHandler db, GBDevice device) {

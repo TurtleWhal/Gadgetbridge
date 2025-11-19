@@ -23,11 +23,8 @@ import androidx.annotation.NonNull;
 
 import java.util.regex.Pattern;
 
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.hama.fit6900.HamaFit6900DeviceSupport;
@@ -49,14 +46,14 @@ public final class HamaFit6900DeviceCoordinator extends AbstractBLEDeviceCoordin
     }
 
     @Override
-    public boolean supportsFindDevice() {
+    public boolean supportsFindDevice(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
     public int[] getSupportedDeviceSpecificSettings(GBDevice device) {
         return new int[]{
-                R.xml.devicesettings_allow_accept_reject_calls, // reject only
+                R.xml.devicesettings_allow_reject_calls, // reject only
                 R.xml.devicesettings_camera_remote,
                 R.xml.devicesettings_find_phone,
                 R.xml.devicesettings_liftwrist_display_no_on,
@@ -96,5 +93,10 @@ public final class HamaFit6900DeviceCoordinator extends AbstractBLEDeviceCoordin
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_hama_fit6900;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

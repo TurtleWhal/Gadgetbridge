@@ -29,7 +29,6 @@ import java.util.Random;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetProgressAction;
 
 public class CmfDataUploader implements CmfCharacteristic.Handler {
     private static final Logger LOG = LoggerFactory.getLogger(CmfDataUploader.class);
@@ -215,7 +214,7 @@ public class CmfDataUploader implements CmfCharacteristic.Handler {
     private void updateProgress(final int progressPercent, boolean ongoing) {
         final TransactionBuilder builder = mSupport.createTransactionBuilder("update data upload progress to " + progressPercent);
         updateProgress(builder, progressPercent, ongoing);
-        builder.queue(mSupport.getQueue());
+        builder.queue();
     }
 
     private void updateProgress(final TransactionBuilder builder, final int progressPercent, boolean ongoing) {
@@ -226,17 +225,16 @@ public class CmfDataUploader implements CmfCharacteristic.Handler {
             uploadMessage = R.string.updating_firmware;
         }
 
-        builder.add(new SetProgressAction(
-                mSupport.getContext().getString(uploadMessage),
+        builder.setProgress(
+                uploadMessage,
                 ongoing,
-                progressPercent,
-                mSupport.getContext()
-        ));
+                progressPercent
+        );
     }
 
     private void setDeviceBusy() {
         final GBDevice device = mSupport.getDevice();
-        device.setBusyTask(mSupport.getContext().getString(R.string.updating_firmware));
+        device.setBusyTask(R.string.updating_firmware, mSupport.getContext());
         device.sendDeviceUpdateIntent(mSupport.getContext());
     }
 

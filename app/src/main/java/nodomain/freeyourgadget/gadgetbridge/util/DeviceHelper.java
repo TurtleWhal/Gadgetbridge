@@ -26,12 +26,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresPermission;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,8 +106,9 @@ public class DeviceHelper {
         return availableDevices;
     }
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     public GBDevice toSupportedDevice(BluetoothDevice device) {
-        GBDeviceCandidate candidate = new GBDeviceCandidate(device, GBDevice.RSSI_UNKNOWN, device.getUuids());
+        GBDeviceCandidate candidate = new GBDeviceCandidate(device, GBDevice.RSSI_UNKNOWN, device.getUuids(), null);
         candidate.refreshNameIfUnknown();
         return toSupportedDevice(candidate);
     }
@@ -123,13 +127,18 @@ public class DeviceHelper {
 
         return orderedDeviceTypes;
     }
-    public DeviceType resolveDeviceType(GBDeviceCandidate deviceCandidate) {
+    public DeviceType resolveDeviceType(@NonNull final GBDeviceCandidate deviceCandidate) {
         return resolveDeviceType(deviceCandidate, true);
     }
 
-    public DeviceType resolveDeviceType(GBDeviceCandidate deviceCandidate, boolean useCache){
+    public DeviceType resolveDeviceType(@NonNull final GBDeviceCandidate deviceCandidate, boolean useCache){
+        final DeviceType forcedType = deviceCandidate.getForcedType();
+        if (forcedType != null) {
+            return forcedType;
+        }
+
         synchronized (this) {
-            if(useCache) {
+            if (useCache) {
                 DeviceType cachedType =
                         deviceTypeCache.get(deviceCandidate.getMacAddress().toLowerCase());
                 if (cachedType != null) {

@@ -26,6 +26,8 @@ import androidx.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -33,6 +35,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.FileDownloadService0A;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.FileDownloadService2C;
@@ -44,6 +48,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetF
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetFileInfoRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetFileParametersRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.Request;
+import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class HuaweiFileDownloadManager {
@@ -118,6 +123,8 @@ public class HuaweiFileDownloadManager {
         SLEEP_DATA,
         RRI,
         GPS,
+        SEQUENCE_DATA,
+        ECG_ANALYSIS_DATA,
         UNKNOWN // Never for input!
     }
 
@@ -140,11 +147,13 @@ public class HuaweiFileDownloadManager {
         private final FileType fileType;
         private final boolean newSync;
 
-        private final  FileDownloadCallback fileDownloadCallback;
+        private final FileDownloadCallback fileDownloadCallback;
 
         // Sleep type only - for 2C GPS they are set to zero
         private int startTime = 0;
         private int endTime = 0;
+
+        private int dictId = 0;
 
         // GPS type only
         private short workoutId;
@@ -176,6 +185,25 @@ public class HuaweiFileDownloadManager {
 
         public static FileRequest rriFileRequest(boolean supportsRriNewSync, int startTime, int endTime, FileDownloadCallback fileDownloadCallback) {
             return new FileRequest("rrisqi_data.bin", FileType.RRI, supportsRriNewSync, startTime, endTime, fileDownloadCallback);
+        }
+
+        public static FileRequest ecgAnalysisFileRequest(int startTime, int endTime, FileDownloadCallback fileDownloadCallback) {
+            return new FileRequest("ecg_analysis_data.bin", FileType.ECG_ANALYSIS_DATA, true, startTime, endTime, fileDownloadCallback);
+        }
+
+
+        private FileRequest(String filename, FileType fileType, int startTime, int endTime, int dictId, FileDownloadCallback fileDownloadCallback) {
+            this.filename = filename;
+            this.fileType = fileType;
+            this.newSync = true;
+            this.fileDownloadCallback = fileDownloadCallback;
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.dictId = dictId;
+        }
+
+        public static FileRequest sequenceDataFileRequest(int startTime, int endTime, int dictId, FileDownloadCallback fileDownloadCallback) {
+            return new FileRequest("sequence_data", FileType.SEQUENCE_DATA, startTime, endTime, dictId, fileDownloadCallback);
         }
 
         private FileRequest(String filename, FileType fileType, boolean newSync, FileDownloadCallback fileDownloadCallback) {
@@ -349,6 +377,10 @@ public class HuaweiFileDownloadManager {
         public void setNeedVerify(boolean needVerify) {
             this.needVerify = needVerify;
         }
+
+        public int getDictId() { return dictId;}
+
+        public void setDictId(int dictId) { this.dictId = dictId;}
     }
 
     /**
@@ -604,11 +636,11 @@ public class HuaweiFileDownloadManager {
 
         if (currentFileRequest.fileType == HuaweiFileDownloadManager.FileType.DEBUG)
             fileType = 0x00;
-        else if(currentFileRequest.fileType == FileType.SLEEP_STATE || currentFileRequest.fileType == FileType.SLEEP_DATA)
+        else if (currentFileRequest.fileType == FileType.SLEEP_STATE || currentFileRequest.fileType == FileType.SLEEP_DATA)
             fileType = 0x01;
         else if (currentFileRequest.fileType == HuaweiFileDownloadManager.FileType.GPS)
             fileType = 0x02;
-        else if(currentFileRequest.fileType == HuaweiFileDownloadManager.FileType.RRI)
+        else if (currentFileRequest.fileType == HuaweiFileDownloadManager.FileType.RRI)
             fileType = 0x04;
         else {
             currentFileRequest.fileDownloadCallback.downloadException(new HuaweiFileDownloadException(currentFileRequest, "Unknown download type"));
@@ -778,6 +810,37 @@ public class HuaweiFileDownloadManager {
         } // Else we're expecting more data to arrive automatically
     }
 
+    private void saveRawFileData(FileRequest fileRequest) {
+        boolean saveRawFilesEnabled = GBApplication
+                .getDeviceSpecificSharedPrefs(supportProvider.getDevice().getAddress())
+                .getBoolean(DeviceSettingsPreferenceConst.PREF_HUAWEI_SAVE_RAW_FILES, false);
+        if (!saveRawFilesEnabled)
+            return;
+
+        try {
+            String filename = FileUtils.makeValidFileName(System.currentTimeMillis() + "_" + fileRequest.getFileId() + "_" + fileRequest.getFilename());
+            File dir = new File(supportProvider.getDevice().getDeviceCoordinator().getWritableExportDirectory(supportProvider.getDevice(), true) + File.separator + "raw");
+            if (!dir.isDirectory()) {
+                if (!dir.mkdir()) {
+                    LOG.error("Error save raw file");
+                    return;
+                }
+            }
+
+            File targetFile = new File(
+                    dir,
+                    filename
+            );
+            try (FileOutputStream fos = new FileOutputStream(targetFile)) {
+                fos.write(fileRequest.getData());
+            }
+            LOG.info("RAW file saved to: {}", targetFile.getAbsolutePath());
+        } catch (IOException e) {
+            LOG.error("Could save RAW file", e);
+        }
+
+    }
+
     private void fileComplete() {
         // Stop timeout from hitting
         this.handler.removeCallbacks(this.timeout);
@@ -827,6 +890,7 @@ public class HuaweiFileDownloadManager {
             GB.toast("Workout GPX file could not be parsed.", Toast.LENGTH_SHORT, GB.ERROR, e);
         }
 
+        saveRawFileData(currentFileRequest);
 
         if (!this.currentFileRequest.newSync && !this.fileRequests.isEmpty() && !this.fileRequests.get(0).newSync) {
             // Old sync can potentially take a shortcut

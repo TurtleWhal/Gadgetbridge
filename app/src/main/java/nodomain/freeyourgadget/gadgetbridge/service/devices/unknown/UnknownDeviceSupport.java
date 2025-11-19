@@ -16,11 +16,17 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.unknown;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
 
 public class UnknownDeviceSupport extends AbstractDeviceSupport {
+    private static final Logger LOG = LoggerFactory.getLogger(UnknownDeviceSupport.class);
+
     @Override
     public boolean connect() {
+        LOG.error("Attempting to connect to an unknown device - this should never happen");
         return false;
     }
 

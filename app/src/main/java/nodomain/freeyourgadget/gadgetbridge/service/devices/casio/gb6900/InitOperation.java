@@ -45,11 +45,11 @@ public class InitOperation extends AbstractBTLEOperation<CasioGB6900DeviceSuppor
 
     @Override
     protected void doPerform() throws IOException {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
         TransactionBuilder builder = getSupport().createTransactionBuilder("readBleSettings");
         builder.setCallback(this);
-        builder.read(getCharacteristic(CasioConstants.CASIO_SETTING_FOR_BLE_CHARACTERISTIC_UUID));
-        getSupport().performImmediately(builder);
+        builder.read(CasioConstants.CASIO_SETTING_FOR_BLE_CHARACTERISTIC_UUID);
+        builder.queueImmediately();
     }
 
     @Override
@@ -84,8 +84,8 @@ public class InitOperation extends AbstractBTLEOperation<CasioGB6900DeviceSuppor
         try {
             TransactionBuilder builder = getSupport().createTransactionBuilder("writeBleInit");
             builder.setCallback(this);
-            builder.write(getCharacteristic(CasioConstants.CASIO_SETTING_FOR_BLE_CHARACTERISTIC_UUID), mBleSettings);
-            getSupport().performImmediately(builder);
+            builder.writeLegacy(getCharacteristic(CasioConstants.CASIO_SETTING_FOR_BLE_CHARACTERISTIC_UUID), mBleSettings);
+            builder.queueImmediately();
         } catch(IOException e) {
             LOG.error("Error writing BLE settings: " + e.getMessage());
         }

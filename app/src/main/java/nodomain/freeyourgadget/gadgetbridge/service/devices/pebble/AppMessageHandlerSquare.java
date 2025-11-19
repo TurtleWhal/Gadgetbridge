@@ -29,7 +29,7 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -51,7 +51,7 @@ class AppMessageHandlerSquare extends AppMessageHandler {
             CfgKeyUseCelsius = appKeys.getInt("CfgKeyUseCelsius");
             CfgKeyWeatherLocation = appKeys.getInt("CfgKeyWeatherLocation");
         } catch (JSONException e) {
-            GB.toast("There was an error accessing the Square watchface configuration.", Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast("There was an error accessing the Square watchface configuration.", Toast.LENGTH_LONG, GB.ERROR, e);
         } catch (IOException ignore) {
         }
     }
@@ -63,10 +63,10 @@ class AppMessageHandlerSquare extends AppMessageHandler {
 
         ArrayList<Pair<Integer, Object>> pairs = new ArrayList<>(2);
         pairs.add(new Pair<>(CfgKeyWeatherMode, (Object) 1));
-        pairs.add(new Pair<>(CfgKeyConditions, (Object) weatherSpec.currentCondition));
+        pairs.add(new Pair<>(CfgKeyConditions, (Object) weatherSpec.getCurrentCondition()));
         pairs.add(new Pair<>(CfgKeyUseCelsius, (Object) 1));
-        pairs.add(new Pair<>(CfgKeyCelsiusTemperature, (Object) (weatherSpec.currentTemp - 273)));
-        pairs.add(new Pair<>(CfgKeyWeatherLocation, (Object) (weatherSpec.location)));
+        pairs.add(new Pair<>(CfgKeyCelsiusTemperature, (Object) (weatherSpec.getCurrentTemp() - 273)));
+        pairs.add(new Pair<>(CfgKeyWeatherLocation, (Object) (weatherSpec.getLocation())));
         byte[] weatherMessage = mPebbleProtocol.encodeApplicationMessagePush(PebbleProtocol.ENDPOINT_APPLICATIONMESSAGE, mUUID, pairs, null);
 
         ByteBuffer buf = ByteBuffer.allocate(weatherMessage.length);
@@ -78,7 +78,7 @@ class AppMessageHandlerSquare extends AppMessageHandler {
 
     @Override
     public GBDeviceEvent[] onAppStart() {
-        WeatherSpec weatherSpec = Weather.getInstance().getWeatherSpec();
+        WeatherSpec weatherSpec = Weather.getWeatherSpec();
         if (weatherSpec == null) {
             return new GBDeviceEvent[]{null};
         }

@@ -42,17 +42,13 @@ import java.util.HashMap;
 import java.util.Locale;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import nodomain.freeyourgadget.gadgetbridge.Logging;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
-import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.BcdUtil;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
@@ -60,7 +56,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.casio.CasioConstants;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_LANGUAGE;
@@ -120,8 +115,10 @@ public abstract class Casio2C2DSupport extends CasioSupport {
 
     @Override
     public boolean connect() {
-        requests.clear();
-        return super.connect();
+        synchronized (ConnectionMonitor) {
+            requests.clear();
+            return super.connect();
+        }
     }
 
     @Override
@@ -134,11 +131,11 @@ public abstract class Casio2C2DSupport extends CasioSupport {
         if (!requests.isEmpty()) {
             LOG.warn("writing while waiting for a response may lead to incorrect received responses");
         }
-        builder.write(getCharacteristic(CasioConstants.CASIO_ALL_FEATURES_CHARACTERISTIC_UUID), arr);
+        builder.writeLegacy(getCharacteristic(CasioConstants.CASIO_ALL_FEATURES_CHARACTERISTIC_UUID), arr);
     }
 
     public void writeAllFeaturesRequest(TransactionBuilder builder, byte[] arr) {
-        builder.write(getCharacteristic(CasioConstants.CASIO_READ_REQUEST_FOR_ALL_FEATURES_CHARACTERISTIC_UUID), arr);
+        builder.writeLegacy(getCharacteristic(CasioConstants.CASIO_READ_REQUEST_FOR_ALL_FEATURES_CHARACTERISTIC_UUID), arr);
     }
 
     public interface ResponseHandler {
@@ -270,9 +267,9 @@ public abstract class Casio2C2DSupport extends CasioSupport {
     }
 
     public void requestFeature(TransactionBuilder builder, FeatureRequest request, ResponseHandler handler) {
-        builder.notify(getCharacteristic(CasioConstants.CASIO_ALL_FEATURES_CHARACTERISTIC_UUID), true);
+        builder.notify(CasioConstants.CASIO_ALL_FEATURES_CHARACTERISTIC_UUID, true);
         writeAllFeaturesRequest(builder, request.getData());
-        builder.run((gatt) -> requests.add(new RequestWithHandler(request, handler)));
+        builder.run(() -> requests.add(new RequestWithHandler(request, handler)));
     }
 
     public void requestFeatures(TransactionBuilder builder, Set<FeatureRequest> requests, ResponsesHandler handler) {
@@ -483,8 +480,8 @@ public abstract class Casio2C2DSupport extends CasioSupport {
         for (byte[] data: settings) {
             writeAllFeatures(builder, data);
         }
-        builder.run((gatt) -> GB.toast(getContext(), getContext().getString(R.string.user_feedback_set_settings_ok), Toast.LENGTH_SHORT, GB.INFO));
-        builder.queue(getQueue());
+        builder.run(() -> GB.toast(getContext(), getContext().getString(R.string.user_feedback_set_settings_ok), Toast.LENGTH_SHORT, GB.INFO));
+        builder.queue();
     }
 
     public abstract class DeviceItems<Item> extends DeviceSetting {

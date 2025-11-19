@@ -32,7 +32,6 @@ import java.util.Map;
 
 import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
@@ -56,7 +55,6 @@ import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.settings.MoyoungSett
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.settings.MoyoungSettingTimeRange;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.settings.MoyoungSettingUserInfo;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.MoyoungActivitySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.MoyoungBloodPressureSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.MoyoungHeartRateSampleDao;
@@ -72,6 +70,17 @@ import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.moyoung.MoyoungDeviceSupport;
 
 public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDeviceCoordinator {
+    @Override
+    public Map<AbstractDao<?, ?>, Property> getAllDeviceDao( @NonNull final DaoSession session) {
+        return new HashMap<>() {{
+            put(session.getMoyoungActivitySampleDao(), MoyoungActivitySampleDao.Properties.DeviceId);
+            put(session.getMoyoungHeartRateSampleDao(), MoyoungHeartRateSampleDao.Properties.DeviceId);
+            put(session.getMoyoungSpo2SampleDao(), MoyoungSpo2SampleDao.Properties.DeviceId);
+            put(session.getMoyoungBloodPressureSampleDao(), MoyoungBloodPressureSampleDao.Properties.DeviceId);
+            put(session.getMoyoungSleepStageSampleDao(), MoyoungSleepStageSampleDao.Properties.DeviceId);
+            put(session.getMoyoungStressSampleDao(), MoyoungStressSampleDao.Properties.DeviceId);
+        }};
+    }
 
     @NonNull
     @Override
@@ -93,37 +102,17 @@ public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDevice
     }
 
     @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
-        final Long deviceId = device.getId();
-
-        final Map<AbstractDao<?, ?>, Property> daoMap = new HashMap<>() {{
-            put(session.getMoyoungActivitySampleDao(), MoyoungActivitySampleDao.Properties.DeviceId);
-            put(session.getMoyoungHeartRateSampleDao(), MoyoungHeartRateSampleDao.Properties.DeviceId);
-            put(session.getMoyoungSpo2SampleDao(), MoyoungSpo2SampleDao.Properties.DeviceId);
-            put(session.getMoyoungBloodPressureSampleDao(), MoyoungBloodPressureSampleDao.Properties.DeviceId);
-            put(session.getMoyoungSleepStageSampleDao(), MoyoungSleepStageSampleDao.Properties.DeviceId);
-            put(session.getMoyoungStressSampleDao(), MoyoungStressSampleDao.Properties.DeviceId);
-        }};
-
-        for (final Map.Entry<AbstractDao<?, ?>, Property> e : daoMap.entrySet()) {
-            e.getKey().queryBuilder()
-                    .where(e.getValue().eq(deviceId))
-                    .buildDelete().executeDeleteWithoutDetachingEntities();
-        }
-    }
-
-    @Override
-    public boolean supportsActivityDataFetching() {
+    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracking() {
+    public boolean supportsActivityTracking(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsSpo2(GBDevice device) {
+    public boolean supportsSpo2(@NonNull GBDevice device) {
         return true;
     }
 
@@ -148,32 +137,32 @@ public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDevice
     }
 
     @Override
-    public boolean supportsHeartRateMeasurement(GBDevice device) {
+    public boolean supportsHeartRateMeasurement(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsCalendarEvents() {
+    public boolean supportsCalendarEvents(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsRealtimeData() {
+    public boolean supportsRealtimeData(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsFindDevice() {
+    public boolean supportsFindDevice(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracks() {
+    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -184,11 +173,11 @@ public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDevice
     }
 
     @Override
-    public boolean supportsMusicInfo() {
+    public boolean supportsMusicInfo(@NonNull GBDevice device) {
         return true;
     }
 
-    private static final MoyoungSetting[] MOYOUNG_SETTINGS = {
+    private static final MoyoungSetting<?>[] MOYOUNG_SETTINGS = {
         new MoyoungSettingUserInfo("USER_INFO", MoyoungConstants.CMD_SET_USER_INFO),
         new MoyoungSettingByte("STEP_LENGTH", (byte)-1, MoyoungConstants.CMD_SET_STEP_LENGTH),
         // (*) new MoyoungSettingEnum<>("DOMINANT_HAND", MoyoungConstants.CMD_QUERY_DOMINANT_HAND, MoyoungConstants.CMD_SET_DOMINANT_HAND, MoyoungEnumDominantHand.class),
@@ -234,7 +223,7 @@ public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDevice
         if (getWorldClocksSlotCount() > 0) {
             generic.add(R.xml.devicesettings_world_clocks);
         }
-        if (supportsCalendarEvents()) {
+        if (supportsCalendarEvents(device)) {
             generic.add(R.xml.devicesettings_sync_calendar);
         }
         final List<Integer> health = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH);
@@ -285,5 +274,10 @@ public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDevice
 
     public int getMtu() {
         return 20;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

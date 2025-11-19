@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2024 José Rebelo
+/*  Copyright (C) 2023-2025 José Rebelo, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -16,18 +16,20 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.mijia_lywsd;
 
-import android.content.Context;
-import android.net.Uri;
-
 import androidx.annotation.NonNull;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import de.greenrobot.dao.AbstractDao;
+import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
+import nodomain.freeyourgadget.gadgetbridge.entities.MijiaLywsdHistoricSampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.MijiaLywsdRealtimeSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
@@ -40,7 +42,7 @@ public abstract class AbstractMijiaLywsdCoordinator extends AbstractBLEDeviceCoo
     }
 
     @Override
-    public boolean supportsActivityDataFetching() {
+    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
         return false;
     }
 
@@ -74,39 +76,52 @@ public abstract class AbstractMijiaLywsdCoordinator extends AbstractBLEDeviceCoo
     }
 
     @Override
-    public boolean supportsTemperatureMeasurement(final GBDevice device) {
+    public boolean supportsTemperatureMeasurement(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsContinuousTemperature(final GBDevice device) {
+    public boolean supportsContinuousTemperature(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracking() {
+    public boolean supportsActivityTracking(@NonNull GBDevice device) {
         return false; // FIXME: Enable this once temperature fetching is enabled
     }
 
     @Override
-    public boolean supportsSleepMeasurement() {
+    public boolean supportsSleepMeasurement(@NonNull GBDevice device) {
         return false;
     }
 
     @Override
-    public boolean supportsStepCounter() {
+    public boolean supportsStepCounter(@NonNull GBDevice device) {
         return false;
     }
 
     @Override
-    public boolean supportsSpeedzones() {
+    public boolean supportsSpeedzones(@NonNull GBDevice device) {
         return false;
     }
 
     @Override
-    public boolean supportsActivityTabs() {
+    public boolean supportsActivityTabs(@NonNull GBDevice device) {
         return false;
     }
 
     public abstract boolean supportsSetTime();
+
+    @Override
+    public Map<AbstractDao<?, ?>, Property> getAllDeviceDao(@NonNull final DaoSession session) {
+        Map<AbstractDao<?, ?>, Property> map = new HashMap<>(2);
+        map.put(session.getMijiaLywsdHistoricSampleDao(), MijiaLywsdHistoricSampleDao.Properties.DeviceId);
+        map.put(session.getMijiaLywsdRealtimeSampleDao(), MijiaLywsdRealtimeSampleDao.Properties.DeviceId);
+        return map;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return supportsSetTime() ? DeviceKind.SMART_CLOCK : DeviceKind.THERMOMETER;
+    }
 }

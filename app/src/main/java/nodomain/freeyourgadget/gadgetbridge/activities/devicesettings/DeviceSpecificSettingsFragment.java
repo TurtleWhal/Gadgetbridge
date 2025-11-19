@@ -1,7 +1,7 @@
-/*  Copyright (C) 2019-2024 akasaka / Genjitsu Labs, Alicia Hormann, Andreas
+/*  Copyright (C) 2019-2025 akasaka / Genjitsu Labs, Alicia Hormann, Andreas
     Böhler, Andreas Shimokawa, Arjan Schrijver, Cre3per, Damien Gaignon, Daniel
     Dakhno, Daniele Gobbetti, Davis Mosenkovs, foxstidious, José Rebelo, mamucho,
-    NekoBox, opavlov, Petr Vaněk, Yoran Vulker, Yukai Li, Zhong Jianxin
+    NekoBox, opavlov, Petr Vaněk, Yoran Vulker, Yukai Li, Zhong Jianxin, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -81,6 +81,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.app_specific_notification
 import nodomain.freeyourgadget.gadgetbridge.activities.audiorecordings.AudioRecordingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.loyaltycards.LoyaltyCardsSettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.loyaltycards.LoyaltyCardsSettingsConst;
+import nodomain.freeyourgadget.gadgetbridge.activities.multipoint.MultipointPairingActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.musicmanager.MusicManagerActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.widgets.WidgetScreensListActivity;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability;
@@ -101,8 +102,7 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
 
     private static final Logger LOG = LoggerFactory.getLogger(DeviceSpecificSettingsFragment.class);
 
-    static final String FRAGMENT_TAG = "DEVICE_SPECIFIC_SETTINGS_FRAGMENT";
-
+    private DeviceSpecificSettings deviceSpecificSettings;
     private DeviceSpecificSettingsCustomizer deviceSpecificSettingsCustomizer;
 
     private GBDevice device;
@@ -142,6 +142,7 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                         LOG.debug("{} changed, notifying customizer", changedDevice);
                         deviceSpecificSettingsCustomizer.onDeviceChanged(DeviceSpecificSettingsFragment.this);
                     }
+                    reloadEnabledPreferences();
                 }
             }
         }
@@ -174,7 +175,7 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
             return;
         }
         String settingsFileSuffix = arguments.getString("settingsFileSuffix", null);
-        DeviceSpecificSettings deviceSpecificSettings = arguments.getParcelable("deviceSpecificSettings");
+        this.deviceSpecificSettings = arguments.getParcelable("deviceSpecificSettings");
         this.deviceSpecificSettingsCustomizer = arguments.getParcelable("deviceSpecificSettingsCustomizer");
         this.device = arguments.getParcelable("device");
 
@@ -241,6 +242,19 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         }
 
         setChangeListener(rootKey);
+
+        reloadEnabledPreferences();
+    }
+
+    private void reloadEnabledPreferences() {
+        if (deviceSpecificSettings != null) {
+            for (String connectedPreference : deviceSpecificSettings.getConnectedPreferences()) {
+                final Preference pref = findPreference(connectedPreference);
+                if (pref != null) {
+                    pref.setEnabled(device.isInitialized());
+                }
+            }
+        }
     }
 
     private void addDynamicSettings(final String rootKey) {
@@ -257,7 +271,7 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         }
         final BatteryConfig[] batteryConfigs = coordinator.getBatteryConfig(device);
         for (final BatteryConfig batteryConfig : batteryConfigs) {
-            if (batteryConfigs.length > 1 || coordinator.addBatteryPollingSettings()) {
+            if (batteryConfigs.length > 1) {
                 final Preference prefHeader = new PreferenceCategory(requireContext());
                 prefHeader.setKey("pref_battery_header_" + batteryConfig.getBatteryIndex());
                 prefHeader.setIconSpaceReserved(false);
@@ -402,6 +416,20 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                 languageListPreference.setEntries(entries);
                 languageListPreference.setEntryValues(values);
             }
+            DeviceSettingsUtils.sortListPreference(
+                    languageListPreference,
+                    (supportedLanguages != null) && supportedLanguages.length > 0 && "auto".equals(supportedLanguages[0])
+            );
+        }
+
+        final ListPreference transliterationPreference = findPreference(DeviceSettingsPreferenceConst.PREF_TRANSLITERATION_LANGUAGES);
+        if (transliterationPreference != null) {
+            DeviceSettingsUtils.sortListPreference(transliterationPreference, false);
+        }
+
+        final ListPreference weightScaleUnitPreference = findPreference(PREF_WEIGHT_SCALE_UNIT);
+        if (weightScaleUnitPreference != null) {
+            DeviceSettingsUtils.sortListPreference(weightScaleUnitPreference, false);
         }
 
         String disconnectNotificationState = prefs.getString(PREF_DISCONNECT_NOTIFICATION, PREF_DO_NOT_DISTURB_OFF);
@@ -601,6 +629,10 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         addPreferenceHandlerFor(PREF_HEARTRATE_STRESS_RELAXATION_REMINDER);
         addPreferenceHandlerFor(PREF_HEARTRATE_SLEEP_BREATHING_QUALITY_MONITORING);
         addPreferenceHandlerFor(PREF_SPO2_ALL_DAY_MONITORING);
+        addPreferenceHandlerFor(PREF_SPO2_MEASUREMENT_INTERVAL);
+        addPreferenceHandlerFor(PREF_SPO2_MEASUREMENT_TIME);
+        addPreferenceHandlerFor(PREF_SPO2_MEASUREMENT_START);
+        addPreferenceHandlerFor(PREF_SPO2_MEASUREMENT_END);
         addPreferenceHandlerFor(PREF_SPO2_LOW_ALERT_THRESHOLD);
         addPreferenceHandlerFor(PREF_HRV_ALL_DAY_MONITORING);
         addPreferenceHandlerFor(PREF_TEMPERATURE_ALL_DAY_MONITORING);
@@ -634,6 +666,7 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         addPreferenceHandlerFor(PREF_CASIO_ALERT_CALENDAR);
         addPreferenceHandlerFor(PREF_CASIO_ALERT_OTHER);
         addPreferenceHandlerFor(PREF_SCREEN_ON_ON_NOTIFICATIONS);
+        addPreferenceHandlerFor(PREF_SCREEN_ON_ON_NOTIFICATIONS_TIMEOUT);
         addPreferenceHandlerFor(PREF_WORKOUT_KEEP_SCREEN_ON);
         addPreferenceHandlerFor(PREF_KEY_VIBRATION);
         addPreferenceHandlerFor(PREF_OPERATING_SOUNDS);
@@ -660,6 +693,8 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         addPreferenceHandlerFor(PREF_NOTIFICATION_DELAY_CALLS);
         addPreferenceHandlerFor(PREF_CALL_REJECT_METHOD);
         addPreferenceHandlerFor(PREF_AUTO_REPLY_INCOMING_CALL);
+        addPreferenceHandlerFor(PREF_ENABLE_CALL_REJECT);
+        addPreferenceHandlerFor(PREF_ENABLE_SMS_QUICK_REPLY);
 
         addPreferenceHandlerFor(PREF_SLEEP_MODE_SLEEP_SCREEN);
         addPreferenceHandlerFor(PREF_SLEEP_MODE_SMART_ENABLE);
@@ -803,6 +838,14 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         addPreferenceHandlerFor(PREF_SONY_ADAPTIVE_VOLUME_CONTROL);
         addPreferenceHandlerFor(PREF_SONY_WIDE_AREA_TAP);
 
+        addPreferenceHandlerFor(PREF_MEDIA_SOURCE);
+        addPreferenceHandlerFor(PREF_MEDIA_PLAYBACK_MODE);
+        addPreferenceHandlerFor(PREF_SHOKZ_EQUALIZER_BLUETOOTH);
+        addPreferenceHandlerFor(PREF_SHOKZ_EQUALIZER_MP3);
+
+        addPreferenceHandlerFor(PREF_SHOKZ_CONTROLS_LONG_PRESS_MULTI_FUNCTION);
+        addPreferenceHandlerFor(PREF_SHOKZ_CONTROLS_SIMULTANEOUS_VOLUME_UP_DOWN);
+
         addPreferenceHandlerFor(PREF_SOUNDCORE_AMBIENT_SOUND_CONTROL);
         addPreferenceHandlerFor(PREF_SOUNDCORE_WIND_NOISE_REDUCTION);
         addPreferenceHandlerFor(PREF_SOUNDCORE_TRANSPARENCY_VOCAL_MODE);
@@ -810,7 +853,9 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         addPreferenceHandlerFor(PREF_SOUNDCORE_ANC_MODE);
         addPreferenceHandlerFor(PREF_SOUNDCORE_TOUCH_TONE);
         addPreferenceHandlerFor(PREF_SOUNDCORE_WEARING_TONE);
+        addPreferenceHandlerFor(PREF_SOUNDCORE_BATTERY_LOW_TONE);
         addPreferenceHandlerFor(PREF_SOUNDCORE_WEARING_DETECTION);
+        addPreferenceHandlerFor(PREF_SOUNDCORE_CONTROL_TOUCH_DISABLED);
         addPreferenceHandlerFor(PREF_SOUNDCORE_CONTROL_SINGLE_TAP_DISABLED);
         addPreferenceHandlerFor(PREF_SOUNDCORE_CONTROL_DOUBLE_TAP_DISABLED);
         addPreferenceHandlerFor(PREF_SOUNDCORE_CONTROL_TRIPLE_TAP_DISABLED);
@@ -827,6 +872,7 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         addPreferenceHandlerFor(PREF_SOUNDCORE_BUTTON_BRIGHTNESS);
         addPreferenceHandlerFor(PREF_SOUNDCORE_AUTO_POWER_OFF);
         addPreferenceHandlerFor(PREF_SOUNDCORE_LDAC_MODE);
+        addPreferenceHandlerFor(PREF_SOUNDCORE_GAMING_MODE);
         addPreferenceHandlerFor(PREF_SOUNDCORE_ADAPTIVE_DIRECTION);
         addPreferenceHandlerFor(PREF_SOUNDCORE_EQUALIZER_PRESET);
         addPreferenceHandlerFor(PREF_SOUNDCORE_EQUALIZER_DIRECTION);
@@ -966,6 +1012,10 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         addPreferenceHandlerFor(PREF_CALENDAR_MAX_TITLE_LENGTH);
         addPreferenceHandlerFor(PREF_CALENDAR_MAX_DESC_LENGTH);
         addPreferenceHandlerFor(PREF_CALENDAR_TARGET_APP);
+
+        addPreferenceHandlerFor(PREF_ATC_BLE_OEPL_MODEL);
+        addPreferenceHandlerFor(PREF_ATC_BLE_OEPL_BLE_ADV_INTERVAL);
+        addPreferenceHandlerFor(PREF_ATC_BLE_OEPL_OEPL_PROTOCOL_ENABLE);
 
         final Preference dischargeIntervalsSet = findPreference(PREF_BATTERY_DISCHARGE_INTERVALS_SET);
         if (dischargeIntervalsSet != null) {
@@ -1439,6 +1489,16 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
             });
         }
 
+        final Preference multipointPref = findPreference(PREF_MULTIPOINT);
+        if (multipointPref != null) {
+            multipointPref.setOnPreferenceClickListener(preference -> {
+                final Intent intent = new Intent(getContext(), MultipointPairingActivity.class);
+                intent.putExtra(GBDevice.EXTRA_DEVICE, getDevice());
+                startActivity(intent);
+                return true;
+            });
+        }
+
         final Preference audioRecordings = findPreference("pref_key_audio_recordings");
         if (audioRecordings != null) {
             audioRecordings.setOnPreferenceClickListener(preference -> {
@@ -1501,7 +1561,7 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                 );
             }
 
-            if (coordinator.supportsActivityTracking()) {
+            if (coordinator.supportsActivityTracking(device)) {
                 deviceSpecificSettings.addRootScreen(
                         DeviceSpecificSettingsScreen.ACTIVITY_INFO,
                         R.xml.devicesettings_chartstabs,
@@ -1528,6 +1588,12 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                         DeviceSpecificSettingsScreen.DEVELOPER,
                         R.xml.devicesettings_gatt_synchronous_writes
                 );
+                if (GBApplication.isRunningOreoOrLater()) {
+                    deviceSpecificSettings.addRootScreen(
+                            DeviceSpecificSettingsScreen.DEVELOPER,
+                            R.xml.devicesettings_connection_force_legacy_gatt
+                    );
+                }
             }
             if(BuildConfig.DEBUG) {
                 deviceSpecificSettings.addRootScreen(

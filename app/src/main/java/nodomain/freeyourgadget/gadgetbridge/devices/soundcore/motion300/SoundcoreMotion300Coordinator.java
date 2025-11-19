@@ -25,6 +25,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLClassicDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.soundcore.motion300.SoundcoreMotion300DeviceSupport;
@@ -51,12 +52,7 @@ public class SoundcoreMotion300Coordinator extends AbstractBLClassicDeviceCoordi
     }
 
     @Override
-    public int getBatteryCount(final GBDevice device) {
-        return 1;
-    }
-
-    @Override
-    public boolean supportsPowerOff(final GBDevice device) {
+    public boolean supportsPowerOff(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -75,6 +71,11 @@ public class SoundcoreMotion300Coordinator extends AbstractBLClassicDeviceCoordi
                 R.xml.devicesettings_headphones);
 
         return settings;
+    }
+
+    @Override
+    public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.SPEAKER;
     }
 
     @NonNull

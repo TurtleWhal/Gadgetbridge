@@ -137,7 +137,7 @@ public class HuaweiTLV {
             put(tag, value);
             parsed += size;
         }
-        LOG.debug("Parsed TLV: " + this);
+        LOG.debug("Parsed TLV: {}", this);
         return this;
     }
 
@@ -155,7 +155,7 @@ public class HuaweiTLV {
         ByteBuffer buffer = ByteBuffer.allocate(length);
         for (TLV entry : valueMap)
             buffer.put(entry.serialize());
-        LOG.debug("Serialized TLV: " + this);
+        LOG.debug("Serialized TLV: {}", this);
         return buffer.array();
     }
 
@@ -292,6 +292,18 @@ public class HuaweiTLV {
         return ByteBuffer.wrap(getBytes(tag)).getInt();
     }
 
+    public Integer getAsInteger(int tag, int def) {
+        byte[] bytes = getBytes(tag, null);
+        if (bytes == null || bytes.length == 0 || bytes.length > 4) {
+            return def;
+        }
+        int res = 0;
+        for (int i = 0; i < bytes.length; i++) {
+            res |= (bytes[i] & 255) << (((bytes.length - i) - 1) * 8);
+        }
+        return res;
+    }
+
     public Long getAsLong(int tag) throws HuaweiPacket.MissingTagException {
         byte[] bytes = getBytes(tag);
         if(bytes.length == 1) {
@@ -317,6 +329,15 @@ public class HuaweiTLV {
         List<HuaweiTLV> returnValue = new ArrayList<>();
         for (TLV tlv : valueMap) {
             if (tlv.getTag() == (byte) tag)
+                returnValue.add(new HuaweiTLV().parse(tlv.getValue()));
+        }
+        return returnValue;
+    }
+
+    public List<HuaweiTLV> getAllContainerObjects() {
+        List<HuaweiTLV> returnValue = new ArrayList<>();
+        for (TLV tlv : valueMap) {
+            if (((tlv.getTag() & 0xFF) >>> 7) == 1)
                 returnValue.add(new HuaweiTLV().parse(tlv.getValue()));
         }
         return returnValue;

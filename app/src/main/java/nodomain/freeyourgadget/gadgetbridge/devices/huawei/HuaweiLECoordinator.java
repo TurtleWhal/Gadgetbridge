@@ -41,9 +41,11 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.model.SleepScoreSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
+import nodomain.freeyourgadget.gadgetbridge.model.heartratezones.HeartRateZonesSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiLESupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiWorkoutGbParser;
@@ -100,12 +102,12 @@ public abstract class HuaweiLECoordinator extends AbstractBLEDeviceCoordinator i
     }
 
     @Override
-    public boolean supportsSmartWakeup(GBDevice device, int position) {
+    public boolean supportsSmartWakeup(@NonNull GBDevice device, int position) {
         return huaweiCoordinator.supportsSmartAlarm(device, position);
     }
 
     @Override
-    public boolean supportsSmartWakeupInterval(GBDevice device, int alarmPosition) {
+    public boolean supportsSmartWakeupInterval(@NonNull GBDevice device, int alarmPosition) {
         return supportsSmartWakeup(device, alarmPosition);
     }
 
@@ -115,46 +117,46 @@ public abstract class HuaweiLECoordinator extends AbstractBLEDeviceCoordinator i
     }
 
     @Override
-    public boolean supportsAlarmTitle(GBDevice device) {
+    public boolean supportsAlarmTitle(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(@NonNull final GBDevice device) {
         return huaweiCoordinator.supportsWeather();
     }
 
     @Override
-    public Class<? extends Activity> getAppsManagementActivity() {
+    public Class<? extends Activity> getAppsManagementActivity(final GBDevice device) {
         return huaweiCoordinator.getAppManagerActivity();
     }
 
     @Override
-    public boolean supportsAppListFetching() {
+    public boolean supportsAppListFetching(@NonNull final GBDevice device) {
         return huaweiCoordinator.getSupportsAppListFetching();
     }
     @Override
-    public boolean supportsAppsManagement(GBDevice device) {
+    public boolean supportsAppsManagement(@NonNull GBDevice device) {
         return huaweiCoordinator.getSupportsAppsManagement(device);
     }
 
     @Override
-    public boolean supportsWatchfaceManagement(GBDevice device) {
+    public boolean supportsWatchfaceManagement(@NonNull GBDevice device) {
         return supportsAppsManagement(device);
     }
 
     @Override
-    public boolean supportsInstalledAppManagement(GBDevice device) {
+    public boolean supportsInstalledAppManagement(@NonNull GBDevice device) {
         return huaweiCoordinator.getSupportsInstalledAppManagement(device);
     }
 
     @Override
-    public boolean supportsCachedAppManagement(GBDevice device) {
+    public boolean supportsCachedAppManagement(@NonNull GBDevice device) {
         return huaweiCoordinator.getSupportsCachedAppManagement(device);
     }
 
     @Override
-    public boolean supportsFlashing() {
+    public boolean supportsFlashing(@NonNull GBDevice device) {
         return huaweiCoordinator.getSupportsFlashing();
     }
 
@@ -174,64 +176,73 @@ public abstract class HuaweiLECoordinator extends AbstractBLEDeviceCoordinator i
     }
 
     @Override
-    public boolean supportsCalendarEvents() {
+    public boolean supportsCalendarEvents(@NonNull final GBDevice device) {
         return huaweiCoordinator.supportsCalendarEvents();
     }
 
     @Override
-    public boolean supportsActivityDataFetching() {
+    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActiveCalories() {
+    public boolean supportsActiveCalories(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracking() {
+    public boolean supportsActivityTracking(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracks() {
+    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsHeartRateMeasurement(GBDevice device) {
+    public boolean supportsHeartRateMeasurement(@NonNull GBDevice device) {
         return huaweiCoordinator.supportsHeartRate(device);
     }
 
     @Override
-    public boolean supportsSpo2(GBDevice device) {
+    public boolean supportsSpo2(@NonNull GBDevice device) {
         return huaweiCoordinator.supportsSPo2(device);
     }
 
     @Override
-    public boolean supportsMusicInfo() {
+    public boolean supportsMusicInfo(@NonNull GBDevice device) {
         return huaweiCoordinator.supportsMusic();
     }
 
     @Override
-    public boolean supportsTemperatureMeasurement(final GBDevice device) {
+    public boolean supportsTemperatureMeasurement(@NonNull final GBDevice device) {
         return huaweiCoordinator.supportsTemperature();
     }
 
     @Override
-    public boolean supportsContinuousTemperature(final GBDevice device) {
+    public boolean supportsContinuousTemperature(@NonNull final GBDevice device) {
         return huaweiCoordinator.supportsTemperature();
     }
 
     @Override
-    public boolean supportsStressMeasurement() {
+    public boolean supportsStressMeasurement(@NonNull GBDevice device) {
         return huaweiCoordinator.supportsAutoStress();
     }
 
     @Override
-    public boolean supportsFindDevice() {
+    public boolean supportsFindDevice(@NonNull GBDevice device) {
         return huaweiCoordinator.supportsFindDeviceAbility();
     }
+
+    @Override
+    public boolean supportsRemSleep(@NonNull GBDevice device) {return huaweiCoordinator.getSupportsNewTrueSleep(device);}
+
+    @Override
+    public boolean supportsAwakeSleep(@NonNull GBDevice device) {return huaweiCoordinator.getSupportsNewTrueSleep(device);}
+
+    @Override
+    public boolean supportsSleepScore(@NonNull final GBDevice device) { return huaweiCoordinator.getSupportsNewTrueSleep(device); }
 
     @Override
     public InstallHandler findInstallHandler(Uri uri, Context context) {
@@ -255,12 +266,17 @@ public abstract class HuaweiLECoordinator extends AbstractBLEDeviceCoordinator i
 
     @Override
     public TimeSampleProvider<? extends TemperatureSample> getTemperatureSampleProvider(final GBDevice device, final DaoSession session) {
-        return new HuaweiTemperatureSampleProvider(device, session);
+        return new HuaweiCompatTemperatureSampleProvider(device, session);
     }
 
     @Override
     public TimeSampleProvider<? extends StressSample> getStressSampleProvider(final GBDevice device, final DaoSession session) {
         return new HuaweiStressSampleProvider(device, session);
+    }
+
+    @Override
+    public TimeSampleProvider<? extends SleepScoreSample> getSleepScoreProvider(final GBDevice device, final DaoSession session) {
+        return new HuaweiSleepScoreSampleProvider(device, session);
     }
 
     @Override
@@ -307,5 +323,9 @@ public abstract class HuaweiLECoordinator extends AbstractBLEDeviceCoordinator i
     @Override
     public boolean addBatteryPollingSettings() {
         return true;
+    }
+
+    public HeartRateZonesSpec getHeartRateZonesSpec(@NonNull GBDevice device) {
+        return huaweiCoordinator.getHeartRateZonesSpec(device);
     }
 }

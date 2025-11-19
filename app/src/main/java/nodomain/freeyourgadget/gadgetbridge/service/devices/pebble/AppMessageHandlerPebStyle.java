@@ -27,7 +27,8 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleColor;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 
 class AppMessageHandlerPebStyle extends AppMessageHandler {
@@ -92,12 +93,12 @@ class AppMessageHandlerPebStyle extends AppMessageHandler {
 
 
         //WEATHER
-        WeatherSpec weather = Weather.getInstance().getWeatherSpec();
+        WeatherSpec weather = Weather.getWeatherSpec();
         if (weather != null) {
             //comment the same key in the general section above!
             pairs.add(new Pair<>(KEY_LOCATION_SERVICE, (Object) 0)); //0 auto, 1 manual
-            pairs.add(new Pair<>(KEY_WEATHER_CODE, (Object) Weather.mapToYahooCondition(weather.currentConditionCode)));
-            pairs.add(new Pair<>(KEY_WEATHER_TEMP, (Object) (weather.currentTemp - 273)));
+            pairs.add(new Pair<>(KEY_WEATHER_CODE, (Object) WeatherMapper.mapToYahooCondition(weather.getCurrentConditionCode())));
+            pairs.add(new Pair<>(KEY_WEATHER_TEMP, (Object) (weather.getCurrentTemp() - 273)));
         }
 
         byte[] testMessage = mPebbleProtocol.encodeApplicationMessagePush(PebbleProtocol.ENDPOINT_APPLICATIONMESSAGE, mUUID, pairs, null);

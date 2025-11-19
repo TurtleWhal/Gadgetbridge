@@ -36,8 +36,9 @@ public class FileType {
 
     public enum FILETYPE { //TODO: add specialized method to parse each file type to the enum?
         // virtual/undocumented
-        DIRECTORY(0, 0),
+        DIRECTORY(0, 0), // root directory is hardcoded: fileIndex = 0x0000 / 0
         UNKNOWN_1_0(1, 0), // venu 3, fileIndex=4096
+        DEVICE_XML(8, 255), // hardcoded: fileIndex = 0xFFFD / 65533
 
         // fit files
         DEVICE_1(128, 1), // just "-"
@@ -48,10 +49,15 @@ public class FileType {
         COURSES(128, 6),
         SCHEDULES(128, 7),
         LOCATION(128, 8),
+        WEIGHT(128, 9),
         TOTALS(128, 10),
         GOALS(128, 11),
+        BLOOD_PRESSURE(128, 14),
+        MONITOR_A(128, 15),
         SUMMARY(128, 20),
+        MONITOR_DAILY(128, 28),
         RECORDS(128, 29),
+        UNKNOWN_31(128, 31), // sent by HRM Pro Plus
         MONITOR(128, 32),
         MLT_SPORT(128, 33),
         SEGMENTS(128, 34),
@@ -77,6 +83,8 @@ public class FileType {
         FBT_BACKUP(128, 72),
         SKIN_TEMP(128, 73),
         FBT_PTD_BACKUP(128, 74),
+        SCHEDULE(128, 77),
+        SLP_DISR(128, 79),
 
         // Other files
         DOWNLOAD_COURSE(255, 4),

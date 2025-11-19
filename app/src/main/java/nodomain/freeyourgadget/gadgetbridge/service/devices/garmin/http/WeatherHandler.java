@@ -22,7 +22,8 @@ import java.util.Map;
 
 import lineageos.weather.util.WeatherUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.webview.CurrentPosition;
@@ -39,7 +40,7 @@ public class WeatherHandler {
         final String path = request.getPath();
         final Map<String, String> query = request.getQuery();
 
-        final WeatherSpec weatherSpec = Weather.getInstance().getWeatherSpec();
+        final WeatherSpec weatherSpec = Weather.getWeatherSpec();
 
         if (weatherSpec == null) {
             LOG.warn("No weather in weather instance");
@@ -48,44 +49,62 @@ public class WeatherHandler {
 
         final Object weatherData;
         switch (path) {
-            case "/weather/v2/forecast/day": {
+            case "/weather/v1/forecast/day":
+            case "/weather/v2/forecast/day":
+            {
+                final int version = path.startsWith("/weather/v2/") ? 2 : 1;
+
                 final int lat = getQueryNum(query, "lat", 0);
                 final int lon = getQueryNum(query, "lon", 0);
                 final int duration = getQueryNum(query, "duration", 5);
                 final String tempUnit = getQueryString(query, "tempUnit", "CELSIUS");
+
+                // Args below only in V2
                 final String provider = getQueryString(query, "provider", "dci");
                 final String speedUnit = getQueryString(query, "speedUnit", "KILOMETERS_PER_HOUR");
+
                 final List<WeatherForecastDay> ret = new ArrayList<>(duration);
                 final GregorianCalendar date = new GregorianCalendar();
-                date.setTime(new Date(weatherSpec.timestamp * 1000L));
-                ret.add(new WeatherForecastDay(date, weatherSpec.todayAsDaily(), tempUnit, speedUnit));
-                for (int i = 0; i < Math.min(duration, weatherSpec.forecasts.size()) - 1; i++) {
+                date.setTime(new Date(weatherSpec.getTimestamp() * 1000L));
+                ret.add(new WeatherForecastDay(version, date, weatherSpec.todayAsDaily(), tempUnit, speedUnit));
+                for (int i = 0; i < Math.min(duration, weatherSpec.getForecasts().size()) - 1; i++) {
                     date.add(Calendar.DAY_OF_MONTH, 1);
-                    ret.add(new WeatherForecastDay(date, weatherSpec.forecasts.get(i), tempUnit, speedUnit));
+                    ret.add(new WeatherForecastDay(version, date, weatherSpec.getForecasts().get(i), tempUnit, speedUnit));
                 }
                 weatherData = ret;
                 break;
             }
-            case "/weather/v2/forecast/hour": {
+            case "/weather/v1/forecast/hour":
+            case "/weather/v2/forecast/hour":
+            {
                 final int lat = getQueryNum(query, "lat", 0);
                 final int lon = getQueryNum(query, "lon", 0);
-                final int duration = getQueryNum(query, "duration", 13);
+                final int duration = getQueryNum(query, "duration", 13); // 12 on v1
                 final String speedUnit = getQueryString(query, "speedUnit", "METERS_PER_SECOND");
                 final String tempUnit = getQueryString(query, "tempUnit", "CELSIUS");
+
+                // Properties below only in v1
+                final String pressureUnit = getQueryString(query, "pressureUnit", "MILLIBAR");
+
+                // Properties below only in v2
                 final String provider = getQueryString(query, "provider", "dci");
                 final String timesOfInterest = getQueryString(query, "timesOfInterest", "");
+
                 final List<WeatherForecastHour> ret = new ArrayList<>(duration);
-                for (int i = 0; i < Math.min(duration, weatherSpec.hourly.size()); i++) {
-                    ret.add(new WeatherForecastHour(weatherSpec.hourly.get(i), tempUnit, speedUnit));
+                for (int i = 0; i < Math.min(duration, weatherSpec.getHourly().size()); i++) {
+                    ret.add(new WeatherForecastHour(weatherSpec.getHourly().get(i), tempUnit, speedUnit));
                 }
                 weatherData = ret;
                 break;
             }
-            case "/weather/v2/current": {
+            case "/weather/v1/current":
+            case "/weather/v2/current":
+            {
                 final int lat = getQueryNum(query, "lat", 0);
                 final int lon = getQueryNum(query, "lon", 0);
                 final String tempUnit = getQueryString(query, "tempUnit", "CELSIUS");
                 final String speedUnit = getQueryString(query, "speedUnit", "METERS_PER_SECOND");
+                // only in v2
                 final String provider = getQueryString(query, "provider", "dci");
                 weatherData = new WeatherForecastCurrent(weatherSpec, tempUnit, speedUnit);
                 break;
@@ -130,7 +149,7 @@ public class WeatherHandler {
     }
 
     public static class WeatherForecastDay {
-        public int dayOfWeek; // 1 monday .. 7 sunday
+        public int dayOfWeek; // v2: 1 monday .. 7 sunday, v1: 1 sunday
         public String description;
         public String summary;
         public WeatherValue high;
@@ -142,18 +161,28 @@ public class WeatherHandler {
         public Wind wind; // no gusts
         public Integer humidity;
 
-        public WeatherForecastDay(final GregorianCalendar date, final WeatherSpec.Daily dailyForecast, final String tempUnit, final String speedUnit) {
-            dayOfWeek = BLETypeConversions.dayOfWeekToRawBytes(date);
-            description = Weather.getConditionString(GBApplication.getContext(), dailyForecast.conditionCode);
-            summary = Weather.getConditionString(GBApplication.getContext(), dailyForecast.conditionCode);
-            high = getTemperature(dailyForecast.maxTemp, tempUnit);
-            low = getTemperature(dailyForecast.minTemp, tempUnit);
-            precipProb = dailyForecast.precipProbability;
-            icon = mapToGarminCondition(dailyForecast.conditionCode);
+        public WeatherForecastDay(final int version,
+                                  final GregorianCalendar date,
+                                  final WeatherSpec.Daily dailyForecast,
+                                  final String tempUnit,
+                                  final String speedUnit) {
+            if (version == 2) {
+                // 1 = monday
+                dayOfWeek = BLETypeConversions.dayOfWeekToRawBytes(date);
+            } else {
+                // 1 = sunday
+                dayOfWeek = date.get(Calendar.DAY_OF_WEEK);
+            }
+            description = WeatherMapper.getConditionString(GBApplication.getContext(), dailyForecast.getConditionCode());
+            summary = WeatherMapper.getConditionString(GBApplication.getContext(), dailyForecast.getConditionCode());
+            high = getTemperature(dailyForecast.getMaxTemp(), tempUnit);
+            low = getTemperature(dailyForecast.getMinTemp(), tempUnit);
+            precipProb = dailyForecast.getPrecipProbability();
+            icon = mapToGarminCondition(dailyForecast.getConditionCode());
 
-            if (dailyForecast.sunRise != 0 && dailyForecast.sunSet != 0) {
-                epochSunrise = dailyForecast.sunRise;
-                epochSunset = dailyForecast.sunSet;
+            if (dailyForecast.getSunRise() != 0 && dailyForecast.getSunSet() != 0) {
+                epochSunrise = dailyForecast.getSunRise();
+                epochSunset = dailyForecast.getSunSet();
             } else {
                 final Location lastKnownLocation = new CurrentPosition().getLastKnownLocation();
 
@@ -172,8 +201,8 @@ public class WeatherHandler {
                 }
             }
 
-            wind = new Wind(getSpeed(dailyForecast.windSpeed, speedUnit), dailyForecast.windDirection);
-            humidity = dailyForecast.humidity;
+            wind = new Wind(getSpeed(dailyForecast.getWindSpeed(), speedUnit), dailyForecast.getWindDirection());
+            humidity = dailyForecast.getHumidity();
         }
     }
 
@@ -185,25 +214,25 @@ public class WeatherHandler {
         public Wind wind;
         public Integer icon;
         public WeatherValue dewPoint;
-        public Float uvIndex; // 3 decimal places
+        public Float uvIndex; // 3 decimal places on v2, 1 on v1
         public Integer relativeHumidity;
         public WeatherValue feelsLikeTemperature;
         public WeatherValue visibility;
         public WeatherValue pressure;
-        public Object airQuality;
+        public Object airQuality; // only in v2
         public Integer cloudCover;
         //public WeatherValue ceilingHeight; // 4700 / FOOT
 
         public WeatherForecastHour(final WeatherSpec.Hourly hourlyForecast, final String tempUnit, final String speedUnit) {
-            epochSeconds = hourlyForecast.timestamp;
-            description = Weather.getConditionString(GBApplication.getContext(), hourlyForecast.conditionCode);
-            temp = getTemperature(hourlyForecast.temp, tempUnit);
-            precipProb = hourlyForecast.precipProbability;
-            wind = new Wind(getSpeed(hourlyForecast.windSpeed, speedUnit), hourlyForecast.windDirection);
-            icon = mapToGarminCondition(hourlyForecast.conditionCode);
+            epochSeconds = hourlyForecast.getTimestamp();
+            description = WeatherMapper.getConditionString(GBApplication.getContext(), hourlyForecast.getConditionCode());
+            temp = getTemperature(hourlyForecast.getTemp(), tempUnit);
+            precipProb = hourlyForecast.getPrecipProbability();
+            wind = new Wind(getSpeed(hourlyForecast.getWindSpeed(), speedUnit), hourlyForecast.getWindDirection());
+            icon = mapToGarminCondition(hourlyForecast.getConditionCode());
             //dewPoint = new WeatherValue(hourlyForecast.temp - 273f, "CELSIUS"); // TODO dewPoint
-            uvIndex = hourlyForecast.uvIndex;
-            relativeHumidity = hourlyForecast.humidity;
+            uvIndex = hourlyForecast.getUvIndex();
+            relativeHumidity = hourlyForecast.getHumidity();
             //feelsLikeTemperature = new WeatherValue(hourlyForecast.temp - 273f, "CELSIUS"); // TODO feelsLikeTemperature
             //visibility = new WeatherValue(0, "METER"); // TODO visibility
             //pressure = new WeatherValue(0f, "INCHES_OF_MERCURY"); // TODO pressure
@@ -230,19 +259,19 @@ public class WeatherHandler {
         public Integer cloudCoverage;
 
         public WeatherForecastCurrent(final WeatherSpec weatherSpec, final String tempUnit, final String speedUnit) {
-            epochSeconds = weatherSpec.timestamp;
-            temperature = getTemperature(weatherSpec.currentTemp, tempUnit);
-            description = weatherSpec.currentCondition;
-            icon = mapToGarminCondition(weatherSpec.currentConditionCode);
-            feelsLikeTemperature = getTemperature(weatherSpec.currentTemp, tempUnit);
-            dewPoint = getTemperature(weatherSpec.dewPoint, tempUnit);
-            relativeHumidity = weatherSpec.currentHumidity;
-            wind = new Wind(getSpeed(weatherSpec.windSpeed, speedUnit), weatherSpec.windDirection);
-            locationName = weatherSpec.location;
-            visibility = new WeatherValue(weatherSpec.visibility, "METER");
-            pressure = new WeatherValue(weatherSpec.pressure * 0.02953, "INCHES_OF_MERCURY");
+            epochSeconds = weatherSpec.getTimestamp();
+            temperature = getTemperature(weatherSpec.getCurrentTemp(), tempUnit);
+            description = weatherSpec.getCurrentCondition();
+            icon = mapToGarminCondition(weatherSpec.getCurrentConditionCode());
+            feelsLikeTemperature = getTemperature(weatherSpec.getCurrentTemp(), tempUnit);
+            dewPoint = getTemperature(weatherSpec.getDewPoint(), tempUnit);
+            relativeHumidity = weatherSpec.getCurrentHumidity();
+            wind = new Wind(getSpeed(weatherSpec.getWindSpeed(), speedUnit), weatherSpec.getWindDirection());
+            locationName = weatherSpec.getLocation();
+            visibility = new WeatherValue(weatherSpec.getVisibility(), "METER");
+            pressure = new WeatherValue(weatherSpec.getPressure() * 0.02953, "INCHES_OF_MERCURY");
             pressureChange = new WeatherValue(0f, "INCHES_OF_MERCURY");
-            cloudCoverage = weatherSpec.cloudCover;
+            cloudCoverage = weatherSpec.getCloudCover();
         }
     }
 

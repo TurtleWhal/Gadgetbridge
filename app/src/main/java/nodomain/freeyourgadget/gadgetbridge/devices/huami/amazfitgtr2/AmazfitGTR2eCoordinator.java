@@ -63,27 +63,27 @@ public class AmazfitGTR2eCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTracks() {
+    public boolean supportsActivityTracks(final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsMusicInfo() {
+    public boolean supportsMusicInfo(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsUnicodeEmojis() {
+    public boolean supportsUnicodeEmojis(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsPai() {
+    public boolean supportsPai(@NonNull GBDevice device) {
         return true;
     }
 
@@ -149,5 +149,10 @@ public class AmazfitGTR2eCoordinator extends HuamiCoordinator {
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_amazfit_gtr2e;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

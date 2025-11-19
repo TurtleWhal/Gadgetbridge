@@ -1,8 +1,6 @@
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
 import android.content.Context;
-import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -80,11 +78,9 @@ public class StepsPeriodFragment extends StepsFragment<StepsPeriodFragment.Steps
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_steps_period, container, false);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                getChartsHost().enableSwipeRefresh(scrollY == 0);
-            });
-        }
+        rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            getChartsHost().enableSwipeRefresh(scrollY == 0);
+        });
 
         mDateView = rootView.findViewById(R.id.steps_date_view);
         stepsChart = rootView.findViewById(R.id.steps_chart);
@@ -186,7 +182,7 @@ public class StepsPeriodFragment extends StepsFragment<StepsPeriodFragment.Steps
         stepsChart.getAxisLeft().setAxisMaximum(Math.max(set.getYMax(), STEPS_GOAL) + 2000);
 
         BarData barData = new BarData(set);
-        barData.setValueTextColor(Color.GRAY); //prevent tearing other graph elements with the black text. Another approach would be to hide the values cmpletely with data.setDrawValues(false);
+        set.setValueTextColor(TEXT_COLOR);
         barData.setValueTextSize(10f);
         if (TOTAL_DAYS > 7) {
             stepsChart.setRenderer(new AngledLabelsChartRenderer(stepsChart, stepsChart.getAnimator(), stepsChart.getViewPortHandler()));

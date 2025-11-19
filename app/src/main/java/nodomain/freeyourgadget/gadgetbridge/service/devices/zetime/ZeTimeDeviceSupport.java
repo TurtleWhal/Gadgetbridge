@@ -56,17 +56,17 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
 import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.calendar.CalendarEvent;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.WaitAction;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
@@ -122,7 +122,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         progressSteps = 0;
         progressSleep = 0;
         progressHeartRate = 0;
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         notifyCharacteristic = getCharacteristic(ZeTimeConstants.UUID_NOTIFY_CHARACTERISTIC);
         writeCharacteristic = getCharacteristic(ZeTimeConstants.UUID_WRITE_CHARACTERISTIC);
@@ -214,16 +214,16 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     setHeartRateLimits(builder);
                     break;
                 case DeviceSettingsPreferenceConst.PREF_USER_FITNESS_GOAL:
-                case ActivityUser.PREF_USER_SLEEP_DURATION:
+                case ActivityUser.PREF_USER_SLEEP_DURATION_MINUTES:
                 case ActivityUser.PREF_USER_CALORIES_BURNT:
                 case ActivityUser.PREF_USER_DISTANCE_METERS:
                 case ActivityUser.PREF_USER_ACTIVETIME_MINUTES:
                     setUserGoals(builder);
                     break;
             }
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error sending configuration: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error sending configuration: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -241,9 +241,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     ZeTimeConstants.CMD_END
             };
             sendMsgToWatch(builder, testSignaling);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error on function onFindDevice: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error on function onFindDevice: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -268,9 +268,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("enableAutoHeartRate");
             sendMsgToWatch(builder, heartrate);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error enable auto heart rate measurement: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error enable auto heart rate measurement: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -338,9 +338,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 }
                 sendMsgToWatch(builder, alarmMessage);
             }
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error set alarms: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error set alarms: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -360,9 +360,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             try {
                 TransactionBuilder builder = performInitialized("setMusicStateInfo");
                 replyMsgToWatch(builder, music);
-                builder.queue(getQueue());
+                builder.queue();
             } catch (IOException e) {
-                GB.toast(getContext(), "Error setting music state and info: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                GB.toast(getContext(), "Error setting music state and info: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
         }
     }
@@ -441,9 +441,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             try {
                 TransactionBuilder builder = performInitialized("setCallState");
                 sendMsgToWatch(builder, notification);
-                builder.queue(getQueue());
+                builder.queue();
             } catch (IOException e) {
-                GB.toast(getContext(), "Error set call state: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                GB.toast(getContext(), "Error set call state: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
         }
 
@@ -454,9 +454,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("fetchActivityData");
             requestActivityInfo(builder);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error on fetching activity data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error on fetching activity data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -500,9 +500,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             try {
                 TransactionBuilder builder = performInitialized("setMusicStateInfo");
                 replyMsgToWatch(builder, music);
-                builder.queue(getQueue());
+                builder.queue();
             } catch (IOException e) {
-                GB.toast(getContext(), "Error setting music state and info: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                GB.toast(getContext(), "Error setting music state and info: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
         }
     }
@@ -514,9 +514,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("sendCalendarEvent");
             sendMsgToWatch(builder, calendarEvent);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error sending calendar event: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error sending calendar event: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -573,7 +573,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
             byte[] message = encodeCalendarEvent(body, calendarEvent.getBeginSeconds(), opcode);
             sendMsgToWatch(builder, message);
-            builder.add(new WaitAction(300)); // Urgh, seems it is a general problem when sending data too fast
+            builder.wait(300); // Urgh, seems it is a general problem when sending data too fast
 
             if (eventCount++ == 16) { // limit this to 16 for now
                 break;
@@ -586,25 +586,29 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("synchronizeTime");
             synchronizeTime(builder);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error setting the time: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error setting the time: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        WeatherSpec weatherSpec = weatherSpecs.get(0);
-        byte[] weather = new byte[weatherSpec.location.getBytes(StandardCharsets.UTF_8).length + 26]; // 26 bytes for weatherdata and overhead
+    public void onSendWeather() {
+        WeatherSpec weatherSpec = Weather.getWeatherSpec();
+        if (weatherSpec == null) {
+            LOG.warn("No weather found in singleton");
+            return;
+        }
+        byte[] weather = new byte[weatherSpec.getLocation().getBytes(StandardCharsets.UTF_8).length + 26]; // 26 bytes for weatherdata and overhead
         weather[0] = ZeTimeConstants.CMD_PREAMBLE;
         weather[1] = ZeTimeConstants.CMD_PUSH_WEATHER_DATA;
         weather[2] = ZeTimeConstants.CMD_SEND;
-        weather[3] = (byte) ((weatherSpec.location.getBytes(StandardCharsets.UTF_8).length + 20) & 0xff);
-        weather[4] = (byte) ((weatherSpec.location.getBytes(StandardCharsets.UTF_8).length + 20) >> 8);
+        weather[3] = (byte) ((weatherSpec.getLocation().getBytes(StandardCharsets.UTF_8).length + 20) & 0xff);
+        weather[4] = (byte) ((weatherSpec.getLocation().getBytes(StandardCharsets.UTF_8).length + 20) >> 8);
         weather[5] = 0; // celsius
-        weather[6] = (byte) (weatherSpec.currentTemp - 273);
-        weather[7] = (byte) (weatherSpec.todayMinTemp - 273);
-        weather[8] = (byte) (weatherSpec.todayMaxTemp - 273);
+        weather[6] = (byte) (weatherSpec.getCurrentTemp() - 273);
+        weather[7] = (byte) (weatherSpec.getTodayMinTemp() - 273);
+        weather[8] = (byte) (weatherSpec.getTodayMaxTemp() - 273);
 
         boolean newWeather = false;
         if (versionCmd.fwVersion.length() >= 24) {
@@ -618,29 +622,29 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             LOG.warn("We do not have a sane fw version string available, firmware too old/new?");
         }
         if (newWeather) {
-            weather[9] = Weather.mapToZeTimeCondition(weatherSpec.currentConditionCode);
+            weather[9] = WeatherMapper.mapToZeTimeCondition(weatherSpec.getCurrentConditionCode());
         } else {
-            weather[9] = Weather.mapToZeTimeConditionOld(weatherSpec.currentConditionCode);
+            weather[9] = WeatherMapper.mapToZeTimeConditionOld(weatherSpec.getCurrentConditionCode());
         }
         for (int forecast = 0; forecast < 3; forecast++) {
             weather[10 + (forecast * 5)] = 0; // celsius
             weather[11 + (forecast * 5)] = (byte) 0xff;
-            weather[12 + (forecast * 5)] = (byte) (weatherSpec.forecasts.get(forecast).minTemp - 273);
-            weather[13 + (forecast * 5)] = (byte) (weatherSpec.forecasts.get(forecast).maxTemp - 273);
+            weather[12 + (forecast * 5)] = (byte) (weatherSpec.getForecasts().get(forecast).getMinTemp() - 273);
+            weather[13 + (forecast * 5)] = (byte) (weatherSpec.getForecasts().get(forecast).getMaxTemp() - 273);
             if (newWeather) {
-                weather[14 + (forecast * 5)] = Weather.mapToZeTimeCondition(weatherSpec.forecasts.get(forecast).conditionCode);
+                weather[14 + (forecast * 5)] = WeatherMapper.mapToZeTimeCondition(weatherSpec.getForecasts().get(forecast).getConditionCode());
             } else {
-                weather[14 + (forecast * 5)] = Weather.mapToZeTimeConditionOld(weatherSpec.forecasts.get(forecast).conditionCode);
+                weather[14 + (forecast * 5)] = WeatherMapper.mapToZeTimeConditionOld(weatherSpec.getForecasts().get(forecast).getConditionCode());
             }
         }
-        System.arraycopy(weatherSpec.location.getBytes(StandardCharsets.UTF_8), 0, weather, 25, weatherSpec.location.getBytes(StandardCharsets.UTF_8).length);
+        System.arraycopy(weatherSpec.getLocation().getBytes(StandardCharsets.UTF_8), 0, weather, 25, weatherSpec.getLocation().getBytes(StandardCharsets.UTF_8).length);
         weather[weather.length - 1] = ZeTimeConstants.CMD_END;
         try {
             TransactionBuilder builder = performInitialized("sendWeahter");
             sendMsgToWatch(builder, weather);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error sending weather: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error sending weather: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -787,9 +791,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("sendNotification");
             sendMsgToWatch(builder, notification);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error sending notification: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error sending notification: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1011,10 +1015,10 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         }
         evaluateGBDeviceEvent(versionCmd);
 
-        TransactionBuilder builder = new TransactionBuilder("setDeviceInitialized");
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        TransactionBuilder builder = createTransactionBuilder("setDeviceInitialized");
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
         try {
-            performConnected(builder.getTransaction());
+            builder.queueConnected();
         } catch (IOException e) {
             LOG.error("could not set device to initzialized: ", e);
         }
@@ -1049,9 +1053,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     0x00,
                     ZeTimeConstants.CMD_END});
             builder.write(ackCharacteristic, new byte[]{ZeTimeConstants.CMD_ACK_WRITE});
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error fetching activity data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error fetching activity data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1065,9 +1069,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     0x00,
                     0x00,
                     ZeTimeConstants.CMD_END});
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error deleting activity data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error deleting activity data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1082,9 +1086,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     0x00,
                     ZeTimeConstants.CMD_END});
             builder.write(ackCharacteristic, new byte[]{ZeTimeConstants.CMD_ACK_WRITE});
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error fetching heart rate data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error fetching heart rate data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1098,7 +1102,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     0x00,
                     0x00,
                     ZeTimeConstants.CMD_END});
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             GB.toast(getContext(), "Error deleting heart rate data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
         }
@@ -1116,9 +1120,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     0x00,
                     ZeTimeConstants.CMD_END});
             builder.write(ackCharacteristic, new byte[]{ZeTimeConstants.CMD_ACK_WRITE});
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error fetching sleep data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error fetching sleep data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1132,9 +1136,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     0x00,
                     0x00,
                     ZeTimeConstants.CMD_END});
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error deleting sleep data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error deleting sleep data: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1158,7 +1162,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             ZeTimeSampleProvider provider = new ZeTimeSampleProvider(getDevice(), dbHandler.getDaoSession());
             provider.addGBActivitySample(sample);
         } catch (Exception ex) {
-            GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
             GB.updateTransferNotification(null, "Data transfer failed", false, 0, getContext());
         }
 
@@ -1207,7 +1211,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             ZeTimeSampleProvider provider = new ZeTimeSampleProvider(getDevice(), dbHandler.getDaoSession());
             provider.addGBActivitySample(sample);
         } catch (Exception ex) {
-            GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
             GB.updateTransferNotification(null, "Data transfer failed", false, 0, getContext());
         }
 
@@ -1243,7 +1247,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             ZeTimeSampleProvider provider = new ZeTimeSampleProvider(getDevice(), dbHandler.getDaoSession());
             provider.addGBActivitySample(sample);
         } catch (Exception ex) {
-            GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
             GB.updateTransferNotification(null, "Data transfer failed", false, 0, getContext());
         }
 
@@ -1264,7 +1268,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 ZeTimeSampleProvider provider = new ZeTimeSampleProvider(getDevice(), dbHandler.getDaoSession());
                 provider.addGBActivitySample(sample);
             } catch (Exception ex) {
-                GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                GB.toast(getContext(), "Error saving steps data: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
                 GB.updateTransferNotification(null, "Data transfer failed", false, 0, getContext());
             }
 
@@ -1352,9 +1356,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                                 0x02,
                                 volume,
                                 ZeTimeConstants.CMD_END});
-                        builder.queue(getQueue());
+                        builder.queue();
                     } catch (IOException e) {
-                        GB.toast(getContext(), "Error reply the music volume: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                        GB.toast(getContext(), "Error reply the music volume: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
                     }
                     break;
             }
@@ -1365,9 +1369,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 try {
                     TransactionBuilder builder = performInitialized("replyMusicState");
                     replyMsgToWatch(builder, music);
-                    builder.queue(getQueue());
+                    builder.queue();
                 } catch (IOException e) {
-                    GB.toast(getContext(), "Error reply the music state: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                    GB.toast(getContext(), "Error reply the music state: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
                 }
             }
         }
@@ -1505,7 +1509,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         int steps = activityUser.getStepsGoal() / 100; // ZeTime expect the steps in 100 increment
         int calories = activityUser.getCaloriesBurntGoal();
         int distance = activityUser.getDistanceGoalMeters() / 1000;  // ZeTime only accepts km goals
-        int sleep = activityUser.getSleepDurationGoal();
+        int sleep = Math.round(activityUser.getSleepDurationGoal() / 60.0f);
         int activeTime = activityUser.getActiveTimeGoalMinutes();
 
         // set steps goal
@@ -1668,10 +1672,10 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 }
                 sendMsgToWatch(builder, doNotDisturb);
             } catch (Exception e) {
-                LOG.error("Unexpected exception in ZeTimeDeviceSupport.setDoNotDisturb: " + e.getMessage());
+                LOG.error("Unexpected exception in ZeTimeDeviceSupport.setDoNotDisturb: " + e.getLocalizedMessage());
             }
         } catch (Exception e) {
-            LOG.error("Unexpected exception in ZeTimeDeviceSupport.setDoNotDisturb: " + e.getMessage());
+            LOG.error("Unexpected exception in ZeTimeDeviceSupport.setDoNotDisturb: " + e.getLocalizedMessage());
         }
     }
 
@@ -1793,10 +1797,10 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     inactivity[9] = (byte) calendar_end.get(Calendar.HOUR_OF_DAY);
                     inactivity[10] = (byte) calendar_end.get(Calendar.MINUTE);
                 } catch (Exception e) {
-                    LOG.error("Unexpected exception in ZeTimeDeviceSupport.setInactivityAlert: " + e.getMessage());
+                    LOG.error("Unexpected exception in ZeTimeDeviceSupport.setInactivityAlert: " + e.getLocalizedMessage());
                 }
             } catch (Exception e) {
-                LOG.error("Unexpected exception in ZeTimeDeviceSupport.setInactivityAlert: " + e.getMessage());
+                LOG.error("Unexpected exception in ZeTimeDeviceSupport.setInactivityAlert: " + e.getLocalizedMessage());
             }
         }
 
@@ -1890,7 +1894,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             TransactionBuilder builder = performInitialized("readConfiguration");
 
             if (!getDevice().isBusy()) {
-                getDevice().setBusyTask("readConfiguration");
+                getDevice().setBusyTask(R.string.busy_task_fetch_configuration, getContext());
             }
 
             byte[] configRead1 = {
@@ -1959,9 +1963,9 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             configRead12[1] = ZeTimeConstants.CMD_SWITCH_SETTINGS;
             sendMsgToWatch(builder, configRead12);
 
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error reading configuration: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error reading configuration: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 

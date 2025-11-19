@@ -16,11 +16,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.watches;
 
+import androidx.annotation.NonNull;
+
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.XiaomiCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class RedmiSmartBandProCoordinator extends XiaomiCoordinator {
     @Override
@@ -59,5 +63,16 @@ public class RedmiSmartBandProCoordinator extends XiaomiCoordinator {
     public boolean supportsAlarms() {
         // Crashes when requesting alarms
         return false;
+    }
+
+    @Override
+    public boolean supportsPai(@NonNull GBDevice device) {
+        // Does not support vitality score
+        return false;
+    }
+
+    @Override
+    public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceCoordinator.DeviceKind.FITNESS_BAND;
     }
 }

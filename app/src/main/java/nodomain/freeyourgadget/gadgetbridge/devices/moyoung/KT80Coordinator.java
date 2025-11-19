@@ -17,10 +17,12 @@
 package nodomain.freeyourgadget.gadgetbridge.devices.moyoung;
 
 import androidx.annotation.DrawableRes;
+import androidx.annotation.NonNull;
 
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class KT80Coordinator extends AbstractMoyoungDeviceCoordinator {
     @Override
@@ -50,7 +52,7 @@ public class KT80Coordinator extends AbstractMoyoungDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsCalendarEvents() {
+    public boolean supportsCalendarEvents(@NonNull final GBDevice device) {
         return false;
     }
 }

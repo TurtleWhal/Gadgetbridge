@@ -69,14 +69,14 @@ public class InitOperation extends AbstractBTLEOperation<HuamiSupport> {
     protected void doPerform() {
         huamiSupport.enableNotifications(builder, true);
         if (needsAuth) {
-            builder.setUpdateState(getDevice(), GBDevice.State.AUTHENTICATING, getContext());
+            builder.setDeviceState(GBDevice.State.AUTHENTICATING);
             // write key to device
             byte[] sendKey = org.apache.commons.lang3.ArrayUtils.addAll(new byte[]{HuamiService.AUTH_SEND_KEY, authFlags}, getSecretKey());
-            builder.write(getCharacteristic(HuamiService.UUID_CHARACTERISTIC_AUTH), sendKey);
+            builder.write(HuamiService.UUID_CHARACTERISTIC_AUTH, sendKey);
         } else {
-            builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+            builder.setDeviceState(GBDevice.State.INITIALIZING);
             // get random auth number
-            builder.write(getCharacteristic(HuamiService.UUID_CHARACTERISTIC_AUTH), requestAuthNumber());
+            builder.write(HuamiService.UUID_CHARACTERISTIC_AUTH, requestAuthNumber());
         }
     }
 
@@ -130,7 +130,7 @@ public class InitOperation extends AbstractBTLEOperation<HuamiSupport> {
             if (value[1] == HuamiService.AUTH_SEND_KEY && value[2] == HuamiService.AUTH_SUCCESS) {
                 TransactionBuilder builder = createTransactionBuilder("Sending the secret key to the device");
                 builder.write(characteristic, requestAuthNumber());
-                huamiSupport.performImmediately(builder);
+                builder.queueImmediately();
             } else if ((value[1] & 0x0f) == HuamiService.AUTH_REQUEST_RANDOM_AUTH_NUMBER && value[2] == HuamiService.AUTH_SUCCESS) {
                 byte[] eValue = handleAESAuth(value, getSecretKey());
                 byte[] responseValue = org.apache.commons.lang3.ArrayUtils.addAll(
@@ -139,18 +139,18 @@ public class InitOperation extends AbstractBTLEOperation<HuamiSupport> {
                 TransactionBuilder builder = createTransactionBuilder("Sending the encrypted random key to the device");
                 builder.write(characteristic, responseValue);
                 huamiSupport.setCurrentTime(builder);
-                huamiSupport.performImmediately(builder);
+                builder.queueImmediately();
             } else if ((value[1] & 0x0f) == HuamiService.AUTH_SEND_ENCRYPTED_AUTH_NUMBER) {
                 if (value[2] == HuamiService.AUTH_SUCCESS) {
                     TransactionBuilder builder = createTransactionBuilder("Authenticated, now initialize phase 2");
-                    builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+                    builder.setDeviceState(GBDevice.State.INITIALIZING);
                     builder.setCallback(null); // remove init operation as the callback
                     huamiSupport.enableFurtherNotifications(builder, true);
                     huamiSupport.requestDeviceInfo(builder);
                     huamiSupport.phase2Initialize(builder);
                     huamiSupport.phase3Initialize(builder);
                     huamiSupport.setInitialized(builder);
-                    huamiSupport.performImmediately(builder);
+                    builder.queueImmediately();
                 } else if (value[2] == HuamiService.AUTH_FAIL) {
                     LOG.error("Authentication failed, disconnecting");
                     GB.toast(getContext(), R.string.authentication_failed_check_key, Toast.LENGTH_LONG, GB.WARN);

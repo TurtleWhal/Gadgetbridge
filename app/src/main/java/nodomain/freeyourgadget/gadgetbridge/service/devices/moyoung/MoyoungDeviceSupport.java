@@ -108,7 +108,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
@@ -150,7 +150,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private final Set<CalendarEvent> lastSync = new HashSet<>();
 
     public int getMtu() {
-        return super.getMTU() - 3;
+        return calcMaxWriteChunk(super.getMTU());
     }
 
     public MoyoungDeviceSupport() {
@@ -189,8 +189,8 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
         final int mtu = ((AbstractMoyoungDeviceCoordinator) getDevice().getDeviceCoordinator()).getMtu();
         builder.requestMtu(mtu + 3);  // Add 3 bytes for the BLE overhead
 
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
-        builder.notify(getCharacteristic(MoyoungConstants.UUID_CHARACTERISTIC_DATA_IN), true);
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
+        builder.notify(MoyoungConstants.UUID_CHARACTERISTIC_DATA_IN, true);
         deviceInfoProfile.requestDeviceInfo(builder);
         setTime(builder);
         setMeasurementSystem(builder);
@@ -199,8 +199,8 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
         batteryInfoProfile.requestBatteryInfo(builder);
         batteryInfoProfile.enableNotify(builder, true);
         heartRateProfile.enableNotify(builder, true);
-        builder.notify(getCharacteristic(MoyoungConstants.UUID_CHARACTERISTIC_STEPS), true);
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.notify(MoyoungConstants.UUID_CHARACTERISTIC_STEPS, true);
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
 
         // TODO: I would prefer this to be done when the alarms screen is open, not on initialization...
         sendPacket(builder, MoyoungPacketOut.buildPacket(mtu, MoyoungConstants.CMD_QUERY_ALARM_CLOCK, new byte[0]));
@@ -210,8 +210,10 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void dispose() {
-        super.dispose();
-        idleUpdateHandler.removeCallbacks(updateIdleStepsRunnable);
+        synchronized (ConnectionMonitor) {
+            super.dispose();
+            idleUpdateHandler.removeCallbacks(updateIdleStepsRunnable);
+        }
     }
 
     private BluetoothGattCharacteristic getTargetCharacteristicForPacketType(byte packetType) {
@@ -332,7 +334,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 MoyoungBloodPressureSample sample = new MoyoungBloodPressureSample();
                 sample.setTimestamp(System.currentTimeMillis());
                 sample.setBpSystolic(data1);
-                sample.setBpSystolic(data2);
+                sample.setBpDiastolic(data2);
                 sample.setDeviceId(deviceId);
                 sample.setUserId(userId);
 
@@ -444,14 +446,13 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         if (packetType == MoyoungConstants.CMD_NOTIFY_WEATHER_CHANGE) {
             LOG.info("Will transmit cached weather (if any) since the watch asks for it");
-            if (Weather.getInstance().getWeatherSpec() != null) {
-                final ArrayList<WeatherSpec> specs = new ArrayList<>(Weather.getInstance().getWeatherSpecs());
-                GBApplication.deviceService().onSendWeather(specs);
+            if (Weather.getWeatherSpec() != null) {
+                onSendWeather();
             }
             return true;
         }
 
-        for (MoyoungSetting setting : queriedSettings) {
+        for (MoyoungSetting<?> setting : queriedSettings) {
             if (setting.cmdQuery == packetType) {
                 Object value = setting.decode(payload);
                 onReadConfigurationDone(setting, value, payload);
@@ -570,7 +571,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             payload[0] = type;
             System.arraycopy(str, 0, payload, 1, str.length);
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_SEND_MESSAGE, payload));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending notification: ", e);
         }
@@ -637,7 +638,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("onSetTime");
             setTime(builder);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error setting time: ", e);
         }
@@ -858,7 +859,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 bufferNewProtocol.put(buffer.array(), 0, 8);
                 sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_ADVANCED_QUERY, bufferNewProtocol.array()));
             }
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error setting alarms: ", e);
         }
@@ -890,7 +891,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             TransactionBuilder builder = performInitialized("sendMusicState");
             byte[] payload = new byte[]{(byte) (stateSpec.state == MusicStateSpec.STATE_PLAYING ? 0x01 : 0x00)};
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_SET_MUSIC_STATE, payload));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending music state: ", e);
         }
@@ -921,7 +922,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     (byte) (16 * volumeFraction)
             }));
 
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending music info: ", e);
         }
@@ -955,7 +956,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_ADVANCED_CMD, payload.array()));
                 currentNr++;
             }
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending world clocks: ", e);
         }
@@ -1038,7 +1039,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     MoyoungConstants.ARG_CALENDAR_FINISHED
             };
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_ADVANCED_QUERY, payload));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending notification: ", e);
         }
@@ -1057,7 +1058,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     MoyoungConstants.ARG_CALENDAR_DISABLE
             };
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_ADVANCED_QUERY, payload));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error while disabling calendar: ", e);
         }
@@ -1084,7 +1085,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             TransactionBuilder builder = performInitialized("fetchStress");
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_ADVANCED_QUERY, new byte[]{MoyoungConstants.ARG_ADVANCED_STRESS_PACKET, 0x03, 0x00}));
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_ADVANCED_QUERY, new byte[]{MoyoungConstants.ARG_ADVANCED_STRESS_PACKET, 0x03, 0x01}));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error while sending stress sync request: ", e);
         }
@@ -1194,7 +1195,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("FetchHROperation");
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_QUERY_PAST_HEART_RATE_1, new byte[]{(byte) (packetIndex + 1)}));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Failed sending HR history request packet: ", e);
         }
@@ -1444,7 +1445,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("shutdown");
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_SHUTDOWN, new byte[]{-1}));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending reset command: ", e);
         }
@@ -1454,7 +1455,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("onHeartRateTest");
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_TRIGGER_MEASURE_HEARTRATE, new byte[]{start ? (byte) 0 : (byte) -1}));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending heart rate test command: ", e);
         }
@@ -1511,7 +1512,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             try {
                 TransactionBuilder builder = performInitialized("onFindDevice");
                 sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_FIND_MY_WATCH, new byte[0]));
-                builder.queue(getQueue());
+                builder.queue();
             } catch (IOException e) {
                 LOG.error("Error while finding device: ", e);
             }
@@ -1550,7 +1551,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("sendSetting");
             sendSetting(builder, setting, newValue);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending setting: ", e);
         }
@@ -1565,7 +1566,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("querySetting");
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), setting.cmdQuery, new byte[0]));
-            builder.queue(getQueue());
+            builder.queue();
             queriedSettings.add(setting);
         } catch (IOException e) {
             LOG.error("Error querying setting: ", e);
@@ -1980,9 +1981,13 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
+    public void onSendWeather() {
         try {
-            WeatherSpec weatherSpec = weatherSpecs.get(0);
+            WeatherSpec weatherSpec = Weather.getWeatherSpec();
+            if (weatherSpec == null) {
+                LOG.warn("No weather found in singleton");
+                return;
+            }
             TransactionBuilder builder = performInitialized("onSendWeather");
 
             // Weather today packet
@@ -1999,10 +2004,10 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
             // Sunrise/sunset packet
             Calendar sunrise = Calendar.getInstance();
-            sunrise.setTimeInMillis(weatherSpec.sunRise * 1000L);
+            sunrise.setTimeInMillis(weatherSpec.getSunRise() * 1000L);
             Calendar sunset = Calendar.getInstance();
-            sunset.setTimeInMillis(weatherSpec.sunSet * 1000L);
-            ByteBuffer packetSunriseSunset = ByteBuffer.allocate(9 + weatherSpec.location.getBytes(StandardCharsets.UTF_8).length);
+            sunset.setTimeInMillis(weatherSpec.getSunSet() * 1000L);
+            ByteBuffer packetSunriseSunset = ByteBuffer.allocate(9 + weatherSpec.getLocation().getBytes(StandardCharsets.UTF_8).length);
             packetSunriseSunset.put((byte) 0x00);
             packetSunriseSunset.put(weatherToday.conditionId);
             packetSunriseSunset.put(weatherToday.currentTemp);
@@ -2011,13 +2016,13 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             packetSunriseSunset.put((byte) sunrise.get(Calendar.MINUTE));
             packetSunriseSunset.put((byte) sunset.get(Calendar.HOUR_OF_DAY));
             packetSunriseSunset.put((byte) sunset.get(Calendar.MINUTE));
-            packetSunriseSunset.put(weatherSpec.location.getBytes(StandardCharsets.UTF_8));
+            packetSunriseSunset.put(weatherSpec.getLocation().getBytes(StandardCharsets.UTF_8));
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_SET_SUNRISE_SUNSET, packetSunriseSunset.array()));
 
             // Weather location packet. Prepend the update time to the location, since the watch can't display it separately
             Calendar updateTime = Calendar.getInstance();
-            updateTime.setTimeInMillis(weatherSpec.timestamp * 1000L);
-            String location = String.format(Locale.getDefault(), "%02d:%02d %s", updateTime.get(Calendar.HOUR_OF_DAY), updateTime.get(Calendar.MINUTE), weatherSpec.location);
+            updateTime.setTimeInMillis(weatherSpec.getTimestamp() * 1000L);
+            String location = String.format(Locale.getDefault(), "%02d:%02d %s", updateTime.get(Calendar.HOUR_OF_DAY), updateTime.get(Calendar.MINUTE), weatherSpec.getLocation());
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_SET_WEATHER_LOCATION, location.getBytes(StandardCharsets.UTF_8)));
 
             // Weather forecast packet
@@ -2027,8 +2032,8 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             packetWeatherForecast.put(weatherToday.currentTemp);
             for (int i = 0; i < 7; i++) {
                 MoyoungWeatherForecast forecast;
-                if (weatherSpec.forecasts.size() > i)
-                    forecast = new MoyoungWeatherForecast(weatherSpec.forecasts.get(i));
+                if (weatherSpec.getForecasts().size() > i)
+                    forecast = new MoyoungWeatherForecast(weatherSpec.getForecasts().get(i));
                 else
                     forecast = new MoyoungWeatherForecast(MoyoungConstants.WEATHER_HAZE, (byte) -100, (byte) -100); // I don't think there is a way to send less (my watch shows only tomorrow anyway...)
                 packetWeatherForecast.put(forecast.conditionId);
@@ -2037,7 +2042,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             }
             sendPacket(builder, MoyoungPacketOut.buildPacket(getMtu(), MoyoungConstants.CMD_SET_WEATHER_FUTURE, packetWeatherForecast.array()));
 
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
             LOG.error("Error sending weather: ", e);
         }

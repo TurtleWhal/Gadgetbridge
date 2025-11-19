@@ -30,7 +30,7 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -85,7 +85,7 @@ class AppMessageHandlerObsidian extends AppMessageHandler {
                 }
             }
         } catch (JSONException e) {
-            GB.toast("There was an error accessing the timestyle watchface configuration.", Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast("There was an error accessing the timestyle watchface configuration.", Toast.LENGTH_LONG, GB.ERROR, e);
         } catch (IOException ignore) {
         }
     }
@@ -152,15 +152,15 @@ class AppMessageHandlerObsidian extends AppMessageHandler {
         boolean isNight = false;   //TODO: use the night icons when night
         pairs.add(new Pair<>(messageKeys.get("CONFIG_WEATHER_REFRESH"), (Object) 60));
         pairs.add(new Pair<>(messageKeys.get("CONFIG_WEATHER_UNIT_LOCAL"), (Object) 1)); //celsius
-        pairs.add(new Pair<>(messageKeys.get("MSG_KEY_WEATHER_ICON"), (Object) getIconForConditionCode(weatherSpec.currentConditionCode, isNight))); //celsius
-        pairs.add(new Pair<>(messageKeys.get("MSG_KEY_WEATHER_TEMP"), (Object) (weatherSpec.currentTemp - 273)));
+        pairs.add(new Pair<>(messageKeys.get("MSG_KEY_WEATHER_ICON"), (Object) getIconForConditionCode(weatherSpec.getCurrentConditionCode(), isNight))); //celsius
+        pairs.add(new Pair<>(messageKeys.get("MSG_KEY_WEATHER_TEMP"), (Object) (weatherSpec.getCurrentTemp() - 273)));
 
         return mPebbleProtocol.encodeApplicationMessagePush(PebbleProtocol.ENDPOINT_APPLICATIONMESSAGE, mUUID, pairs, null);
     }
 
     @Override
     public GBDeviceEvent[] onAppStart() {
-        WeatherSpec weatherSpec = Weather.getInstance().getWeatherSpec();
+        WeatherSpec weatherSpec = Weather.getWeatherSpec();
         if (weatherSpec == null) {
             return new GBDeviceEvent[]{null};
         }

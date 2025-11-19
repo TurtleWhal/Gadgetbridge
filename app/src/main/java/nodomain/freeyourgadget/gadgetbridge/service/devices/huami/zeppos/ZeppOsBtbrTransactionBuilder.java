@@ -16,14 +16,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos;
 
-import android.content.Context;
+import androidx.annotation.StringRes;
 
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.SetDeviceBusyAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.SetProgressAction;
 
 public class ZeppOsBtbrTransactionBuilder implements ZeppOsTransactionBuilder {
     private final ZeppOsBtbrSupport mSupport;
@@ -31,7 +29,7 @@ public class ZeppOsBtbrTransactionBuilder implements ZeppOsTransactionBuilder {
 
     public ZeppOsBtbrTransactionBuilder(final ZeppOsBtbrSupport mSupport, final String taskName) {
         this.mSupport = mSupport;
-        this.mBuilder = new TransactionBuilder(taskName);
+        this.mBuilder = mSupport.createTransactionBuilder(taskName);
     }
 
     public ZeppOsBtbrTransactionBuilder(final ZeppOsBtbrSupport mSupport, final TransactionBuilder builder) {
@@ -40,18 +38,18 @@ public class ZeppOsBtbrTransactionBuilder implements ZeppOsTransactionBuilder {
     }
 
     @Override
-    public void setProgress(final String text, final boolean ongoing, final int percentage, final Context context) {
-        mBuilder.add(new SetProgressAction(text, ongoing, percentage, context));
+    public void setProgress(@StringRes final int textRes, final boolean ongoing, final int percentage) {
+        mBuilder.setProgress(textRes, ongoing, percentage);
     }
 
     @Override
-    public void setDeviceState(final GBDevice device, final GBDevice.State deviceState, final Context context) {
-        mBuilder.setUpdateState(device, deviceState, context);
+    public void setDeviceState(final GBDevice.State deviceState) {
+        mBuilder.setDeviceState(deviceState);
     }
 
     @Override
-    public void setBusy(final GBDevice device, final String string, final Context context) {
-        mBuilder.add(new SetDeviceBusyAction(device, string, context));
+    public void setBusy(@StringRes final int stringRes) {
+        mBuilder.setBusyTask(stringRes);
     }
 
     @Override
@@ -65,7 +63,7 @@ public class ZeppOsBtbrTransactionBuilder implements ZeppOsTransactionBuilder {
     }
 
     @Override
-    public void queue(final ZeppOsSupport support) {
-        mBuilder.queue(mSupport.getQueue());
+    public void queue() {
+        mBuilder.queue();
     }
 }

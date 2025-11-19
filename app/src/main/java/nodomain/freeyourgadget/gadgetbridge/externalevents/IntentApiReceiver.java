@@ -25,9 +25,14 @@ import android.content.SharedPreferences;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,7 +41,7 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
-import nodomain.freeyourgadget.gadgetbridge.database.PeriodicExporter;
+import nodomain.freeyourgadget.gadgetbridge.database.PeriodicDbExporter;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
@@ -44,7 +49,9 @@ import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
+import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
+import nodomain.freeyourgadget.gadgetbridge.util.backup.PeriodicZipExporter;
 
 public class IntentApiReceiver extends BroadcastReceiver {
     private static final Logger LOG = LoggerFactory.getLogger(IntentApiReceiver.class);
@@ -52,13 +59,17 @@ public class IntentApiReceiver extends BroadcastReceiver {
     private static final String msgDebugNotAllowed = "Intent API Allow Debug Commands not allowed";
 
     public static final String COMMAND_ACTIVITY_SYNC = "nodomain.freeyourgadget.gadgetbridge.command.ACTIVITY_SYNC";
+    @Deprecated
     public static final String COMMAND_TRIGGER_EXPORT = "nodomain.freeyourgadget.gadgetbridge.command.TRIGGER_EXPORT";
+    public static final String TRIGGER_DATABASE_EXPORT = "nodomain.freeyourgadget.gadgetbridge.command.TRIGGER_DATABASE_EXPORT";
+    public static final String COMMAND_TRIGGER_ZIP_EXPORT = "nodomain.freeyourgadget.gadgetbridge.command.TRIGGER_ZIP_EXPORT";
     public static final String COMMAND_DEBUG_SEND_NOTIFICATION = "nodomain.freeyourgadget.gadgetbridge.command.DEBUG_SEND_NOTIFICATION";
     public static final String COMMAND_DEBUG_INCOMING_CALL = "nodomain.freeyourgadget.gadgetbridge.command.DEBUG_INCOMING_CALL";
     public static final String COMMAND_DEBUG_END_CALL = "nodomain.freeyourgadget.gadgetbridge.command.DEBUG_END_CALL";
     public static final String COMMAND_DEBUG_SET_DEVICE_ADDRESS = "nodomain.freeyourgadget.gadgetbridge.command.DEBUG_SET_DEVICE_ADDRESS";
     public static final String COMMAND_DEBUG_SET_DEVICE_TYPE = "nodomain.freeyourgadget.gadgetbridge.command.DEBUG_SET_DEVICE_TYPE";
     public static final String COMMAND_DEBUG_TEST_NEW_FUNCTION = "nodomain.freeyourgadget.gadgetbridge.command.DEBUG_TEST_NEW_FUNCTION";
+    public static final String COMMAND_DEBUG_HEAP_DUMP = "nodomain.freeyourgadget.gadgetbridge.command.DEBUG_HEAP_DUMP";
 
     private static final String MAC_ADDR_PATTERN = "^([0-9A-F]{2}:){5}[0-9A-F]{2}$";
 
@@ -86,7 +97,7 @@ public class IntentApiReceiver extends BroadcastReceiver {
                         LOG.warn("Failed to parse dataTypesHex '{}' as hex", dataTypesHex);
                         return;
                     }
-                    dataTypes = Integer.parseInt(matcher.group(1), 16);
+                    dataTypes = Integer.parseInt(Objects.requireNonNull(matcher.group(1)), 16);
                 } else {
                     dataTypes = RecordedDataTypes.TYPE_SYNC;
                 }
@@ -97,15 +108,31 @@ public class IntentApiReceiver extends BroadcastReceiver {
                 break;
 
             case COMMAND_TRIGGER_EXPORT:
+                LOG.warn(
+                        "The action {} is deprecated, please use {}",
+                        COMMAND_TRIGGER_EXPORT,
+                        TRIGGER_DATABASE_EXPORT
+                );
+            case TRIGGER_DATABASE_EXPORT:
                 if (!prefs.getBoolean("intent_api_allow_trigger_export", false)) {
-                    LOG.warn("Intent API export trigger not allowed");
+                    LOG.warn("Intent API db export trigger not allowed");
                     return;
                 }
 
-                LOG.info("Triggering export");
+                LOG.info("Triggering db export");
 
-                final Intent exportIntent = new Intent(context, PeriodicExporter.class);
-                context.sendBroadcast(exportIntent);
+                PeriodicDbExporter.INSTANCE.executeNow();
+                break;
+
+            case COMMAND_TRIGGER_ZIP_EXPORT:
+                if (!prefs.getBoolean("intent_api_allow_trigger_zip_export", false)) {
+                    LOG.warn("Intent API zip export trigger not allowed");
+                    return;
+                }
+
+                LOG.info("Triggering zip export");
+
+                PeriodicZipExporter.INSTANCE.executeNow();
                 break;
 
             case COMMAND_DEBUG_SEND_NOTIFICATION:
@@ -136,6 +163,7 @@ public class IntentApiReceiver extends BroadcastReceiver {
                     try {
                         notificationSpec.type = NotificationType.valueOf(intent.getStringExtra("type"));
                     } catch (IllegalArgumentException e) {
+                        LOG.error("Failed to parse notification type {}", intent.getStringExtra("type"), e);
                     }
                 }
                 if (notificationSpec.type != NotificationType.GENERIC_SMS) {
@@ -146,7 +174,6 @@ public class IntentApiReceiver extends BroadcastReceiver {
                 notificationSpec.sourceName = context.getApplicationInfo()
                         .loadLabel(context.getPackageManager())
                         .toString();
-                notificationSpec.pebbleColor = notificationSpec.type.color;
                 notificationSpec.attachedActions = new ArrayList<>();
                 if (notificationSpec.type == NotificationType.GENERIC_SMS) {
                     // REPLY action
@@ -208,6 +235,25 @@ public class IntentApiReceiver extends BroadcastReceiver {
                 LOG.info("Triggering Debug Test New Function");
                 GBApplication.deviceService().onTestNewFunction();
                 break;
+
+            case COMMAND_DEBUG_HEAP_DUMP:
+                final SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.US);
+                try {
+                    final File externalFilesDir = FileUtils.getExternalFilesDir();
+                    final String filename = SDF.format(new Date()) + ".hprof";
+                    final File dumpFolder = new File(externalFilesDir, "heapdump");
+                    //noinspection ResultOfMethodCallIgnored
+                    dumpFolder.mkdirs();
+                    final File dumpFile = new File(dumpFolder, filename);
+                    LOG.debug("Triggering heap dump to {}", dumpFile.getAbsolutePath());
+                    android.os.Debug.dumpHprofData(dumpFile.getAbsolutePath());
+                } catch (final Exception e) {
+                    LOG.error("Heap dump failed", e);
+                }
+                break;
+
+            default:
+                LOG.warn("Got unknown intent API action: {}", intent.getAction());
         }
     }
 
@@ -221,6 +267,7 @@ public class IntentApiReceiver extends BroadcastReceiver {
         intentFilter.addAction(COMMAND_DEBUG_SET_DEVICE_ADDRESS);
         intentFilter.addAction(COMMAND_DEBUG_SET_DEVICE_TYPE);
         intentFilter.addAction(COMMAND_DEBUG_TEST_NEW_FUNCTION);
+        intentFilter.addAction(COMMAND_DEBUG_HEAP_DUMP);
         return intentFilter;
     }
 
@@ -275,6 +322,7 @@ public class IntentApiReceiver extends BroadcastReceiver {
             } else if (e.getValue().getClass().equals(String.class)) {
                 editorNew.putString(e.getKey(), (String) e.getValue());
             } else if (e.getValue().getClass().equals(HashSet.class)) {
+                //noinspection unchecked
                 editorNew.putStringSet(e.getKey(), (HashSet<String>) e.getValue());
             } else {
                 LOG.error("Unexpected preference type {}", e.getValue().getClass());
@@ -336,6 +384,9 @@ public class IntentApiReceiver extends BroadcastReceiver {
         GBApplication.quit();
     }
 
+    /**
+     * @noinspection BooleanMethodIsAlwaysInverted
+     */
     private boolean validAddress(final String address) {
         if (address == null) {
             return false;

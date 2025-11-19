@@ -25,8 +25,8 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsFileTransferService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.operations.OperationStatus;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
+import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxFile;
 
 public class ZeppOsGpxRouteUploadOperation extends AbstractZeppOsOperation<ZeppOsSupport>
         implements ZeppOsFileTransferService.UploadCallback {
@@ -38,10 +38,11 @@ public class ZeppOsGpxRouteUploadOperation extends AbstractZeppOsOperation<ZeppO
     private final ZeppOsFileTransferService fileTransferService;
 
     public ZeppOsGpxRouteUploadOperation(final ZeppOsSupport support,
-                                         final ZeppOsGpxRouteFile file,
+                                         final GpxFile gpxFile,
+                                         final String trackName,
                                          final ZeppOsFileTransferService fileTransferService) {
         super(support);
-        this.file = file;
+        this.file = new ZeppOsGpxRouteFile(gpxFile, trackName);
         this.fileBytes = file.getEncodedBytes();
         this.fileTransferService = fileTransferService;
     }
@@ -55,15 +56,6 @@ public class ZeppOsGpxRouteUploadOperation extends AbstractZeppOsOperation<ZeppO
                 false,
                 this
         );
-    }
-
-    @Override
-    protected void operationFinished() {
-        operationStatus = OperationStatus.FINISHED;
-        if (getDevice() != null && getDevice().isConnected()) {
-            unsetBusy();
-            getDevice().sendDeviceUpdateIntent(getContext());
-        }
     }
 
     @Override
@@ -90,8 +82,8 @@ public class ZeppOsGpxRouteUploadOperation extends AbstractZeppOsOperation<ZeppO
     private void updateProgress(final int progressPercent) {
         try {
             final ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("send gpx route upload progress");
-            builder.setProgress(getContext().getString(R.string.gpx_route_upload_in_progress), true, progressPercent, getContext());
-            builder.queue(getSupport());
+            builder.setProgress(R.string.gpx_route_upload_in_progress, true, progressPercent);
+            builder.queue();
         } catch (final Exception e) {
             LOG.error("Failed to update progress notification", e);
         }

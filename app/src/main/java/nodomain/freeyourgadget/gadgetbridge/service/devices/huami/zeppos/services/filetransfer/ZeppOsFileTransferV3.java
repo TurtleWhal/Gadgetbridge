@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.filetransfer;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport.calcMaxWriteChunk;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsS
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsFileTransferService;
 import nodomain.freeyourgadget.gadgetbridge.util.CheckSums;
+import nodomain.freeyourgadget.gadgetbridge.util.CompressionUtils;
 
 public class ZeppOsFileTransferV3 extends ZeppOsFileTransferImpl {
     private static final Logger LOG = LoggerFactory.getLogger(ZeppOsFileTransferV3.class);
@@ -240,7 +243,7 @@ public class ZeppOsFileTransferV3 extends ZeppOsFileTransferImpl {
             flags |= FLAG_LAST_CHUNK;
         }
 
-        final int partSize = mSupport.getMTU() - 3;
+        final int partSize = calcMaxWriteChunk(mSupport.getMTU());
 
         final ByteBuffer buf = ByteBuffer.allocate(chunk.length + 5);
         buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -257,7 +260,7 @@ public class ZeppOsFileTransferV3 extends ZeppOsFileTransferImpl {
             final byte[] part = ArrayUtils.subarray(payload, i, i + partSize);
             builder.write(HuamiService.UUID_CHARACTERISTIC_ZEPP_OS_FILE_TRANSFER_V3_SEND, part);
         }
-        builder.queue(mSupport);
+        builder.queue();
 
         request.setProgress(request.getProgress() + chunk.length);
         request.setIndex(request.getIndex() + 1);
@@ -355,12 +358,12 @@ public class ZeppOsFileTransferV3 extends ZeppOsFileTransferImpl {
                             (byte) 0x00
                     }
             );
-            builder.queue(mSupport);
+            builder.queue();
 
             if (currentReceiveChunkIsLast) {
                 final byte[] data;
                 if (currentReceiveRequest.isCompressed()) {
-                    data = decompress(currentReceiveRequest.getBytes());
+                    data = CompressionUtils.INSTANCE.inflate(currentReceiveRequest.getBytes());
                     if (data == null) {
                         LOG.error("Failed to decompress V3 bytes for {}", currentReceiveRequest.getFilename());
                         resetReceive();

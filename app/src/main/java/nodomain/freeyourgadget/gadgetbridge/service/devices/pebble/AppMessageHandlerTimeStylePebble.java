@@ -30,8 +30,8 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 class AppMessageHandlerTimeStylePebble extends AppMessageHandler {
@@ -70,7 +70,7 @@ class AppMessageHandlerTimeStylePebble extends AppMessageHandler {
                 }
             }
         } catch (JSONException e) {
-            GB.toast("There was an error accessing the timestyle watchface configuration.", Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast("There was an error accessing the TimeStyle watchface configuration.", Toast.LENGTH_LONG, GB.ERROR, e);
         } catch (IOException ignore) {
         }
     }
@@ -136,26 +136,31 @@ class AppMessageHandlerTimeStylePebble extends AppMessageHandler {
         }
 
         ArrayList<Pair<Integer, Object>> pairs = new ArrayList<>();
-        boolean isNight = false;   //TODO: use the night icons when night
-        pairs.add(new Pair<>(messageKeys.get("SettingUseMetric"), (Object) 1)); //celsius
-        pairs.add(new Pair<>(messageKeys.get("WeatherUseNightIcon"), (Object) (isNight ? 1 : 0)));
-        pairs.add(new Pair<>(messageKeys.get("WeatherTemperature"), (Object) (weatherSpec.currentTemp - 273)));
-        pairs.add(new Pair<>(messageKeys.get("WeatherCondition"), (Object) (getIconForConditionCode(weatherSpec.currentConditionCode, isNight))));
 
-        if (weatherSpec.forecasts.size() > 0) {
-            WeatherSpec.Daily tomorrow = weatherSpec.forecasts.get(0);
-            pairs.add(new Pair<>(messageKeys.get("WeatherForecastCondition"), (Object) (getIconForConditionCode(tomorrow.conditionCode, isNight))));
+        boolean isNight = false;
+        if (weatherSpec.getSunRise() != 0 && weatherSpec.getSunSet() != 0) {
+            isNight = weatherSpec.getSunRise() * 1000L > System.currentTimeMillis() || weatherSpec.getSunSet() * 1000L < System.currentTimeMillis();
         }
 
-        pairs.add(new Pair<>(messageKeys.get("WeatherForecastHighTemp"), (Object) (weatherSpec.todayMaxTemp - 273)));
-        pairs.add(new Pair<>(messageKeys.get("WeatherForecastLowTemp"), (Object) (weatherSpec.todayMinTemp - 273)));
+        pairs.add(new Pair<>(messageKeys.get("SettingUseMetric"), 1)); //celsius
+        pairs.add(new Pair<>(messageKeys.get("WeatherUseNightIcon"), isNight ? 1 : 0));
+        pairs.add(new Pair<>(messageKeys.get("WeatherTemperature"), weatherSpec.getCurrentTemp() - 273));
+        pairs.add(new Pair<>(messageKeys.get("WeatherCondition"), getIconForConditionCode(weatherSpec.getCurrentConditionCode(), isNight)));
+
+        if (!weatherSpec.getForecasts().isEmpty()) {
+            WeatherSpec.Daily tomorrow = weatherSpec.getForecasts().get(0);
+            pairs.add(new Pair<>(messageKeys.get("WeatherForecastCondition"), getIconForConditionCode(tomorrow.getConditionCode(), isNight)));
+        }
+
+        pairs.add(new Pair<>(messageKeys.get("WeatherForecastHighTemp"), weatherSpec.getTodayMaxTemp() - 273));
+        pairs.add(new Pair<>(messageKeys.get("WeatherForecastLowTemp"), weatherSpec.getTodayMinTemp() - 273));
 
         return mPebbleProtocol.encodeApplicationMessagePush(PebbleProtocol.ENDPOINT_APPLICATIONMESSAGE, mUUID, pairs, null);
     }
 
     @Override
     public GBDeviceEvent[] onAppStart() {
-        WeatherSpec weatherSpec = Weather.getInstance().getWeatherSpec();
+        WeatherSpec weatherSpec = Weather.getWeatherSpec();
         if (weatherSpec == null) {
             return new GBDeviceEvent[]{null};
         }

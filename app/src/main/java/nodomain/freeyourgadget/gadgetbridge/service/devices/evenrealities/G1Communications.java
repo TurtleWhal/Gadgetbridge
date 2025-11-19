@@ -1,12 +1,22 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.evenrealities;
 
+import android.util.Pair;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 
@@ -14,23 +24,25 @@ public class G1Communications {
     private static final Logger LOG = LoggerFactory.getLogger(G1Communications.class);
 
     public abstract static class CommandHandler {
+        protected final byte sequence;
         private final boolean expectResponse;
         private final Function<byte[], Boolean> callback;
-        protected byte sequence;
         private byte[] responsePayload;
         private int retryCount;
 
-        public CommandHandler(boolean expectResponse, Function<byte[], Boolean> callback) {
+        protected CommandHandler(byte sequence, boolean expectResponse, Function<byte[], Boolean> callback) {
+            this.sequence = sequence;
             this.expectResponse = expectResponse;
             this.callback = callback;
             this.responsePayload = null;
             this.retryCount = 0;
         }
 
-        public boolean needsGlobalSequence() { return false; }
-        public void setGlobalSequence(byte sequence) {
-            this.sequence = sequence;
+        protected CommandHandler(boolean expectResponse, Function<byte[], Boolean> callback) {
+            /* sequence is not used */
+            this((byte)0, expectResponse, callback);
         }
+
         public int getTimeout() {
             return G1Constants.DEFAULT_COMMAND_TIMEOUT_MS;
         }
@@ -73,7 +85,7 @@ public class G1Communications {
             return hasRetryRemaining();
         }
 
-        public byte[] getResponsePayload(){
+        public byte[] getResponsePayload() {
             if (responsePayload == null) {
                 throw new RuntimeException("Null payload. Did you call waitForPayload()?");
             }
@@ -97,24 +109,104 @@ public class G1Communications {
         public abstract String getName();
     }
 
-    public static class CommandSendInit extends CommandHandler {
-        public CommandSendInit() {
+    /**
+     * Certain payloads are too large for one packet, so this class is a simple extension of the
+     * CommandHandler that allows the subclass to send multiple packets.
+     * This works by forcing the caller to pass in a callback to the "send" function they are using
+     * and the ChunkCommandHandler will intercept calls to the Command callback to send the next
+     * chunk in the packet. Once the response for the last chunk is sent, the passed in callback
+     * will be sent.
+     */
+    public abstract static class ChunkedCommandHandler extends CommandHandler {
+        private final Consumer<CommandHandler> sendCallback;
+        private byte currentChunk;
+        protected final byte[] payload;
+        protected final byte chunkCount;
+        Callable<Byte> getNextSequence;
+
+        protected ChunkedCommandHandler(byte sequence, Consumer<CommandHandler> sendCallback,
+                                        Function<byte[], Boolean> callback, byte[] payload) {
+            super(sequence, true, callback);
+            this.sendCallback = sendCallback;
+            this.currentChunk = 0;
+            this.payload = payload;
+            int maxChunkSize = G1Constants.MAX_PACKET_SIZE_BYTES - getHeaderSize();
+            this.chunkCount = (byte)((this.payload.length / maxChunkSize) + 1);
+        }
+
+        @Override
+        final public Function<byte[], Boolean> getCallback() {
+            if (currentChunk < chunkCount) {
+                // Return the callback which sends the next chunk.
+                return this::sendNextChunk;
+            } else {
+                // Now that all the chunks have been received, return the user callback.
+                return super.getCallback();
+            }
+        }
+
+        @Override
+        final public byte[] serialize() {
+            // Calculate the size, begin and end of the chunk.
+            int maxPayloadSize = G1Constants.MAX_PACKET_SIZE_BYTES - getHeaderSize();
+            int chunkBegin = this.currentChunk * maxPayloadSize;
+            int chunkEnd = Math.min(this.payload.length,
+                                    (this.currentChunk + 1) * maxPayloadSize);
+            int payloadSize = chunkEnd - chunkBegin;
+
+            // Create the packet with space for the header.
+            byte[] packet = new byte[getHeaderSize() + payloadSize];
+
+            // Let the subclass write the header.
+            writeHeader(this.currentChunk, this.chunkCount, packet);
+
+            // Copy the chunk of the payload into the packet.
+            System.arraycopy(this.payload, chunkBegin, packet, getHeaderSize(), payloadSize);
+
+            return packet;
+        }
+
+        @Override
+        final public boolean responseMatches(byte[] payload) {
+            if (chunkMatches(currentChunk, payload)) {
+                // Advance the chunk when the response is received.
+                currentChunk++;
+                return true;
+            }
+            return false;
+        }
+
+        private boolean sendNextChunk(byte[] payload) {
+            sendCallback.accept(this);
+            return true;
+        }
+
+        protected abstract boolean chunkMatches(byte currentChunk, byte[] payload);
+        protected abstract void writeHeader(byte currentChunk, byte chunkCount, byte[] chunk);
+        protected abstract int getHeaderSize();
+    }
+
+    public static class CommandSendMtu extends CommandHandler {
+        private final byte mtu;
+
+        public CommandSendMtu(byte mtu) {
             super(true, null);
+            this.mtu = mtu;
         }
 
         @Override
         public byte[] serialize() {
-            return new byte[] { G1Constants.CommandId.INIT.id, (byte)0xFB };
+            return new byte[] { G1Constants.CommandId.SET_MTU.id, mtu };
         }
 
         @Override
         public boolean responseMatches(byte[] payload) {
-            return payload[0] == G1Constants.CommandId.INIT.id;
+            return payload[0] == G1Constants.CommandId.SET_MTU.id;
         }
 
         @Override
         public String getName() {
-            return "send_init";
+            return "send_mtu";
         }
     }
 
@@ -191,15 +283,14 @@ public class G1Communications {
             return "get_battery_info";
         }
 
-         public static byte getBatteryPercent(byte[] payload) {
+         public static int getBatteryPercent(byte[] payload) {
             return payload[2];
          }
     }
 
     public static class CommandSendHeartBeat extends CommandHandler {
         public CommandSendHeartBeat(byte sequence) {
-            super(false, null);
-            setGlobalSequence(sequence);
+            super(sequence, false, null);
         }
 
         @Override
@@ -232,31 +323,34 @@ public class G1Communications {
         byte weatherIcon;
         boolean useFahrenheit;
 
-        public CommandSetTimeAndWeather(long timeMilliseconds, boolean use12HourFormat, WeatherSpec weatherInfo, boolean useFahrenheit) {
-            super(true, null);
+        public CommandSetTimeAndWeather(byte sequence, long timeMilliseconds, boolean use12HourFormat,
+                                        WeatherSpec weatherInfo, boolean useFahrenheit) {
+            super(sequence, true, null);
             this.timeMilliseconds = timeMilliseconds;
             this.use12HourFormat = use12HourFormat;
             if (weatherInfo != null) {
-                this.weatherIcon = G1Constants.fromOpenWeatherCondition(weatherInfo.currentConditionCode);
+                this.weatherIcon = G1Constants.fromOpenWeatherCondition(weatherInfo.getCurrentConditionCode());
                 // Convert sunny to a moon if the current time stamp is between sunrise and sunset.
-                if (timeMilliseconds / 1000 >= weatherInfo.sunSet &&
-                    this.weatherIcon == G1Constants.WeatherId.SUNNY) {
+                // At midnight, the sunrise and sunset time move forward.
+                boolean isNight = (weatherInfo.getTimestamp() >= weatherInfo.getSunSet() &&
+                                   weatherInfo.getTimestamp() >= weatherInfo.getSunRise()) ||
+                                  (weatherInfo.getTimestamp() < weatherInfo.getSunRise() &&
+                                   weatherInfo.getTimestamp() < weatherInfo.getSunSet());
+                if (this.weatherIcon == G1Constants.WeatherId.SUNNY && isNight) {
                     this.weatherIcon = G1Constants.WeatherId.NIGHT;
                 }
                 // Convert Kelvin -> Celsius.
-                this.tempInCelsius = (byte) (weatherInfo.currentTemp - 273);
+                this.tempInCelsius = (byte) (weatherInfo.getCurrentTemp() - 273);
             } else {
                 this.weatherIcon = 0x00;
                 this.tempInCelsius = 0x00;
             }
             this.useFahrenheit = useFahrenheit;
         }
-        public CommandSetTimeAndWeather(long timeMilliseconds, boolean use12HourFormat, boolean useFahrenheit) {
-            this(timeMilliseconds, use12HourFormat, null, useFahrenheit);
+        public CommandSetTimeAndWeather(byte sequence, long timeMilliseconds, boolean use12HourFormat,
+                                        boolean useFahrenheit) {
+            this(sequence, timeMilliseconds, use12HourFormat, null, useFahrenheit);
         }
-
-        @Override
-        public boolean needsGlobalSequence() { return true; }
 
         @Override
         public byte[] serialize() {
@@ -313,14 +407,11 @@ public class G1Communications {
     public static class CommandSetDashboardModeSettings extends CommandHandler {
         byte mode;
         byte secondaryPaneMode;
-        public CommandSetDashboardModeSettings(byte mode, byte secondaryPaneMode) {
-            super(true, null);
+        public CommandSetDashboardModeSettings(byte sequence, byte mode, byte secondaryPaneMode) {
+            super(sequence, true, null);
             this.mode = mode;
             this.secondaryPaneMode = secondaryPaneMode;
         }
-
-        @Override
-        public boolean needsGlobalSequence() { return true; }
 
         @Override
         public byte[] serialize() {
@@ -421,11 +512,11 @@ public class G1Communications {
             return "get_display_settings";
         }
 
-        public static byte getHeight(byte[] payload) {
+        public static int getHeight(byte[] payload) {
             return payload[2];
         }
 
-        public static byte getDepth(byte[] payload) {
+        public static int getDepth(byte[] payload) {
             return payload[3];
         }
     }
@@ -434,15 +525,12 @@ public class G1Communications {
         private final boolean preview;
         private final byte height;
         private final byte depth;
-        public CommandSetDisplaySettings(boolean preview, byte height, byte depth) {
-            super(true, null);
+        public CommandSetDisplaySettings(byte sequence, boolean preview, byte height, byte depth) {
+            super(sequence, true, null);
             this.preview = preview;
             this.height = height;
             this.depth = depth;
         }
-
-        @Override
-        public boolean needsGlobalSequence() { return true; }
 
         @Override
         public byte[] serialize() {
@@ -492,7 +580,7 @@ public class G1Communications {
             return "get_head_gesture_settings";
         }
 
-        public static byte getActivationAngle(byte[] payload) {
+        public static int getActivationAngle(byte[] payload) {
             return payload[2];
         }
     }
@@ -547,7 +635,7 @@ public class G1Communications {
             return "get_brightness_settings";
         }
 
-        public static byte getBrightnessLevel(byte[] payload) {
+        public static int getBrightnessLevel(byte[] payload) {
             return payload[2];
         }
 
@@ -685,7 +773,229 @@ public class G1Communications {
         }
 
         public static String getSerialNumber(byte[] payload) {
-            return new String(payload, 2, 16, StandardCharsets.US_ASCII);
+            return new String(payload, 2, 14, StandardCharsets.US_ASCII);
+        }
+    }
+
+    public static class CommandGetNotificationDisplaySettings extends CommandHandler {
+        public CommandGetNotificationDisplaySettings(Function<byte[], Boolean> callback) {
+            super(true, callback);
+        }
+
+        @Override
+        public byte[] serialize() {
+            return new byte[] { G1Constants.CommandId.GET_NOTIFICATION_DISPLAY_SETTINGS.id };
+        }
+
+        @Override
+        public boolean responseMatches(byte[] payload) {
+            return payload.length >= 4 && payload[0] == G1Constants.CommandId.GET_NOTIFICATION_DISPLAY_SETTINGS.id;
+        }
+
+        @Override
+        public String getName() {
+            return "get_notification_display_settings";
+        }
+
+        public static boolean isEnabled(byte[] payload) {
+            return payload[2] == 0x01;
+        }
+        public static int getTimeout(byte[] payload) {
+            return payload[3];
+        }
+    }
+
+    public static class CommandSetNotificationDisplaySettings extends CommandHandler {
+        private final boolean enable;
+        private final byte timeout;
+        public CommandSetNotificationDisplaySettings(boolean enable, byte timeout) {
+            super(true, null);
+            this.enable = enable;
+            this.timeout = timeout;
+        }
+
+        @Override
+        public byte[] serialize() {
+            return new byte[] {
+                    G1Constants.CommandId.SET_NOTIFICATION_DISPLAY_SETTINGS.id,
+                    enable ? 0x01 : (byte)0x00,
+                    timeout
+            };
+        }
+
+        @Override
+        public boolean responseMatches(byte[] payload) {
+            return payload.length >= 2 && payload[0] == G1Constants.CommandId.SET_NOTIFICATION_DISPLAY_SETTINGS.id;
+        }
+
+        @Override
+        public String getName() {
+            return "set_notification_display_settings_" + (enable ? "enabled" : "disabled") + "_" + timeout;
+        }
+    }
+
+    public static class CommandSetAppNotificationSettings extends ChunkedCommandHandler {
+        public CommandSetAppNotificationSettings(Consumer<CommandHandler> sendCallback,
+                                                 List<Pair<String, String>> appIdentifiers,
+                                                 boolean enableCalendar,
+                                                 boolean enableCalls,
+                                                 boolean enableSMS) {
+            // Sequence is not used.
+            super((byte)0, sendCallback, null,
+                  generatePayload(appIdentifiers, enableCalendar, enableCalls, enableSMS));
+        }
+
+        private static byte[] generatePayload(List<Pair<String, String>> appIdentifiers,
+                                              boolean enableCalendar,
+                                              boolean enableCalls,
+                                              boolean enableSMS) {
+            try {
+                JSONObject appJson = new JSONObject();
+                JSONArray appList = new JSONArray();
+                for (Pair<String, String> appInfo : appIdentifiers) {
+                    JSONObject app = new JSONObject();
+                    app.put("id", appInfo.first);
+                    app.put("name", appInfo.second);
+                    appList.put(app);
+                }
+                appJson.put("list", appList);
+                appJson.put("enable", true);
+
+                JSONObject json = new JSONObject();
+                json.put("calendar_enable", enableCalendar);
+                json.put("call_enable", enableCalls);
+                json.put("msg_enable", enableSMS);
+                json.put("ios_mail_enable", false);
+                json.put("app", appJson);
+
+                // Need to allocate one larger in order to null terminate.
+                 String jsonString = json.toString();
+                byte[] bytes = new byte[jsonString.length() + 1];
+                System.arraycopy(jsonString.getBytes(StandardCharsets.US_ASCII),
+                                 0, bytes, 0, jsonString.length());
+                bytes[jsonString.length()] = 0;
+                return bytes;
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        protected boolean chunkMatches(byte chunk, byte[] payload) {
+            return payload.length >= 1 && payload[0] == G1Constants.CommandId.SET_NOTIFICATION_APP_SETTINGS.id;
+        }
+
+        @Override
+        protected void writeHeader(byte currentChunk, byte chunkCount, byte[] chunk) {
+            chunk[0] = G1Constants.CommandId.SET_NOTIFICATION_APP_SETTINGS.id;
+            chunk[1] = chunkCount;
+            chunk[2] = currentChunk;
+        }
+
+        @Override
+        protected int getHeaderSize() {
+            return 3;
+        }
+
+        @Override
+        public String getName() {
+            return "set_notification_app_settings";
+        }
+    }
+
+    public static class CommandSendNotification extends ChunkedCommandHandler {
+        private final int messageId;
+
+        public CommandSendNotification(Consumer<CommandHandler> sendCallback, NotificationSpec notificationSpec) {
+            // Sequence is not used.
+            super((byte)0, sendCallback, null, generatePayload(notificationSpec));
+            this.messageId = notificationSpec.getId();
+        }
+
+        private static byte[] generatePayload(NotificationSpec notificationSpec) {
+
+            try {
+                JSONObject notificationJson = new JSONObject();
+                notificationJson.put("msg_id", notificationSpec.getId());
+                notificationJson.put("action", 0);
+                notificationJson.put("app_identifier",
+                                     notificationSpec.sourceAppId.substring(
+                                             0,Math.min(notificationSpec.sourceAppId.length(), 31)));
+                if (notificationSpec.title != null)
+                    notificationJson.put("title", notificationSpec.title);
+                if (notificationSpec.subject != null)
+                    notificationJson.put("subtitle", notificationSpec.subject);
+                if (notificationSpec.body != null)
+                    notificationJson.put("message", notificationSpec.body);
+                notificationJson.put("time_s", notificationSpec.when / 1000);
+                notificationJson.put("date", new Date(notificationSpec.when).toString());
+                notificationJson.put("display_name", notificationSpec.sourceName);
+
+                JSONObject json = new JSONObject();
+                json.put("ncs_notification", notificationJson);
+
+                // Need to allocate one larger in order to null terminate.
+                String jsonString = json.toString();
+                byte[] bytes = new byte[jsonString.length() + 1];
+                System.arraycopy(jsonString.getBytes(StandardCharsets.US_ASCII),
+                                 0, bytes, 0, jsonString.length());
+                bytes[jsonString.length()] = 0;
+                return bytes;
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        protected boolean chunkMatches(byte chunk, byte[] payload) {
+            return payload.length >= 1 && payload[0] == G1Constants.CommandId.SEND_NOTIFICATION.id;
+        }
+
+        @Override
+        protected void writeHeader(byte currentChunk, byte chunkCount, byte[] chunk) {
+            chunk[0] = G1Constants.CommandId.SEND_NOTIFICATION.id;
+            chunk[1] = 0x0;
+            chunk[2] = chunkCount;
+            chunk[3] = currentChunk;
+        }
+
+        @Override
+        protected int getHeaderSize() {
+            return 4;
+        }
+
+        @Override
+        public String getName() {
+            return "send_notification_" + messageId;
+        }
+    }
+
+    public static class CommandSendClearNotification extends CommandHandler {
+        private final int messageId;
+
+        public CommandSendClearNotification(int messageId) {
+            super(true, null);
+            this.messageId = messageId;
+        }
+
+        @Override
+        public byte[] serialize() {
+            byte[] packet = new byte[] {
+                    G1Constants.CommandId.SEND_CLEAR_NOTIFICATION.id,
+                    0x0,0x0,0x0,0x0
+            };
+            BLETypeConversions.writeUint32BE(packet, 1, messageId);
+            return packet;
+        }
+
+        @Override
+        public boolean responseMatches(byte[] payload) {
+            return payload.length >= 1 && payload[0] == G1Constants.CommandId.SEND_CLEAR_NOTIFICATION.id;
+        }
+
+        @Override
+        public String getName() {
+            return "send_clear_notification_" + messageId;
         }
     }
 

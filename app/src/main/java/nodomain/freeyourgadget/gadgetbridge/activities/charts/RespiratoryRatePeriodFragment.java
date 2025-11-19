@@ -1,7 +1,5 @@
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
-import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,7 +17,6 @@ import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
-import org.apache.commons.lang3.time.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,11 +63,9 @@ public class RespiratoryRatePeriodFragment extends RespiratoryRateFragment<Respi
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_respiratory_rate_period, container, false);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                getChartsHost().enableSwipeRefresh(scrollY == 0);
-            });
-        }
+        rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            getChartsHost().enableSwipeRefresh(scrollY == 0);
+        });
 
         mDateView = rootView.findViewById(R.id.rr_date_view);
         sleepAvg = rootView.findViewById(R.id.sleep_avg);
@@ -142,7 +137,8 @@ public class RespiratoryRatePeriodFragment extends RespiratoryRateFragment<Respi
         lineDataSet.setFillAlpha(255);
         lineDataSet.setCircleRadius(5f);
         lineDataSet.setDrawCircles(true);
-        lineDataSet.setDrawCircleHole(true);
+        lineDataSet.setDrawCircleHole(false);
+        lineDataSet.setValueTextSize(TEXT_COLOR);
         lineDataSet.setCircleColor(getResources().getColor(color));
         lineDataSet.setAxisDependency(YAxis.AxisDependency.LEFT);
         lineDataSet.setDrawValues(false);

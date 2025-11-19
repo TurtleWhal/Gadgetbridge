@@ -75,7 +75,7 @@ public class VescDeviceSupport extends VescBaseDeviceSupport {
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         LOG.debug("initializing device");
 
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         initBroadcast();
 
@@ -89,7 +89,7 @@ public class VescDeviceSupport extends VescBaseDeviceSupport {
 
         builder.notify(this.serialReadCharacteristic, true);
 
-        return builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        return builder.setDeviceState(GBDevice.State.INITIALIZED);
     }
 
     @Override
@@ -235,8 +235,10 @@ public class VescDeviceSupport extends VescBaseDeviceSupport {
 
     @Override
     public void dispose() {
-        super.dispose();
-        LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(commandReceiver);
+        synchronized (ConnectionMonitor) {
+            super.dispose();
+            LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(commandReceiver);
+        }
     }
 
     BroadcastReceiver commandReceiver = new BroadcastReceiver() {
@@ -286,9 +288,9 @@ public class VescDeviceSupport extends VescBaseDeviceSupport {
     }
 
     public void queryPacket(byte[] data) {
-        new TransactionBuilder("write serial packet")
+        createTransactionBuilder("write serial packet")
                 .write(this.serialWriteCharacteristic, data)
-                .queue(getQueue());
+                .queue();
     }
 
     public byte[] buildPacket(CommandType commandType, Object... args) {

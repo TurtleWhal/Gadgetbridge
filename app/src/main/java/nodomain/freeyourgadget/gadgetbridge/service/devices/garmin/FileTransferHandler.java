@@ -1,3 +1,19 @@
+/*  Copyright (C) 2024-2025 Daniele Gobbetti, José Rebelo, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin;
 
 import android.content.Intent;
@@ -91,6 +107,13 @@ public class FileTransferHandler implements MessageHandler {
         download.setCurrentlyDownloading(new FileFragment(new DirectoryEntry(0, FileType.FILETYPE.DIRECTORY, 0, 0, 0, 0, null)));
         return new DownloadRequestMessage(0, 0, DownloadRequestMessage.REQUEST_TYPE.NEW, 0, 0);
     }
+
+    public DownloadRequestMessage initiateDebugDownload() {
+        DirectoryEntry deviceXml = new DirectoryEntry(0xFFFD, FileType.FILETYPE.DEVICE_XML, 0xFFFD, 0, 0, 0, new Date());
+        download.setCurrentlyDownloading(new FileFragment(deviceXml));
+        return new DownloadRequestMessage(deviceXml.getFileIndex(), 0, DownloadRequestMessage.REQUEST_TYPE.NEW, 0, 0);
+    }
+
 //    public DownloadRequestMessage downloadSettings() {
 //        download.setCurrentlyDownloading(new FileFragment(new DirectoryEntry(0, FileType.FILETYPE.SETTINGS, 0, 0, 0, 0, null)));
 //        return new DownloadRequestMessage(0, 0, DownloadRequestMessage.REQUEST_TYPE.NEW, 0, 0);
@@ -120,6 +143,8 @@ public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYP
             currentlyDownloading.append(fileTransferDataMessage);
             if (!currentlyDownloading.dataHolder.hasRemaining())
                 processCompleteDownload();
+            else
+                deviceSupport.onFileDownloadProgress(currentlyDownloading.dataHolder.position());
         }
 
         private void processCompleteDownload() {
@@ -139,8 +164,14 @@ public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYP
                 throw new IllegalStateException("Received file transfer of unknown file");
             if (downloadRequestStatusMessage.canProceed())
                 currentlyDownloading.setSize(downloadRequestStatusMessage);
-            else
+            else {
+                // Signal to the support class that the download failed so it can also continue to the next one
+                FileDownloadedDeviceEvent fileDownloadedDeviceEvent = new FileDownloadedDeviceEvent();
+                fileDownloadedDeviceEvent.directoryEntry = currentlyDownloading.directoryEntry;
+                fileDownloadedDeviceEvent.success = false;
+                deviceSupport.evaluateGBDeviceEvent(fileDownloadedDeviceEvent);
                 currentlyDownloading = null;
+            }
         }
 
         private void saveFileToExternalStorage() {
@@ -166,6 +197,13 @@ public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYP
 
         private void parseDirectoryEntries() {
             LOG.debug("Parsing directory entries for {}", currentlyDownloading.directoryEntry);
+            if (deviceSupport.newSyncProtocol()) {
+                // Signal to the support class that we got the directory - but ignore the entries
+                // Well request them using the new sync protocol
+                deviceSupport.addFileToDownloadList(currentlyDownloading.directoryEntry);
+                return;
+            }
+
             if ((currentlyDownloading.getDataSize() % 16) != 0)
                 throw new IllegalArgumentException("Invalid directory data length");
             final GarminByteBufferReader reader = new GarminByteBufferReader(currentlyDownloading.dataHolder.array());
@@ -184,10 +222,11 @@ public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYP
                 final DirectoryEntry directoryEntry = new DirectoryEntry(fileIndex, filetype, fileNumber, specificFlags, fileFlags, fileSize, fileDate);
                 if (directoryEntry.filetype == null) {
                     // discard unsupported files
-                    LOG.warn("Unsupported directory entry of type {}/{}", fileDataType, fileSubType);
+                    LOG.warn("Unsupported directory entry of type {}/{}: {}", fileDataType, fileSubType, directoryEntry);
                     continue;
                 }
                 if (!FILE_TYPES_TO_PROCESS.contains(directoryEntry.filetype) && !fetchUnknownFiles) {
+                    LOG.debug("Skipping directory entry: {}", directoryEntry);
                     continue;
                 }
                 if (fileIndex == 0 && fileDataType == 0 && fileSubType == 0 && fileNumber == 0 && specificFlags == 0 && fileFlags == 0 && fileSize == 0) {
@@ -235,7 +274,9 @@ public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYP
         private UploadRequestMessage setCreateFileStatusMessage(CreateFileStatusMessage createFileStatusMessage) {
             if (createFileStatusMessage.canProceed()) {
                 LOG.info("SENDING UPLOAD FILE");
-                updateUploadProgress(0);
+                if (currentlyUploading.directoryEntry.filetype != FileType.FILETYPE.SETTINGS) {
+                    updateUploadProgress(0);
+                }
                 return new UploadRequestMessage(createFileStatusMessage.getFileIndex(), currentlyUploading.getDataSize());
             } else {
                 LOG.warn("Cannot proceed with upload");
@@ -253,23 +294,31 @@ public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYP
                 return currentlyUploading.take();
             } else {
                 LOG.warn("Cannot proceed with upload");
-                updateUploadProgress(-1);
+                if (currentlyUploading.directoryEntry.filetype != FileType.FILETYPE.SETTINGS) {
+                    updateUploadProgress(-1);
+                }
                 this.currentlyUploading = null;
             }
             return null;
         }
 
         private GFDIMessage processUploadProgress(FileTransferDataStatusMessage fileTransferDataStatusMessage) {
+            final boolean showNotification = currentlyUploading.directoryEntry.filetype != FileType.FILETYPE.SETTINGS;
+
             if (currentlyUploading.getDataSize() <= fileTransferDataStatusMessage.getDataOffset()) {
                 this.currentlyUploading = null;
                 LOG.info("SENDING SYNC COMPLETE!!!");
-                updateUploadProgress(100);
+                if (showNotification) {
+                    updateUploadProgress(100);
+                }
 
                 return new SystemEventMessage(SystemEventMessage.GarminSystemEventType.SYNC_COMPLETE, 0);
             } else {
                 if (fileTransferDataStatusMessage.canProceed()) {
                     LOG.info("SENDING NEXT CHUNK!!!");
-                    updateUploadProgress((100 * currentlyUploading.dataHolder.position()) / currentlyUploading.dataHolder.limit());
+                    if (showNotification) {
+                        updateUploadProgress((100 * currentlyUploading.dataHolder.position()) / currentlyUploading.dataHolder.limit());
+                    }
                     if (fileTransferDataStatusMessage.getDataOffset() != currentlyUploading.dataHolder.position())
                         throw new IllegalStateException("Received file transfer status with unaligned offset");
                     return currentlyUploading.take();
@@ -397,6 +446,10 @@ public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYP
             return fileDate;
         }
 
+        public int getFileSize() {
+            return fileSize;
+        }
+
         /**
          * Builds the output path.
          * Format: [FILE_TYPE]/[YEAR]/[FILE_TYPE]_[yyyy-MM-dd_HH-mm-ss]_[INDEX].[fit/bin]
@@ -404,13 +457,13 @@ public CreateFileMessage initiateUpload(byte[] fileAsByteArray, FileType.FILETYP
         public String getOutputPath() {
             // [FILE_TYPE]/
             final StringBuilder sb = new StringBuilder(getFiletype().name());
-            sb.append("/");
+            sb.append(File.separator);
 
             // If we have a valid date, place the file inside a folder for each year
             // [YEAR]/
             if (fileDate.getTime() != GarminTimeUtils.GARMIN_TIME_EPOCH * 1000L) {
                 sb.append(SDF_YEAR.format(fileDate));
-                sb.append("/");
+                sb.append(File.separator);
             }
 
             // Finally, the filename

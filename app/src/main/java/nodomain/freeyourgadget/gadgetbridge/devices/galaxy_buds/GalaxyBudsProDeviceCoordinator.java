@@ -54,12 +54,10 @@ public class GalaxyBudsProDeviceCoordinator extends GalaxyBudsGenericCoordinator
         };
     }
 
-
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_galaxybuds_pro;
     }
-
 
     @Override
     public int getDefaultIconResource() {

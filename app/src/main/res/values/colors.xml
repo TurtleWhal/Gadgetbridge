@@ -57,6 +57,12 @@
     <color name="hrv_status_low" type="color">#fc5203</color>
     <color name="hrv_status_poor" type="color">#be03fc</color>
     <color name="hrv_status_char_line_color" type="color">#d12a2a</color>
+    <color name="training_load_dark" type="color">#FFF</color>
+    <color name="training_load" type="color">#1d2436</color>
+    <color name="training_chronic_load" type="color">#8847a1</color>
+    <color name="training_load_optimal" type="color">#59b22c</color>
+    <color name="training_load_low" type="color">#D3D3D3</color>
+    <color name="training_load_high" type="color">#d12a2a</color>
     <color name="vo2max_running_char_line_color" type="color">#46acea</color>
     <color name="vo2max_cycling_char_line_color" type="color">#59b22c</color>
     <color name="vo2max_value_poor_color" type="color">#d93832</color>
@@ -70,6 +76,7 @@
     <color name="calories_color" type="color">#fa4502</color>
     <color name="calories_resting_color" type="color">#1f49f2</color>
     <color name="respiratory_rate_color" type="color">#163ede</color>
+    <color name="spo2_color" type="color">#80D8FF</color>
 
     <color name="value_line_color" type="color">#858585</color>
     <color name="row_separator_light" type="color">#ffe2e2e5</color>
@@ -81,6 +88,16 @@
     <color name="hr_zone_aerobic_color" type="color">#66BB6A</color>
     <color name="hr_zone_threshold_color" type="color">#FF7043</color>
     <color name="hr_zone_maximum_color" type="color">#F44336</color>
+
+    <color name="chart_cadence_circle" type="color">#FF7043</color>
+    <color name="chart_line_speed" type="color">#80D8FF</color>
+    <color name="chart_line_elevation" type="color">#66BB6A</color>
+    <color name="chart_line_heart_rate" type="color">#F44336</color>
+    <color name="chart_line_power" type="color">#6A0DAD</color>
+    <color name="chart_line_swolf" type="color">#F9DB22</color>
+    <color name="chart_line_stroke_rate" type="color">#6495ED</color>
+    <color name="chart_highline_dolor" type="color">#ffff8800</color>
+    <color name="chart_line_depth" type="color">#ff4040ff</color>
 
     <attr name="row_separator" format="color" />
     <color name="alternate_row_background_light">#FFEDEDED</color>

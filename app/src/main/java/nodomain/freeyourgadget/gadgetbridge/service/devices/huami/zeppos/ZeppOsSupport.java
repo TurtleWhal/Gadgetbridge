@@ -28,6 +28,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
@@ -86,7 +87,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCharacteristic;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.Huami2021ChunkedDecoder;
@@ -297,7 +297,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
         huami2021ChunkedDecoder.reset();
         fetcher.reset();
 
-        builder.setDeviceState(getDevice(), GBDevice.State.AUTHENTICATING, getContext());
+        builder.setDeviceState(GBDevice.State.AUTHENTICATING);
 
         authenticationService.startAuthentication(builder);
     }
@@ -367,7 +367,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
         configService.newSetter()
                 .setByte(HEART_RATE_ALL_DAY_MONITORING, (byte) minuteInterval)
                 .write(builder);
-        builder.queue(this);
+        builder.queue();
     }
 
     @Override
@@ -409,7 +409,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
     public void onSetReminders(final ArrayList<? extends Reminder> reminders) {
         final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder("onSetReminders");
         remindersService.sendReminders(builder, reminders);
-        builder.queue(this);
+        builder.queue();
     }
 
     @Override
@@ -464,7 +464,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
     }
 
     @Override
-    public void onInstallApp(final Uri uri) {
+    public void onInstallApp(final Uri uri, @NonNull final Bundle options) {
         final ZeppOsAgpsInstallHandler agpsHandler = new ZeppOsAgpsInstallHandler(uri, getContext());
         if (agpsHandler.isValid()) {
             try {
@@ -514,7 +514,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
                     firmwareUpdateOperation.perform();
                 }
             } catch (final Exception e) {
-                GB.toast(getContext(), "AGPS install error: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+                GB.toast(getContext(), "AGPS install error: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
 
             return;
@@ -522,14 +522,16 @@ public class ZeppOsSupport extends AbstractDeviceSupport
 
         final ZeppOsGpxRouteInstallHandler gpxRouteHandler = new ZeppOsGpxRouteInstallHandler(uri, getContext());
         if (gpxRouteHandler.isValid()) {
+            final String trackName = options.getString(ZeppOsGpxRouteInstallHandler.EXTRA_TRACK_NAME);
             try {
                 new ZeppOsGpxRouteUploadOperation(
                         this,
-                        gpxRouteHandler.getFile(),
+                        gpxRouteHandler.getGpxFile(),
+                        trackName,
                         fileTransferService
                 ).perform();
             } catch (final Exception e) {
-                GB.toast(getContext(), "Gpx install error: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+                GB.toast(getContext(), "Gpx install error: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
 
             return;
@@ -549,7 +551,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
                         fileTransferService
                 ).perform();
             } catch (final Exception e) {
-                GB.toast(getContext(), "Music install error: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+                GB.toast(getContext(), "Music install error: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
 
             return;
@@ -565,7 +567,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
             firmwareUpdateOperation = new ZeppOsFirmwareUpdateOperation(uri, this);
             firmwareUpdateOperation.perform();
         } catch (final IOException ex) {
-            GB.toast(getContext(), "Firmware install error: " + ex.getMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
+            GB.toast(getContext(), "Firmware install error: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
         }
     }
 
@@ -632,7 +634,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
                 .setBoolean(SLEEP_HIGH_ACCURACY_MONITORING, enableHrSleepSupport)
                 .write(builder);
 
-        builder.queue(this);
+        builder.queue();
     }
 
     @Override
@@ -656,15 +658,15 @@ public class ZeppOsSupport extends AbstractDeviceSupport
             } else {
                 communicator.setCurrentTime(builder);
             }
-            builder.queue(this);
+            builder.queue();
         }
 
         CalendarReceiver.forceSync(getDevice());
     }
 
     @Override
-    public void onSendWeather(final ArrayList<WeatherSpec> weatherSpecs) {
-        weatherService.onSendWeather(weatherSpecs);
+    public void onSendWeather() {
+        weatherService.onSendWeather();
     }
 
     @Override
@@ -778,7 +780,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
 
     private ScheduledExecutorService startRawSensors() {
         ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-        service.scheduleAtFixedRate(new Runnable() {
+        service.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
                 if (rawSensor) {
@@ -820,7 +822,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
         LOG.info("ZeppOS phase 2 initialize...");
 
         final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder("phase 2 initialize");
-        builder.setDeviceState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         communicator.onAuthenticationSuccess(builder);
 
@@ -834,7 +836,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
         mSupportedServices.clear();
         servicesService.requestServices(builder);
 
-        builder.queue(this);
+        builder.queue();
     }
 
     public void addSupportedService(final short endpoint, final boolean encrypted) {
@@ -869,9 +871,9 @@ public class ZeppOsSupport extends AbstractDeviceSupport
             }
         }
 
-        builder.setDeviceState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
 
-        builder.queue(this);
+        builder.queue();
     }
 
     @Override
@@ -879,7 +881,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
         final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder("set activity notifications: " + control + " " + data);
         builder.notify(HuamiService.UUID_CHARACTERISTIC_5_ACTIVITY_CONTROL, control);
         builder.notify(HuamiService.UUID_CHARACTERISTIC_5_ACTIVITY_DATA, data);
-        builder.queue(this);
+        builder.queue();
     }
 
     @Override
@@ -889,7 +891,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
         } else {
             final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder(name);
             builder.write(HuamiService.UUID_CHARACTERISTIC_5_ACTIVITY_CONTROL, value);
-            builder.queue(this);
+            builder.queue();
         }
     }
 
@@ -921,7 +923,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
             builder.write(HuamiService.UUID_CHARACTERISTIC_RAW_SENSOR_CONTROL, Huami2021Service.CMD_RAW_SENSOR_STOP);
         }
         builder.notify(HuamiService.UUID_CHARACTERISTIC_RAW_SENSOR_DATA, enable);
-        builder.queue(this);
+        builder.queue();
     }
 
     private void handleRawSensorData(final byte[] value) {
@@ -1068,7 +1070,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
 
         final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder("send chunked ack");
         builder.write(HuamiService.UUID_CHARACTERISTIC_CHUNKEDTRANSFER_2021_READ, new byte[] {0x04, 0x00, handle, 0x01, count});
-        builder.queue(this);
+        builder.queue();
     }
 
     @Override
@@ -1149,7 +1151,7 @@ public class ZeppOsSupport extends AbstractDeviceSupport
     public void writeToChunked2021(final String taskName, final short type, final byte[] data, final boolean encrypt) {
         final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder(taskName);
         writeToChunked2021(builder, type, data, encrypt);
-        builder.queue(this);
+        builder.queue();
     }
 
     public ZeppOsTransactionBuilder createZeppOsTransactionBuilder(final String taskName) {

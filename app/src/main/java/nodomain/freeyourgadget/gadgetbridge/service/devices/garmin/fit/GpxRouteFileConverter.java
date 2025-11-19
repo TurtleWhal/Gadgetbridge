@@ -12,8 +12,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.FileType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.GarminSport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitRecordDataFactory;
-import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.gpx.GpxParser;
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxFile;
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxTrackPoint;
 
@@ -24,18 +22,18 @@ public class GpxRouteFileConverter {
     private final long timestamp;
     private final GpxFile gpxFile;
     private FitFile convertedFile;
-    private String name;
+    private final String name;
 
-    public GpxRouteFileConverter(byte[] xmlBytes) {
+    public GpxRouteFileConverter(final GpxFile gpxFile,
+                                 final String trackName) {
         this.timestamp = System.currentTimeMillis() / 1000;
-        this.gpxFile = GpxParser.parseGpx(xmlBytes);
-        if (this.gpxFile != null) {
-            try {
-                this.convertedFile = convertGpxToRoute(gpxFile);
-            } catch (final Exception e) {
-                LOG.error("Failed to convert gpx to route", e);
-                this.convertedFile = null;
-            }
+        this.gpxFile = gpxFile;
+        this.name = trackName;
+        try {
+            this.convertedFile = convertGpxToRoute(gpxFile);
+        } catch (final Exception e) {
+            LOG.error("Failed to convert gpx to route", e);
+            this.convertedFile = null;
         }
     }
 
@@ -55,28 +53,11 @@ public class GpxRouteFileConverter {
         return this.convertedFile != null;
     }
 
-    public String getName() {
-        if (gpxFile == null) {
-            return "";
-        }
-
-        if (!StringUtils.isNullOrEmpty(this.name))
-            return this.name;
-
-        if (!StringUtils.isNullOrEmpty(gpxFile.getName())) {
-            return gpxFile.getName();
-        } else {
-            return String.valueOf(timestamp);
-        }
-    }
-
     private FitFile convertGpxToRoute(GpxFile gpxFile) {
         if (gpxFile.getTracks().isEmpty()) {
             LOG.error("Gpx file contains no Tracks.");
             return null;
         }
-
-        this.name = gpxFile.getTracks().get(0).getName();
 
         // GPX files may contain multiple tracks, we use only the first one,
         // but we use all segments (#4855)
@@ -174,7 +155,7 @@ public class GpxRouteFileConverter {
                 new RecordDefinition(new RecordHeader((byte) 0x42), ByteOrder.BIG_ENDIAN, GlobalFITMessage.COURSE, GlobalFITMessage.COURSE.getFieldDefinitions(4, 5), null),
                 new RecordHeader((byte) 0x02));
         courseRecord.setFieldByName("sport", activity); //TODO use track.getType()
-        courseRecord.setFieldByName("name", this.getName());
+        courseRecord.setFieldByName("name", name);
         return courseRecord;
     }
 

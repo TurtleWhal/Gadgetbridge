@@ -38,7 +38,6 @@ import java.util.Map;
 import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
@@ -60,7 +59,6 @@ import nodomain.freeyourgadget.gadgetbridge.entities.AbstractActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.AudioRecordingDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummaryDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericHrvValueSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericTemperatureSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuamiExtendedActivitySampleDao;
@@ -76,6 +74,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.MiBandActivitySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.SleepScoreSample;
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiVibrationPatternNotificationType;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -98,13 +97,15 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
         return false;
     }
 
+    @Nullable
     @Override
-    protected void deleteDevice(@NonNull final GBDevice gbDevice,
-                                @NonNull final Device device,
-                                @NonNull final DaoSession session) throws GBException {
-        final Long deviceId = device.getId();
+    public String getAuthHelp() {
+        return "https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/";
+    }
 
-        final Map<AbstractDao<?, ?>, Property> daoMap = new HashMap<AbstractDao<?, ?>, Property>() {{
+    @Override
+    public Map<AbstractDao<?, ?>, Property> getAllDeviceDao(@NonNull final DaoSession session) {
+        return new HashMap<>() {{
             put(session.getMiBandActivitySampleDao(), MiBandActivitySampleDao.Properties.DeviceId);
             put(session.getHuamiExtendedActivitySampleDao(), HuamiExtendedActivitySampleDao.Properties.DeviceId);
             put(session.getHuamiStressSampleDao(), HuamiStressSampleDao.Properties.DeviceId);
@@ -120,12 +121,6 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
             put(session.getBaseActivitySummaryDao(), BaseActivitySummaryDao.Properties.DeviceId);
             put(session.getAudioRecordingDao(), AudioRecordingDao.Properties.DeviceId);
         }};
-
-        for (final Map.Entry<AbstractDao<?, ?>, Property> e : daoMap.entrySet()) {
-            e.getKey().queryBuilder()
-                    .where(e.getValue().eq(deviceId))
-                    .buildDelete().executeDeleteWithoutDetachingEntities();
-        }
     }
 
     @Override
@@ -134,12 +129,12 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsFlashing() {
+    public boolean supportsFlashing(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsRealtimeData() {
+    public boolean supportsRealtimeData(@NonNull GBDevice device) {
         return true;
     }
 
@@ -149,17 +144,17 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching() {
+    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracking() {
+    public boolean supportsActivityTracking(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsHeartRateRestingMeasurement(final GBDevice device) {
+    public boolean supportsHeartRateRestingMeasurement(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -215,7 +210,7 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public GenericTemperatureSampleProvider getTemperatureSampleProvider(GBDevice device, DaoSession session) {
-        return new GenericTemperatureSampleProvider(device, session);
+        return new GenericTemperatureSampleProvider(device, session, TemperatureSample.TYPE_SKIN, TemperatureSample.LOCATION_WRIST);
     }
 
     @Override
@@ -239,20 +234,6 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
             return DateTimeDisplay.TIME;
         }
         return DateTimeDisplay.DATE_TIME;
-    }
-
-    public static AlwaysOnDisplay getAlwaysOnDisplay(final String deviceAddress) {
-        final SharedPreferences prefs = GBApplication.getDeviceSpecificSharedPrefs(deviceAddress);
-        final String pref = prefs.getString(DeviceSettingsPreferenceConst.PREF_ALWAYS_ON_DISPLAY_MODE, DeviceSettingsPreferenceConst.PREF_ALWAYS_ON_DISPLAY_OFF);
-        return AlwaysOnDisplay.valueOf(pref.toUpperCase(Locale.ROOT));
-    }
-
-    public static Date getAlwaysOnDisplayStart(final String deviceAddress) {
-        return getTimePreference(DeviceSettingsPreferenceConst.PREF_ALWAYS_ON_DISPLAY_START, "00:00", deviceAddress);
-    }
-
-    public static Date getAlwaysOnDisplayEnd(final String deviceAddress) {
-        return getTimePreference(DeviceSettingsPreferenceConst.PREF_ALWAYS_ON_DISPLAY_END, "00:00", deviceAddress);
     }
 
     public static ActivateDisplayOnLift getActivateDisplayOnLiftWrist(Context context, String deviceAddress) {
@@ -354,21 +335,6 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
         return prefs.getBoolean(MiBandConst.PREF_SWIPE_UNLOCK, false);
     }
 
-    public static boolean getScreenOnOnNotification(String deviceAddress) {
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
-        return prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_SCREEN_ON_ON_NOTIFICATIONS, false);
-    }
-
-    public static int getScreenBrightness(String deviceAddress) throws IllegalArgumentException {
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
-        return prefs.getInt(DeviceSettingsPreferenceConst.PREF_SCREEN_BRIGHTNESS, 50);
-    }
-
-    public static int getScreenTimeout(String deviceAddress) throws IllegalArgumentException {
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
-        return prefs.getInt(DeviceSettingsPreferenceConst.PREF_SCREEN_TIMEOUT, 5);
-    }
-
     public static boolean getExposeHRThirdParty(String deviceAddress) {
         Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
         return prefs.getBoolean(HuamiConst.PREF_EXPOSE_HR_THIRDPARTY, false);
@@ -404,34 +370,9 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
         return prefs.getInt(DeviceSettingsPreferenceConst.PREF_HEARTRATE_ALERT_HIGH_THRESHOLD, 150);
     }
 
-    public static int getHeartrateAlertLowThreshold(String deviceAddress) throws IllegalArgumentException {
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
-        return prefs.getInt(DeviceSettingsPreferenceConst.PREF_HEARTRATE_ALERT_LOW_THRESHOLD, 45);
-    }
-
-    public static boolean getHeartrateSleepBreathingQualityMonitoring(String deviceAddress) throws IllegalArgumentException {
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
-        return prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_HEARTRATE_SLEEP_BREATHING_QUALITY_MONITORING, false);
-    }
-
-    public static boolean getSPO2AllDayMonitoring(String deviceAddress) throws IllegalArgumentException {
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
-        return prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_SPO2_ALL_DAY_MONITORING, false);
-    }
-
-    public static int getSPO2AlertThreshold(String deviceAddress) throws IllegalArgumentException {
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
-        return prefs.getInt(DeviceSettingsPreferenceConst.PREF_SPO2_LOW_ALERT_THRESHOLD, 0);
-    }
-
     public static boolean getHeartrateStressMonitoring(String deviceAddress) throws IllegalArgumentException {
         Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
         return prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_HEARTRATE_STRESS_MONITORING, false);
-    }
-
-    public static boolean getHeartrateStressRelaxationReminder(String deviceAddress) throws IllegalArgumentException {
-        Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
-        return prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_HEARTRATE_STRESS_RELAXATION_REMINDER, false);
     }
 
     public static boolean getBtConnectedAdvertising(String deviceAddress) {
@@ -452,53 +393,36 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     @Nullable
     public static VibrationProfile getVibrationProfile(String deviceAddress, HuamiVibrationPatternNotificationType notificationType, boolean nullOnDeviceDefault) {
         final String defaultVibrationProfileId;
-        final int defaultVibrationCount;
-
-        switch (notificationType) {
-            case APP_ALERTS:
+        final int defaultVibrationCount = switch (notificationType) {
+            case APP_ALERTS, TODO_LIST, SCHEDULE -> {
                 defaultVibrationProfileId = VibrationProfile.ID_SHORT;
-                defaultVibrationCount = 2;
-                break;
-            case INCOMING_CALL:
+                yield 2;
+            }
+            case INCOMING_CALL -> {
                 defaultVibrationProfileId = VibrationProfile.ID_RING;
-                defaultVibrationCount = 1;
-                break;
-            case INCOMING_SMS:
+                yield 1;
+            }
+            case INCOMING_SMS -> {
                 defaultVibrationProfileId = VibrationProfile.ID_STACCATO;
-                defaultVibrationCount = 2;
-                break;
-            case GOAL_NOTIFICATION:
+                yield 2;
+            }
+            case GOAL_NOTIFICATION, EVENT_REMINDER -> {
                 defaultVibrationProfileId = VibrationProfile.ID_LONG;
-                defaultVibrationCount = 1;
-                break;
-            case ALARM:
+                yield 1;
+            }
+            case ALARM -> {
                 defaultVibrationProfileId = VibrationProfile.ID_LONG;
-                defaultVibrationCount = 7;
-                break;
-            case IDLE_ALERTS:
-                defaultVibrationProfileId = VibrationProfile.ID_MEDIUM;
-                defaultVibrationCount = 2;
-                break;
-            case EVENT_REMINDER:
-                defaultVibrationProfileId = VibrationProfile.ID_LONG;
-                defaultVibrationCount = 1;
-                break;
-            case FIND_BAND:
+                yield 7;
+            }
+            case FIND_BAND -> {
                 defaultVibrationProfileId = VibrationProfile.ID_RING;
-                defaultVibrationCount = 3;
-                break;
-            case TODO_LIST:
-                defaultVibrationProfileId = VibrationProfile.ID_SHORT;
-                defaultVibrationCount = 2;
-                break;
-            case SCHEDULE:
-                defaultVibrationProfileId = VibrationProfile.ID_SHORT;
-                defaultVibrationCount = 2;
-                break;
-            default:
+                yield 3;
+            }
+            default -> {
                 defaultVibrationProfileId = VibrationProfile.ID_MEDIUM;
-                defaultVibrationCount = 2;
-        }
+                yield 2;
+            }
+        };
 
         Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(deviceAddress));
         final String vibrationProfileId = prefs.getString(
@@ -569,12 +493,12 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsFindDevice() {
+    public boolean supportsFindDevice(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsAlarmSnoozing() {
+    public boolean supportsAlarmSnoozing(@NonNull GBDevice device) {
         return true;
     }
 
@@ -589,12 +513,17 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean getReserveReminderSlotsForCalendar() {
-        return !supportsCalendarEvents();
+    public boolean supportsCalendarEvents(@NonNull final GBDevice device) {
+        return true;
     }
 
     @Override
-    public boolean supportsDebugLogs() {
+    public boolean getReserveReminderSlotsForCalendar() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsDebugLogs(@NonNull GBDevice device) {
         return true;
     }
 

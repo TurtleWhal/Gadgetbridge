@@ -28,6 +28,7 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 
+import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -74,6 +75,9 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
     private final GBDevice[] devices;
     private final Map<UUID, BluetoothGattCharacteristic>[] mAvailableCharacteristics;
 
+    /// used to guard {@link #connect()}, {@link #disconnect()} and {@link #dispose()}
+    protected final Object ConnectionMonitor = new Object();
+
     public AbstractBTLEMultiDeviceSupport(Logger logger, int deviceCount) {
         this.logger = logger;
         this.deviceCount = deviceCount;
@@ -109,6 +113,7 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         return getQueue(0);
     }
 
+    @Override
     public BtLEQueue getQueue(int deviceIdx) {
         validateDeviceIndex(deviceIdx);
         return mQueues[deviceIdx];
@@ -133,28 +138,39 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         throw new IllegalArgumentException("No sub device with address: " + address);
     }
 
+    /// Device specific code usually should {@code synchronize()} on {@link #ConnectionMonitor}.
+    /// @see AbstractBTLEDeviceSupport#connect()
+    @CallSuper
     @Override
     public boolean connect() {
         // Connect to the queue for each device.
-        for (int i = 0; i < deviceCount; i++) {
-            if (mQueues[i] == null && devices[i] != null) {
-                mQueues[i] = new BtLEQueue(devices[i], mSupportedServerServices[i], this);
-                if (bleApis[i] != null) {
-                    bleApis[i].setQueue(mQueues[i]);
+        boolean connected = true;
+        synchronized (ConnectionMonitor) {
+            for (int i = 0; i < deviceCount; i++) {
+                if (mQueues[i] == null && devices[i] != null) {
+                    mQueues[i] = new BtLEQueue(devices[i], mSupportedServerServices[i], this);
+                }
+
+                if (mQueues[i] != null) {
+                    // If any device returns false, then return false.
+                    connected &= mQueues[i].connect();
                 }
             }
-
-            if (mQueues[i] != null && !mQueues[i].connect()) {
-                return false;
-            }
         }
-        return true;
+        return connected;
     }
 
+    /// Disconnects, but doesn't dispose.
+    /// <p>
+    /// Device specific code usually should {@code synchronize()} on {@link #ConnectionMonitor}.
+    /// </p>
+    @CallSuper
     public void disconnect() {
-        for (BtLEQueue queue : mQueues) {
-            if (queue != null) {
-                queue.disconnect();
+        synchronized (ConnectionMonitor) {
+            for (BtLEQueue queue : mQueues) {
+                if (queue != null) {
+                    queue.disconnect();
+                }
             }
         }
     }
@@ -181,10 +197,49 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         devices[0] = device;
         for (int i = 0; i < deviceCount; i++) {
             if (devices[i] != null && BleIntentApi.isEnabled(device)) {
-                bleApis[i] = new BleIntentApi(context, device);
+                bleApis[i] = new BleIntentApi(this, i);
                 bleApis[i].handleBLEApiPrefs();
             }
         }
+    }
+
+    @Override
+    public boolean isConnected() {
+        // All queues must be connected for the composite device to be considered connected.
+        for (BtLEQueue queue : mQueues) {
+            if (queue == null || !queue.isConnected()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean isConnecting() {
+        // All sub devices must be initialized for the composite device to be considered initialized.
+        for (int i = 0; i < deviceCount; i++) {
+            if (!devices[i].isConnecting() || !devices[i].isConnected()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns true if the device is not only connected, but also
+     * initialized.
+     *
+     * @see GBDevice#isInitialized()
+     */
+    @Override
+    protected boolean isInitialized() {
+        // All sub devices must be initialized for the composite device to be considered initialized.
+        for (int i = 0; i < deviceCount; i++) {
+            if (!devices[i].isInitialized()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -196,21 +251,26 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         return builder;
     }
 
+    /// Device specific code usually should {@code synchronize()} on {@link #ConnectionMonitor}.
+    /// @see AbstractBTLEDeviceSupport#dispose()
+    @CallSuper
     @Override
     public void dispose() {
-        for (int i = 0; i < deviceCount; i++) {
-            if (mQueues[i] != null) {
-                mQueues[i].dispose();
-                mQueues[i] = null;
-            }
-            if (bleApis[i] != null) {
-                bleApis[i].dispose();
+        synchronized (ConnectionMonitor) {
+            for (int i = 0; i < deviceCount; i++) {
+                if (mQueues[i] != null) {
+                    mQueues[i].dispose();
+                    mQueues[i] = null;
+                }
+                if (bleApis[i] != null) {
+                    bleApis[i].dispose();
+                }
             }
         }
     }
 
-    public TransactionBuilder createTransactionBuilder(String taskName) {
-        return new TransactionBuilder(taskName);
+    public TransactionBuilder createTransactionBuilder(String taskName, int deviceIdx) {
+        return new TransactionBuilder(taskName + "_" + deviceIdx, this, deviceIdx);
     }
 
     public ServerTransactionBuilder createServerTransactionBuilder(String taskName) {
@@ -229,7 +289,7 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
      * <li>execute the commands collected with the returned transaction builder</li>
      * </ul>
      *
-     * @see #performConnected(Transaction, int)
+     * @see TransactionBuilder#queueConnected()
      * @see #initializeDevice(TransactionBuilder, int)
      */
     public TransactionBuilder performInitialized(String taskName, int deviceIdx)
@@ -247,42 +307,12 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         if (!devices[deviceIdx].isInitialized()) {
             logger.debug("Initializing device for {}", taskName);
             // first, add a transaction that performs device initialization
-            TransactionBuilder builder = createTransactionBuilder("Initialize device");
+            TransactionBuilder builder = createTransactionBuilder("Initialize device", deviceIdx);
             builder.add(new CheckInitializedAction(devices[deviceIdx]));
-            initializeDevice(builder, deviceIdx).queue(getQueue(deviceIdx));
+            initializeDevice(builder, deviceIdx);
+            builder.queue();
         }
-        return createTransactionBuilder(taskName);
-    }
-
-    /**
-     * Ensures that the device is connected and (only then) performs the actions of the given
-     * transaction builder.
-     * <p>
-     * In contrast to {@link #performInitialized(String, int)}, no initialization sequence is performed
-     * with the device, only the actions of the given builder are executed.
-     *
-     * @throws IOException if unable to connect to the device
-     * @see #performInitialized(String, int)
-     */
-    public void performConnected(Transaction transaction, int deviceIdx) throws IOException {
-        if (!isConnected()) {
-            if (!connect()) {
-                throw new IOException("2: Unable to connect to device: " + getDevice(deviceIdx));
-            }
-        }
-        getQueue(deviceIdx).add(transaction);
-    }
-
-    /**
-     * Performs the actions of the given transaction as soon as possible,
-     * that is, before any other queued transactions, but after the actions
-     * of the currently executing transaction.
-     */
-    public void performImmediately(TransactionBuilder builder, int deviceIdx) throws IOException {
-        if (!isConnected()) {
-            throw new IOException("Not connected to device: " + getDevice());
-        }
-        getQueue(deviceIdx).insert(builder.getTransaction());
+        return createTransactionBuilder(taskName, deviceIdx);
     }
 
     /**
@@ -317,6 +347,7 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
      * @return the characteristic for the given UUID or <code>null</code>
      * @see #addSupportedService(UUID, int)
      */
+    @Override
     @Nullable
     public BluetoothGattCharacteristic getCharacteristic(UUID uuid, int deviceIdx) {
         validateDeviceIndex(deviceIdx);
@@ -419,13 +450,17 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         int deviceIdx = getDeviceIndexForAddress(gatt.getDevice().getAddress());
         gattServicesDiscovered(gatt.getServices(), deviceIdx);
 
+        // TODO: If one sub device that is not index 0 calls getDevice().setState(), this can cause
+        // device 0 to never be initialized. This class should stop using device 0 == getDevice()
+        // and it should use a dummy device for the rest of the system to reference to prevent
+        // similar bugs.
         if (getDevice(deviceIdx).getState().compareTo(GBDevice.State.INITIALIZING) >= 0) {
             logger.warn(
                     "Services discovered, but device {} ({}) is already in state {}, so ignoring",
                     getDevice(deviceIdx), deviceIdx, getDevice(deviceIdx).getState());
             return;
         }
-        TransactionBuilder builder = createTransactionBuilder("Initializing device_" + deviceIdx);
+        TransactionBuilder builder = createTransactionBuilder("Initializing device", deviceIdx);
 
         if (bleApis[deviceIdx] != null) {
             bleApis[deviceIdx].initializeDevice(builder);
@@ -438,7 +473,7 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         // request. Else low power would become a set once option.
         builder.requestConnectionPriority(lowPower ? BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER : BluetoothGatt.CONNECTION_PRIORITY_BALANCED);
 
-        builder.queue(getQueue(deviceIdx));
+        builder.queue();
     }
 
     @Override
@@ -572,10 +607,9 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
     }
 
     /**
-     * Gets the current MTU, or 0 if unknown
-     *
-     * @return the current MTU, 0 if unknown
+     * Get the current MTU, or the minimum 23 if unknown
      */
+    @Override
     public int getMTU(int deviceIdx) {
         validateDeviceIndex(deviceIdx);
         return mMTUs[deviceIdx];

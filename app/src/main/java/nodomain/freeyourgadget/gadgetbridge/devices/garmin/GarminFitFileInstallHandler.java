@@ -16,8 +16,11 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.garmin;
 
+import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
+
+import androidx.annotation.NonNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +28,11 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Optional;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.InstallActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.install.FwAppInstallerActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.install.InstallActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.vivomovehr.GarminCapability;
@@ -39,7 +43,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.FileType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.FitFile;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.exception.FitParseException;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitCourse;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitFileId;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitWorkout;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.UriHelper;
@@ -49,6 +52,7 @@ public class GarminFitFileInstallHandler implements InstallHandler {
 
     protected final Context mContext;
     private byte[] rawBytes;
+    private String filename;
     private FitFile fitFile;
     private FileType.FILETYPE fileType;
     private FitParseException fitParseException;
@@ -59,6 +63,7 @@ public class GarminFitFileInstallHandler implements InstallHandler {
         final UriHelper uriHelper;
         try {
             uriHelper = UriHelper.get(uri, context);
+            filename = uriHelper.getFileName();
         } catch (final IOException e) {
             LOG.error("Failed to get uri", e);
             return;
@@ -83,30 +88,19 @@ public class GarminFitFileInstallHandler implements InstallHandler {
         try (InputStream in = new BufferedInputStream(uriHelper.openInputStream())) {
             rawBytes = FileUtils.readAll(in, 10 * 1024 * 1024); // 10MB
             fitFile = FitFile.parseIncoming(rawBytes);
-
-            final Optional<FitFileId> fitFileIdOpt = fitFile.getRecords().stream()
-                    .filter(r -> r instanceof FitFileId)
-                    .map(r -> (FitFileId) r)
-                    .findFirst();
-
-            if (!fitFileIdOpt.isPresent()) {
-                LOG.error("Fit file has no ID");
-                return;
-            }
-
-            final FitFileId fitFileId = fitFileIdOpt.get();
-            if (fitFileId.getType() == null) {
-                LOG.error("Fit file ID has null type");
-                return;
-            }
-
-            fileType = fitFileId.getType();
+            fileType = fitFile.getFileType();
         } catch (final FitParseException e) {
             LOG.error("Fit file is corrupted", e);
             fitParseException = e;
         } catch (final Exception e) {
             LOG.error("Failed to read fit file", e);
         }
+    }
+
+    @NonNull
+    @Override
+    public Class<? extends Activity> getInstallActivity() {
+        return FwAppInstallerActivity.class;
     }
 
     @Override
@@ -134,13 +128,12 @@ public class GarminFitFileInstallHandler implements InstallHandler {
         }
 
         final DeviceCoordinator coordinator = device.getDeviceCoordinator();
-        if (!(coordinator instanceof GarminCoordinator)) {
+        if (!(coordinator instanceof GarminCoordinator garminCoordinator)) {
             LOG.warn("Coordinator is not a GarminCoordinator: {}", coordinator.getClass());
             installActivity.setInfoText(mContext.getString(R.string.fwapp_install_device_not_supported));
             installActivity.setInstallEnabled(false);
             return;
         }
-        final GarminCoordinator garminCoordinator = (GarminCoordinator) coordinator;
         final boolean fileSupported = parseFitFile(installActivity, garminCoordinator, device);
 
         if (!fileSupported) {
@@ -166,75 +159,66 @@ public class GarminFitFileInstallHandler implements InstallHandler {
         return rawBytes;
     }
 
-    public FitFile getFitFile() {
-        return fitFile;
-    }
-
     public FileType.FILETYPE getFileType() {
         return fileType;
-}
+    }
 
     private boolean parseFitFile(final InstallActivity installActivity, final GarminCoordinator coordinator, final GBDevice device) {
+        final boolean installUnsupportedFiles = GBApplication.getDevicePrefs(device).installUnsupportedFiles();
+
         final String name;
-        final int kindName;
+        final String kindName;
+        final boolean supported;
 
         switch (fileType) {
             case COURSES:
-                if (!coordinator.supports(device, GarminCapability.COURSE_DOWNLOAD)) {
-                    LOG.warn("Device does not support course download");
-                    return false;
-                }
-                final Optional<FitCourse> fitCourseOpt = fitFile.getRecords().stream()
+                kindName = mContext.getString(R.string.kind_gpx_route);
+                supported = coordinator.supports(device, GarminCapability.COURSE_DOWNLOAD);
+                name = fitFile.getRecords().stream()
                         .filter(r -> r instanceof FitCourse)
                         .map(r -> (FitCourse) r)
-                        .findFirst();
-
-                if (!fitCourseOpt.isPresent()) {
-                    LOG.error("Fit file has no course record");
-                    return false;
-                }
-                final FitCourse fitCourse = fitCourseOpt.get();
-
-                name = String.valueOf(fitCourse.getName());
-                kindName = R.string.kind_gpx_route;
-
+                        .findFirst()
+                        .map(FitCourse::getName)
+                        .orElse(filename);
                 break;
             case WORKOUTS:
-                if (!coordinator.supports(device, GarminCapability.WORKOUT_DOWNLOAD)) {
-                    LOG.warn("Device does not support workout download");
-                    return false;
-                }
-                final Optional<FitWorkout> fitWorkoutOpt = fitFile.getRecords().stream()
+                kindName = mContext.getString(R.string.menuitem_workout);
+                supported = coordinator.supports(device, GarminCapability.WORKOUT_DOWNLOAD);
+                name = fitFile.getRecords().stream()
                         .filter(r -> r instanceof FitWorkout)
                         .map(r -> (FitWorkout) r)
-                        .findFirst();
-
-                if (!fitWorkoutOpt.isPresent()) {
-                    LOG.error("Fit file has no workout record");
-                    return false;
-                }
-                final FitWorkout fitWorkout = fitWorkoutOpt.get();
-
-                name = String.valueOf(fitWorkout.getName());
-                kindName = R.string.menuitem_workout;
-
+                        .findFirst()
+                        .map(FitWorkout::getName)
+                        .orElse(filename);
                 break;
             default:
                 LOG.warn("Unsupported fit file type: {}", fileType);
+                kindName = mContext.getString(R.string.menuitem_unknown_app, fileType.name());
+                supported = false;
+                name = filename;
+        }
+
+        if (!supported) {
+            LOG.warn("Device does not support install of {}", fileType);
+            if (!installUnsupportedFiles) {
                 return false;
+            }
         }
 
         final GenericItem fwItem = new GenericItem(mContext.getString(
                 R.string.installhandler_firmware_name,
                 mContext.getString(coordinator.getDeviceNameResource()),
-                mContext.getString(kindName),
+                kindName,
                 name
         ));
         fwItem.setIcon(coordinator.getDefaultIconResource());
 
         final StringBuilder builder = new StringBuilder();
-        final String kindNameString = mContext.getString(kindName);
-        builder.append(mContext.getString(R.string.fw_upgrade_notice, kindNameString));
+        builder.append(mContext.getString(R.string.fw_upgrade_notice, kindName));
+        if (!supported) {
+            builder.append("\n\n");
+            builder.append(mContext.getString(R.string.install_unsupported_files_warning));
+        }
         installActivity.setInfoText(builder.toString());
         installActivity.setInstallItem(fwItem);
 

@@ -20,6 +20,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.text.TextUtils;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -49,14 +50,18 @@ import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiActivitySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiDictData;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiDictDataDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiDictDataValuesDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiSleepStageSampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiSleepStatsSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiStressSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutDataSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutPaceSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSpO2SampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSummaryAdditionalValuesSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSummarySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSummarySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSwimSegmentsSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.heartratezones.HeartRateZonesSpec;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.*;
@@ -126,12 +131,22 @@ public class HuaweiCoordinator {
         QueryBuilder<?> qb = session.getHuaweiActivitySampleDao().queryBuilder();
         qb.where(HuaweiActivitySampleDao.Properties.DeviceId.eq(deviceId)).buildDelete().executeDeleteWithoutDetachingEntities();
 
+        QueryBuilder<?> sleepQb = session.getHuaweiSleepStageSampleDao().queryBuilder();
+        sleepQb.where(HuaweiSleepStageSampleDao.Properties.DeviceId.eq(deviceId)).buildDelete().executeDeleteWithoutDetachingEntities();
+
+        QueryBuilder<?> sleepStatsQb = session.getHuaweiSleepStatsSampleDao().queryBuilder();
+        sleepStatsQb.where(HuaweiSleepStatsSampleDao.Properties.DeviceId.eq(deviceId)).buildDelete().executeDeleteWithoutDetachingEntities();
+
         QueryBuilder<?> stressQb = session.getHuaweiStressSampleDao().queryBuilder();
         stressQb.where(HuaweiStressSampleDao.Properties.DeviceId.eq(deviceId)).buildDelete().executeDeleteWithoutDetachingEntities();
 
         QueryBuilder<HuaweiWorkoutSummarySample> qb2 = session.getHuaweiWorkoutSummarySampleDao().queryBuilder();
         List<HuaweiWorkoutSummarySample> workouts = qb2.where(HuaweiWorkoutSummarySampleDao.Properties.DeviceId.eq(deviceId)).build().list();
         for (HuaweiWorkoutSummarySample sample : workouts) {
+            session.getHuaweiWorkoutSummaryAdditionalValuesSampleDao().queryBuilder().where(
+                    HuaweiWorkoutSummaryAdditionalValuesSampleDao.Properties.WorkoutId.eq(sample.getWorkoutId())
+            ).buildDelete().executeDeleteWithoutDetachingEntities();
+
             session.getHuaweiWorkoutDataSampleDao().queryBuilder().where(
                     HuaweiWorkoutDataSampleDao.Properties.WorkoutId.eq(sample.getWorkoutId())
             ).buildDelete().executeDeleteWithoutDetachingEntities();
@@ -275,7 +290,7 @@ public class HuaweiCoordinator {
     }
 
     private int getNotificationConstraint(byte which) {
-        return (int)notificationConstraints.getShort(which);
+        return notificationConstraints.getShort(which);
     }
 
     public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
@@ -306,6 +321,15 @@ public class HuaweiCoordinator {
         if(supportsAutoStress()) {
             deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH, R.xml.devicesettings_huawei_stress);
         }
+        if(supportsArrhythmia() && isShowForceCountrySpecificFeatures(device)) {
+            deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH, R.xml.devicesettings_huawei_arrhythmia);
+        }
+        if(supportsECG() && isShowForceCountrySpecificFeatures(device)) {
+            deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH, R.xml.devicesettings_huawei_ecg);
+        }
+        if(supportsArterialStiffnessDetection() && isShowForceCountrySpecificFeatures(device)) {
+            deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH, R.xml.devicesettings_huawei_arterial_stiffness_detection);
+        }
         if(supportsThreeCircle() || supportsThreeCircleLite()) {
             deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH, R.xml.devicesettings_huawei_activity_reminders);
         }
@@ -331,10 +355,14 @@ public class HuaweiCoordinator {
         if (supportsSendingGps())
             deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.WORKOUT, R.xml.devicesettings_workout_send_gps_to_band);
 
+        if(supportsTrack() || supportsHeartRateZones())
+            deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.WORKOUT, R.xml.devicesettings_heartrate_settings);
+
         // Other
         deviceSpecificSettings.addRootScreen(R.xml.devicesettings_find_phone);
         deviceSpecificSettings.addRootScreen(R.xml.devicesettings_disable_find_phone_with_dnd);
-        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_allow_accept_reject_calls);
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_allow_accept_calls);
+        deviceSpecificSettings.addRootScreen(R.xml.devicesettings_allow_reject_calls);
 
         // Camera control
         if (supportsCameraRemote())
@@ -348,6 +376,10 @@ public class HuaweiCoordinator {
         //Music
         if (supportsMusicUploading() && getMusicInfoParams() != null && device.isConnected()) {
             deviceSpecificSettings.addRootScreen(R.xml.devicesettings_musicmanagement);
+        }
+
+        if(supportsSendCountryCode()) {
+            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_huawei_features);
         }
 
         // Time
@@ -381,6 +413,8 @@ public class HuaweiCoordinator {
         // Developer
         final List<Integer> developer = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
         developer.add(R.xml.devicesettings_huawei_debug);
+        if(supportsGpsAndTimeToDevice())
+            developer.add(R.xml.devicesettings_huawei_gps_and_time);
 
         return deviceSpecificSettings;
     }
@@ -622,6 +656,10 @@ public class HuaweiCoordinator {
         return supportsExpandCapability(0x2f);
     }
 
+    public boolean supportsWeatherExtendedHourForecast() {
+        return supportsExpandCapability(0xc0);
+    }
+
     public boolean supportsWorkouts() {
         return supportsCommandForService(0x17, 0x01);
     }
@@ -637,6 +675,8 @@ public class HuaweiCoordinator {
     public boolean supportsSendingGps() {
         return supportsCommandForService(0x18, 0x02);
     }
+
+    public boolean supportsGpsAndTimeToDevice() { return supportsCommandForService(0x18, 0x06); }
 
     public boolean supportsAccount() {
         return supportsCommandForService(0x1A, 0x01);
@@ -696,6 +736,10 @@ public class HuaweiCoordinator {
         return supportsCommandForService(0x20, 0x09);
     }
 
+    public boolean supportsSleepBreath() {
+        return supportsCommandForService(0x2d, 0x01);
+    }
+
     public boolean supportsExternalCalendarService() {
         if (supportsExpandCapability())
             return supportsExpandCapability(184);
@@ -717,6 +761,18 @@ public class HuaweiCoordinator {
     public boolean supportsMultiDevice() {
         if (supportsExpandCapability())
             return supportsExpandCapability(109);
+        return false;
+    }
+
+    public boolean supportsDictSleepSync() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(143);
+        return false;
+    }
+
+    public boolean supportsBedTime() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(199);
         return false;
     }
 
@@ -839,6 +895,85 @@ public class HuaweiCoordinator {
         return false;
     }
 
+    public boolean supportsEmotion() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(206);
+        return false;
+    }
+
+    //111 - resend capability
+    public boolean supportsSleepApnea() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(107); // 178
+        return false;
+    }
+
+    public boolean supportsContactsSync() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(271);
+        return false;
+    }
+
+    public boolean supportsSendCountryCode() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(30);
+        return false;
+    }
+
+    public boolean supportsSendSiteId() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(170);
+        return false;
+    }
+
+    public boolean supportsArrhythmiaOther() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(113);
+        return false;
+    }
+
+    public boolean supportsArrhythmiaCE() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(255);
+        return false;
+    }
+
+    public boolean supportsArrhythmiaCN() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(168);
+        return false;
+    }
+
+    public boolean supportsArrhythmia() {
+        return supportsArrhythmiaCE() || supportsArrhythmiaCN() || supportsArrhythmiaOther();
+    }
+
+    public boolean supportsECG() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(106); // 226
+        return false;
+    }
+
+    public boolean supportsECGOpen() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(27);
+        return false;
+    }
+
+    public boolean supportsECGNotification() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(138);
+        return false;
+    }
+
+    public boolean supportsArterialStiffnessDetection() {
+        if (supportsExpandCapability())
+            return supportsExpandCapability(75);
+        return false;
+    }
+
+
+
     public boolean supportsPromptPushMessage () {
 //              do not ask for capabilities under specific condition
 //                  if (deviceType == 10 && deviceVersion == 73617766697368 && deviceSoftVersion == 372E312E31) -> leo device
@@ -905,6 +1040,11 @@ public class HuaweiCoordinator {
     }
 
     public int getContactsSlotCount(GBDevice device) {
+        if(supportsContactsSync()) {
+            // TODO: Currently I don't know how to obtain contacts limit in runtime, and I don't know is the limit exists,
+            // set limit to 20 because more items not comfortable to use in the current GB's UI. Can be increased in the future.
+            return 20;
+        }
         return supportsContacts()?maxContactsCount:0;
     }
 
@@ -1077,6 +1217,26 @@ public class HuaweiCoordinator {
     public int[] getStressChartParameters() {
         // For Huawei devices stress data is provided every 30 minutes. So draw it as bars with delta
         return new int[]{1800, 1800, 400};
+    }
+
+    public boolean getSupportsNewTrueSleep(final GBDevice device) {
+        return supportsTruSleep() && supportsDictSleepSync();
+    }
+
+    public HeartRateZonesSpec getHeartRateZonesSpec(@NonNull GBDevice device) {
+        return new HuaweiHeartRateZonesSpec(device, this);
+    }
+
+    public String getCountryCode(GBDevice gbDevice) {
+        return getDeviceSpecificSharedPreferences(gbDevice).getString("pref_huawei_country_code", "");
+    }
+
+    public boolean getSendCountryCodeEnabled(GBDevice gbDevice) {
+        return getDeviceSpecificSharedPreferences(gbDevice).getBoolean("pref_huawei_country_code_enable", false) && !TextUtils.isEmpty(getCountryCode(gbDevice));
+    }
+
+    public boolean isShowForceCountrySpecificFeatures(GBDevice gbDevice) {
+        return getDeviceSpecificSharedPreferences(gbDevice).getBoolean("pref_huawei_force_features_settings_switch", false) || getSendCountryCodeEnabled(gbDevice);
     }
 
 }

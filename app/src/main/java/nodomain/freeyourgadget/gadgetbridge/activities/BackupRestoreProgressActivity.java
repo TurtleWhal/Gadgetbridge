@@ -16,6 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities;
 
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.databinding.ActivityBackupRestoreProgressBinding;
 import nodomain.freeyourgadget.gadgetbridge.util.backup.AbstractZipBackupJob;
 import nodomain.freeyourgadget.gadgetbridge.util.backup.ZipBackupCallback;
 import nodomain.freeyourgadget.gadgetbridge.util.backup.ZipBackupExportJob;
@@ -55,7 +57,8 @@ public class BackupRestoreProgressActivity extends AbstractGBActivity {
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_backup_restore_progress);
+        final ActivityBackupRestoreProgressBinding binding = ActivityBackupRestoreProgressBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         final Bundle extras = getIntent().getExtras();
         if (extras == null) {
@@ -78,81 +81,90 @@ public class BackupRestoreProgressActivity extends AbstractGBActivity {
             return;
         }
 
-        final TextView backupRestoreHint = findViewById(R.id.backupRestoreHint);
-        final ProgressBar backupRestoreProgressBar = findViewById(R.id.backupRestoreProgressBar);
-        final TextView backupRestoreProgressText = findViewById(R.id.backupRestoreProgressText);
-        final TextView backupRestoreProgressPercentage = findViewById(R.id.backupRestoreProgressPercentage);
+        final TextView backupRestoreHint = binding.backupRestoreHint;
+        final ProgressBar backupRestoreProgressBar = binding.backupRestoreProgressBar;
+        final TextView backupRestoreProgressText = binding.backupRestoreProgressText;
+        final TextView backupRestoreProgressPercentage = binding.backupRestoreProgressPercentage;
+
+        final Handler mHandler = new Handler(getMainLooper());
 
         final ZipBackupCallback zipBackupCallback = new ZipBackupCallback() {
             @Override
             public void onProgress(final int progress, final String message) {
-                backupRestoreProgressBar.setIndeterminate(progress == 0);
-                backupRestoreProgressBar.setProgress(progress);
-                backupRestoreProgressText.setText(message);
-                backupRestoreProgressPercentage.setText(getString(R.string.battery_percentage_str, String.valueOf(progress)));
+                mHandler.post(() -> {
+                    backupRestoreProgressBar.setIndeterminate(progress == 0);
+                    backupRestoreProgressBar.setProgress(progress);
+                    backupRestoreProgressText.setText(message);
+                    backupRestoreProgressPercentage.setText(getString(R.string.battery_percentage_str, String.valueOf(progress)));
+                });
             }
 
             @Override
             public void onSuccess(final String warnings) {
-                jobFinished = true;
-                backupRestoreHint.setVisibility(View.GONE);
-                backupRestoreProgressBar.setProgress(100);
-                backupRestoreProgressPercentage.setText(getString(R.string.battery_percentage_str, "100"));
+                mHandler.post(() -> {
+                    jobFinished = true;
+                    backupRestoreHint.setVisibility(View.GONE);
+                    backupRestoreProgressBar.setProgress(100);
+                    backupRestoreProgressPercentage.setText(getString(R.string.battery_percentage_str, "100"));
 
-                switch (action) {
-                    case "import":
-                        backupRestoreProgressText.setText(R.string.backup_restore_import_complete);
+                    switch (action) {
+                        case "import":
+                            backupRestoreProgressText.setText(R.string.backup_restore_import_complete);
 
-                        final StringBuilder message = new StringBuilder();
+                            final StringBuilder message = new StringBuilder();
 
-                        message.append(getString(R.string.backup_restore_restart_summary, getString(R.string.app_name)));
+                            message.append(getString(R.string.backup_restore_restart_summary, getString(R.string.app_name)));
 
-                        if (warnings != null) {
-                            message.append("\n\n").append(warnings);
-                        }
+                            if (warnings != null) {
+                                message.append("\n\n").append(warnings);
+                            }
 
-                        new MaterialAlertDialogBuilder(BackupRestoreProgressActivity.this)
-                                .setCancelable(false)
-                                .setIcon(R.drawable.ic_sync)
-                                .setTitle(R.string.backup_restore_restart_title)
-                                .setMessage(message.toString())
-                                .setOnCancelListener((dialog -> {
-                                    finish();
-                                    GBApplication.restart();
-                                }))
-                                .setPositiveButton(R.string.ok, (dialog, which) -> {
-                                    finish();
-                                    GBApplication.restart();
-                                }).show();
-                        break;
-                    case "export":
-                        backupRestoreProgressText.setText(R.string.backup_restore_export_complete);
-                        break;
-                }
+                            new MaterialAlertDialogBuilder(BackupRestoreProgressActivity.this)
+                                    .setCancelable(false)
+                                    .setIcon(R.drawable.ic_sync)
+                                    .setTitle(R.string.backup_restore_restart_title)
+                                    .setMessage(message.toString())
+                                    .setOnCancelListener((dialog -> {
+                                        finish();
+                                        GBApplication.restart();
+                                    }))
+                                    .setPositiveButton(R.string.ok, (dialog, which) -> {
+                                        finish();
+                                        GBApplication.restart();
+                                    }).show();
+                            break;
+                        case "export":
+                            backupRestoreProgressText.setText(R.string.backup_restore_export_complete);
+                            break;
+                    }
+                });
             }
 
             @Override
             public void onFailure(@Nullable final String errorMessage) {
-                jobFinished = true;
+                mHandler.post(() -> {
+                    jobFinished = true;
 
-                switch (action) {
-                    case "import":
-                        backupRestoreHint.setText(R.string.backup_restore_error_import);
-                        break;
-                    case "export":
-                        backupRestoreHint.setText(R.string.backup_restore_error_export);
-                        break;
-                }
-
-                backupRestoreProgressText.setText(errorMessage);
-                backupRestoreProgressPercentage.setVisibility(View.GONE);
-
-                if ("export".equals(action)) {
-                    final DocumentFile documentFile = DocumentFile.fromSingleUri(BackupRestoreProgressActivity.this, uri);
-                    if (documentFile != null) {
-                        documentFile.delete();
+                    switch (action) {
+                        case "import":
+                            backupRestoreHint.setText(R.string.backup_restore_error_import);
+                            break;
+                        case "export":
+                            backupRestoreHint.setText(R.string.backup_restore_error_export);
+                            break;
                     }
-                }
+
+                    backupRestoreProgressText.setText(getString(R.string.error_message, errorMessage));
+                    backupRestoreProgressText.setTypeface(backupRestoreProgressText.getTypeface(), Typeface.BOLD);
+                    backupRestoreProgressPercentage.setVisibility(View.GONE);
+
+                    if ("export".equals(action)) {
+                        final DocumentFile documentFile = DocumentFile.fromSingleUri(BackupRestoreProgressActivity.this, uri);
+                        if (documentFile != null) {
+                            documentFile.delete();
+                        }
+                    }
+                });
             }
         };
 

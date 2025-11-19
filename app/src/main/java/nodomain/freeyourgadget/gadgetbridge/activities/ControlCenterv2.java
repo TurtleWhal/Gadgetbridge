@@ -76,8 +76,8 @@ import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GBChangeLog;
+import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.PermissionsUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 //TODO: extend AbstractGBActivity, but it requires actionbar that is not available
 public class ControlCenterv2 extends AppCompatActivity
@@ -149,13 +149,13 @@ public class ControlCenterv2 extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Prefs prefs = GBApplication.getPrefs();
+        GBPrefs prefs = GBApplication.getPrefs();
 
         // Determine availability of device with activity tracking functionality
         boolean activityTrackerAvailable = false;
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
         for (GBDevice dev : devices) {
-            if (dev.getDeviceCoordinator().supportsActivityTracking()) {
+            if (dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
                 activityTrackerAvailable = true;
                 break;
             }
@@ -170,8 +170,8 @@ public class ControlCenterv2 extends AppCompatActivity
                         clDialog = cl.getMaterialFullLogDialog();
                     }
                     clDialog.show();
-                } catch (Exception ignored) {
-                    GB.toast(getBaseContext(), getString(R.string.error_showing_changelog), Toast.LENGTH_LONG, GB.ERROR);
+                } catch (Exception ex) {
+                    GB.toast(getBaseContext(), getString(R.string.error_showing_changelog), Toast.LENGTH_LONG, GB.ERROR, ex);
                 }
             }
         }
@@ -248,28 +248,35 @@ public class ControlCenterv2 extends AppCompatActivity
 
         // Make sure the SwipeRefreshLayout doesn't interfere with the ViewPager2
         viewPager.getChildAt(0).setOnTouchListener((v, event) -> {
-            if (event.getAction() == MotionEvent.ACTION_MOVE) {
-                swipeLayout.setEnabled(false);
-            } else {
-                swipeLayout.setEnabled(true);
+            if (prefs.refreshOnSwipe()) {
+                if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                    swipeLayout.setEnabled(false);
+                } else {
+                    swipeLayout.setEnabled(true);
+                }
             }
             return false;
         });
 
         // Set pull-down-to-refresh action
         swipeLayout = findViewById(R.id.dashboard_swipe_layout);
+        swipeLayout.setEnabled(prefs.refreshOnSwipe());
         swipeLayout.setOnRefreshListener(() -> {
-            // Fetch activity for all connected devices
-            GBApplication.deviceService().onFetchRecordedData(RecordedDataTypes.TYPE_SYNC);
-            // Hide 'refreshing' animation immediately if no health devices are connected
-            List<GBDevice> devices1 = GBApplication.app().getDeviceManager().getDevices();
-            for (GBDevice dev : devices1) {
-                if (dev.getDeviceCoordinator().supportsActivityTracking() && dev.isInitialized()) {
-                    return;
+            if (prefs.refreshOnSwipe()) {
+                // Fetch activity for all connected devices
+                GBApplication.deviceService().onFetchRecordedData(RecordedDataTypes.TYPE_SYNC);
+                // Hide 'refreshing' animation immediately if no health devices are connected
+                List<GBDevice> devices1 = GBApplication.app().getDeviceManager().getDevices();
+                for (GBDevice dev : devices1) {
+                    if (dev.getDeviceCoordinator().supportsActivityDataFetching(dev) && dev.isInitialized()) {
+                        return;
+                    }
                 }
+                swipeLayout.setRefreshing(false);
+                GB.toast(getString(R.string.info_no_devices_connected), Toast.LENGTH_LONG, GB.WARN);
+            } else {
+                swipeLayout.setRefreshing(false);
             }
-            swipeLayout.setRefreshing(false);
-            GB.toast(getString(R.string.info_no_devices_connected), Toast.LENGTH_LONG, GB.WARN);
         });
 
         // Set up local intent listener
@@ -289,6 +296,7 @@ public class ControlCenterv2 extends AppCompatActivity
             pesterWithPermissions = prefs.getBoolean("permission_pestering", true);
             if (pesterWithPermissions && !PermissionsUtils.checkAllPermissions(this)) {
                 Intent permissionsIntent = new Intent(this, PermissionsActivity.class);
+                permissionsIntent.putExtra(PermissionsActivity.ARG_SHOW_DO_NOT_ASK_BUTTON, true);
                 startActivity(permissionsIntent);
             }
         }
@@ -298,8 +306,8 @@ public class ControlCenterv2 extends AppCompatActivity
         if (showChangelog && cl.isFirstRun() && cl.hasChanges(cl.isFirstRunEver())) {
             try {
                 cl.getMaterialLogDialog().show();
-            } catch (Exception ignored) {
-                GB.toast(this, getString(R.string.error_showing_changelog), Toast.LENGTH_LONG, GB.ERROR);
+            } catch (Exception ex) {
+                GB.toast(this, getString(R.string.error_showing_changelog), Toast.LENGTH_LONG, GB.ERROR, ex);
             }
         }
 
@@ -369,8 +377,8 @@ public class ControlCenterv2 extends AppCompatActivity
                     clDialog = cl.getMaterialFullLogDialog();
                 }
                 clDialog.show();
-            } catch (Exception ignored) {
-                GB.toast(getBaseContext(), getString(R.string.error_showing_changelog), Toast.LENGTH_LONG, GB.ERROR);
+            } catch (Exception ex) {
+                GB.toast(getBaseContext(), getString(R.string.error_showing_changelog), Toast.LENGTH_LONG, GB.ERROR, ex);
             }
             return false;
         } else if (itemId == R.id.about) {

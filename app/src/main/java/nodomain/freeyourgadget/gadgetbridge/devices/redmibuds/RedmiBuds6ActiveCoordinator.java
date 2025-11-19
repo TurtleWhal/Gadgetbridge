@@ -15,5 +15,4 @@ public class RedmiBuds6ActiveCoordinator extends AbstractRedmiBudsCoordinator {
     protected Pattern getSupportedDeviceName() {
         return Pattern.compile("Redmi Buds 6 Active");
     }
-
 }

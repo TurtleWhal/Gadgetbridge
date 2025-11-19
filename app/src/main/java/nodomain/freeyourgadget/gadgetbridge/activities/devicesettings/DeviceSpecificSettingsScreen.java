@@ -16,6 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.devicesettings;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.XmlRes;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -50,11 +51,22 @@ public enum DeviceSpecificSettingsScreen {
         this.xml = xml;
     }
 
+    @NonNull
     public String getKey() {
         return key;
     }
 
     public int getXml() {
         return xml;
+    }
+
+    public static DeviceSpecificSettingsScreen fromXml(final int xml) {
+        for (final DeviceSpecificSettingsScreen screen : DeviceSpecificSettingsScreen.values()) {
+            if (screen.xml == xml) {
+                return screen;
+            }
+        }
+
+        return null;
     }
 }

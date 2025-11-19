@@ -26,11 +26,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
 
+import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.casio.CasioConstants;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEOperation;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.gb6900.CasioGB6900DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.operations.OperationStatus;
 
 public class SetAlarmOperation extends AbstractBTLEOperation<CasioGB6900DeviceSupport> {
@@ -45,7 +45,7 @@ public class SetAlarmOperation extends AbstractBTLEOperation<CasioGB6900DeviceSu
     @Override
     protected void prePerform() throws IOException {
         super.prePerform();
-        getDevice().setBusyTask("SetAlarmOperation starting..."); // mark as busy quickly to avoid interruptions from the outside
+        getDevice().setBusyTask(R.string.busy_task_setting_alarms, getContext()); // mark as busy quickly to avoid interruptions from the outside
     }
 
     private void getSettingForAlarm() {
@@ -53,8 +53,8 @@ public class SetAlarmOperation extends AbstractBTLEOperation<CasioGB6900DeviceSu
             try {
                 TransactionBuilder builder = performInitialized("getSettingForAlarm");
                 builder.setCallback(this);
-                builder.read(getCharacteristic(CasioConstants.CASIO_SETTING_FOR_ALM_CHARACTERISTIC_UUID));
-                builder.queue(getQueue());
+                builder.read(CasioConstants.CASIO_SETTING_FOR_ALM_CHARACTERISTIC_UUID);
+                builder.queue();
             } catch (IOException ex) {
                 LOG.info("Error retrieving alarm settings: " + ex.getMessage());
             }
@@ -75,7 +75,7 @@ public class SetAlarmOperation extends AbstractBTLEOperation<CasioGB6900DeviceSu
                 TransactionBuilder builder = performInitialized("finished operation");
                 builder.wait(0);
                 builder.setCallback(null); // unset ourselves from being the queue's gatt callback
-                builder.queue(getQueue());
+                builder.queue();
             } catch (IOException ex) {
                 LOG.info("Error resetting Gatt callback: " + ex.getMessage());
             }
@@ -118,8 +118,8 @@ public class SetAlarmOperation extends AbstractBTLEOperation<CasioGB6900DeviceSu
 
             try {
                 TransactionBuilder builder = performInitialized("setAlarm");
-                builder.write(getCharacteristic(CasioConstants.CASIO_SETTING_FOR_ALM_CHARACTERISTIC_UUID), data);
-                builder.queue(getQueue());
+                builder.writeLegacy(getCharacteristic(CasioConstants.CASIO_SETTING_FOR_ALM_CHARACTERISTIC_UUID), data);
+                builder.queue();
             } catch(IOException e) {
                 LOG.error("Error setting alarm: " + e.getMessage());
             }

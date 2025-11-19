@@ -97,7 +97,6 @@ public interface DeviceService extends EventHandler {
     String EXTRA_NOTIFICATION_TITLE = "notification_title";
     String EXTRA_NOTIFICATION_TYPE = "notification_type";
     String EXTRA_NOTIFICATION_ACTIONS = "notification_actions";
-    String EXTRA_NOTIFICATION_PEBBLE_COLOR = "notification_pebble_color";
     String EXTRA_NOTIFICATION_ICONID = "notification_iconid";
     String NOTIFICATION_PICTURE_PATH = "notification_picture_path";
     String EXTRA_NOTIFICATION_DNDSUPPRESSED = "notification_dndsuppressed";
@@ -135,6 +134,7 @@ public interface DeviceService extends EventHandler {
     String EXTRA_APP_CONFIG = "app_config";
     String EXTRA_APP_CONFIG_ID = "app_config_id";
     String EXTRA_URI = "uri";
+    String EXTRA_OPTIONS = "options";
     String EXTRA_CONFIG = "config";
     String EXTRA_ALARMS = "alarms";
     String EXTRA_REMINDERS = "reminders";
@@ -144,7 +144,6 @@ public interface DeviceService extends EventHandler {
     String EXTRA_CONNECT_FIRST_TIME = "connect_first_time";
     String EXTRA_BOOLEAN_ENABLE = "enable_realtime_steps";
     String EXTRA_INTERVAL_SECONDS = "interval_seconds";
-    String EXTRA_WEATHER = "weather";
     String EXTRA_RECORDED_DATA_TYPES = "data_types";
     String EXTRA_FM_FREQUENCY = "fm_frequency";
     String EXTRA_LED_COLOR = "led_color";

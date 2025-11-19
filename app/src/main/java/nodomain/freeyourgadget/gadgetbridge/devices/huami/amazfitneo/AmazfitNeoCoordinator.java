@@ -61,12 +61,12 @@ public class AmazfitNeoCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsPai(){
+    public boolean supportsPai(@NonNull GBDevice device){
         return true;
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(final GBDevice device) {
         return true;
     }
 
@@ -144,5 +144,10 @@ public class AmazfitNeoCoordinator extends HuamiCoordinator {
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_amazfit_bip;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

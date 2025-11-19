@@ -60,7 +60,6 @@ import nodomain.freeyourgadget.gadgetbridge.entities.HybridHRActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.WatchAdapter;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.buttonconfig.ConfigFileBuilder;
@@ -229,7 +228,7 @@ public class FossilWatchAdapter extends WatchAdapter {
     public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         if (status != BluetoothGatt.GATT_SUCCESS) {
             if (characteristic.getUuid().toString().equals("3dda0005-957f-7d4a-34a6-74696673696d")) {
-                GB.log("authentication failed", GB.ERROR, null);
+                LOG.error("authentication failed");
                 setDeviceState(GBDevice.State.AUTHENTICATION_REQUIRED);
                 requestQueue.clear();
             }
@@ -351,7 +350,7 @@ public class FossilWatchAdapter extends WatchAdapter {
             };
             queueWrite(fileUploadRequets);
         } catch (JSONException e) {
-            GB.log("error", GB.ERROR, e);
+            LOG.error("error", e);
         }
     }
 
@@ -457,7 +456,7 @@ public class FossilWatchAdapter extends WatchAdapter {
                 }
             }, false);
         } catch (Exception e) {
-            GB.log("error", GB.ERROR, e);
+            LOG.error("error", e);
         }
     }
 
@@ -496,14 +495,14 @@ public class FossilWatchAdapter extends WatchAdapter {
         try {
             uriHelper = UriHelper.get(uri, getContext());
         } catch (IOException e) {
-            GB.toast(getContext(), "Could not open firmare: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+            GB.toast(getContext(), "Could not open firmare: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
         if (uriHelper != null) {
             try (InputStream in = new BufferedInputStream(uriHelper.openInputStream())) {
                 byte[] firmwareBytes = FileUtils.readAll(in, 1024 * 2024); // 2MB
                 queueWrite(new FirmwareFilePutRequest(firmwareBytes, this));
             } catch (Exception e) {
-                GB.toast(getContext(), "Firmware cannot be installed: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+                GB.toast(getContext(), "Firmware cannot be installed: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
         }
     }
@@ -552,7 +551,8 @@ public class FossilWatchAdapter extends WatchAdapter {
             public void handleFileData(byte[] fileData) {
                 try (DBHandler dbHandler = GBApplication.acquireDB()) {
                     ActivityFileParser parser = new ActivityFileParser();
-                    ArrayList<ActivityEntry> entries = parser.parseFile(fileData).getKey();
+                    parser.parseFile(fileData);
+                    ArrayList<ActivityEntry> entries = parser.getActivitySamples();
                     HybridHRActivitySampleProvider provider = new HybridHRActivitySampleProvider(getDeviceSupport().getDevice(), dbHandler.getDaoSession());
 
                     HybridHRActivitySample[] samples = new HybridHRActivitySample[entries.size()];
@@ -669,10 +669,10 @@ public class FossilWatchAdapter extends WatchAdapter {
                         requestFinished = fossilRequest.isFinished();
                     } catch (RuntimeException e) {
                         if (characteristic.getUuid().toString().equals("3dda0005-957f-7d4a-34a6-74696673696d")) {
-                            GB.log("authentication failed", GB.ERROR, e);
+                            LOG.error("authentication failed", e);
                             // setDeviceState(GBDevice.State.AUTHENTICATION_REQUIRED);
                         }else {
-                            GB.log("error", GB.ERROR, e);
+                            LOG.error("error", e);
                             if (BuildConfig.DEBUG)
                                 GB.toast(fossilRequest.getName() + " failed", Toast.LENGTH_SHORT, GB.ERROR);
                         }
@@ -702,23 +702,23 @@ public class FossilWatchAdapter extends WatchAdapter {
         try {
             if (!this.supportsExtendedVibration()) {
                 if (start) {
-                    new TransactionBuilder("vibrate find")
+                    getDeviceSupport().createTransactionBuilder("vibrate find")
                             .write(
-                                    getDeviceSupport().getCharacteristic(UUID.fromString("3dda0005-957f-7d4a-34a6-74696673696d")),
+                                    UUID.fromString("3dda0005-957f-7d4a-34a6-74696673696d"),
                                     new byte[]{(byte) 0x01, (byte) 0x04, (byte) 0x30, (byte) 0x75, (byte) 0x00, (byte) 0x00}
                             )
-                            .queue(getDeviceSupport().getQueue());
+                            .queue();
                 } else {
-                    new TransactionBuilder("vibrate find")
+                    getDeviceSupport().createTransactionBuilder("vibrate find")
                             .write(
-                                    getDeviceSupport().getCharacteristic(UUID.fromString("3dda0005-957f-7d4a-34a6-74696673696d")),
+                                    UUID.fromString("3dda0005-957f-7d4a-34a6-74696673696d"),
                                     new byte[]{(byte) 0x02, (byte) 0x05, (byte) 0x04}
                             )
-                            .queue(getDeviceSupport().getQueue());
+                            .queue();
                 }
             }
         } catch (UnsupportedOperationException e) {
-            GB.log("error", GB.ERROR, e);
+            LOG.error("error", e);
         }
 
         if (start && getDeviceSupport().searchDevice) return;
@@ -735,7 +735,7 @@ public class FossilWatchAdapter extends WatchAdapter {
                         try {
                             Thread.sleep(2500);
                         } catch (InterruptedException e) {
-                            GB.log("error", GB.ERROR, e);
+                            LOG.error("error", e);
                         }
                     }
                 }
@@ -817,9 +817,9 @@ public class FossilWatchAdapter extends WatchAdapter {
             log("dropping requetst " + request.getName());
             return;
         }
-        new TransactionBuilder("requestMtu")
+        getDeviceSupport().createTransactionBuilder("requestMtu")
                 .requestMtu(512)
-                .queue(getDeviceSupport().getQueue());
+                .queue();
 
         this.fossilRequest = request;
     }
@@ -865,7 +865,7 @@ public class FossilWatchAdapter extends WatchAdapter {
         log("executing request: " + request.getName());
         restartRequestTimeout();
         this.fossilRequest = request;
-        new TransactionBuilder(request.getClass().getSimpleName()).write(getDeviceSupport().getCharacteristic(request.getRequestUUID()), request.getRequestData()).queue(getDeviceSupport().getQueue());
+        getDeviceSupport().createTransactionBuilder(request.getClass().getSimpleName()).write(request.getRequestUUID(), request.getRequestData()).queue();
 
         if (request.isFinished()) {
             this.fossilRequest = null;
@@ -881,7 +881,7 @@ public class FossilWatchAdapter extends WatchAdapter {
             return;
         }
         restartRequestTimeout();
-        new TransactionBuilder(request.getClass().getSimpleName()).write(getDeviceSupport().getCharacteristic(request.getRequestUUID()), request.getRequestData()).queue(getDeviceSupport().getQueue());
+        getDeviceSupport().createTransactionBuilder(request.getClass().getSimpleName()).write(request.getRequestUUID(), request.getRequestData()).queue();
 
         queueNextRequest();
     }

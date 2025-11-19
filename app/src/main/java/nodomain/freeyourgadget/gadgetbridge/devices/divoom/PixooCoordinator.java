@@ -58,13 +58,13 @@ public class PixooCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsFlashing() {
+    public boolean supportsFlashing(@NonNull GBDevice device) {
         // To install bitmaps
         return true;
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(final GBDevice device) {
         return true;
     }
 
@@ -92,5 +92,10 @@ public class PixooCoordinator extends AbstractBLEDeviceCoordinator {
                 R.xml.devicesettings_header_connection,
                 R.xml.devicesettings_device_name,
         };
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.SMART_DISPLAY;
     }
 }

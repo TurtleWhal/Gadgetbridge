@@ -1,7 +1,7 @@
-/*  Copyright (C) 2015-2024 akasaka / Genjitsu Labs, Alicia Hormann, Andreas
+/*  Copyright (C) 2015-2025 akasaka / Genjitsu Labs, Alicia Hormann, Andreas
     Böhler, Andreas Shimokawa, Arjan Schrijver, Carsten Pfeiffer, Damien Gaignon,
     Daniel Dakhno, Daniele Gobbetti, Dmitry Markin, JohnnySun, José Rebelo,
-    Matthieu Baerts, Nephiel, Petr Vaněk, Uwe Hermann, Johannes Krude
+    Matthieu Baerts, Nephiel, Petr Vaněk, Uwe Hermann, Johannes Krude, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -45,11 +45,14 @@ import nodomain.freeyourgadget.gadgetbridge.capabilities.widgets.WidgetManager;
 import nodomain.freeyourgadget.gadgetbridge.entities.CyclingSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
+import nodomain.freeyourgadget.gadgetbridge.entities.GenericTrainingLoadAcuteSample;
+import nodomain.freeyourgadget.gadgetbridge.entities.GenericTrainingLoadChronicSample;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.AbstractNotificationPattern;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.model.BodyEnergySample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
@@ -65,6 +68,8 @@ import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Vo2MaxSample;
 import nodomain.freeyourgadget.gadgetbridge.model.WeightSample;
+import nodomain.freeyourgadget.gadgetbridge.model.WorkoutLoadSample;
+import nodomain.freeyourgadget.gadgetbridge.model.heartratezones.HeartRateZonesSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.ServiceDeviceSupport;
 
@@ -128,6 +133,25 @@ public interface DeviceCoordinator {
         }
     }
 
+    enum DeviceKind {
+        UNKNOWN,
+        WATCH,
+        PHONE,
+        SCALE,
+        RING,
+        HEAD_MOUNTED,
+        FITNESS_BAND,
+        CHEST_STRAP,
+        SMART_DISPLAY,
+        SPEAKER,
+        HEADPHONES,
+        SMART_GLASSES,
+        EARBUDS,
+        BIKE_COMPUTER,
+        SMART_CLOCK,
+        THERMOMETER,
+    }
+
     /**
      * Returns the type of connection, Classic of BLE
      *
@@ -149,7 +173,7 @@ public interface DeviceCoordinator {
      * @param candidate
      * @return true if this coordinator handles the given candidate.
      */
-    boolean supports(GBDeviceCandidate candidate);
+    boolean supports(@NonNull GBDeviceCandidate candidate);
 
     /**
      * Returns a list of scan filters that shall be used to discover devices supported
@@ -184,7 +208,7 @@ public interface DeviceCoordinator {
      * given device.
      * @throws GBException
      */
-    void deleteDevice(GBDevice device) throws GBException;
+    void deleteDevice(GBDevice device, boolean deleteFiles) throws GBException;
 
     /**
      * Returns the Activity class to be started in order to perform a pairing of a
@@ -203,7 +227,7 @@ public interface DeviceCoordinator {
     /**
      * Whether the device supports fetching debug logs.
      */
-    boolean supportsDebugLogs();
+    boolean supportsDebugLogs(@NonNull GBDevice device);
 
     /**
      * Returns true if activity data fetching is supported by the device
@@ -213,7 +237,7 @@ public interface DeviceCoordinator {
      *
      * @return
      */
-    boolean supportsActivityDataFetching();
+    boolean supportsActivityDataFetching(@NonNull GBDevice device);
 
     /**
      * Returns true if activity tracking is supported by the device
@@ -222,7 +246,7 @@ public interface DeviceCoordinator {
      *
      * @return
      */
-    boolean supportsActivityTracking();
+    boolean supportsActivityTracking(@NonNull GBDevice device);
 
     /**
      * Returns true if cycling data is supported by the device
@@ -231,7 +255,7 @@ public interface DeviceCoordinator {
      *
      * @return
      */
-    boolean supportsCyclingData();
+    boolean supportsCyclingData(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports recording dedicated activity tracks, like
@@ -239,54 +263,56 @@ public interface DeviceCoordinator {
      * data. This is different from the constant activity tracking since the tracks are
      * usually recorded with additional features, like e.g. GPS.
      */
-    boolean supportsActivityTracks();
+    boolean supportsActivityTracks(@NonNull GBDevice device);
 
     /**
      * Returns true if stress measurement and fetching is supported by the device
      * (with this coordinator).
      */
-    boolean supportsStressMeasurement();
+    boolean supportsStressMeasurement(@NonNull GBDevice device);
 
-    boolean supportsBodyEnergy();
-    boolean supportsHrvMeasurement(GBDevice device);
-    boolean supportsVO2Max();
-    boolean supportsVO2MaxCycling();
-    boolean supportsVO2MaxRunning();
-    boolean supportsSleepMeasurement();
-    boolean supportsStepCounter();
-    boolean supportsSpeedzones();
-    boolean supportsActivityTabs();
-    boolean supportsActiveCalories();
+    boolean supportsBodyEnergy(@NonNull GBDevice device);
+    boolean supportsHrvMeasurement(@NonNull GBDevice device);
+    boolean supportsVO2Max(@NonNull GBDevice device);
+    boolean supportsVO2MaxCycling(@NonNull GBDevice device);
+    boolean supportsVO2MaxRunning(@NonNull GBDevice device);
+    boolean supportsSleepMeasurement(@NonNull GBDevice device);
+    boolean supportsStepCounter(@NonNull GBDevice device);
+    boolean supportsSpeedzones(@NonNull GBDevice device);
+    boolean supportsActivityTabs(@NonNull GBDevice device);
+    boolean supportsActiveCalories(@NonNull GBDevice device);
+    boolean supportsTrainingLoad(@NonNull GBDevice device);
+    boolean supportsWorkoutLoad(@NonNull GBDevice device);
 
     /**
      * Returns true if measurement and fetching of body temperature is supported by the device
      * (with this coordinator).
      */
-    boolean supportsTemperatureMeasurement(GBDevice device);
+    boolean supportsTemperatureMeasurement(@NonNull GBDevice device);
 
     /**
      * Returns true if continuous temperature measurement used in device
      * (with this coordinator).
      */
-    boolean supportsContinuousTemperature(GBDevice device);
+    boolean supportsContinuousTemperature(@NonNull GBDevice device);
 
     /**
      * Returns true if SpO2 measurement and fetching is supported by the device
      * (with this coordinator).
      */
-    boolean supportsSpo2(GBDevice device);
+    boolean supportsSpo2(@NonNull GBDevice device);
 
     /**
      * Returns true if heart rate stats (max, resting, manual) measurement and fetching is supported
      * by the device (with this coordinator).
      */
-    boolean supportsHeartRateStats();
+    boolean supportsHeartRateStats(@NonNull GBDevice device);
 
     /**
      * Returns true if PAI (Personal Activity Intelligence) measurement and fetching is supported by
      * the device (with this coordinator).
      */
-    boolean supportsPai();
+    boolean supportsPai(@NonNull GBDevice device);
 
     /**
      * Returns the device-specific name for PAI (eg. Vitality Score).
@@ -298,12 +324,12 @@ public interface DeviceCoordinator {
      * Returns true if the device is capable of providing the time contribution for each PAI type
      * (light, moderate, high).
      */
-    boolean supportsPaiTime();
+    boolean supportsPaiTime(@NonNull GBDevice device);
 
     /**
      * Returns true if the device is capable of providing the time contribution for light PAI type.
      */
-    boolean supportsPaiLow();
+    boolean supportsPaiLow(@NonNull GBDevice device);
 
     /**
      * Returns the PAI target - usually 100.
@@ -313,25 +339,25 @@ public interface DeviceCoordinator {
     /**
      * Indicates whether the device supports respiratory rate tracking.
      */
-    boolean supportsRespiratoryRate();
+    boolean supportsRespiratoryRate(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device tracks respiratory rate during the day, will be false
      * if only during the night.
      */
-    boolean supportsDayRespiratoryRate();
+    boolean supportsDayRespiratoryRate(@NonNull GBDevice device);
 
     /**
      * Returns true if sleep respiratory rate measurement and fetching is supported by
      * the device (with this coordinator).
      */
-    boolean supportsSleepRespiratoryRate();
+    boolean supportsSleepRespiratoryRate(@NonNull GBDevice device);
 
     /**
      * Returns true if measurement and fetching of body weight is supported by the device
      * (with this coordinator).
      */
-    boolean supportsWeightMeasurement();
+    boolean supportsWeightMeasurement(@NonNull GBDevice device);
 
     /**
      * Returns true if activity data fetching is supported AND possible at this
@@ -369,6 +395,23 @@ public interface DeviceCoordinator {
      * Returns the sample provider for HRV values, for the device being supported.
      */
     TimeSampleProvider<? extends HrvValueSample> getHrvValueSampleProvider(GBDevice device, DaoSession session);
+
+    /**
+     * Returns the sample provider for Workout load values, for the device being supported.
+     */
+    TimeSampleProvider<? extends WorkoutLoadSample> getWorkoutLoadSampleProvider(GBDevice device, DaoSession session);
+
+    /**
+     * Returns the sample provider for training acute load values, for the device being supported.
+     */
+    TimeSampleProvider<? extends GenericTrainingLoadAcuteSample> getTrainingAcuteLoadSampleProvider(GBDevice device, DaoSession session);
+
+
+    /**
+     * Returns the sample provider for training chronic load values, for the device being supported.
+     */
+    TimeSampleProvider<? extends GenericTrainingLoadChronicSample> getTrainingChronicLoadSampleProvider(GBDevice device, DaoSession session);
+
 
     /**
      * Returns the sample provider for VO2 max values, for the device being supported.
@@ -451,7 +494,7 @@ public interface DeviceCoordinator {
      *
      * @return
      */
-    boolean supportsFlashing();
+    boolean supportsFlashing(@NonNull GBDevice device);
 
     /**
      * Finds an install handler for the given uri that can install the given
@@ -468,7 +511,7 @@ public interface DeviceCoordinator {
      *
      * @return
      */
-    boolean supportsScreenshots(GBDevice device);
+    boolean supportsScreenshots(@NonNull GBDevice device);
 
     /**
      * Returns the number of alarms this device/coordinator supports
@@ -483,13 +526,13 @@ public interface DeviceCoordinator {
      * Returns true if this device/coordinator supports an alarm with smart wakeup for the current position
      * @param alarmPosition Position of the alarm
      */
-    boolean supportsSmartWakeup(GBDevice device, int alarmPosition);
+    boolean supportsSmartWakeup(@NonNull GBDevice device, int alarmPosition);
 
     /**
      * Returns true if the smart alarm at the specified position supports setting an interval for this device/coordinator
      * @param alarmPosition Position of the alarm
      */
-    boolean supportsSmartWakeupInterval(GBDevice device, int alarmPosition);
+    boolean supportsSmartWakeupInterval(@NonNull GBDevice device, int alarmPosition);
 
     /**
      * Returns true if the alarm at the specified position *must* be a smart alarm for this device/coordinator
@@ -502,13 +545,13 @@ public interface DeviceCoordinator {
      * Returns true if this device/coordinator supports alarm snoozing
      * @return
      */
-    boolean supportsAlarmSnoozing();
+    boolean supportsAlarmSnoozing(@NonNull GBDevice device);
 
     /**
      * Returns true if this device/coordinator supports alarm titles
      * @return
      */
-    boolean supportsAlarmTitle(GBDevice device);
+    boolean supportsAlarmTitle(@NonNull GBDevice device);
 
     /**
      * Returns the character limit for the alarm title, negative if no limit.
@@ -520,23 +563,28 @@ public interface DeviceCoordinator {
      * Returns true if this device/coordinator supports alarm descriptions
      * @return
      */
-    boolean supportsAlarmDescription(GBDevice device);
+    boolean supportsAlarmDescription(@NonNull GBDevice device);
+
+    boolean supportsAlarmSounds(@NonNull GBDevice device);
+    boolean supportsAlarmBacklight(@NonNull GBDevice device);
+    boolean supportsAlarmTitlePresets(@NonNull GBDevice device);
+    List<Alarm.ALARM_LABEL> getAlarmTitlePresets(@NonNull GBDevice device);
 
     /**
      * Returns true if the given device supports heart rate measurements.
      * @return
      */
-    boolean supportsHeartRateMeasurement(GBDevice device);
+    boolean supportsHeartRateMeasurement(@NonNull GBDevice device);
 
     /**
      * Returns true if the given device supports resting heart rate measurements.
      */
-    boolean supportsHeartRateRestingMeasurement(GBDevice device);
+    boolean supportsHeartRateRestingMeasurement(@NonNull GBDevice device);
 
     /**
      * Returns true if the device supports triggering manual one-shot heart rate measurements.
      */
-    boolean supportsManualHeartRateMeasurement(GBDevice device);
+    boolean supportsManualHeartRateMeasurement(@NonNull GBDevice device);
 
     /**
      * Returns the readable name of the manufacturer.
@@ -548,25 +596,25 @@ public interface DeviceCoordinator {
      *
      * @return
      */
-    boolean supportsAppsManagement(GBDevice device);
+    boolean supportsAppsManagement(@NonNull GBDevice device);
 
-    boolean supportsCachedAppManagement(GBDevice device);
-    boolean supportsInstalledAppManagement(GBDevice device);
-    boolean supportsWatchfaceManagement(GBDevice device);
+    boolean supportsCachedAppManagement(@NonNull GBDevice device);
+    boolean supportsInstalledAppManagement(@NonNull GBDevice device);
+    boolean supportsWatchfaceManagement(@NonNull GBDevice device);
 
     /**
      * Returns the Activity class that will be used to manage device apps.
      *
      * @return
      */
-    Class<? extends Activity> getAppsManagementActivity();
+    Class<? extends Activity> getAppsManagementActivity(GBDevice device);
 
     /**
      * Returns the Activity class that will be used to design watchfaces.
      *
      * @return
      */
-    Class<? extends Activity> getWatchfaceDesignerActivity();
+    Class<? extends Activity> getWatchfaceDesignerActivity(GBDevice device);
 
     /**
      * Returns the device app cache directory.
@@ -576,7 +624,7 @@ public interface DeviceCoordinator {
     /**
      * Returns the dedicated writable export directory for this device.
      */
-    File getWritableExportDirectory(GBDevice device) throws IOException;
+    File getWritableExportDirectory(GBDevice device, boolean createIfRequired) throws IOException;
 
     /**
      * Returns a String containing the device app sort order filename.
@@ -591,12 +639,12 @@ public interface DeviceCoordinator {
     /**
      * Indicated whether the device supports fetching a list of its apps.
      */
-    boolean supportsAppListFetching();
+    boolean supportsAppListFetching(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports reordering of apps.
      */
-    boolean supportsAppReordering();
+    boolean supportsAppReordering(@NonNull GBDevice device);
 
     /**
      * Returns how/if the given device should be bonded before connecting to it.
@@ -618,51 +666,51 @@ public interface DeviceCoordinator {
      * Indicates whether the device has some kind of calender we can sync to.
      * Also used for generated sunrise/sunset events
      */
-    boolean supportsCalendarEvents();
+    boolean supportsCalendarEvents(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports getting a stream of live data.
      * This can be live HR, steps etc.
      */
-    boolean supportsRealtimeData();
+    boolean supportsRealtimeData(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports REM sleep tracking.
      */
-    boolean supportsRemSleep();
+    boolean supportsRemSleep(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports Awake sleep tracking.
      */
-    boolean supportsAwakeSleep();
+    boolean supportsAwakeSleep(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports determining a sleep score in a 0-100 range.
      */
-    boolean supportsSleepScore(GBDevice device);
+    boolean supportsSleepScore(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports current weather and/or weather
      * forecast display.
      */
-    boolean supportsWeather();
+    boolean supportsWeather(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports being found by vibrating, 
      * making some sound or lighting up
      */
-    boolean supportsFindDevice();
+    boolean supportsFindDevice(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports displaying music information
      * like artist, title, album, play state etc.
      */
-    boolean supportsMusicInfo();
+    boolean supportsMusicInfo(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports features required by Sleep As Android
      */
-    boolean supportsSleepAsAndroid();
+    boolean supportsSleepAsAndroid(@NonNull GBDevice device);
 
     /**
      * Indicates the maximum reminder message length.
@@ -703,12 +751,12 @@ public interface DeviceCoordinator {
      * Indicates whether the device supports disabled world clocks that can be enabled through
      * a menu on the device.
      */
-    boolean supportsDisabledWorldClocks();
+    boolean supportsDisabledWorldClocks(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device supports recording and syncing audio recordings.
      */
-    boolean supportsAudioRecordings(GBDevice device);
+    boolean supportsAudioRecordings(@NonNull GBDevice device);
 
     /**
      * Indicates the maximum number of slots available for contacts in the device.
@@ -718,13 +766,13 @@ public interface DeviceCoordinator {
     /**
      * Indicates whether the device has an led which supports custom colors
      */
-    boolean supportsLedColor();
+    boolean supportsLedColor(@NonNull GBDevice device);
 
     /**
      * Indicates whether the device's led supports any RGB color,
      * or only preset colors
      */
-    boolean supportsRgbLedColor();
+    boolean supportsRgbLedColor(@NonNull GBDevice device);
 
     /**
      * Returns the preset colors supported by the device, if any, in ARGB, with alpha = 255
@@ -735,7 +783,7 @@ public interface DeviceCoordinator {
     /**
      * Indicates whether the device supports unicode emojis.
      */
-    boolean supportsUnicodeEmojis();
+    boolean supportsUnicodeEmojis(@NonNull GBDevice device);
 
     /**
      * Returns the set of supported sleep as Android features
@@ -794,12 +842,12 @@ public interface DeviceCoordinator {
     /**
      * Returns true if the device battery level is reported by the OS (usually for headsets)
      */
-    boolean supportsOSBatteryLevel();
+    boolean supportsOSBatteryLevel(@NonNull GBDevice device);
 
 
     boolean addBatteryPollingSettings();
 
-    boolean supportsPowerOff(GBDevice device);
+    boolean supportsPowerOff(@NonNull GBDevice device);
 
     PasswordCapabilityImpl.Mode getPasswordCapability();
 
@@ -808,7 +856,7 @@ public interface DeviceCoordinator {
     /**
      * Whether the device supports screens with configurable widgets.
      */
-    boolean supportsWidgets(GBDevice device);
+    boolean supportsWidgets(@NonNull GBDevice device);
 
     /**
      * Gets the {@link WidgetManager} for this device. Must not be null if supportsWidgets is true.
@@ -816,7 +864,7 @@ public interface DeviceCoordinator {
     @Nullable
     WidgetManager getWidgetManager(GBDevice device);
 
-    boolean supportsNavigation();
+    boolean supportsNavigation(@NonNull GBDevice device);
 
     int getOrderPriority();
 
@@ -834,16 +882,16 @@ public interface DeviceCoordinator {
     /**
      * Whether the device supports a variety of vibration patterns for notifications.
      */
-    boolean supportsNotificationVibrationPatterns();
+    boolean supportsNotificationVibrationPatterns(@NonNull GBDevice device);
     /**
      * Whether the device supports a variety of vibration pattern repetitions for notifications.
      */
-    boolean supportsNotificationVibrationRepetitionPatterns();
+    boolean supportsNotificationVibrationRepetitionPatterns(@NonNull GBDevice device);
 
     /**
      * Whether the device supports a variety of LED patterns for notifications.
      */
-    boolean supportsNotificationLedPatterns();
+    boolean supportsNotificationLedPatterns(@NonNull GBDevice device);
     /**
      * What vibration pattern repetitions for notifications are supported by the device.
      */
@@ -861,5 +909,12 @@ public interface DeviceCoordinator {
 
     boolean validateAuthKey(String authKey);
 
+    @Nullable
+    String getAuthHelp();
+
     List<DeviceCardAction> getCustomActions();
+
+    DeviceKind getDeviceKind(@NonNull GBDevice device);
+
+    HeartRateZonesSpec getHeartRateZonesSpec(@NonNull GBDevice device);
 }

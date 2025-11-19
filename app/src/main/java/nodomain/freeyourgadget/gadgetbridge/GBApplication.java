@@ -1,8 +1,8 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+/*  Copyright (C) 2015-2025 Andreas Shimokawa, Arjan Schrijver, Carsten
     Pfeiffer, Damien Gaignon, Daniel Dakhno, Daniele Gobbetti, Davis Mosenkovs,
     Dmitriy Bogdanov, Joel Beckmeyer, José Rebelo, Kornél Schmidt, Ludovic
     Jozeau, Martin, Martin.JM, mvn23, Normano64, odavo32nof, Pauli Salmenrinne,
-    Pavel Elagin, Petr Vaněk, Saul Nunez, Taavi Eomäe, x29a
+    Pavel Elagin, Petr Vaněk, Saul Nunez, Taavi Eomäe, x29a, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -21,6 +21,7 @@
 package nodomain.freeyourgadget.gadgetbridge;
 
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.Application;
 import android.app.NotificationManager;
@@ -41,13 +42,20 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Build.VERSION;
+import android.os.Bundle;
 import android.os.StrictMode;
 import android.preference.PreferenceManager;
 import android.provider.ContactsContract.PhoneLookup;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Window;
+import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.io.File;
@@ -65,12 +73,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import ch.qos.logback.core.spi.LifeCycle;
 import nodomain.freeyourgadget.gadgetbridge.activities.ControlCenterv2;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.database.DBOpenHelper;
-import nodomain.freeyourgadget.gadgetbridge.database.PeriodicExporter;
+import nodomain.freeyourgadget.gadgetbridge.database.PeriodicDbExporter;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceManager;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoMaster;
@@ -83,7 +92,8 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceService;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherCacheManager;
 import nodomain.freeyourgadget.gadgetbridge.service.NotificationCollectorMonitorService;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.BondingUtil;
@@ -91,8 +101,8 @@ import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.LimitedQueue;
-import nodomain.freeyourgadget.gadgetbridge.util.PendingIntentUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
+import nodomain.freeyourgadget.gadgetbridge.util.backup.PeriodicZipExporter;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
 import static nodomain.freeyourgadget.gadgetbridge.model.DeviceType.AMAZFITBIP;
@@ -113,6 +123,7 @@ import static nodomain.freeyourgadget.gadgetbridge.util.GB.NOTIFICATION_ID_ERROR
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
+import org.slf4j.LoggerFactory;
 
 /**
  * Main Application class that initializes and provides access to certain things like
@@ -122,6 +133,7 @@ public class GBApplication extends Application {
     // Since this class must not log to slf4j, we use plain android.util.Log
     private static final String TAG = "GBApplication";
     public static final String DATABASE_NAME = "Gadgetbridge";
+    private static volatile ShutdownHook SHUTDOWN_HOOK;
 
     private static GBApplication context;
     private static final Lock dbLock = new ReentrantLock();
@@ -129,7 +141,7 @@ public class GBApplication extends Application {
     private static SharedPreferences sharedPrefs;
     private static final String PREFS_VERSION = "shared_preferences_version";
     //if preferences have to be migrated, increment the following and add the migration logic in migratePrefs below; see http://stackoverflow.com/questions/16397848/how-can-i-migrate-android-preferences-with-a-new-version
-    private static final int CURRENT_PREFS_VERSION = 49;
+    private static final int CURRENT_PREFS_VERSION = 54;
 
     private static final LimitedQueue<Integer, String> mIDSenderLookup = new LimitedQueue<>(16);
     private static GBPrefs prefs;
@@ -165,8 +177,22 @@ public class GBApplication extends Application {
 
     private OpenTracksContentObserver openTracksObserver;
 
-    private long lastAutoExportTimestamp = 0;
-    private long autoExportScheduledTimestamp = 0;
+    /// flush the log buffer and stop file logging
+    private static final class ShutdownHook implements Runnable {
+        @Override
+        public void run() {
+            try {
+                logging.stopFileLogger();
+            } catch (Throwable ignored) {
+            }
+
+            try {
+                LifeCycle lifeCycle = (LifeCycle) LoggerFactory.getILoggerFactory();
+                lifeCycle.stop();
+            } catch (Throwable ignored) {
+            }
+        }
+    }
 
     public static void quit() {
         GB.log("Quitting Gadgetbridge...", GB.INFO, null);
@@ -185,7 +211,12 @@ public class GBApplication extends Application {
         GBApplication.deviceService().quit();
 
         final Intent startActivity = new Intent(context, ControlCenterv2.class);
-        final PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 1337, startActivity, PendingIntent.FLAG_CANCEL_CURRENT, false);
+        final PendingIntent pendingIntent = PendingIntent.getActivity(
+                context,
+                1337,
+                startActivity,
+                PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
         final AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + 1500, pendingIntent);
 
@@ -202,9 +233,7 @@ public class GBApplication extends Application {
             thread.permitDiskReads(); // log requires disk access
             thread.permitDiskWrites(); // log requires disk access
             thread.detectNetwork();
-            if (VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                thread.detectResourceMismatches();
-            }
+            thread.detectResourceMismatches();
             if (VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 thread.detectUnbufferedIo();
             }
@@ -218,9 +247,7 @@ public class GBApplication extends Application {
             vm.detectLeakedClosableObjects();
             vm.detectLeakedRegistrationObjects();
             vm.detectFileUriExposure();
-            if (VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                vm.detectCleartextNetwork();
-            }
+            vm.detectCleartextNetwork();
             if (VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 vm.detectContentUriWithoutPermission();
                 vm.detectUntaggedSockets();
@@ -287,7 +314,9 @@ public class GBApplication extends Application {
 
         setupExceptionHandler(prefs.getBoolean("crash_notification", isDebug()));
 
-        Weather.getInstance().setCacheFile(getCacheDir(), prefs.getBoolean("cache_weather", true));
+        registerActivityLifecycleCallbacks(new GBActivityLifecycleCallbacks());
+
+        Weather.initializeCache(new WeatherCacheManager(getCacheDir(), prefs.getBoolean("cache_weather", true)));
 
         deviceManager = new DeviceManager(this);
         String language = prefs.getString("language", "default");
@@ -297,39 +326,57 @@ public class GBApplication extends Application {
         loadAppsNotifBlackList();
         loadAppsPebbleBlackList();
 
-        PeriodicExporter.enablePeriodicExport(context);
-
-        if (isRunningMarshmallowOrLater()) {
-            notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-            if (isRunningOreoOrLater()) {
-                bluetoothStateChangeReceiver = new BluetoothStateChangeReceiver();
-                final IntentFilter bif = new IntentFilter();
-                bif.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-                if (isRunningPieOrLater())
-                    bif.addAction(BluetoothStateChangeReceiver.ANDROID_BLUETOOTH_DEVICE_ACTION_BATTERY_LEVEL_CHANGED);
-                registerReceiver(bluetoothStateChangeReceiver, bif);
-            }
-            try {
-                //the following will ensure the notification manager is kept alive
-                startService(new Intent(this, NotificationCollectorMonitorService.class));
-            } catch (IllegalStateException e) {
-                String message = e.toString();
-                final Intent instructionsIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://gadgetbridge.org/basics/topics/background-service/"));
-                final PendingIntent pi = PendingIntentUtils.getActivity(context, 0, instructionsIntent, PendingIntent.FLAG_ONE_SHOT, false);
-                GB.notify(NOTIFICATION_ID_ERROR,
-                        new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_HIGH_PRIORITY_ID)
-                                .setSmallIcon(R.drawable.ic_notification)
-                                .setContentTitle(getString(R.string.error_background_service))
-                                .setContentText(getString(R.string.error_background_service_reason_truncated))
-                                .setContentIntent(pi)
-                                .setStyle(new NotificationCompat.BigTextStyle()
-                                        .bigText(getString(R.string.error_background_service_reason) + " \"" + message + "\""))
-                                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                                .build(), context);
-            }
+        if (!GBEnvironment.env().isTest()) {
+            PeriodicDbExporter.INSTANCE.scheduleNextExecution(context);
+            PeriodicZipExporter.INSTANCE.scheduleNextExecution(context);
         }
 
+        notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (isRunningOreoOrLater()) {
+            bluetoothStateChangeReceiver = new BluetoothStateChangeReceiver();
+            final IntentFilter bif = new IntentFilter();
+            bif.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+            if (isRunningPieOrLater())
+                bif.addAction(BluetoothStateChangeReceiver.ANDROID_BLUETOOTH_DEVICE_ACTION_BATTERY_LEVEL_CHANGED);
+            registerReceiver(bluetoothStateChangeReceiver, bif);
+        }
+        startNotificationCollectorMonitorService();
+
         BondingUtil.StartObservingAll(getBaseContext());
+    }
+
+    private void startNotificationCollectorMonitorService() {
+        if (!prefs.getBoolean("prefs_key_enable_deprecated_notificationcollectormonitor", false)) {
+            return;
+        }
+        Log.i(TAG, "Starting the deprecated NotificationCollectorMonitorService foreground service.");
+        try {
+            //the following will ensure the notification manager is kept alive
+            Intent serviceIntent = new Intent(context, NotificationCollectorMonitorService.class);
+
+            //ContextCompat starts a background service on android < O automatically despite the method name
+            ContextCompat.startForegroundService(context, serviceIntent);
+
+        } catch (IllegalStateException e) {
+            String message = e.toString();
+            final Intent instructionsIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://gadgetbridge.org/basics/topics/background-service/"));
+            final PendingIntent pi = PendingIntent.getActivity(
+                    context,
+                    0,
+                    instructionsIntent,
+                    PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
+            );
+            GB.notify(NOTIFICATION_ID_ERROR,
+                    new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_HIGH_PRIORITY_ID)
+                            .setSmallIcon(R.drawable.ic_notification)
+                            .setContentTitle(getString(R.string.error_background_service))
+                            .setContentText(getString(R.string.error_background_service_reason_truncated))
+                            .setContentIntent(pi)
+                            .setStyle(new NotificationCompat.BigTextStyle()
+                                    .bigText(getString(R.string.error_background_service_reason) + " \"" + message + "\""))
+                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                            .build(), context);
+        }
     }
 
     @Override
@@ -359,10 +406,27 @@ public class GBApplication extends Application {
 
     public static void setupLogging(boolean enabled) {
         logging.setupLogging(enabled);
+
+        // prepare for log shutdown
+        if(SHUTDOWN_HOOK == null) {
+            //noinspection NonThreadSafeLazyInitialization
+            SHUTDOWN_HOOK = new ShutdownHook();
+            Thread thread = new Thread(SHUTDOWN_HOOK, "shutdownHook");
+            Runtime runtime = Runtime.getRuntime();
+            runtime.addShutdownHook(thread);
+        }
     }
 
     public static String getLogPath() {
-        return logging.getLogPath();
+        String path = logging.getLogPath();
+        if (path == null) {
+            // file logging is currently disabled but there still might be an old logfile
+            try {
+                path = logging.createLogDirectory() + File.separator + "gadgetbridge.log";
+            } catch (Exception ignored) {
+            }
+        }
+        return path;
     }
 
     private void setupExceptionHandler(final boolean notifyOnCrash) {
@@ -452,10 +516,6 @@ public class GBApplication extends Application {
         dbLock.unlock();
     }
 
-    public static boolean isRunningMarshmallowOrLater() {
-        return VERSION.SDK_INT >= Build.VERSION_CODES.M;
-    }
-
     public static boolean isRunningNougatOrLater() {
         return VERSION.SDK_INT >= Build.VERSION_CODES.N;
     }
@@ -512,7 +572,6 @@ public class GBApplication extends Application {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.M)
     public static boolean isPriorityNumber(int priorityType, String number) {
         NotificationManager.Policy notificationPolicy = notificationManager.getNotificationPolicy();
         if (priorityType == Policy.PRIORITY_CATEGORY_MESSAGES) {
@@ -527,9 +586,8 @@ public class GBApplication extends Application {
         return false;
     }
 
-    @TargetApi(Build.VERSION_CODES.M)
     public static int getGrantedInterruptionFilter() {
-        if (GBApplication.isRunningMarshmallowOrLater() && notificationManager.isNotificationPolicyAccessGranted()) {
+        if (notificationManager.isNotificationPolicyAccessGranted()) {
             return notificationManager.getCurrentInterruptionFilter();
         }
         return NotificationManager.INTERRUPTION_FILTER_ALL;
@@ -780,7 +838,8 @@ public class GBApplication extends Application {
         }
     }
 
-    private void migratePrefs(int oldVersion) {
+    @VisibleForTesting
+    protected void migratePrefs(int oldVersion) {
         SharedPreferences.Editor editor = sharedPrefs.edit();
 
         // this comes before all other migrations since the new column DeviceTypeName was added as non-null
@@ -1772,7 +1831,6 @@ public class GBApplication extends Application {
                         deviceSharedPrefsEdit.putBoolean("pebble_health_store_raw", sharedPrefs.getBoolean("pebble_health_store_raw", true));
                         deviceSharedPrefsEdit.putBoolean("pebble_sync_misfit", sharedPrefs.getBoolean("pebble_sync_misfit", true));
                         deviceSharedPrefsEdit.putBoolean("pebble_sync_morpheuz", sharedPrefs.getBoolean("pebble_sync_morpheuz", true));
-                        deviceSharedPrefsEdit.putBoolean("pebble_force_protocol", sharedPrefs.getBoolean("pebble_force_protocol", false));
                         deviceSharedPrefsEdit.putBoolean("pebble_force_untested", sharedPrefs.getBoolean("pebble_force_untested", false));
                         deviceSharedPrefsEdit.putBoolean("pebble_force_le", sharedPrefs.getBoolean("pebble_force_le", false));
                         deviceSharedPrefsEdit.putString("pebble_mtu_limit", sharedPrefs.getString("pebble_mtu_limit", "512"));
@@ -2040,6 +2098,76 @@ public class GBApplication extends Application {
             }
         }
 
+        if (oldVersion < 50) {
+            // Add the new Load tab.
+            try (DBHandler db = acquireDB()) {
+                final DaoSession daoSession = db.getDaoSession();
+                final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                for (final Device dbDevice : activeDevices) {
+                    final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+
+                    final String chartsTabsValue = deviceSharedPrefs.getString("charts_tabs", null);
+                    if (chartsTabsValue == null) {
+                        continue;
+                    }
+
+                    final String newPrefValue;
+                    if (!StringUtils.isBlank(chartsTabsValue)) {
+                        if (!chartsTabsValue.contains("load")) {
+                            newPrefValue = chartsTabsValue + ",load";
+                        } else {
+                            newPrefValue = chartsTabsValue;
+                        }
+                    } else {
+                        newPrefValue = "load";
+                    }
+
+                    final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                    deviceSharedPrefsEdit.putString("charts_tabs", newPrefValue);
+                    deviceSharedPrefsEdit.apply();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to migrate prefs to version 50", e);
+            }
+        }
+
+        if (oldVersion < 51) {
+            if (prefs.contains("activity_user_sleep_duration")) {
+                int hours = prefs.getInt("activity_user_sleep_duration", -1);
+                if (hours > -1){
+                    editor.putString("activity_user_sleep_duration_minutes", String.valueOf(hours * 60));
+                }
+            }
+        }
+
+        if (oldVersion < 53) {
+            if (prefs.contains("activity_user_sleep_duration_minutes")) {
+                final int minutes = prefs.getInt("activity_user_sleep_duration_minutes", 7 * 60);
+                editor.remove("activity_user_sleep_duration_minutes");
+                editor.putString("activity_user_sleep_duration_minutes", String.valueOf(minutes));
+            }
+        }
+
+        if (oldVersion < 54) {
+            // #5414 - Some old Android versions misbehave
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                try (DBHandler db = acquireDB()) {
+                    final DaoSession daoSession = db.getDaoSession();
+                    final List<Device> activeDevices = DBHelper.getActiveDevices(daoSession);
+
+                    for (final Device dbDevice : activeDevices) {
+                        final SharedPreferences deviceSharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(dbDevice.getIdentifier());
+                        final SharedPreferences.Editor deviceSharedPrefsEdit = deviceSharedPrefs.edit();
+                        deviceSharedPrefsEdit.putBoolean("connection_force_legacy_gatt", true);
+                        deviceSharedPrefsEdit.apply();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to migrate prefs to version 54", e);
+                }
+            }
+        }
+
         editor.putString(PREFS_VERSION, Integer.toString(CURRENT_PREFS_VERSION));
         editor.apply();
     }
@@ -2048,7 +2176,7 @@ public class GBApplication extends Application {
         if (deviceIdentifier == null || deviceIdentifier.length() < 1) {
             return null;
         }
-        return context.getSharedPreferences("devicesettings_" + deviceIdentifier, Context.MODE_PRIVATE);
+        return context.getSharedPreferences("devicesettings_" + deviceIdentifier.toString().toUpperCase(Locale.ROOT), Context.MODE_PRIVATE);
     }
 
     public static DevicePrefs getDevicePrefs(GBDevice gbDevice) {
@@ -2059,7 +2187,7 @@ public class GBApplication extends Application {
         if (deviceIdentifier == null || deviceIdentifier.length() < 1) {
             return;
         }
-        context.getSharedPreferences("devicesettings_" + deviceIdentifier, Context.MODE_PRIVATE).edit().clear().apply();
+        context.getSharedPreferences("devicesettings_" + deviceIdentifier.toString().toUpperCase(Locale.ROOT), Context.MODE_PRIVATE).edit().clear().apply();
     }
 
 
@@ -2198,19 +2326,39 @@ public class GBApplication extends Application {
         return openTracksObserver;
     }
 
-    public long getLastAutoExportTimestamp() {
-        return lastAutoExportTimestamp;
-    }
+    private static class GBActivityLifecycleCallbacks implements ActivityLifecycleCallbacks{
+        @Override
+        public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
+            boolean preventScreenshots = getPrefs().getBoolean(GBPrefs.BLOCK_SCREENSHOTS, false);
+            if (preventScreenshots) {
+                GB.log("set FLAG_SECURE for " + activity.getLocalClassName(), GB.DEBUG, null);
+                Window window = activity.getWindow();
+                window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
+            }
+        }
 
-    public void setLastAutoExportTimestamp(long lastAutoExportTimestamp) {
-        this.lastAutoExportTimestamp = lastAutoExportTimestamp;
-    }
+        @Override
+        public void onActivityDestroyed(@NonNull Activity activity) {
+        }
 
-    public long getAutoExportScheduledTimestamp() {
-        return autoExportScheduledTimestamp;
-    }
+        @Override
+        public void onActivityPaused(@NonNull Activity activity) {
+        }
 
-    public void setAutoExportScheduledTimestamp(long autoExportScheduledTimestamp) {
-        this.autoExportScheduledTimestamp = autoExportScheduledTimestamp;
+        @Override
+        public void onActivityResumed(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {
+        }
+
+        @Override
+        public void onActivityStarted(@NonNull Activity activity) {
+        }
+
+        @Override
+        public void onActivityStopped(@NonNull Activity activity) {
+        }
     }
 }

@@ -1,5 +1,5 @@
-/*  Copyright (C) 2022-2024 Daniele Gobbetti, Enrico Brambilla, José Rebelo,
-    TylerWilliamson
+/*  Copyright (C) 2022-2025 Daniele Gobbetti, Enrico Brambilla, José Rebelo,
+    TylerWilliamson, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -34,14 +34,16 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.util.CompressionUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class GenericWeatherReceiver extends BroadcastReceiver {
     private static final Logger LOG = LoggerFactory.getLogger(GenericWeatherReceiver.class);
 
     public final static String ACTION_GENERIC_WEATHER = "nodomain.freeyourgadget.gadgetbridge.ACTION_GENERIC_WEATHER";
+    public final static String EXTRA_WEATHER_GZ = "WeatherGz";
     public final static String EXTRA_WEATHER_JSON = "WeatherJson";
     public final static String EXTRA_WEATHER_SECONDARY_JSON = "WeatherSecondaryJson";
 
@@ -63,29 +65,49 @@ public class GenericWeatherReceiver extends BroadcastReceiver {
             return;
         }
 
-        if (!bundle.containsKey(EXTRA_WEATHER_JSON)) {
-            LOG.warn("Bundle key {} not found", EXTRA_WEATHER_JSON);
-            return;
-        }
-
         try {
-            final JSONObject primaryWeatherJson = new JSONObject(Objects.requireNonNull(bundle.getString(EXTRA_WEATHER_JSON)));
-            final WeatherSpec primaryWeather = weatherFromJson(primaryWeatherJson);
-
             final ArrayList<WeatherSpec> weathers = new ArrayList<>();
-            weathers.add(primaryWeather);
 
-            if (bundle.containsKey(EXTRA_WEATHER_SECONDARY_JSON)) {
-                final JSONArray secondaryWeatherJson = new JSONArray(bundle.getString(EXTRA_WEATHER_SECONDARY_JSON, "[]"));
+            if (bundle.containsKey(EXTRA_WEATHER_GZ)) {
+                LOG.debug("use extra {}", EXTRA_WEATHER_GZ);
+                byte[] compressed = bundle.getByteArray(EXTRA_WEATHER_GZ);
+                String json = CompressionUtils.INSTANCE.gunzipUtf8String(compressed);
 
-                for (int i = 0; i < secondaryWeatherJson.length(); i++) {
-                    weathers.add(weatherFromJson(secondaryWeatherJson.getJSONObject(i)));
+                if (json != null && json.length() > 1){
+                    JSONArray weather = new JSONArray(json);
+                    for (int i = 0; i < weather.length(); i++) {
+                        weathers.add(weatherFromJson(weather.getJSONObject(i)));
+                    }
+                }
+            } else {
+                LOG.debug("use extra {}", EXTRA_WEATHER_JSON);
+                if (!bundle.containsKey(EXTRA_WEATHER_JSON)) {
+                    LOG.warn("Bundle key {} not found", EXTRA_WEATHER_JSON);
+                    return;
+                }
+
+                final JSONObject primaryWeatherJson = new JSONObject(Objects.requireNonNull(bundle.getString(EXTRA_WEATHER_JSON)));
+                final WeatherSpec primaryWeather = weatherFromJson(primaryWeatherJson);
+
+                weathers.add(primaryWeather);
+
+                if (bundle.containsKey(EXTRA_WEATHER_SECONDARY_JSON)) {
+                    final JSONArray secondaryWeatherJson = new JSONArray(bundle.getString(EXTRA_WEATHER_SECONDARY_JSON, "[]"));
+
+                    for (int i = 0; i < secondaryWeatherJson.length(); i++) {
+                        weathers.add(weatherFromJson(secondaryWeatherJson.getJSONObject(i)));
+                    }
                 }
             }
 
             LOG.info("Got generic weather for {} locations", weathers.size());
-            Weather.getInstance().setWeatherSpec(weathers);
-            GBApplication.deviceService().onSendWeather(weathers);
+
+            // try to avoid TransactionTooLargeException in DeviceService
+            bundle.clear();
+            intent.replaceExtras((Bundle)null);
+
+            Weather.setWeatherSpec(weathers);
+            GBApplication.deviceService().onSendWeather();
         } catch (final Exception e) {
             GB.toast("Gadgetbridge received broken or incompatible weather data", Toast.LENGTH_SHORT, GB.ERROR, e);
         }
@@ -94,86 +116,86 @@ public class GenericWeatherReceiver extends BroadcastReceiver {
     private WeatherSpec weatherFromJson(final JSONObject weatherJson) throws JSONException {
         final WeatherSpec weatherSpec = new WeatherSpec();
 
-        weatherSpec.timestamp = safelyGet(weatherJson, Integer.class, "timestamp", (int) (System.currentTimeMillis() / 1000));
-        weatherSpec.location = safelyGet(weatherJson, String.class, "location", "");
-        weatherSpec.currentTemp = safelyGet(weatherJson, Integer.class, "currentTemp", 0);
-        weatherSpec.todayMinTemp = safelyGet(weatherJson, Integer.class, "todayMinTemp", 0);
-        weatherSpec.todayMaxTemp = safelyGet(weatherJson, Integer.class, "todayMaxTemp", 0);
-        weatherSpec.currentCondition = safelyGet(weatherJson, String.class, "currentCondition", "");
-        weatherSpec.currentConditionCode = safelyGet(weatherJson, Integer.class, "currentConditionCode", 0);
-        weatherSpec.currentHumidity = safelyGet(weatherJson, Integer.class, "currentHumidity", 0);
-        weatherSpec.windSpeed = safelyGet(weatherJson, Number.class, "windSpeed", 0d).floatValue();
-        weatherSpec.windDirection = safelyGet(weatherJson, Integer.class, "windDirection", 0);
-        weatherSpec.uvIndex = safelyGet(weatherJson, Number.class, "uvIndex", 0d).floatValue();
-        weatherSpec.precipProbability = safelyGet(weatherJson, Integer.class, "precipProbability", 0);
-        weatherSpec.dewPoint = safelyGet(weatherJson, Integer.class, "dewPoint", 0);
-        weatherSpec.pressure = safelyGet(weatherJson, Number.class, "pressure", 0).floatValue();
-        weatherSpec.cloudCover = safelyGet(weatherJson, Integer.class, "cloudCover", 0);
-        weatherSpec.visibility = safelyGet(weatherJson, Number.class, "visibility", 0).floatValue();
-        weatherSpec.sunRise = safelyGet(weatherJson, Integer.class, "sunRise", 0);
-        weatherSpec.sunSet = safelyGet(weatherJson, Integer.class, "sunSet", 0);
-        weatherSpec.moonRise = safelyGet(weatherJson, Integer.class, "moonRise", 0);
-        weatherSpec.moonSet = safelyGet(weatherJson, Integer.class, "moonSet", 0);
-        weatherSpec.moonPhase = safelyGet(weatherJson, Integer.class, "moonPhase", 0);
-        weatherSpec.latitude = safelyGet(weatherJson, Number.class, "latitude", 0).floatValue();
-        weatherSpec.longitude = safelyGet(weatherJson, Number.class, "longitude", 0).floatValue();
-        weatherSpec.feelsLikeTemp = safelyGet(weatherJson, Integer.class, "feelsLikeTemp", 0);
-        weatherSpec.isCurrentLocation = safelyGet(weatherJson, Integer.class, "isCurrentLocation", -1);
+        weatherSpec.setTimestamp(safelyGet(weatherJson, Integer.class, "timestamp", (int) (System.currentTimeMillis() / 1000)));
+        weatherSpec.setLocation(safelyGet(weatherJson, String.class, "location", ""));
+        weatherSpec.setCurrentTemp(safelyGet(weatherJson, Integer.class, "currentTemp", 0));
+        weatherSpec.setTodayMinTemp(safelyGet(weatherJson, Integer.class, "todayMinTemp", 0));
+        weatherSpec.setTodayMaxTemp(safelyGet(weatherJson, Integer.class, "todayMaxTemp", 0));
+        weatherSpec.setCurrentCondition(safelyGet(weatherJson, String.class, "currentCondition", ""));
+        weatherSpec.setCurrentConditionCode(safelyGet(weatherJson, Integer.class, "currentConditionCode", 0));
+        weatherSpec.setCurrentHumidity(safelyGet(weatherJson, Integer.class, "currentHumidity", 0));
+        weatherSpec.setWindSpeed(safelyGet(weatherJson, Number.class, "windSpeed", 0d).floatValue());
+        weatherSpec.setWindDirection(safelyGet(weatherJson, Integer.class, "windDirection", 0));
+        weatherSpec.setUvIndex(safelyGet(weatherJson, Number.class, "uvIndex", 0d).floatValue());
+        weatherSpec.setPrecipProbability(safelyGet(weatherJson, Integer.class, "precipProbability", 0));
+        weatherSpec.setDewPoint(safelyGet(weatherJson, Integer.class, "dewPoint", 0));
+        weatherSpec.setPressure(safelyGet(weatherJson, Number.class, "pressure", 0).floatValue());
+        weatherSpec.setCloudCover(safelyGet(weatherJson, Integer.class, "cloudCover", 0));
+        weatherSpec.setVisibility(safelyGet(weatherJson, Number.class, "visibility", 0).floatValue());
+        weatherSpec.setSunRise(safelyGet(weatherJson, Integer.class, "sunRise", 0));
+        weatherSpec.setSunSet(safelyGet(weatherJson, Integer.class, "sunSet", 0));
+        weatherSpec.setMoonRise(safelyGet(weatherJson, Integer.class, "moonRise", 0));
+        weatherSpec.setMoonSet(safelyGet(weatherJson, Integer.class, "moonSet", 0));
+        weatherSpec.setMoonPhase(safelyGet(weatherJson, Integer.class, "moonPhase", 0));
+        weatherSpec.setLatitude(safelyGet(weatherJson, Number.class, "latitude", 0).floatValue());
+        weatherSpec.setLongitude(safelyGet(weatherJson, Number.class, "longitude", 0).floatValue());
+        weatherSpec.setFeelsLikeTemp(safelyGet(weatherJson, Integer.class, "feelsLikeTemp", 0));
+        weatherSpec.setIsCurrentLocation(safelyGet(weatherJson, Integer.class, "isCurrentLocation", -1));
 
         if (weatherJson.has("airQuality")) {
-            weatherSpec.airQuality = toAirQuality(weatherJson.getJSONObject("airQuality"));
+            weatherSpec.setAirQuality(toAirQuality(weatherJson.getJSONObject("airQuality")));
         }
 
         if (weatherJson.has("forecasts")) {
             final JSONArray forecastArray = weatherJson.getJSONArray("forecasts");
-            weatherSpec.forecasts = new ArrayList<>();
+            weatherSpec.setForecasts(new ArrayList<>());
 
             for (int i = 0, l = forecastArray.length(); i < l; i++) {
                 final JSONObject forecastJson = forecastArray.getJSONObject(i);
 
                 final WeatherSpec.Daily forecast = new WeatherSpec.Daily();
 
-                forecast.conditionCode = safelyGet(forecastJson, Integer.class, "conditionCode", 0);
-                forecast.humidity = safelyGet(forecastJson, Integer.class, "humidity", 0);
-                forecast.maxTemp = safelyGet(forecastJson, Integer.class, "maxTemp", 0);
-                forecast.minTemp = safelyGet(forecastJson, Integer.class, "minTemp", 0);
-                forecast.windSpeed = safelyGet(forecastJson, Number.class, "windSpeed", 0).floatValue();
-                forecast.windDirection = safelyGet(forecastJson, Integer.class, "windDirection", 0);
-                forecast.uvIndex = safelyGet(forecastJson, Number.class, "uvIndex", 0d).floatValue();
-                forecast.precipProbability = safelyGet(forecastJson, Integer.class, "precipProbability", 0);
-                forecast.sunRise = safelyGet(forecastJson, Integer.class, "sunRise", 0);
-                forecast.sunSet = safelyGet(forecastJson, Integer.class, "sunSet", 0);
-                forecast.moonRise = safelyGet(forecastJson, Integer.class, "moonRise", 0);
-                forecast.moonSet = safelyGet(forecastJson, Integer.class, "moonSet", 0);
-                forecast.moonPhase = safelyGet(forecastJson, Integer.class, "moonPhase", 0);
+                forecast.setConditionCode(safelyGet(forecastJson, Integer.class, "conditionCode", 0));
+                forecast.setHumidity(safelyGet(forecastJson, Integer.class, "humidity", 0));
+                forecast.setMaxTemp(safelyGet(forecastJson, Integer.class, "maxTemp", 0));
+                forecast.setMinTemp(safelyGet(forecastJson, Integer.class, "minTemp", 0));
+                forecast.setWindSpeed(safelyGet(forecastJson, Number.class, "windSpeed", 0).floatValue());
+                forecast.setWindDirection(safelyGet(forecastJson, Integer.class, "windDirection", 0));
+                forecast.setUvIndex(safelyGet(forecastJson, Number.class, "uvIndex", 0d).floatValue());
+                forecast.setPrecipProbability(safelyGet(forecastJson, Integer.class, "precipProbability", 0));
+                forecast.setSunRise(safelyGet(forecastJson, Integer.class, "sunRise", 0));
+                forecast.setSunSet(safelyGet(forecastJson, Integer.class, "sunSet", 0));
+                forecast.setMoonRise(safelyGet(forecastJson, Integer.class, "moonRise", 0));
+                forecast.setMoonSet(safelyGet(forecastJson, Integer.class, "moonSet", 0));
+                forecast.setMoonPhase(safelyGet(forecastJson, Integer.class, "moonPhase", 0));
 
                 if (forecastJson.has("airQuality")) {
-                    forecast.airQuality = toAirQuality(forecastJson.getJSONObject("airQuality"));
+                    forecast.setAirQuality(toAirQuality(forecastJson.getJSONObject("airQuality")));
                 }
 
-                weatherSpec.forecasts.add(forecast);
+                weatherSpec.getForecasts().add(forecast);
             }
         }
 
         if (weatherJson.has("hourly")) {
             final JSONArray forecastArray = weatherJson.getJSONArray("hourly");
-            weatherSpec.hourly = new ArrayList<>();
+            weatherSpec.setHourly(new ArrayList<>());
 
             for (int i = 0, l = forecastArray.length(); i < l; i++) {
                 final JSONObject forecastJson = forecastArray.getJSONObject(i);
 
                 final WeatherSpec.Hourly forecast = new WeatherSpec.Hourly();
 
-                forecast.timestamp = safelyGet(forecastJson, Integer.class, "timestamp", 0);
-                forecast.temp = safelyGet(forecastJson, Integer.class, "temp", 0);
-                forecast.conditionCode = safelyGet(forecastJson, Integer.class, "conditionCode", 0);
-                forecast.humidity = safelyGet(forecastJson, Integer.class, "humidity", 0);
-                forecast.windSpeed = safelyGet(forecastJson, Number.class, "windSpeed", 0).floatValue();
-                forecast.windDirection = safelyGet(forecastJson, Integer.class, "windDirection", 0);
-                forecast.uvIndex = safelyGet(forecastJson, Number.class, "uvIndex", 0d).floatValue();
-                forecast.precipProbability = safelyGet(forecastJson, Integer.class, "precipProbability", 0);
+                forecast.setTimestamp(safelyGet(forecastJson, Integer.class, "timestamp", 0));
+                forecast.setTemp(safelyGet(forecastJson, Integer.class, "temp", 0));
+                forecast.setConditionCode(safelyGet(forecastJson, Integer.class, "conditionCode", 0));
+                forecast.setHumidity(safelyGet(forecastJson, Integer.class, "humidity", 0));
+                forecast.setWindSpeed(safelyGet(forecastJson, Number.class, "windSpeed", 0).floatValue());
+                forecast.setWindDirection(safelyGet(forecastJson, Integer.class, "windDirection", 0));
+                forecast.setUvIndex(safelyGet(forecastJson, Number.class, "uvIndex", 0d).floatValue());
+                forecast.setPrecipProbability(safelyGet(forecastJson, Integer.class, "precipProbability", 0));
 
-                weatherSpec.hourly.add(forecast);
+                weatherSpec.getHourly().add(forecast);
             }
         }
 
@@ -182,19 +204,19 @@ public class GenericWeatherReceiver extends BroadcastReceiver {
 
     private WeatherSpec.AirQuality toAirQuality(final JSONObject jsonObject) {
         final WeatherSpec.AirQuality airQuality = new WeatherSpec.AirQuality();
-        airQuality.aqi = safelyGet(jsonObject, Integer.class, "aqi", -1);
-        airQuality.co = safelyGet(jsonObject, Number.class, "co", -1).floatValue();
-        airQuality.no2 = safelyGet(jsonObject, Number.class, "no2", -1).floatValue();
-        airQuality.o3 = safelyGet(jsonObject, Number.class, "o3", -1).floatValue();
-        airQuality.pm10 = safelyGet(jsonObject, Number.class, "pm10", -1).floatValue();
-        airQuality.pm25 = safelyGet(jsonObject, Number.class, "pm25", -1).floatValue();
-        airQuality.so2 = safelyGet(jsonObject, Number.class, "so2", -1).floatValue();
-        airQuality.coAqi = safelyGet(jsonObject, Integer.class, "coAqi", -1);
-        airQuality.no2Aqi = safelyGet(jsonObject, Integer.class, "no2Aqi", -1);
-        airQuality.o3Aqi = safelyGet(jsonObject, Integer.class, "o3Aqi", -1);
-        airQuality.pm10Aqi = safelyGet(jsonObject, Integer.class, "pm10Aqi", -1);
-        airQuality.pm25Aqi = safelyGet(jsonObject, Integer.class, "pm25Aqi", -1);
-        airQuality.so2Aqi = safelyGet(jsonObject, Integer.class, "so2Aqi", -1);
+        airQuality.setAqi(safelyGet(jsonObject, Integer.class, "aqi", -1));
+        airQuality.setCo(safelyGet(jsonObject, Number.class, "co", -1).floatValue());
+        airQuality.setNo2(safelyGet(jsonObject, Number.class, "no2", -1).floatValue());
+        airQuality.setO3(safelyGet(jsonObject, Number.class, "o3", -1).floatValue());
+        airQuality.setPm10(safelyGet(jsonObject, Number.class, "pm10", -1).floatValue());
+        airQuality.setPm25(safelyGet(jsonObject, Number.class, "pm25", -1).floatValue());
+        airQuality.setSo2(safelyGet(jsonObject, Number.class, "so2", -1).floatValue());
+        airQuality.setCoAqi(safelyGet(jsonObject, Integer.class, "coAqi", -1));
+        airQuality.setNo2Aqi(safelyGet(jsonObject, Integer.class, "no2Aqi", -1));
+        airQuality.setO3Aqi(safelyGet(jsonObject, Integer.class, "o3Aqi", -1));
+        airQuality.setPm10Aqi(safelyGet(jsonObject, Integer.class, "pm10Aqi", -1));
+        airQuality.setPm25Aqi(safelyGet(jsonObject, Integer.class, "pm25Aqi", -1));
+        airQuality.setSo2Aqi(safelyGet(jsonObject, Integer.class, "so2Aqi", -1));
 
         return airQuality;
     }

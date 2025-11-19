@@ -27,6 +27,9 @@ import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.Preference;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -34,7 +37,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.AbstractPreferenceFragmen
 import nodomain.freeyourgadget.gadgetbridge.util.maps.MapsManager;
 
 public class MapsSettingsFragment extends AbstractPreferenceFragment {
-    static final String FRAGMENT_TAG = "MAP_SETTINGS_FRAGMENT";
+    private static final Logger LOG = LoggerFactory.getLogger(MapsSettingsFragment.class);
 
     public static final String ACTION_SETTING_CHANGE = "nodomain.freeyourgadget.gadgetbridge.maps.setting_change";
     public static final String EXTRA_SETTING_KEY = "nodomain.freeyourgadget.gadgetbridge.maps_setting_key";

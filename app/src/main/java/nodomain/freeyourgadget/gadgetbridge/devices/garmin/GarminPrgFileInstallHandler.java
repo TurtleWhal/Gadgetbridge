@@ -16,14 +16,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.garmin;
 
+import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
+
+import androidx.annotation.NonNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.InstallActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.install.FwAppInstallerActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.install.InstallActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.vivomovehr.GarminCapability;
@@ -42,6 +47,12 @@ public class GarminPrgFileInstallHandler implements InstallHandler {
         this.prgFile = new GarminPrgFile(uri, context);
     }
 
+    @NonNull
+    @Override
+    public Class<? extends Activity> getInstallActivity() {
+        return FwAppInstallerActivity.class;
+    }
+
     @Override
     public boolean isValid() {
         return prgFile.isValid();
@@ -57,17 +68,18 @@ public class GarminPrgFileInstallHandler implements InstallHandler {
         }
 
         final DeviceCoordinator coordinator = device.getDeviceCoordinator();
-        if (!(coordinator instanceof GarminCoordinator)) {
+        if (!(coordinator instanceof GarminCoordinator garminCoordinator)) {
             LOG.warn("Coordinator is not a GarminCoordinator: {}", coordinator.getClass());
             installActivity.setInfoText(mContext.getString(R.string.fwapp_install_device_not_supported));
             installActivity.setInstallEnabled(false);
             installActivity.setCloseEnabled(true);
             return;
         }
-        final GarminCoordinator garminCoordinator = (GarminCoordinator) coordinator;
 
         // FIXME this might not be the correct capability
-        if (!garminCoordinator.supports(device, GarminCapability.CONNECTIQ_APP_MANAGEMENT)) {
+        final boolean supported = garminCoordinator.supports(device, GarminCapability.CONNECTIQ_APP_MANAGEMENT);
+        final boolean installUnsupportedFiles = GBApplication.getDevicePrefs(device).installUnsupportedFiles();
+        if (!supported && !installUnsupportedFiles) {
             installActivity.setInfoText(mContext.getString(R.string.fwapp_install_device_not_supported));
             installActivity.setInstallEnabled(false);
             installActivity.setCloseEnabled(true);
@@ -83,7 +95,14 @@ public class GarminPrgFileInstallHandler implements InstallHandler {
         ));
         fwItem.setIcon(coordinator.getDefaultIconResource());
 
-        installActivity.setInfoText(mContext.getString(R.string.fw_upgrade_notice, "PRG"));
+        final StringBuilder builder = new StringBuilder();
+        builder.append(mContext.getString(R.string.fw_upgrade_notice, "PRG"));
+        if (!supported) {
+            builder.append("\n\n");
+            builder.append(mContext.getString(R.string.install_unsupported_files_warning));
+        }
+
+        installActivity.setInfoText(builder.toString());
         installActivity.setInstallItem(fwItem);
 
         if (!device.isInitialized()) {

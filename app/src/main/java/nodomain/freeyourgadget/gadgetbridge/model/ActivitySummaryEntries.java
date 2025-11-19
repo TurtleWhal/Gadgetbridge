@@ -25,6 +25,8 @@ public class ActivitySummaryEntries {
     public static final String STATUS = "status";
     public static final String TYPE = "watchface_dialog_widget_type"; // TODO: change this?
 
+    public static final String ACTIVITY_TYPE_CODE = "activity_type_code";
+
     public static final String TIME_START = "startTime";
     public static final String TIME_END = "endTime";
     public static final String ACTIVE_SECONDS = "activeSeconds";
@@ -34,6 +36,8 @@ public class ActivitySummaryEntries {
     public static final String ALTITUDE_MAX = "maxAltitude";
     public static final String ALTITUDE_MIN = "minAltitude";
 
+    public static final String TOTAL_ASCENT = "activityTotalAscent";
+    public static final String TOTAL_DESCENT = "activityTotalDescent";
     public static final String ASCENT_DISTANCE = "ascentDistance";
     public static final String ASCENT_METERS = "ascentMeters";
     public static final String ASCENT_SECONDS = "ascentSeconds";
@@ -99,6 +103,8 @@ public class ActivitySummaryEntries {
     public static final String AVG_GROUND_CONTACT_TIME = "ground_contact_time";
     public static final String AVG_VERTICAL_RATIO = "vertical_ratio";
     public static final String AVG_GROUND_CONTACT_TIME_BALANCE = "ground_contact_time_balance";
+    public static final String STEP_SPEED_LOSS = "running_step_speed_loss";
+    public static final String STEP_SPEED_LOSS_PERCENTAGE = "running_step_speed_loss_percentage";
 
     public static final String DISTANCE_METERS = "distanceMeters";
     public static final String POOL_LENGTH = "poolLength";
@@ -148,6 +154,8 @@ public class ActivitySummaryEntries {
     public static final String JUMP_RATE_AVG = "avgJumpRate";
     public static final String JUMP_RATE_MAX = "maxJumpRate";
     public static final String JUMPS = "totalJumps";
+    public static final String JUMP_ROPE_LONGEST_STREAK = "jump_rope_longest_streak";
+    public static final String JUMP_ROPE_INTERRUPTIONS = "jump_rope_interruptions";
 
     public static final String SWIM_STYLE = "swimStyle";
     public static final String SWOLF_INDEX = "swolfIndex";
@@ -171,6 +179,13 @@ public class ActivitySummaryEntries {
     public static final String CYCLING_POWER_MIN = "cyclingPowerMin";
     public static final String CYCLING_POWER_MAX = "cyclingPowerMax";
 
+
+    public static final String MOVEMENT_CONSISTENCY = "movementConsistency";
+    public static final String MOVEMENT_STABILITY = "movementStability";
+    public static final String MOVEMENT_CONTINUITY = "movementContinuity";
+    public static final String MOVEMENT_RHYTHM = "movementRhythm";
+    public static final String MOVEMENT_SPEED_DECAY = "movementSpeedDecay";
+
     public static final String SETS = "workoutSets";
     public static final String REPETITIONS = "workout_repetitions";
     public static final String REVOLUTIONS = "workout_revolutions";
@@ -191,7 +206,9 @@ public class ActivitySummaryEntries {
     public static final String UNIT_SECONDS = "seconds";
     public static final String UNIT_MILLISECONDS = "milliseconds_ms";
     public static final String UNIT_SECONDS_PER_KM = "seconds_km";
+    public static final String UNIT_MINUTES_PER_KM = "minutes_km";
     public static final String UNIT_SECONDS_PER_M = "seconds_m";
+    public static final String UNIT_CENTIMETERS_PER_SECOND = "centimeters_second";
     public static final String UNIT_METERS_PER_SECOND = "meters_second";
     public static final String UNIT_KMPH = "km_h";
     public static final String UNIT_SPM = "spm";
@@ -216,11 +233,21 @@ public class ActivitySummaryEntries {
     public static final String UNIT_MM = "unit_millimeter";
     public static final String UNIT_WATT = "unit_watt";
     public static final String UNIT_JOULE = "unit_joule";
+    public static final String UNIT_MINUTES_PER_100_METERS = "minutes_100m";
+    public static final String UNIT_SECONDS_PER_100_METERS = "seconds_100m";
+    public static final String UNIT_MINUTES_PER_100_YARDS = "minutes_100yd";
+    public static final String UNIT_SECONDS_PER_100_YARDS = "seconds_100yd";
+    public static final String UNIT_CELSIUS = "unit_celsius";
 
     public static final String GROUP_PACE = "Pace";
     public static final String GROUP_ACTIVITY = "Activity";
     public static final String GROUP_SPEED = "Speed";
+    public static final String GROUP_CADENCE = "workout_cadence";
     public static final String GROUP_ELEVATION = "Elevation";
+    public static final String GROUP_POWER = "workout_power";
+    public static final String GROUP_HEART_RATE = "heart_rate";
+    public static final String GROUP_RESPIRATORY_RATE = "respiratoryrate";
+    public static final String GROUP_OTHER = "Other";
     public static final String GROUP_HEART_RATE_ZONES = "HeartRateZones";
     public static final String GROUP_STROKES = "Strokes";
     public static final String GROUP_JUMPS = "Jumps";
@@ -230,6 +257,21 @@ public class ActivitySummaryEntries {
     public static final String GROUP_LAPS = "laps";
     public static final String GROUP_RUNNING_FORM = "RunningForm";
     public static final String GROUP_INTERVALS = "workout_intervals";
+    public static final String GROUP_DIVING = "activity_type_diving";
+    public static final String GROUP_RECOVERY_HEART_RATE = "recovery_heart_rate";
+    public static final String GROUP_MOVEMENT_EVALUATION = "movement_evaluation";
+    public static final String AVG_DEPTH = "diving_avg_depth";
+    public static final String START_CNS = "diving_start_cns";
+    public static final String END_CNS = "diving_end_cns";
+    public static final String START_N2 = "diving_start_n2";
+    public static final String END_N2 = "diving_end_n2";
+    public static final String DIVE_NUMBER = "dive_number";
+    public static final String BOTTOM_TIME = "diving_bottom_time";
+
+    // DIVING parameters
+    public static final String MAX_DEPTH = "diving_maximum_diving_depth";
+    public static final String WATER_TYPE = "diving_water_type";
+    public static final String GAS = "diving_gas";
 
     /**
      * Used to signal that this activity has a gps track. This is currently used by ActivitySummaryDetail
@@ -238,15 +280,15 @@ public class ActivitySummaryEntries {
      */
     public static final String INTERNAL_HAS_GPS = "internal_hasGps";
 
-    public static final Map<String, Integer> HR_ZONES = new LinkedHashMap<String, Integer>() {{
-            put(HR_ZONE_NA, 0);
-            put(HR_ZONE_WARM_UP, R.color.hr_zone_warm_up_color);
-            put(HR_ZONE_EASY, R.color.hr_zone_easy_color);
-            put(HR_ZONE_FAT_BURN, R.color.hr_zone_easy_color);
-            put(HR_ZONE_AEROBIC, R.color.hr_zone_aerobic_color);
-            put(HR_ZONE_ANAEROBIC, R.color.hr_zone_threshold_color);
-            put(HR_ZONE_THRESHOLD, R.color.hr_zone_threshold_color);
-            put(HR_ZONE_EXTREME, R.color.hr_zone_maximum_color);
-            put(HR_ZONE_MAXIMUM, R.color.hr_zone_maximum_color);
+    public static final Map<String, Integer> HR_ZONES = new LinkedHashMap<>() {{
+        put(HR_ZONE_NA, 0);
+        put(HR_ZONE_WARM_UP, R.color.hr_zone_warm_up_color);
+        put(HR_ZONE_EASY, R.color.hr_zone_easy_color);
+        put(HR_ZONE_FAT_BURN, R.color.hr_zone_easy_color);
+        put(HR_ZONE_AEROBIC, R.color.hr_zone_aerobic_color);
+        put(HR_ZONE_ANAEROBIC, R.color.hr_zone_threshold_color);
+        put(HR_ZONE_THRESHOLD, R.color.hr_zone_threshold_color);
+        put(HR_ZONE_EXTREME, R.color.hr_zone_maximum_color);
+        put(HR_ZONE_MAXIMUM, R.color.hr_zone_maximum_color);
     }};
 }

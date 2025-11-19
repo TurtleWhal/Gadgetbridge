@@ -4,7 +4,6 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
@@ -59,6 +58,7 @@ public class BodyEnergyFragment extends AbstractChartFragment<BodyEnergyFragment
     protected int CHART_TEXT_COLOR;
     protected int LEGEND_TEXT_COLOR;
     protected int TEXT_COLOR;
+    protected int SUBTEXT_COLOR;
     protected int AVERAGE_LINE_COLOR;
 
     // Number of days to include in the average calculation
@@ -69,11 +69,9 @@ public class BodyEnergyFragment extends AbstractChartFragment<BodyEnergyFragment
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_body_energy, container, false);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                getChartsHost().enableSwipeRefresh(scrollY == 0);
-            });
-        }
+        rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            getChartsHost().enableSwipeRefresh(scrollY == 0);
+        });
 
         mDateView = rootView.findViewById(R.id.body_energy_date_view);
         bodyEnergyGauge = rootView.findViewById(R.id.body_energy_gauge);
@@ -96,6 +94,7 @@ public class BodyEnergyFragment extends AbstractChartFragment<BodyEnergyFragment
     @Override
     protected void init() {
         TEXT_COLOR = GBApplication.getTextColor(requireContext());
+        SUBTEXT_COLOR = GBApplication.getSecondaryTextColor(requireContext());
         LEGEND_TEXT_COLOR = GBApplication.getTextColor(requireContext());
         CHART_TEXT_COLOR = GBApplication.getSecondaryTextColor(requireContext());
         AVERAGE_LINE_COLOR = Color.GRAY;
@@ -366,7 +365,7 @@ public class BodyEnergyFragment extends AbstractChartFragment<BodyEnergyFragment
         int yPos = (int) ((float) height / 2 - ((textPaint.descent() + textPaint.ascent()) / 2)) ;
         canvas.drawText(String.valueOf(value), width / 2f, yPos, textPaint);
         Paint textLowerPaint = new Paint();
-        textLowerPaint.setColor(TEXT_COLOR);
+        textLowerPaint.setColor(SUBTEXT_COLOR);
         textLowerPaint.setTextAlign(Paint.Align.CENTER);
         float textLowerPixels = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, width * 0.025f, requireContext().getResources().getDisplayMetrics());
         textLowerPaint.setTextSize(textLowerPixels);

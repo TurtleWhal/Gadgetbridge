@@ -105,7 +105,7 @@ public class ZeppOsSettingsCustomizer extends HuamiSettingsCustomizer {
         }
 
         // Hide all config groups that may not be mapped directly to a preference
-        final Map<String, List<String>> configScreens = new HashMap<String, List<String>>() {{
+        final Map<String, List<String>> configScreens = new HashMap<>() {{
             put(DeviceSettingsPreferenceConst.PREF_SCREEN_NIGHT_MODE, Arrays.asList(
                     ZeppOsConfigService.ConfigArg.NIGHT_MODE_MODE.name(),
                     ZeppOsConfigService.ConfigArg.NIGHT_MODE_SCHEDULED_START.name(),
@@ -252,9 +252,10 @@ public class ZeppOsSettingsCustomizer extends HuamiSettingsCustomizer {
         setupGpsPreference(handler, prefs);
         setupButtonClickPreferences(handler);
 
+        // Since we populate the values dynamically, we need to sort it here
         final Preference languagePref = handler.findPreference("language");
         if (languagePref != null) {
-            DeviceSettingsUtils.sortListPreference((ListPreference) languagePref);
+            DeviceSettingsUtils.sortListPreference((ListPreference) languagePref, true);
         }
     }
 

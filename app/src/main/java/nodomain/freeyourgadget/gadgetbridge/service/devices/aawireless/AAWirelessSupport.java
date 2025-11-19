@@ -70,9 +70,8 @@ public class AAWirelessSupport extends AbstractBTBRDeviceSupport {
     private final BroadcastReceiver commandReceiver = new AAWirelessCommandReceiver();
 
     public AAWirelessSupport() {
-        super(LOG);
+        super(LOG, MAX_MTU);
         addSupportedService(UUID_SERVICE_AAWIRELESS);
-        setBufferSize(MAX_MTU);
     }
 
     @Override
@@ -101,13 +100,15 @@ public class AAWirelessSupport extends AbstractBTBRDeviceSupport {
 
     @Override
     public void dispose() {
-        try {
-            getContext().unregisterReceiver(commandReceiver);
-        } catch (final Exception e) {
-            LOG.warn("Failed to unregister receiver", e);
-        }
+        synchronized (ConnectionMonitor) {
+            try {
+                getContext().unregisterReceiver(commandReceiver);
+            } catch (final Exception e) {
+                LOG.warn("Failed to unregister receiver", e);
+            }
 
-        super.dispose();
+            super.dispose();
+        }
     }
 
     @Override
@@ -158,7 +159,7 @@ public class AAWirelessSupport extends AbstractBTBRDeviceSupport {
     private void sendCommand(final String taskName, final short command, final byte[] payload) {
         final TransactionBuilder builder = createTransactionBuilder(taskName);
         sendCommand(builder, command, payload);
-        builder.queue(getQueue());
+        builder.queue();
     }
 
     private void handleCommand(final short command, final byte[] payload) throws Exception {

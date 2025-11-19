@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023 Johannes Krude
+/*  Copyright (C) 2023-2025 Johannes Krude, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -18,30 +18,76 @@ package nodomain.freeyourgadget.gadgetbridge.service.btle.actions;
 
 import android.bluetooth.BluetoothGatt;
 
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.PlainAction;
+import androidx.annotation.NonNull;
 
-/**
- * Invokes the given function
- */
-public class FunctionAction extends PlainAction {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-    public interface Function {
-        public void apply(BluetoothGatt gatt);
+import java.util.function.Predicate;
+
+import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEAction;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCallback;
+
+/// Invokes the given function and expects no {@link GattCallback} result.
+/// The transaction is aborted if the function throws an {@link Exception} or, if applicable,
+/// returns {@code false}.
+public class FunctionAction extends BtLEAction {
+    private static final Logger LOG = LoggerFactory.getLogger(FunctionAction.class);
+
+    private final Runnable mRunnable;
+    private final Predicate<? super BluetoothGatt> mPredicate;
+
+    public FunctionAction(@NonNull Runnable runnable) {
+        super(null);
+        mPredicate = null;
+        mRunnable = runnable;
     }
-    private Function function;
 
-    public FunctionAction(Function function) {
-        this.function = function;
+    public FunctionAction(@NonNull Predicate<? super BluetoothGatt> predicate) {
+        super(null);
+        mPredicate = predicate;
+        mRunnable = null;
     }
 
     @Override
     public boolean run(BluetoothGatt gatt) {
-        function.apply(gatt);
-        return true;
+        try {
+            final boolean success;
+            if (mRunnable != null) {
+                mRunnable.run();
+                success = true;
+            } else if (mPredicate != null) {
+                success = mPredicate.test(gatt);
+                if (!success) {
+                    LOG.info("aborting transaction because function returned false");
+                }
+            } else {
+                LOG.warn("aborting transaction because function is (null)");
+                success = false;
+            }
+            return success;
+        } catch (Exception e) {
+            LOG.warn("aborting transaction because function threw exception", e);
+            return false;
+        }
     }
 
     @Override
     public boolean expectsResult() {
         return false;
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        final String function;
+        if (mRunnable != null) {
+            function = mRunnable.getClass().getSimpleName();
+        } else if (mPredicate != null) {
+            function = mPredicate.getClass().getSimpleName();
+        } else {
+            function = "(null)";
+        }
+        return getCreationTime() + ": " + getClass().getSimpleName() + " " + function;
     }
 }

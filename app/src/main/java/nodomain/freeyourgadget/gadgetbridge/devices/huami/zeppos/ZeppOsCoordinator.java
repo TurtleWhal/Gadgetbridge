@@ -77,7 +77,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.service
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 
 public abstract class ZeppOsCoordinator extends HuamiCoordinator {
-    public abstract String getDeviceBluetoothName();
+    public abstract List<String> getDeviceBluetoothNames();
 
     public abstract Set<Integer> getDeviceSources();
 
@@ -100,7 +100,17 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         // only be used for calls, and Gadgetbridge can't use for pairing.
         // **Additionally**, it was also reported on some issues such as #4827 that some devices
         // only broadcast the one with the mac address, which Gadgetbridge can use for pairing...
-        return Pattern.compile("^" + Pattern.quote(getDeviceBluetoothName()) + "([- ]+[A-Z0-9]{4})?$");
+        final StringBuilder sb = new StringBuilder();
+        sb.append("^(");
+        final List<String> deviceBluetoothNames = getDeviceBluetoothNames();
+        for (String name : deviceBluetoothNames) {
+            sb.append(Pattern.quote(name)).append("|");
+        }
+        sb.setLength(sb.length() - 1); // remove last |
+        sb.append(")");
+        sb.append("([- ]+[A-Z0-9]{4})?$");
+
+        return Pattern.compile(sb.toString());
     }
 
     @NonNull
@@ -112,14 +122,10 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
             connType = getConnectionType();
         }
 
-        switch (connType) {
-            case BOTH:
-            case BT_CLASSIC:
-                return ZeppOsBtbrSupport.class;
-            case BLE:
-            default:
-                return ZeppOsBtleSupport.class;
-        }
+        return switch (connType) {
+            case BOTH, BT_CLASSIC -> ZeppOsBtbrSupport.class;
+            default -> ZeppOsBtleSupport.class;
+        };
     }
 
     @Override
@@ -149,105 +155,105 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         final ZeppOsFwInstallHandler fwInstallHandler = new ZeppOsFwInstallHandler(
                 uri,
                 context,
-                getDeviceBluetoothName(),
+                getDeviceBluetoothNames(),
                 getDeviceSources()
         );
         return fwInstallHandler.isValid() ? fwInstallHandler : null;
     }
 
     @Override
-    public boolean supportsScreenshots(final GBDevice device) {
+    public boolean supportsScreenshots(@NonNull final GBDevice device) {
+        return hasDisplay();
+    }
+
+    @Override
+    public boolean supportsHeartRateMeasurement(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsHeartRateMeasurement(final GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsManualHeartRateMeasurement(final GBDevice device) {
+    public boolean supportsManualHeartRateMeasurement(@NonNull final GBDevice device) {
         return false; // FIXME: this is still somewhat broken and sometimes never finishes
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(@NonNull final GBDevice device) {
+        return hasDisplay();
+    }
+
+    @Override
+    public boolean supportsUnicodeEmojis(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsUnicodeEmojis() {
+    public boolean supportsRemSleep(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsRemSleep() {
+    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracks() {
+    public boolean supportsStressMeasurement(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsStressMeasurement() {
+    public boolean supportsSpo2(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsSpo2(final GBDevice device) {
+    public boolean supportsVO2Max(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsVO2Max() {
+    public boolean supportsVO2MaxRunning(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsVO2MaxRunning() {
+    public boolean supportsHeartRateStats(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsHeartRateStats() {
+    public boolean supportsPai(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsPai() {
+    public boolean supportsSleepRespiratoryRate(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsSleepRespiratoryRate() {
+    public boolean supportsMusicInfo(@NonNull GBDevice device) {
+        return hasDisplay();
+    }
+
+    @Override
+    public boolean supportsSleepAsAndroid(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsMusicInfo() {
+    public boolean supportsSleepScore(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsSleepAsAndroid() {
+    public boolean supportsAwakeSleep(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsSleepScore(final GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsAwakeSleep() {
-        return true;
-    }
-
-    @Override
-    public boolean supportsHrvMeasurement(final GBDevice device) {
-        return supportsDisplayItem(device, "hrv");
+    public boolean supportsHrvMeasurement(@NonNull final GBDevice device) {
+        return !hasDisplay() || supportsDisplayItem(device, "hrv");
     }
 
     @Override
@@ -257,7 +263,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
 
     @Override
     public int getWorldClocksSlotCount() {
-        return 20; // as enforced by Zepp
+        return hasDisplay() ? 20 : 0; // as enforced by Zepp
     }
 
     @Override
@@ -266,17 +272,17 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsDisabledWorldClocks() {
+    public boolean supportsDisabledWorldClocks(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsAppsManagement(final GBDevice device) {
+    public boolean supportsAppsManagement(@NonNull final GBDevice device) {
         return experimentalFeatures(device);
     }
 
     @Override
-    public Class<? extends Activity> getAppsManagementActivity() {
+    public Class<? extends Activity> getAppsManagementActivity(final GBDevice device) {
         return AppManagerActivity.class;
     }
 
@@ -296,13 +302,13 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsAppListFetching() {
+    public boolean supportsAppListFetching(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsCalendarEvents() {
-        return true;
+    public boolean supportsCalendarEvents(@NonNull final GBDevice device) {
+        return hasDisplay();
     }
 
     @Override
@@ -321,13 +327,13 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsAlarmSnoozing() {
+    public boolean supportsAlarmSnoozing(@NonNull GBDevice device) {
         // All alarms snooze by default, there doesn't seem to be a flag that disables it
         return false;
     }
 
     @Override
-    public boolean supportsSmartWakeup(final GBDevice device, int position) {
+    public boolean supportsSmartWakeup(@NonNull final GBDevice device, int position) {
         return true;
     }
 
@@ -338,7 +344,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
 
     @Override
     public int getCannedRepliesSlotCount(final GBDevice device) {
-        return 16;
+        return hasDisplay() ? 16 : 0;
     }
 
     @Override
@@ -366,7 +372,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsAudioRecordings(final GBDevice device) {
+    public boolean supportsAudioRecordings(@NonNull final GBDevice device) {
         return supportsDisplayItem(device, "voice_memos") && supportsBleFileTransfer(device, "voicememo");
     }
 
@@ -404,38 +410,42 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         //
         // Time
         //
-        final List<Integer> dateTime = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DATE_TIME);
-        // FIXME: This "works", but the band does not update when the setting changes, so it's disabled for now
-        //dateTime.add(R.xml.devicesettings_timeformat);
-        dateTime.add(R.xml.devicesettings_dateformat_2);
-        if (getWorldClocksSlotCount() > 0) {
-            dateTime.add(R.xml.devicesettings_world_clocks);
+        if (hasDisplay()) {
+            final List<Integer> dateTime = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DATE_TIME);
+            // FIXME: This "works", but the band does not update when the setting changes, so it's disabled for now
+            //dateTime.add(R.xml.devicesettings_timeformat);
+            dateTime.add(R.xml.devicesettings_dateformat_2);
+            if (getWorldClocksSlotCount() > 0) {
+                dateTime.add(R.xml.devicesettings_world_clocks);
+            }
+            dateTime.add(R.xml.devicesettings_zeppos_sun_moon_utc);
         }
-        dateTime.add(R.xml.devicesettings_zeppos_sun_moon_utc);
 
         //
         // Display
         //
-        final List<Integer> display = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DISPLAY);
-        display.add(R.xml.devicesettings_huami2021_displayitems);
-        display.add(R.xml.devicesettings_huami2021_shortcuts);
-        if (supportsControlCenter()) {
-            display.add(R.xml.devicesettings_huami2021_control_center);
-        }
-        if (supportsShortcutCards(device)) {
-            display.add(R.xml.devicesettings_huami2021_shortcut_cards);
-        }
-        display.add(R.xml.devicesettings_nightmode);
-        display.add(R.xml.devicesettings_sleep_mode);
-        display.add(R.xml.devicesettings_liftwrist_display_sensitivity_with_smart);
-        display.add(R.xml.devicesettings_password);
-        display.add(R.xml.devicesettings_huami2021_watchface);
-        display.add(R.xml.devicesettings_always_on_display);
-        display.add(R.xml.devicesettings_screen_timeout);
-        if (supportsAutoBrightness(device)) {
-            display.add(R.xml.devicesettings_screen_brightness_withauto);
-        } else {
-            display.add(R.xml.devicesettings_screen_brightness);
+        if (hasDisplay()) {
+            final List<Integer> display = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DISPLAY);
+            display.add(R.xml.devicesettings_huami2021_displayitems);
+            display.add(R.xml.devicesettings_huami2021_shortcuts);
+            if (supportsControlCenter()) {
+                display.add(R.xml.devicesettings_huami2021_control_center);
+            }
+            if (supportsShortcutCards(device)) {
+                display.add(R.xml.devicesettings_huami2021_shortcut_cards);
+            }
+            display.add(R.xml.devicesettings_nightmode);
+            display.add(R.xml.devicesettings_sleep_mode);
+            display.add(R.xml.devicesettings_liftwrist_display_sensitivity_with_smart);
+            display.add(R.xml.devicesettings_password);
+            display.add(R.xml.devicesettings_huami2021_watchface);
+            display.add(R.xml.devicesettings_always_on_display);
+            display.add(R.xml.devicesettings_screen_timeout);
+            if (supportsAutoBrightness(device)) {
+                display.add(R.xml.devicesettings_screen_brightness_withauto);
+            } else {
+                display.add(R.xml.devicesettings_screen_brightness);
+            }
         }
 
         //
@@ -448,42 +458,50 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         //
         // Workout
         //
-        final List<Integer> workout = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.WORKOUT);
-        if (hasGps(device)) {
-            workout.add(R.xml.devicesettings_gps_agps);
-        } else {
-            // If the device has GPS, it doesn't report workout start/end to the phone
-            workout.add(R.xml.devicesettings_workout_start_on_phone);
-            workout.add(R.xml.devicesettings_workout_send_gps_to_band);
+        if (hasDisplay()) {
+            final List<Integer> workout = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.WORKOUT);
+            if (hasGps(device)) {
+                workout.add(R.xml.devicesettings_gps_agps);
+            } else {
+                // If the device has GPS, it doesn't report workout start/end to the phone
+                workout.add(R.xml.devicesettings_workout_start_on_phone);
+                workout.add(R.xml.devicesettings_workout_send_gps_to_band);
+            }
+            workout.add(R.xml.devicesettings_workout_keep_screen_on);
+            workout.add(R.xml.devicesettings_workout_detection);
         }
-        workout.add(R.xml.devicesettings_workout_keep_screen_on);
-        workout.add(R.xml.devicesettings_workout_detection);
 
         //
         // Notifications
         //
-        final List<Integer> notifications = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CALLS_AND_NOTIFICATIONS);
-        if (supportsBluetoothPhoneCalls(device)) {
-            notifications.add(R.xml.devicesettings_phone_calls_watch_pair);
-        } else {
-            notifications.add(R.xml.devicesettings_display_caller);
+        if (hasDisplay()) {
+            final List<Integer> notifications = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CALLS_AND_NOTIFICATIONS);
+            if (supportsBluetoothPhoneCalls(device)) {
+                notifications.add(R.xml.devicesettings_phone_calls_watch_pair);
+            } else {
+                notifications.add(R.xml.devicesettings_display_caller);
+            }
+            notifications.add(R.xml.devicesettings_sound_and_vibration);
+            notifications.add(R.xml.devicesettings_vibrationpatterns);
+            notifications.add(R.xml.devicesettings_donotdisturb_withauto_and_always);
+            notifications.add(R.xml.devicesettings_send_app_notifications);
+            notifications.add(R.xml.devicesettings_screen_on_on_notifications);
+            notifications.add(R.xml.devicesettings_autoremove_notifications);
+            if (getCannedRepliesSlotCount(device) > 0) {
+                notifications.add(R.xml.devicesettings_canned_reply_16);
+            }
+            notifications.add(R.xml.devicesettings_transliteration);
         }
-        notifications.add(R.xml.devicesettings_sound_and_vibration);
-        notifications.add(R.xml.devicesettings_vibrationpatterns);
-        notifications.add(R.xml.devicesettings_donotdisturb_withauto_and_always);
-        notifications.add(R.xml.devicesettings_send_app_notifications);
-        notifications.add(R.xml.devicesettings_screen_on_on_notifications);
-        notifications.add(R.xml.devicesettings_autoremove_notifications);
-        notifications.add(R.xml.devicesettings_canned_reply_16);
-        notifications.add(R.xml.devicesettings_transliteration);
 
         //
         // Calendar
         //
-        deviceSpecificSettings.addRootScreen(
-                DeviceSpecificSettingsScreen.CALENDAR,
-                R.xml.devicesettings_sync_calendar
-        );
+        if (supportsCalendarEvents(device)) {
+            deviceSpecificSettings.addRootScreen(
+                    DeviceSpecificSettingsScreen.CALENDAR,
+                    R.xml.devicesettings_sync_calendar
+            );
+        }
 
         //
         // Other
@@ -572,17 +590,17 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsTemperatureMeasurement(final GBDevice device) {
-        return supportsDisplayItem(device, "thermometer");
+    public boolean supportsTemperatureMeasurement(@NonNull final GBDevice device) {
+        return !hasDisplay() || supportsDisplayItem(device, "thermometer");
     }
 
     @Override
-    public boolean supportsContinuousTemperature(final GBDevice device) {
-        return supportsDisplayItem(device, "thermometer");
+    public boolean supportsContinuousTemperature(@NonNull final GBDevice device) {
+        return supportsTemperatureMeasurement(device);
     }
 
     public boolean supportsAgpsUpdates() {
-        return true;
+        return hasDisplay();
     }
 
     /**
@@ -605,6 +623,10 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         // TODO: Not yet implemented
         // TODO: When implemented, query the capability like reminders
         return false;
+    }
+
+    public boolean hasDisplay() {
+        return true;
     }
 
     public boolean mainMenuHasMoreSection() {

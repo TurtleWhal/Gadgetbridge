@@ -48,11 +48,12 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
+import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 
 public class WaspOSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(WaspOSDeviceSupport.class);
@@ -70,7 +71,7 @@ public class WaspOSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         LOG.info("Initializing");
 
-        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         rxCharacteristic = getCharacteristic(WaspOSConstants.UUID_CHARACTERISTIC_NORDIC_UART_RX);
         txCharacteristic = getCharacteristic(WaspOSConstants.UUID_CHARACTERISTIC_NORDIC_UART_TX);
@@ -79,14 +80,14 @@ public class WaspOSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         uartTx(builder, " \u0003"); // clear active line
 
-        Prefs prefs = GBApplication.getPrefs();
-        if (prefs.getBoolean("datetime_synconconnect", true))
+        GBPrefs prefs = GBApplication.getPrefs();
+        if (prefs.syncTime())
           setTime(builder);
         //sendSettings(builder);
 
         // get version
 
-        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
 
         LOG.info("Initialization Done");
 
@@ -112,9 +113,9 @@ public class WaspOSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized(taskName);
             uartTx(builder, "\u0010GB("+json.toString()+")\n");
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error in "+taskName+": " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error in "+taskName+": " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -129,7 +130,7 @@ public class WaspOSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 JSONObject json = new JSONObject(line);
                 handleUartRxJSON(json);
             } catch (JSONException e) {
-                GB.toast(getContext(), "Malformed JSON from Bangle.js: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                GB.toast(getContext(), "Malformed JSON from Bangle.js: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
         }
     }
@@ -272,9 +273,9 @@ public class WaspOSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("setTime");
             setTime(builder);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (Exception e) {
-            GB.toast(getContext(), "Error setting time: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error setting time: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -375,17 +376,21 @@ public class WaspOSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        WeatherSpec weatherSpec = weatherSpecs.get(0);
+    public void onSendWeather() {
+        WeatherSpec weatherSpec = Weather.getWeatherSpec();
+        if (weatherSpec == null) {
+            LOG.warn("No weather found in singleton");
+            return;
+        }
         try {
             JSONObject o = new JSONObject();
             o.put("t", "weather");
-            o.put("temp", weatherSpec.currentTemp);
-            o.put("hum", weatherSpec.currentHumidity);
-            o.put("code", weatherSpec.currentConditionCode);
-            o.put("txt", weatherSpec.currentCondition);
-            o.put("wind", weatherSpec.windSpeed);
-            o.put("loc", weatherSpec.location);
+            o.put("temp", weatherSpec.getCurrentTemp());
+            o.put("hum", weatherSpec.getCurrentHumidity());
+            o.put("code", weatherSpec.getCurrentConditionCode());
+            o.put("txt", weatherSpec.getCurrentCondition());
+            o.put("wind", weatherSpec.getWindSpeed());
+            o.put("loc", weatherSpec.getLocation());
             uartTxJSON("onSendWeather", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());

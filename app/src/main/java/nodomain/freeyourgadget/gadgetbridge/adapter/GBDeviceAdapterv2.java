@@ -68,7 +68,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -84,10 +83,10 @@ import com.google.android.material.snackbar.Snackbar;
 import com.jaredrummler.android.colorpicker.ColorPickerDialog;
 import com.jaredrummler.android.colorpicker.ColorPickerDialogListener;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -102,7 +101,7 @@ import java.util.concurrent.TimeUnit;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.ActivitySummariesActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.workouts.WorkoutListActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.BatteryInfoActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.ConfigureAlarms;
 import nodomain.freeyourgadget.gadgetbridge.activities.ConfigureReminders;
@@ -434,7 +433,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                 batteryStatusLabels[batteryIndex].setVisibility(View.VISIBLE);
             }
         }
-        holder.heartRateStatusBox.setVisibility((device.isInitialized() && coordinator.supportsRealtimeData() && coordinator.supportsManualHeartRateMeasurement(device)) ? View.VISIBLE : View.GONE);
+        holder.heartRateStatusBox.setVisibility((device.isInitialized() && coordinator.supportsRealtimeData(device) && coordinator.supportsManualHeartRateMeasurement(device)) ? View.VISIBLE : View.GONE);
         if (parent.getContext() instanceof ControlCenterv2) {
             ActivitySample sample = ((ControlCenterv2) parent.getContext()).getCurrentHRSample(device);
             if (sample != null) {
@@ -478,7 +477,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         );
 
         //fetch activity data
-        holder.fetchActivityDataBox.setVisibility((device.isInitialized() && coordinator.supportsActivityDataFetching()) ? View.VISIBLE : View.GONE);
+        holder.fetchActivityDataBox.setVisibility((device.isInitialized() && coordinator.supportsActivityDataFetching(device)) ? View.VISIBLE : View.GONE);
         holder.fetchActivityData.setOnClickListener(new View.OnClickListener()
 
                                                     {
@@ -512,7 +511,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                                                      @Override
                                                      public void onClick(View v) {
                                                          DeviceCoordinator coordinator = device.getDeviceCoordinator();
-                                                         Class<? extends Activity> appsManagementActivity = coordinator.getAppsManagementActivity();
+                                                         Class<? extends Activity> appsManagementActivity = coordinator.getAppsManagementActivity(device);
                                                          if (appsManagementActivity != null) {
                                                              Intent startIntent = new Intent(context, appsManagementActivity);
                                                              startIntent.putExtra(GBDevice.EXTRA_DEVICE, device);
@@ -553,7 +552,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         );
 
         //show graphs
-        holder.showActivityGraphs.setVisibility(coordinator.supportsActivityTracking() ? View.VISIBLE : View.GONE);
+        holder.showActivityGraphs.setVisibility(coordinator.supportsActivityTracking(device) ? View.VISIBLE : View.GONE);
         holder.showActivityGraphs.setOnClickListener(new View.OnClickListener()
 
                                                      {
@@ -568,13 +567,13 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         );
 
         //show activity tracks
-        holder.showActivityTracks.setVisibility(coordinator.supportsActivityTracks() ? View.VISIBLE : View.GONE);
+        holder.showActivityTracks.setVisibility(coordinator.supportsActivityTracks(device) ? View.VISIBLE : View.GONE);
         holder.showActivityTracks.setOnClickListener(new View.OnClickListener()
                                                      {
                                                          @Override
                                                          public void onClick(View v) {
                                                              Intent startIntent;
-                                                             startIntent = new Intent(context, ActivitySummariesActivity.class);
+                                                             startIntent = new Intent(context, WorkoutListActivity.class);
                                                              startIntent.putExtra(GBDevice.EXTRA_DEVICE, device);
                                                              context.startActivity(startIntent);
                                                          }
@@ -601,7 +600,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             }
         });
 
-        holder.findDevice.setVisibility(device.isInitialized() && coordinator.supportsFindDevice() ? View.VISIBLE : View.GONE);
+        holder.findDevice.setVisibility(device.isInitialized() && coordinator.supportsFindDevice(device) ? View.VISIBLE : View.GONE);
         holder.findDevice.setOnClickListener(new View.OnClickListener() {
                                                  @Override
                                                  public void onClick(View v) {
@@ -798,7 +797,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         });
 
         holder.ledColor.setVisibility(View.GONE);
-        if (device.isInitialized() && device.getExtraInfo("led_color") != null && coordinator.supportsLedColor()) {
+        if (device.isInitialized() && device.getExtraInfo("led_color") != null && coordinator.supportsLedColor(device)) {
             holder.ledColor.setVisibility(View.VISIBLE);
             final GradientDrawable ledColor = (GradientDrawable) holder.ledColor.getDrawable().mutate();
             ledColor.setColor((int) device.getExtraInfo("led_color"));
@@ -813,7 +812,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                     builder.setColor((int) device.getExtraInfo("led_color"));
                     builder.setShowAlphaSlider(false);
                     builder.setShowColorShades(false);
-                    if (coordinator.supportsRgbLedColor()) {
+                    if (coordinator.supportsRgbLedColor(device)) {
                         builder.setAllowCustom(true);
                         if (presets.length == 0) {
                             builder.setDialogType(ColorPickerDialog.TYPE_CUSTOM);
@@ -867,8 +866,8 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             });
         }
 
-        holder.cardViewActivityCardLayout.setVisibility(coordinator.supportsActivityTracking() ? View.VISIBLE : View.GONE);
-        holder.cardViewActivityCardLayout.setMinimumWidth(coordinator.supportsActivityTracking() ? View.VISIBLE : View.GONE);
+        holder.cardViewActivityCardLayout.setVisibility(coordinator.supportsActivityTracking(device) ? View.VISIBLE : View.GONE);
+        holder.cardViewActivityCardLayout.setMinimumWidth(coordinator.supportsActivityTracking(device) ? View.VISIBLE : View.GONE);
 
         // custom actions
         final List<DeviceCardAction> customActions = coordinator.getCustomActions();
@@ -899,14 +898,14 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             holder.customActions[i].layout.setVisibility(View.GONE);
         }
 
-        if (coordinator.supportsActivityTracking()) {
+        if (coordinator.supportsActivityTracking(device)) {
             setActivityCard(holder, device, dailyTotals);
         }
     }
 
     private boolean showInstallerItem(GBDevice device) {
         final DeviceCoordinator coordinator = device.getDeviceCoordinator();
-        return coordinator.supportsAppsManagement(device) || coordinator.supportsFlashing();
+        return coordinator.supportsAppsManagement(device) || coordinator.supportsFlashing(device);
     }
 
     private void showDeviceSubmenu(final View v, final GBDevice device) {
@@ -981,35 +980,63 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
     }
 
     private void showRemoveDeviceDialog(final GBDevice device) {
-        new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
                 .setCancelable(true)
                 .setTitle(context.getString(R.string.controlcenter_delete_device_name, device.getName()))
                 .setMessage(R.string.controlcenter_delete_device_dialogmessage)
-                .setPositiveButton(R.string.Delete, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        try {
-                            DeviceCoordinator coordinator = device.getDeviceCoordinator();
-                            coordinator.deleteDevice(device);
-                            BondingUtil.Unpair(context, device.getAddress());
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                removeDynamicShortcut(device);
-                            }
-                        } catch (Exception ex) {
-                            GB.toast(context, context.getString(R.string.error_deleting_device, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
-                        } finally {
-                            Intent refreshIntent = new Intent(DeviceManager.ACTION_REFRESH_DEVICELIST);
-                            LocalBroadcastManager.getInstance(context).sendBroadcast(refreshIntent);
-                        }
-                    }
-                })
-                .setNegativeButton(R.string.Cancel, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        // do nothing
-                    }
-                })
-                .show();
+                .setPositiveButton(R.string.Delete,
+                        (dialog, which) -> removeDevice(device, true))
+                .setNegativeButton(R.string.Cancel, (dialog, which) -> {});
+
+        if (deviceHasFiles(device)) {
+            builder.setNeutralButton(R.string.delete_device_and_retain_files,
+                    (dialog, which) -> removeDevice(device, false));
+        }
+        builder.show();
+    }
+
+    private void removeDevice(GBDevice device, boolean deleteFiles) {
+        try {
+            DeviceCoordinator coordinator = device.getDeviceCoordinator();
+            coordinator.deleteDevice(device, deleteFiles);
+            BondingUtil.Unpair(context, device.getAddress());
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                removeDynamicShortcut(device);
+            }
+        } catch (Exception ex) {
+            GB.toast(context, context.getString(R.string.error_deleting_device, ex.getLocalizedMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
+        } finally {
+            Intent refreshIntent = new Intent(DeviceManager.ACTION_REFRESH_DEVICELIST);
+            LocalBroadcastManager.getInstance(context).sendBroadcast(refreshIntent);
+        }
+    }
+
+    private boolean deviceHasFiles(final GBDevice device) {
+        DeviceCoordinator coordinator = device.getDeviceCoordinator();
+
+        try {
+            File cache = coordinator.getAppCacheDir();
+            if (cache != null && cache.exists()) {
+                return true;
+            }
+        } catch (Exception e) {
+            LOG.warn("failed to check cache dir", e);
+            // assume device has cache files
+            return true;
+        }
+
+        try {
+            File export = coordinator.getWritableExportDirectory(device, false);
+            if (export != null && export.exists()) {
+                return true;
+            }
+        } catch (Exception e) {
+            LOG.warn("failed to check export dir", e);
+            // assume device has export files
+            return true;
+        }
+
+        return false;
     }
 
     private void showSetParentFolderDialog(final GBDevice device) {
@@ -1120,7 +1147,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                             device.setParentFolder(parentFolder);
                             expandedFolderName = parentFolder;
                         } catch (Exception ex) {
-                            GB.toast(context, context.getString(R.string.error_setting_parent_folder, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
+                            GB.toast(context, context.getString(R.string.error_setting_parent_folder, ex.getLocalizedMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
                         } finally {
                             Intent refreshIntent = new Intent(DeviceManager.ACTION_REFRESH_DEVICELIST);
                             LocalBroadcastManager.getInstance(context).sendBroadcast(refreshIntent);
@@ -1187,7 +1214,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                             dbDevice.update();
                             device.setAlias(alias);
                         } catch (Exception ex) {
-                            GB.toast(context, context.getString(R.string.error_setting_alias) + ex.getMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
+                            GB.toast(context, context.getString(R.string.error_setting_alias) + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
                         } finally {
                             Intent refreshIntent = new Intent(DeviceManager.ACTION_REFRESH_DEVICELIST);
                             LocalBroadcastManager.getInstance(context).sendBroadcast(refreshIntent);
@@ -1430,8 +1457,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         int distanceCm = (int) dailyTotals.getDistance();
         ActivityUser activityUser = new ActivityUser();
         int stepGoal = activityUser.getStepsGoal();
-        int sleepGoal = activityUser.getSleepDurationGoal();
-        int sleepGoalMinutes = sleepGoal * 60;
+        int sleepGoalMinutes = activityUser.getSleepDurationGoal();
         int distanceGoal = activityUser.getDistanceGoalMeters() * 100;
         int stepLength = activityUser.getStepLengthCm();
         double distanceMeters = (distanceCm > 0 ? distanceCm : steps * stepLength) * 0.01;
@@ -1567,21 +1593,6 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         final ShortcutManager shortcutManager = (ShortcutManager) context.getApplicationContext().getSystemService(Context.SHORTCUT_SERVICE);
 
         shortcutManager.removeDynamicShortcuts(Collections.singletonList(device.getAddress()));
-    }
-
-    private static class GBDeviceDiffUtil extends DiffUtil.ItemCallback<GBDevice> {
-        @Override
-        public boolean areItemsTheSame(@NonNull GBDevice oldItem, @NonNull GBDevice newItem) {
-            return new EqualsBuilder()
-                    .append(oldItem.getAddress(), newItem.getAddress())
-                    .append(oldItem.getName(), newItem.getName())
-                    .isEquals();
-        }
-
-        @Override
-        public boolean areContentsTheSame(@NonNull GBDevice oldItem, @NonNull GBDevice newItem) {
-            return EqualsBuilder.reflectionEquals(oldItem, newItem);
-        }
     }
 
     /**

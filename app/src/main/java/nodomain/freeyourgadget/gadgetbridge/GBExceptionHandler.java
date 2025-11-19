@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2024 Carsten Pfeiffer, José Rebelo
+/*  Copyright (C) 2015-2025 Carsten Pfeiffer, José Rebelo, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -32,11 +32,9 @@ import androidx.core.app.NotificationCompat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Random;
+import java.io.File;
 
-import ch.qos.logback.classic.LoggerContext;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.PendingIntentUtils;
 
 /**
  * Catches otherwise uncaught exceptions, logs them and terminates the app.
@@ -51,19 +49,47 @@ public class GBExceptionHandler implements Thread.UncaughtExceptionHandler {
         mNotifyOnCrash = notifyOnCrash;
     }
 
+    /// Log and notify the unhandled exception
+    /// Flushing and closing the log is handled by {@link GBApplication.ShutdownHook}
     @Override
     public void uncaughtException(@NonNull Thread thread, @NonNull Throwable ex) {
-        LOG.error("Uncaught exception", ex);
-        // flush the log buffers and stop logging
-        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-        loggerContext.stop();
+        // This method is only called if something is seriously wrong so be very generous
+        // with try-catch.
+        try {
+            LOG.error("Uncaught exception in {}", thread.getName(), ex);
+        } catch (Throwable ignored) {
+        }
 
         if (mNotifyOnCrash) {
-            showNotification(ex);
+            try {
+                showNotification(ex);
+            } catch (Throwable ignored) {
+            }
+        }
+
+        // Heap dump on OOM in debug builds
+        if (BuildConfig.DEBUG && (ex.getClass().equals(OutOfMemoryError.class)
+                || (ex.getCause() != null && ex.getCause().getClass().equals(OutOfMemoryError.class)))) {
+            try {
+                final File cacheDir = GBApplication.getContext().getExternalCacheDir();
+                if (cacheDir != null) {
+                    final File oomDir = new File(cacheDir.getAbsolutePath() + File.separator + "oom");
+                    //noinspection ResultOfMethodCallIgnored
+                    oomDir.mkdirs();
+                    final String dumpPath = oomDir.getAbsolutePath() + File.separator + "oom-" + System.currentTimeMillis() + ".hprof";
+                    LOG.debug("Dumping hprof data to: {}", dumpPath);
+                    android.os.Debug.dumpHprofData(dumpPath);
+                }
+            } catch (final Throwable t) {
+                LOG.error("Failed to dump hprof on oom", t);
+            }
         }
 
         if (mDelegate != null) {
-            mDelegate.uncaughtException(thread, ex);
+            try {
+                mDelegate.uncaughtException(thread, ex);
+            } catch (Throwable ignored) {
+            }
         } else {
             System.exit(1);
         }
@@ -77,12 +103,12 @@ public class GBExceptionHandler implements Thread.UncaughtExceptionHandler {
         shareIntent.putExtra(Intent.EXTRA_TEXT, Log.getStackTraceString(e));
         shareIntent.setType("text/plain");
 
-        final PendingIntent pendingShareIntent = PendingIntentUtils.getActivity(
+        Intent intent = Intent.createChooser(shareIntent, context.getString(R.string.app_crash_share_stacktrace));
+        final PendingIntent pendingShareIntent = PendingIntent.getActivity(
                 context,
                 0,
-                Intent.createChooser(shareIntent, context.getString(R.string.app_crash_share_stacktrace)),
-                PendingIntent.FLAG_UPDATE_CURRENT,
-                false
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         final NotificationCompat.Action shareAction = new NotificationCompat.Action.Builder(android.R.drawable.ic_menu_share, context.getString(R.string.share), pendingShareIntent).build();

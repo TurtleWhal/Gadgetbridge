@@ -30,7 +30,7 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -71,7 +71,7 @@ class AppMessageHandlerM7S extends AppMessageHandler {
             KEY_WEATHER_ICON = appKeys.getInt("KEY_WEATHER_ICON");
             KEY_WEATHER_DATA_TIME = appKeys.getInt("KEY_WEATHER_DATA_TIME");
         } catch (JSONException e) {
-            GB.toast("There was an error accessing the M7S watchface configuration.", Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast("There was an error accessing the M7S watchface configuration.", Toast.LENGTH_LONG, GB.ERROR, e);
         } catch (IOException ignore) {
         }
     }
@@ -125,16 +125,16 @@ class AppMessageHandlerM7S extends AppMessageHandler {
             return null;
         }
 
-        String wString1 = String.format(Locale.ENGLISH, "%.0f / %.0f__C \n%.0f %s", (weatherSpec.todayMaxTemp-273.15), (weatherSpec.todayMinTemp-273.15), weatherSpec.windSpeed, "km/h");
-        String wString2 = String.format(Locale.ENGLISH, "%d %%", weatherSpec.currentHumidity);
+        String wString1 = String.format(Locale.ENGLISH, "%.0f / %.0f__C \n%.0f %s", (weatherSpec.getTodayMaxTemp() -273.15), (weatherSpec.getTodayMinTemp() -273.15), weatherSpec.getWindSpeed(), "km/h");
+        String wString2 = String.format(Locale.ENGLISH, "%d %%", weatherSpec.getCurrentHumidity());
 
         ArrayList<Pair<Integer, Object>> pairs = new ArrayList<>(2);
-        pairs.add(new Pair<>(KEY_LOCATION_NAME, (Object) (weatherSpec.location)));
-        pairs.add(new Pair<>(KEY_WEATHER_TEMP, (Object) ((int) Math.round(weatherSpec.currentTemp - 273.15))));
-        pairs.add(new Pair<>(KEY_WEATHER_DATA_TIME, (Object) (weatherSpec.timestamp)));
+        pairs.add(new Pair<>(KEY_LOCATION_NAME, (Object) (weatherSpec.getLocation())));
+        pairs.add(new Pair<>(KEY_WEATHER_TEMP, (Object) ((int) Math.round(weatherSpec.getCurrentTemp() - 273.15))));
+        pairs.add(new Pair<>(KEY_WEATHER_DATA_TIME, (Object) (weatherSpec.getTimestamp())));
         pairs.add(new Pair<>(KEY_WEATHER_STRING_1, (Object) (wString1)));
         pairs.add(new Pair<>(KEY_WEATHER_STRING_2, (Object) (wString2)));
-        pairs.add(new Pair<>(KEY_WEATHER_ICON, (Object) (getIconForConditionCode(weatherSpec.currentConditionCode))));
+        pairs.add(new Pair<>(KEY_WEATHER_ICON, (Object) (getIconForConditionCode(weatherSpec.getCurrentConditionCode()))));
         byte[] weatherMessage = mPebbleProtocol.encodeApplicationMessagePush(PebbleProtocol.ENDPOINT_APPLICATIONMESSAGE, mUUID, pairs, null);
 
         ByteBuffer buf = ByteBuffer.allocate(weatherMessage.length);
@@ -146,7 +146,7 @@ class AppMessageHandlerM7S extends AppMessageHandler {
 
     @Override
     public GBDeviceEvent[] onAppStart() {
-        WeatherSpec weatherSpec = Weather.getInstance().getWeatherSpec();
+        WeatherSpec weatherSpec = Weather.getWeatherSpec();
         if (weatherSpec == null) {
             return new GBDeviceEvent[]{null};
         }

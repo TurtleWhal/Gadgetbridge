@@ -23,7 +23,6 @@ import android.net.Uri;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -31,6 +30,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -43,6 +43,7 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
+import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 
 public class ZipBackupExportJob extends AbstractZipBackupJob {
@@ -59,7 +60,7 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
 
     @Override
     public void run() {
-        try (final OutputStream outputStream = getContext().getContentResolver().openOutputStream(mUri);
+        try (final OutputStream outputStream = getContext().getContentResolver().openOutputStream(mUri, "wt");
              final ZipOutputStream zipOut = new ZipOutputStream(outputStream)) {
 
             if (isAborted()) return;
@@ -148,22 +149,23 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
         final ZipEntry zipEntry = new ZipEntry(zipEntryName);
         zipOut.putNextEntry(zipEntry);
         zipOut.write(preferencesJson.getBytes(StandardCharsets.UTF_8));
+        zipOut.closeEntry();
     }
 
     private static void exportDatabase(final ZipOutputStream zipOut, final Context context) throws IOException {
         LOG.debug("Exporting database");
 
-        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        final ZipEntry zipEntry = new ZipEntry(DATABASE_FILENAME);
+        zipOut.putNextEntry(zipEntry);
+
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             final DBHelper helper = new DBHelper(context);
-            helper.exportDB(dbHandler, baos);
+            helper.exportDB(dbHandler, zipOut);
         } catch (final Exception e) {
             throw new IOException("Failed to export database", e);
         }
 
-        final ZipEntry zipEntry = new ZipEntry(DATABASE_FILENAME);
-        zipOut.putNextEntry(zipEntry);
-        zipOut.write(baos.toByteArray());
+        zipOut.closeEntry();
     }
 
     /**
@@ -178,6 +180,7 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
             return ret;
         }
 
+        Arrays.sort(childEntries);
         for (final String child : childEntries) {
             getAllRelativeFilesAux(ret, dir, child);
         }
@@ -196,6 +199,7 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
                 return;
             }
 
+            Arrays.sort(childEntries);
             for (final String child : childEntries) {
                 getAllRelativeFilesAux(currentList, externalFilesDir, relativePath + "/" + child);
             }
@@ -218,9 +222,10 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
         LOG.trace("Exporting file: {}", relativePath);
 
         final ZipEntry zipEntry = new ZipEntry(EXTERNAL_FILES_FOLDER + "/" + relativePath);
+        zipEntry.setTime(file.lastModified());
         zipOut.putNextEntry(zipEntry);
 
-        try (final InputStream in = new FileInputStream(new File(externalFilesDir, relativePath))) {
+        try (final InputStream in = new FileInputStream(file)) {
             int read;
             while ((read = in.read(copyBuffer)) > 0) {
                 zipOut.write(copyBuffer, 0, read);
@@ -228,6 +233,8 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
         } catch (final Exception e) {
             throw new IOException("Failed to write " + relativePath, e);
         }
+
+        zipOut.closeEntry();
     }
 
     private static void addMetadata(final ZipOutputStream zipOut) throws IOException {
@@ -242,8 +249,18 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
         );
         final String metadataJson = GSON.toJson(metadata);
 
+        // the comment is deliberately not localized
+        // store the same comment both as zip archive comment and metadata file comment
+        // a few tools show both, some tools only show one and yet other tools show neither
+        final String date = DateTimeUtils.formatIso8601UTC(metadata.getBackupDate());
+        final String comment = "data export from Android application " + metadata.getAppId() + " version " + metadata.getAppVersionName() + " from " + date;
+
         final ZipEntry zipEntry = new ZipEntry(METADATA_FILENAME);
+        zipEntry.setComment(comment);
         zipOut.putNextEntry(zipEntry);
         zipOut.write(metadataJson.getBytes(StandardCharsets.UTF_8));
+        zipOut.closeEntry();
+
+        zipOut.setComment(comment);
     }
 }

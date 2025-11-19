@@ -23,7 +23,10 @@ import java.util.Locale;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.*;
 
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.text.format.DateFormat;
+
+import androidx.annotation.NonNull;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
@@ -72,6 +75,7 @@ public class DevicePrefs extends Prefs {
         return getBoolean("fetch_unknown_files", false);
     }
 
+    @NonNull
     public String getTimeFormat() {
         String timeFormat = getString(DeviceSettingsPreferenceConst.PREF_TIMEFORMAT, DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_AUTO);
         if (DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_AUTO.equals(timeFormat)) {
@@ -120,8 +124,16 @@ public class DevicePrefs extends Prefs {
         return getBoolean(PREF_ALLOW_HIGH_MTU, true);
     }
 
+    public boolean installUnsupportedFiles() {
+        return getBoolean("install_unsupported_files", false);
+    }
+
     public boolean getConnectionPriorityLowPower() {
         return getBoolean(PREF_CONNECTION_PRIORITY_LOW_POWER, false);
+    }
+
+    public boolean getConnectionForceLegacyGatt() {
+        return getBoolean(PREF_CONNECTION_FORCE_LEGACY_GATT, Build.VERSION.SDK_INT < Build.VERSION_CODES.Q);
     }
 
     public DeviceCoordinator.ConnectionType getForcedConnectionTypeFromPrefs() {
@@ -135,5 +147,13 @@ public class DevicePrefs extends Prefs {
 
         // either set to default, unknown option selected, or has not been set
         return DeviceCoordinator.ConnectionType.BOTH;
+    }
+
+    public int getHeartRateHighThreshold() {
+        return getInt(DeviceSettingsPreferenceConst.PREF_HEARTRATE_ALERT_HIGH_THRESHOLD, 0);
+    }
+
+    public int getHeartRateLowThreshold() {
+        return getInt(DeviceSettingsPreferenceConst.PREF_HEARTRATE_ALERT_LOW_THRESHOLD, 0);
     }
 }

@@ -38,10 +38,12 @@ import android.text.SpannableString;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
@@ -75,6 +77,7 @@ public class GB {
     public static final String NOTIFICATION_CHANNEL_ID_SCAN_SERVICE = "gadgetbridge_scan_service";
     public static final String NOTIFICATION_CHANNEL_HIGH_PRIORITY_ID = "gadgetbridge_high_priority";
     public static final String NOTIFICATION_CHANNEL_ID_TRANSFER = "gadgetbridge transfer";
+    public static final String NOTIFICATION_CHANNEL_ID_EXPORT = "gadgetbridge export";
     public static final String NOTIFICATION_CHANNEL_ID_LOW_BATTERY = "low_battery";
     public static final String NOTIFICATION_CHANNEL_ID_FULL_BATTERY = "full_battery";
     public static final String NOTIFICATION_CHANNEL_ID_GPS = "gps";
@@ -94,6 +97,7 @@ public class GB {
     public static final int INFO = 1;
     public static final int WARN = 2;
     public static final int ERROR = 3;
+    public static final int DEBUG = 4;
     public static final String ACTION_DISPLAY_MESSAGE = "GB_Display_Message";
     public static final String DISPLAY_MESSAGE_MESSAGE = "message";
     public static final String DISPLAY_MESSAGE_DURATION = "duration";
@@ -102,15 +106,12 @@ public class GB {
     /** Commands related to the progress (bar) on the screen */
     public static final String ACTION_SET_PROGRESS_BAR = "GB_Set_Progress_Bar";
     public static final String PROGRESS_BAR_INDETERMINATE = "indeterminate";
-    public static final String PROGRESS_BAR_MAX = "max";
     public static final String PROGRESS_BAR_PROGRESS = "progress";
     public static final String ACTION_SET_PROGRESS_TEXT = "GB_Set_Progress_Text";
     public static final String ACTION_SET_INFO_TEXT = "GB_Set_Info_Text";
     public static final String ACTION_SET_FINISHED = "GB_Set_Finished";
 
     private static boolean notificationChannelsCreated;
-
-    private static final String TAG = "GB";
 
     public static void createNotificationChannels(Context context) {
         if (notificationChannelsCreated) return;
@@ -148,6 +149,12 @@ public class GB {
                     NotificationManager.IMPORTANCE_LOW);
             notificationManager.createNotificationChannel(channelTransfer);
 
+            NotificationChannel channelExport = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID_EXPORT,
+                    context.getString(R.string.pref_header_auto_export),
+                    NotificationManager.IMPORTANCE_LOW);
+            notificationManager.createNotificationChannel(channelExport);
+
             NotificationChannel channelLowBattery = new NotificationChannel(
                     NOTIFICATION_CHANNEL_ID_LOW_BATTERY,
                     context.getString(R.string.notification_channel_low_battery_name),
@@ -175,15 +182,13 @@ public class GB {
         notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 0,
-                notificationIntent, 0, false);
 
-        return pendingIntent;
+        return PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
     }
 
     public static Notification createNotification(List<GBDevice> devices, Context context) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_CONNECTION_STATUS);
-        if(devices.size() == 0){
+        if (devices.isEmpty()){
             builder.setContentTitle(context.getString(R.string.info_no_devices_connected))
                     .setSmallIcon(R.drawable.ic_notification_disconnected)
                     .setContentIntent(getContentIntent(context))
@@ -191,9 +196,9 @@ public class GB {
                     .setOngoing(true);
 
             if (!GBApplication.isRunningTwelveOrLater()) {
-                builder.setColor(context.getResources().getColor(R.color.accent));
+                builder.setColor(ContextCompat.getColor(context, R.color.accent));
             }
-        }else if(devices.size() == 1) {
+        } else if(devices.size() == 1) {
             GBDevice device = devices.get(0);
             String deviceName = device.getAliasOrName();
             String text = device.getStateString(context);
@@ -210,25 +215,40 @@ public class GB {
                     .setOngoing(true);
 
             if (!GBApplication.isRunningTwelveOrLater()) {
-                builder.setColor(context.getResources().getColor(R.color.accent));
+                builder.setColor(ContextCompat.getColor(context, R.color.accent));
             }
 
             Intent deviceCommunicationServiceIntent = new Intent(context, DeviceCommunicationService.class);
             deviceCommunicationServiceIntent.setPackage(BuildConfig.APPLICATION_ID);
             if (connected) {
                 deviceCommunicationServiceIntent.setAction(DeviceService.ACTION_DISCONNECT);
-                PendingIntent disconnectPendingIntent = PendingIntentUtils.getService(context, 0, deviceCommunicationServiceIntent, PendingIntent.FLAG_ONE_SHOT, false);
+                PendingIntent disconnectPendingIntent = PendingIntent.getService(
+                        context,
+                        0,
+                        deviceCommunicationServiceIntent,
+                        PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
+                );
                 builder.addAction(R.drawable.ic_notification_disconnected, context.getString(R.string.controlcenter_disconnect), disconnectPendingIntent);
-                if (device.getDeviceCoordinator().supportsActivityDataFetching()) {
+                if (device.getDeviceCoordinator().supportsActivityDataFetching(device)) {
                     deviceCommunicationServiceIntent.setAction(DeviceService.ACTION_FETCH_RECORDED_DATA);
                     deviceCommunicationServiceIntent.putExtra(EXTRA_RECORDED_DATA_TYPES, ActivityKind.ACTIVITY);
-                    PendingIntent fetchPendingIntent = PendingIntentUtils.getService(context, 1, deviceCommunicationServiceIntent, PendingIntent.FLAG_ONE_SHOT, false);
+                    PendingIntent fetchPendingIntent = PendingIntent.getService(
+                            context,
+                            1,
+                            deviceCommunicationServiceIntent,
+                            PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
+                    );
                     builder.addAction(R.drawable.ic_refresh, context.getString(R.string.controlcenter_fetch_activity_data), fetchPendingIntent);
                 }
             } else if (device.getState().equals(GBDevice.State.WAITING_FOR_RECONNECT) || device.getState().equals(GBDevice.State.NOT_CONNECTED)) {
                 deviceCommunicationServiceIntent.setAction(DeviceService.ACTION_CONNECT);
                 deviceCommunicationServiceIntent.putExtra(GBDevice.EXTRA_DEVICE, device);
-                PendingIntent reconnectPendingIntent = PendingIntentUtils.getService(context, 2, deviceCommunicationServiceIntent, PendingIntent.FLAG_UPDATE_CURRENT, false);
+                PendingIntent reconnectPendingIntent = PendingIntent.getService(
+                        context,
+                        2,
+                        deviceCommunicationServiceIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
                 builder.addAction(R.drawable.ic_notification, context.getString(R.string.controlcenter_connect), reconnectPendingIntent);
             }
         }else{
@@ -240,7 +260,7 @@ public class GB {
                     isConnected = false;
                 }
 
-                anyDeviceSupportesActivityDataFetching |= device.getDeviceCoordinator().supportsActivityDataFetching();
+                anyDeviceSupportesActivityDataFetching |= device.getDeviceCoordinator().supportsActivityDataFetching(device);
 
                 String deviceName = device.getAliasOrName();
                 String text = device.getStateString(context);
@@ -263,7 +283,7 @@ public class GB {
                     .setOngoing(true);
 
             if (!GBApplication.isRunningTwelveOrLater()) {
-                builder.setColor(context.getResources().getColor(R.color.accent));
+                builder.setColor(ContextCompat.getColor(context, R.color.accent));
             }
 
             if (anyDeviceSupportesActivityDataFetching) {
@@ -271,7 +291,12 @@ public class GB {
                 deviceCommunicationServiceIntent.setPackage(BuildConfig.APPLICATION_ID);
                 deviceCommunicationServiceIntent.setAction(DeviceService.ACTION_FETCH_RECORDED_DATA);
                 deviceCommunicationServiceIntent.putExtra(EXTRA_RECORDED_DATA_TYPES, ActivityKind.ACTIVITY);
-                PendingIntent fetchPendingIntent = PendingIntentUtils.getService(context, 1, deviceCommunicationServiceIntent, PendingIntent.FLAG_ONE_SHOT, false);
+                PendingIntent fetchPendingIntent = PendingIntent.getService(
+                        context,
+                        1,
+                        deviceCommunicationServiceIntent,
+                        PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
+                );
                 builder.addAction(R.drawable.ic_refresh, context.getString(R.string.controlcenter_fetch_activity_data), fetchPendingIntent);
             }
         }
@@ -317,7 +342,7 @@ public class GB {
                 .setOngoing(true);
 
         if (!GBApplication.isRunningTwelveOrLater()) {
-            builder.setColor(context.getResources().getColor(R.color.accent));
+            builder.setColor(ContextCompat.getColor(context, R.color.accent));
         }
 
         // A small bug: When "Reconnect only to connected devices" is disabled, the intent will be added even when there are no devices in GB
@@ -326,7 +351,12 @@ public class GB {
             Intent deviceCommunicationServiceIntent = new Intent(context, DeviceCommunicationService.class);
             deviceCommunicationServiceIntent.setPackage(BuildConfig.APPLICATION_ID);
             deviceCommunicationServiceIntent.setAction(DeviceService.ACTION_CONNECT);
-            PendingIntent reconnectPendingIntent = PendingIntentUtils.getService(context, 2, deviceCommunicationServiceIntent, PendingIntent.FLAG_ONE_SHOT, false);
+            PendingIntent reconnectPendingIntent = PendingIntent.getService(
+                    context,
+                    2,
+                    deviceCommunicationServiceIntent,
+                    PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
+            );
             builder.addAction(R.drawable.ic_notification, context.getString(R.string.controlcenter_connect), reconnectPendingIntent);
         }
 
@@ -349,7 +379,7 @@ public class GB {
         try {
             NotificationManagerCompat.from(context).notify(id, notification);
         } catch (SecurityException e) {
-            toast(context.getString(R.string.warning_missing_notification_permission), Toast.LENGTH_SHORT, WARN);
+            toast(context.getString(R.string.warning_missing_notification_permission), Toast.LENGTH_SHORT, WARN, e);
         }
     }
 
@@ -368,7 +398,8 @@ public class GB {
 
     public static final char[] HEX_CHARS = "0123456789ABCDEF".toCharArray();
 
-    public static String hexdump(byte[] buffer, int offset, int length) {
+    @NonNull
+    public static String hexdump(@NonNull byte[] buffer, int offset, int length) {
         if (length == -1) {
             length = buffer.length - offset;
         }
@@ -382,7 +413,11 @@ public class GB {
         return new String(hexChars);
     }
 
-    public static String hexdump(byte[] buffer) {
+    @NonNull
+    public static String hexdump(@Nullable byte[] buffer) {
+        if (buffer == null) {
+            return "(null)";
+        }
         return hexdump(buffer, 0, buffer.length);
     }
 
@@ -476,12 +511,7 @@ public class GB {
         if (Thread.currentThread() == mainLooper.getThread()) {
             Toast.makeText(context, message, displayTime).show();
         } else {
-            Runnable runnable = new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(context, message, displayTime).show();
-                }
-            };
+            Runnable runnable = () -> Toast.makeText(context, message, displayTime).show();
 
             if (context instanceof Activity) {
                 ((Activity) context).runOnUiThread(runnable);
@@ -502,6 +532,8 @@ public class GB {
             case ERROR:
                 LOG.error(message, ex);
                 break;
+            case DEBUG:
+                LOG.debug(message, ex);
         }
     }
 
@@ -511,8 +543,7 @@ public class GB {
         notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 0,
-                notificationIntent, 0, false);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder nb = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_TRANSFER)
                 .setTicker((title == null) ? context.getString(R.string.app_name) : title)
@@ -535,6 +566,10 @@ public class GB {
         return nb.build();
     }
 
+    /**
+     * @deprecated use {@link nodomain.freeyourgadget.gadgetbridge.util.notifications.GBProgressNotification}
+     */
+    @Deprecated
     public static void updateTransferNotification(CharSequence title, CharSequence text, boolean ongoing, int percentage, Context context) {
         if (percentage == 100) {
             removeNotification(NOTIFICATION_ID_TRANSFER, context);
@@ -550,8 +585,7 @@ public class GB {
         notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 0,
-                notificationIntent, 0, false);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder nb = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
                 .setContentTitle(context.getString(R.string.app_name))
@@ -581,8 +615,7 @@ public class GB {
         notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 0,
-                notificationIntent, 0, false);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder nb = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_LOW_BATTERY)
                 .setContentTitle(context.getString(R.string.notif_battery_low_title))
@@ -604,8 +637,7 @@ public class GB {
         notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 0,
-                notificationIntent, 0, false);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder nb = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_FULL_BATTERY)
                 .setContentTitle(context.getString(R.string.notif_battery_full_title))
@@ -651,8 +683,7 @@ public class GB {
         notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntentUtils.getActivity(context, 0,
-                notificationIntent, 0, false);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder nb = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
                 .setContentTitle(context.getString(R.string.notif_export_failed_title))

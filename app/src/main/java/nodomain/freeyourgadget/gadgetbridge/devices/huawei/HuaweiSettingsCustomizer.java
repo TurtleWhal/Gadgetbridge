@@ -25,12 +25,15 @@ import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.SwitchPreferenceCompat;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.Collections;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsHandler;
+import nodomain.freeyourgadget.gadgetbridge.activities.heartratezones.HeartRateSettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.ui.HuaweiStressCalibrationActivity;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.HuaweiWorkoutGbParser;
@@ -42,16 +45,22 @@ import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.Dev
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ACTIVITY_REMINDER_GOAL_REACHED;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ACTIVITY_REMINDER_PROGRESS;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ACTIVITY_REMINDER_STAND;
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ARRHYTHMIA_ALERT;
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ARRHYTHMIA_AUTOMATIC;
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ARRHYTHMIA_SWITCH;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_DEBUG_REQUEST;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_CONTINUOUS_SKIN_TEMPERATURE_MEASUREMENT;
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ECG_SWITCH;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_HEART_RATE_HIGH_ALERT;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_HEART_RATE_LOW_ALERT;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_HEART_RATE_REALTIME_MODE;
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_SLEEP_BREATH;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_SPO_LOW_ALERT;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_STRESS_CALIBRATE;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_STRESS_SWITCH;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_TRUSLEEP;
 import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_WORKMODE;
+import static nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants.PREF_HUAWEI_ARTERIAL_STIFFNESS_DETECTION_SWITCH;
 
 public class HuaweiSettingsCustomizer implements DeviceSpecificSettingsCustomizer {
     final GBDevice device;
@@ -73,10 +82,14 @@ public class HuaweiSettingsCustomizer implements DeviceSpecificSettingsCustomize
             SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress());
             boolean statusLiftWrist = sharedPrefs.getBoolean(PREF_LIFTWRIST_NOSHED, false);
 
-            dndStart.setEnabled(dndState.equals("scheduled"));
-            dndEnd.setEnabled(dndState.equals("scheduled"));
-            dndLifWrist.setEnabled(statusLiftWrist && !dndState.equals("off"));
-            dndNotWear.setEnabled(dndState.equals("off"));
+            if (dndStart != null)
+                dndStart.setEnabled(dndState.equals("scheduled"));
+            if (dndEnd != null)
+                dndEnd.setEnabled(dndState.equals("scheduled"));
+            if (dndLifWrist != null)
+                dndLifWrist.setEnabled(statusLiftWrist && !dndState.equals("off"));
+            if (dndNotWear != null)
+                dndNotWear.setEnabled(dndState.equals("off"));
         }
         if (preference.getKey().equals("huawei_reparse_workout_data")) {
             if (((SwitchPreferenceCompat) preference).isChecked()) {
@@ -115,6 +128,7 @@ public class HuaweiSettingsCustomizer implements DeviceSpecificSettingsCustomize
 
         handler.addPreferenceHandlerFor(PREF_HUAWEI_WORKMODE);
         handler.addPreferenceHandlerFor(PREF_HUAWEI_TRUSLEEP);
+        handler.addPreferenceHandlerFor(PREF_HUAWEI_SLEEP_BREATH);
         handler.addPreferenceHandlerFor(PREF_HUAWEI_DEBUG_REQUEST);
         handler.addPreferenceHandlerFor(PREF_HUAWEI_CONTINUOUS_SKIN_TEMPERATURE_MEASUREMENT);
         handler.addPreferenceHandlerFor(PREF_HUAWEI_HEART_RATE_REALTIME_MODE);
@@ -123,10 +137,17 @@ public class HuaweiSettingsCustomizer implements DeviceSpecificSettingsCustomize
         handler.addPreferenceHandlerFor(PREF_HUAWEI_SPO_LOW_ALERT);
         handler.addPreferenceHandlerFor(PREF_HUAWEI_STRESS_SWITCH);
         handler.addPreferenceHandlerFor(PREF_HUAWEI_STRESS_CALIBRATE);
+        handler.addPreferenceHandlerFor(PREF_HUAWEI_ECG_SWITCH);
 
         handler.addPreferenceHandlerFor(PREF_HUAWEI_ACTIVITY_REMINDER_STAND);
         handler.addPreferenceHandlerFor(PREF_HUAWEI_ACTIVITY_REMINDER_PROGRESS);
         handler.addPreferenceHandlerFor(PREF_HUAWEI_ACTIVITY_REMINDER_GOAL_REACHED);
+
+        handler.addPreferenceHandlerFor(PREF_HUAWEI_ARRHYTHMIA_SWITCH);
+        handler.addPreferenceHandlerFor(PREF_HUAWEI_ARRHYTHMIA_AUTOMATIC);
+        handler.addPreferenceHandlerFor(PREF_HUAWEI_ARRHYTHMIA_ALERT);
+
+        handler.addPreferenceHandlerFor(PREF_HUAWEI_ARTERIAL_STIFFNESS_DETECTION_SWITCH);
 
 
         final Preference forceOptions = handler.findPreference(PREF_FORCE_OPTIONS);
@@ -137,13 +158,22 @@ public class HuaweiSettingsCustomizer implements DeviceSpecificSettingsCustomize
             boolean supportsSpO2 = this.coordinator.supportsSPo2();
             forceOptions.setVisible(!supportsSmartAlarm || !supportsWearLocation || !supportsHeartRate || !supportsSpO2);
             final SwitchPreferenceCompat forceSmartAlarm = handler.findPreference(PREF_FORCE_ENABLE_SMART_ALARM);
-            forceSmartAlarm.setVisible(!supportsSmartAlarm);
+            if(forceSmartAlarm != null)
+                forceSmartAlarm.setVisible(!supportsSmartAlarm);
             final SwitchPreferenceCompat forceWearLocation = handler.findPreference(PREF_FORCE_ENABLE_WEAR_LOCATION);
-            forceWearLocation.setVisible(!supportsWearLocation);
+            if(forceWearLocation != null)
+                forceWearLocation.setVisible(!supportsWearLocation);
             final SwitchPreferenceCompat forceHeartRate = handler.findPreference(PREF_FORCE_ENABLE_HEARTRATE_SUPPORT);
-            forceHeartRate.setVisible(!supportsHeartRate);
+            if(forceHeartRate != null)
+                forceHeartRate.setVisible(!supportsHeartRate);
             final SwitchPreferenceCompat forceSpO2 = handler.findPreference(PREF_FORCE_ENABLE_SPO2_SUPPORT);
-            forceSpO2.setVisible(!supportsSpO2);
+            if(forceSpO2 != null)
+                forceSpO2.setVisible(!supportsSpO2);
+        }
+
+        final SwitchPreferenceCompat sleepBreath = handler.findPreference(PREF_HUAWEI_SLEEP_BREATH);
+        if (sleepBreath != null && !(coordinator.supportsSleepBreath() || coordinator.supportsSleepApnea())) {
+            sleepBreath.setVisible(false);
         }
 
         final SwitchPreferenceCompat reparseWorkout = handler.findPreference("huawei_reparse_workout_data");
@@ -161,6 +191,29 @@ public class HuaweiSettingsCustomizer implements DeviceSpecificSettingsCustomize
                 handler.getContext().startActivity(intent);
                 return true;
             });
+        }
+
+        final Preference hrSettings = handler.findPreference("pref_perform_heart_rate_settings");
+        if (hrSettings != null) {
+            hrSettings.setOnPreferenceClickListener(preference -> {
+                final Intent intent = new Intent(handler.getContext(), HeartRateSettingsActivity.class);
+                intent.putExtra(GBDevice.EXTRA_DEVICE, handler.getDevice());
+                handler.getContext().startActivity(intent);
+                return true;
+            });
+        }
+
+        // Huawei devices do not support lookahead > 7 days
+        final Preference calendarLookahead = handler.findPreference(DeviceSettingsPreferenceConst.PREF_CALENDAR_LOOKAHEAD_DAYS);
+        if (calendarLookahead != null) {
+            calendarLookahead.setVisible(false);
+        }
+
+        final ListPreference countryCodeList = handler.findPreference("pref_huawei_country_code");
+        if (countryCodeList != null) {
+            Map<String, String> countries = HuaweiUtil.getCountriesMap();
+            countryCodeList.setEntries(countries.keySet().toArray(new String[0]));
+            countryCodeList.setEntryValues(countries.values().toArray(new String[0]));
         }
     }
 
@@ -180,7 +233,7 @@ public class HuaweiSettingsCustomizer implements DeviceSpecificSettingsCustomize
     }
 
 
-    public static final Creator<HuaweiSettingsCustomizer> CREATOR= new Creator<HuaweiSettingsCustomizer>() {
+    public static final Creator<HuaweiSettingsCustomizer> CREATOR = new Creator<>() {
 
         @Override
         public HuaweiSettingsCustomizer createFromParcel(Parcel parcel) {

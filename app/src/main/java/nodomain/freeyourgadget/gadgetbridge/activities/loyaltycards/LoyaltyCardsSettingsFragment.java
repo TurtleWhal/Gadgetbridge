@@ -61,8 +61,6 @@ import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 public class LoyaltyCardsSettingsFragment extends AbstractPreferenceFragment {
     private static final Logger LOG = LoggerFactory.getLogger(LoyaltyCardsSettingsFragment.class);
 
-    static final String FRAGMENT_TAG = "LOYALTY_CARDS_SETTINGS_FRAGMENT";
-
     private GBDevice device;
 
     private void setSettingsFileSuffix(final String settingsFileSuffix) {
@@ -254,7 +252,7 @@ public class LoyaltyCardsSettingsFragment extends AbstractPreferenceFragment {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=me.hackerchick.catima")));
         } catch (final ActivityNotFoundException e) {
-            GB.toast(requireContext(), requireContext().getString(R.string.loyalty_cards_install_catima_fail), Toast.LENGTH_LONG, GB.WARN);
+            GB.toast(requireContext(), requireContext().getString(R.string.loyalty_cards_install_catima_fail), Toast.LENGTH_LONG, GB.WARN, e);
         }
     }
 }

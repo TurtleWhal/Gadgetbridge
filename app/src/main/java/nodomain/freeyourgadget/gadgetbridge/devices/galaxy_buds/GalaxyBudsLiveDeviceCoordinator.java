@@ -59,7 +59,6 @@ public class GalaxyBudsLiveDeviceCoordinator extends GalaxyBudsGenericCoordinato
         return R.string.devicetype_galaxybuds_live;
     }
 
-
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_galaxy_buds_live;

@@ -53,10 +53,10 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     protected Pattern getSupportedDeviceName() {
-        // eg. G1_45_L_F2333, G1_63_R_04935.
+        // eg. G1_45_L_F2333, G1_63_R_04935, G1_2_R_B7D35.
         // Note that the G1_XX_L_YYYYY will have a corresponding G1_XX_R_ZZZZZ. The XX will match,
         // but the trailing 5 characters will not.
-        return Pattern.compile("Even G1_\\d\\d_[L|R]_\\w+");
+        return Pattern.compile("Even G1_\\d+_[L|R]_\\w+");
     }
 
     @Override
@@ -147,14 +147,9 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
             GBDevice rightDevice =
                     new GBDevice(right_address.getDetails(), right_name.getDetails(), null,
                                  gbDevice.getParentFolder(), gbDevice.getType());
-            super.deleteDevice(rightDevice);
+            super.deleteDevice(rightDevice, true);
             BondingUtil.Unpair(GBApplication.getContext(), rightDevice.getAddress());
         }
-    }
-
-    @Override
-    public boolean addBatteryPollingSettings() {
-        return true;
     }
 
     @Override
@@ -198,8 +193,11 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
     public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
         final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
         if (device.isConnected()) {
+            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_screen_on_on_notifications);
+            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_screen_on_on_notifications_timeout);
             deviceSpecificSettings.addRootScreen(R.xml.devicesettings_even_realities_g1_display);
             deviceSpecificSettings.addRootScreen(R.xml.devicesettings_timeformat);
+
             final List<Integer> developer =
                     deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
             developer.add(R.xml.devicesettings_header_system);
@@ -213,6 +211,12 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
     ////////////////////////////////////////////////
 
     @Override
-    public boolean supportsWeather() { return true; }
+    public boolean supportsWeather(final GBDevice device) {
+        return true;
+    }
 
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.SMART_GLASSES;
+    }
 }

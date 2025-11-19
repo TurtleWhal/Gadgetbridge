@@ -133,7 +133,7 @@ public class LiveActivityFragment extends AbstractActivityChartFragment<ChartsDa
                 steps += stepsDelta;
                 lastTimestamp = timestamp;
             } catch (Exception ex) {
-                GB.toast(LiveActivityFragment.this.getContext(), ex.getMessage(), Toast.LENGTH_SHORT, GB.ERROR, ex);
+                GB.toast(LiveActivityFragment.this.getContext(), ex.getLocalizedMessage(), Toast.LENGTH_SHORT, GB.ERROR, ex);
             }
         }
 
@@ -323,7 +323,7 @@ public class LiveActivityFragment extends AbstractActivityChartFragment<ChartsDa
 
     private ScheduledExecutorService startActivityPulse(int interval) {
         ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-        service.scheduleAtFixedRate(new Runnable() {
+        service.scheduleWithFixedDelay(new Runnable() {
             @Override
             public void run() {
                 FragmentActivity activity = LiveActivityFragment.this.getActivity();
@@ -369,12 +369,6 @@ public class LiveActivityFragment extends AbstractActivityChartFragment<ChartsDa
         GBApplication.deviceService(getChartsHost().getDevice()).onEnableRealtimeHeartRateMeasurement(true);
     }
 
-    @Override
-    protected void onMadeVisibleInActivity() {
-        super.onMadeVisibleInActivity();
-        enableRealtimeTracking(true);
-    }
-
     private void enableRealtimeTracking(boolean enable) {
         if (enable && pulseScheduler != null) {
             // already running
@@ -403,15 +397,9 @@ public class LiveActivityFragment extends AbstractActivityChartFragment<ChartsDa
         }
     }
 
-    @Override
-    public void onMadeInvisibleInActivity() {
-        enableRealtimeTracking(false);
-        super.onMadeInvisibleInActivity();
-    }
 
     @Override
     public void onDestroyView() {
-        onMadeInvisibleInActivity();
         LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(mReceiver);
         super.onDestroyView();
     }

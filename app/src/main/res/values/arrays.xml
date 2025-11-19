@@ -22,13 +22,19 @@
     -->
     <string-array name="maps_themes_names">
         <item>@string/pref_default</item>
-        <item>@string/map_theme_osmarender</item>
+        <item>@string/map_theme_biker</item>
+        <item>@string/pref_theme_dark</item>
+        <item>@string/map_theme_indigo</item>
         <item>@string/map_theme_motorider</item>
+        <item>@string/map_theme_osmarender</item>
     </string-array>
     <string-array name="maps_themes_values">
         <item>default</item>
-        <item>osmarender</item>
+        <item>biker</item>
+        <item>dark</item>
+        <item>indigo</item>
         <item>motorider</item>
+        <item>osmarender</item>
     </string-array>
 
     <!-- https://meta.wikimedia.org/wiki/Template:List_of_language_names_ordered_by_code -->
@@ -1105,6 +1111,11 @@
         <item>@string/menuitem_water_time</item>
         <item>@string/activity_type_meditation</item>
         <item>@string/menuitem_zepp_flow</item>
+        <item>@string/menuitem_golf</item>
+        <item>@string/menuitem_bio_charge</item>
+        <item>@string/menuitem_breathing</item>
+        <item>@string/menuitem_worldclock</item>
+        <item>@string/menuitem_takephoto</item>
         <!-- dummy item -->
         <item>@string/menuitem_more</item>
     </string-array>
@@ -1170,6 +1181,11 @@
         <item>water_time</item>
         <item>meditation</item>
         <item>zepp_flow</item>
+        <item>golf</item>
+        <item>bio_charge</item>
+        <item>breathing2</item>
+        <item>worldclock2</item>
+        <item>takephoto2</item>
         <!-- dummy item -->
         <item>more</item>
     </string-array>
@@ -1211,6 +1227,9 @@
         <item>@string/menuitem_apps_shortcuts</item>
         <item>@string/menuitem_alexa</item>
         <item>@string/menuitem_zepp_flow</item>
+        <item>@string/menuitem_bio_charge</item>
+        <item>@string/menuitem_worldclock</item>
+        <item>@string/menuitem_breathing</item>
     </string-array>
 
     <string-array name="pref_zepp_os_shortcut_cards_values">
@@ -1250,6 +1269,9 @@
         <item>apps_shortcuts</item>
         <item>alexa</item>
         <item>zepp_flow</item>
+        <item>bio_charge</item>
+        <item>worldclock2</item>
+        <item>breathing2</item>
     </string-array>
 
     <string-array name="pref_huami2021_control_center">
@@ -2706,6 +2728,29 @@
         <item name="fi_FI">@string/finnish</item>
         <item name="hu_HU">@string/hungarian</item>
         <item name="ms_MY">@string/bahasa_melayu</item>
+        <item name="fa_IR">@string/persian</item>
+        <!-- simplified versions, without a country -->
+        <item name="zh">@string/chinese</item>
+        <item name="en">@string/english</item>
+        <item name="ko">@string/korean</item>
+        <item name="ja">@string/japanese</item>
+        <item name="de">@string/german</item>
+        <item name="es">@string/spanish</item>
+        <item name="fr">@string/french</item>
+        <item name="it">@string/italian</item>
+        <item name="pt">@string/portuguese</item>
+        <item name="ar">@string/arabic</item>
+        <item name="pl">@string/polish</item>
+        <item name="ru">@string/russian</item>
+        <item name="nl">@string/dutch</item>
+        <item name="tr">@string/turkish</item>
+        <item name="bn">@string/bengali</item>
+        <item name="id">@string/indonesian</item>
+        <item name="cs">@string/czech</item>
+        <item name="he">@string/hebrew</item>
+        <item name="th">@string/thai</item>
+        <item name="fa">@string/persian</item>
+        <item name="vi">@string/vietnamese</item>
     </string-array>
 
     <string-array name="pref_language_all_values">
@@ -2749,6 +2794,29 @@
         <item>fi_FI</item>
         <item>hu_HU</item>
         <item>ms_MY</item>
+        <item>fa_IR</item>
+        <!-- simplified versions, without a country -->
+        <item>zh</item>
+        <item>en</item>
+        <item>ko</item>
+        <item>ja</item>
+        <item>de</item>
+        <item>es</item>
+        <item>fr</item>
+        <item>it</item>
+        <item>pt</item>
+        <item>ar</item>
+        <item>pl</item>
+        <item>ru</item>
+        <item>nl</item>
+        <item>tr</item>
+        <item>bn</item>
+        <item>id</item>
+        <item>cs</item>
+        <item>he</item>
+        <item>th</item>
+        <item>fa</item>
+        <item>vi</item>
     </string-array>
 
     <string-array name="pref_amazfitbip_language">
@@ -2845,6 +2913,26 @@
     <string-array name="prefs_heartrate_measurement_interval_values">
         <!-- This will be filled dynamically by HeartRateCapability -->
         <item>0</item>
+    </string-array>
+
+    <string-array name="prefs_spo2_measurement_interval">
+        <item name="600">@string/interval_ten_minutes</item>
+        <item name="1800">@string/interval_thirty_minutes</item>
+        <item name="3600">@string/interval_1_hour</item>
+        <item name="7200">@string/interval_2_hour</item>
+        <item name="10800">@string/interval_3_hour</item>
+        <item name="14400">@string/interval_4_hour</item>
+        <item name="21600">@string/interval_6_hour</item>
+    </string-array>
+
+    <string-array name="prefs_spo2_measurement_interval_values">
+        <item>600</item>
+        <item>1800</item>
+        <item>3600</item>
+        <item>7200</item>
+        <item>10800</item>
+        <item>14400</item>
+        <item>21600</item>
     </string-array>
 
     <string-array name="prefs_miband_heartrate_alert_threshold">
@@ -3318,6 +3406,7 @@
         <item>@string/pref_header_hrv_status</item>
         <item>@string/body_energy</item>
         <item>@string/menuitem_vo2_max</item>
+        <item>@string/pref_header_training_load</item>
         <item>@string/menuitem_hr</item>
         <item>@string/menuitem_stress</item>
         <item>@string/menuitem_pai</item>
@@ -3338,6 +3427,7 @@
         <item>@string/p_hrv_status</item>
         <item>@string/p_body_energy</item>
         <item>@string/p_vo2max</item>
+        <item>@string/p_load</item>
         <item>@string/p_heartrate</item>
         <item>@string/p_stress</item>
         <item>@string/p_pai</item>
@@ -3358,6 +3448,7 @@
         <item>@string/p_hrv_status</item>
         <item>@string/p_body_energy</item>
         <item>@string/p_vo2max</item>
+        <item>@string/p_load</item>
         <item>@string/p_heartrate</item>
         <item>@string/p_steps_week</item>
         <item>@string/p_stress</item>
@@ -4055,6 +4146,53 @@
         <item>custom_2</item>
     </string-array>
 
+    <string-array name="media_source_names">
+        <item>@string/menuitem_bluetooth</item>
+        <item>@string/mp3</item>
+    </string-array>
+    <string-array name="media_source_values">
+        <item>bluetooth</item>
+        <item>mp3</item>
+    </string-array>
+
+    <string-array name="shokz_equalizer_bluetooth_names">
+        <item>@string/equalizer_preset_standard</item>
+        <item>@string/sony_equalizer_preset_vocal</item>
+    </string-array>
+    <string-array name="shokz_equalizer_bluetooth_values">
+        <item>standard</item>
+        <item>vocal</item>
+    </string-array>
+
+    <string-array name="shokz_equalizer_mp3_names">
+        <item>@string/equalizer_preset_standard</item>
+        <item>@string/Swimming</item>
+    </string-array>
+    <string-array name="shokz_equalizer_mp3_values">
+        <item>standard</item>
+        <item>swimming</item>
+    </string-array>
+
+    <string-array name="media_playback_mode_names">
+        <item>@string/media_playback_mode_normal</item>
+        <item>@string/media_playback_mode_shuffle</item>
+        <item>@string/media_playback_mode_repeat</item>
+    </string-array>
+    <string-array name="media_playback_mode_values">
+        <item>normal</item>
+        <item>shuffle</item>
+        <item>repeat</item>
+    </string-array>
+
+    <string-array name="shokz_controls_names">
+        <item>@string/moondrop_touch_action_assistant</item>
+        <item>@string/media_source_switching_bluetooth_mp3</item>
+    </string-array>
+    <string-array name="shokz_controls_values">
+        <item>assistant</item>
+        <item>media_source</item>
+    </string-array>
+
     <string-array name="sony_automatic_power_off_names">
         <item>@string/sony_automatic_power_off_off</item>
         <item>@string/sony_automatic_power_off_5_min</item>
@@ -4217,11 +4355,19 @@
         <item>100</item>
     </string-array>
 
-    <string-array name="soundcore_auto_power_off_names">
+    <string-array name="soundcore_motion_auto_power_off_names">
         <item>@string/pref_button_action_disabled</item>
         <item>@string/minutes_5</item>
         <item>@string/minutes_10</item>
         <item>@string/minutes_20</item>
+        <item>@string/minutes_60</item>
+    </string-array>
+
+    <string-array name="soundcore_aerofit_auto_power_off_names">
+        <item>@string/pref_button_action_disabled</item>
+        <item>@string/minutes_10</item>
+        <item>@string/minutes_20</item>
+        <item>@string/minutes_30</item>
         <item>@string/minutes_60</item>
     </string-array>
 
@@ -4985,4 +5131,148 @@
         <item>90</item>
     </string-array>
 
+    <string-array name="atc_ble_oepl_models">
+        <item name="29">Gici 213 BW SSD</item>
+        <item name="13">Gici 213 BW ST</item>
+        <item name="30">Gici 213 BW UC</item>
+
+        <item name="11">Gici 213 BWR SSD</item>
+        <item name="28">Gici 213 BWR UC</item>
+        <item name="12">Gici 290 BWR SSD</item>
+        <item name="22">Gici 420 BWR SSD</item>
+
+        <item name="25">HS 213 BW SSD</item>
+        <item name="10">HS 213 BW UC</item>
+        <item name="32">HS 350 BW SSD</item>
+        <item name="4">HS 350 BW UC</item>
+
+        <item name="18">HS 154 BWR H SSD</item>
+        <item name="16">HS 213 BWR SSD</item>
+        <item name="19">HS 213 BWR UC</item>
+        <item name="9">HS 266 BWR SSD</item>
+        <item name="33">HS 266 BWR SSD Offset</item>
+        <item name="24">HS 290 BWR SSD</item>
+        <item name="8">HS 350 BWR SSD</item>
+        <item name="7">HS 350 BWR UC</item>
+        <item name="20">HS 420 BWR SSD</item>
+        <item name="21">HS 420 BWR UC</item>
+
+        <item name="5">HS 200 BWY SSD</item>
+        <item name="35">HS 346 BWY UC</item>
+        <item name="3">HS 350 BWY SSD</item>
+        <item name="1">HS 350 BWY UC</item>
+        <item name="2">HS 350 BWY UC Inverted</item>
+        <item name="31">HS 583 BWY UC</item>
+        <item name="6">HS 750 BWY UC</item>
+
+        <!-- hack, not officially in the list -->
+        <item name="10000">HS 154 BWRY JD</item>
+
+        <item name="38">HS 200 BWRY JD</item>
+        <item name="40">HS 260 BWRY JD</item>
+        <item name="17">HS 350 BWRY JD</item>
+        <item name="37">HS 750 BWRY JD</item>
+
+        <item name="26">TI 581 BW</item>
+        <item name="27">TI 581 BWR</item>
+        <item name="34">TI 581 BWR UC</item>
+        <item name="14">TI 970 BWR</item>
+        <item name="15">TI 1200 BWR</item>
+        <item name="23">TI 1200 BWR V2</item>
+
+        <item name="41">WO 260 BWRY JD V2</item>
+        <item name="36">WO 290 BWRY JD</item>
+        <item name="39">WO 290 BWRY JD V2</item>
+
+    </string-array>
+
+    <string-array name="atc_ble_oepl_models_values">
+        <item>29</item>
+        <item>13</item>
+        <item>30</item>
+
+        <item>11</item>
+        <item>28</item>
+        <item>12</item>
+        <item>22</item>
+
+        <item>25</item>
+        <item>10</item>
+        <item>32</item>
+        <item>4</item>
+
+        <item>18</item>
+        <item>16</item>
+        <item>19</item>
+        <item>9</item>
+        <item>33</item>
+        <item>24</item>
+        <item>8</item>
+        <item>7</item>
+        <item>20</item>
+        <item>21</item>
+
+        <item>5</item>
+        <item>35</item>
+        <item>3</item>
+        <item>1</item>
+        <item>2</item>
+        <item>31</item>
+        <item>6</item>
+
+        <!-- hack, not officially in the list -->
+        <item>10000</item>
+
+        <item>38</item>
+        <item>40</item>
+        <item>17</item>
+        <item>37</item>
+
+        <item>26</item>
+        <item>27</item>
+        <item>34</item>
+        <item>14</item>
+        <item>15</item>
+        <item>23</item>
+
+        <item>41</item>
+        <item>36</item>
+        <item>39</item>
+    </string-array>
+
+    <string-array name="atc_ble_oepl_ble_adv_interval">
+        <item name="1000">625ms</item>
+        <item name="3200">2000ms</item>
+        <item name="4000">2500ms</item>
+        <item name="5000">3125ms</item>
+        <item name="6000">3750ms</item>
+        <item name="7000">4375ms</item>
+        <item name="8000">5000ms</item>
+        <item name="10000">6250ms</item>
+    </string-array>
+
+    <string-array name="atc_ble_oepl_ble_adv_interval_values">
+        <item>1000</item>
+        <item>3200</item>
+        <item>4000</item>
+        <item>5000</item>
+        <item>6000</item>
+        <item>7000</item>
+        <item>8000</item>
+        <item>10000</item>
+      </string-array>
+
+    <string-array name="weight_scale_units">
+        <item>@string/weight_scale_jin</item>
+        <item>@string/weight_scale_kilogram</item>
+        <item>@string/weight_scale_pound</item>
+        <item>@string/weight_scale_stone</item>
+    </string-array>
+
+    <string-array name="weight_scale_values">
+        <item>jin</item>
+        <item>kilogram</item>
+        <item>pound</item>
+        <item>stone</item>
+    </string-array>
 </resources>

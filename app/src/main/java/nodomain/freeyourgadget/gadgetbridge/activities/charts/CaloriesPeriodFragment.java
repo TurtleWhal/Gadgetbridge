@@ -1,8 +1,6 @@
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
 import android.content.Context;
-import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -78,11 +76,9 @@ public class CaloriesPeriodFragment extends CaloriesFragment<CaloriesPeriodFragm
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_calories_period, container, false);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                getChartsHost().enableSwipeRefresh(scrollY == 0);
-            });
-        }
+        rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            getChartsHost().enableSwipeRefresh(scrollY == 0);
+        });
 
         mDateView = rootView.findViewById(R.id.calories_date_view);
         caloriesChart = rootView.findViewById(R.id.calories_chart);
@@ -143,10 +139,9 @@ public class CaloriesPeriodFragment extends CaloriesFragment<CaloriesPeriodFragm
 
     @Override
     protected void init() {
-        TEXT_COLOR = GBApplication.getTextColor(requireContext());
         CHART_TEXT_COLOR = GBApplication.getSecondaryTextColor(requireContext());
         BACKGROUND_COLOR = GBApplication.getBackgroundColor(getContext());
-        DESCRIPTION_COLOR = GBApplication.getTextColor(getContext());
+        DESCRIPTION_COLOR = TEXT_COLOR = GBApplication.getTextColor(getContext());
         CHART_TEXT_COLOR = GBApplication.getSecondaryTextColor(getContext());
     }
 
@@ -177,7 +172,7 @@ public class CaloriesPeriodFragment extends CaloriesFragment<CaloriesPeriodFragm
         caloriesChart.getAxisLeft().setAxisMaximum((float) Math.max(set.getYMax() * 1.1, CALORIES_GOAL));
 
         BarData barData = new BarData(set);
-        barData.setValueTextColor(Color.GRAY); //prevent tearing other graph elements with the black text. Another approach would be to hide the values cmpletely with data.setDrawValues(false);
+        barData.setValueTextColor(TEXT_COLOR); //prevent tearing other graph elements with the black text. Another approach would be to hide the values cmpletely with data.setDrawValues(false);
         barData.setValueTextSize(10f);
         if (TOTAL_DAYS > 7) {
             caloriesChart.setRenderer(new AngledLabelsChartRenderer(caloriesChart, caloriesChart.getAnimator(), caloriesChart.getViewPortHandler()));

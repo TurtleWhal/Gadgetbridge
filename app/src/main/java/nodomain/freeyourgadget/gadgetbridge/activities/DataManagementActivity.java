@@ -16,7 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities;
 
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -53,15 +52,12 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.files.FileManagerActivity;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
-import nodomain.freeyourgadget.gadgetbridge.database.PeriodicExporter;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.ImportExportSharedPreferences;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 
 public class DataManagementActivity extends AbstractGBActivity {
@@ -181,69 +177,12 @@ public class DataManagementActivity extends AbstractGBActivity {
                 cleanExportDirectory();
             }
         });
-        GBApplication gbApp = GBApplication.app();
-        Prefs prefs = GBApplication.getPrefs();
-        boolean autoExportEnabled = prefs.getBoolean(GBPrefs.AUTO_EXPORT_ENABLED, false);
-        int autoExportInterval = prefs.getInt(GBPrefs.AUTO_EXPORT_INTERVAL, 0);
-        //returns an ugly content://...
-        //String autoExportLocation = prefs.getString(GBPrefs.AUTO_EXPORT_LOCATION, "");
-
-        int testExportVisibility = (autoExportInterval > 0 && autoExportEnabled) ? View.VISIBLE : View.GONE;
-        boolean isExportEnabled = autoExportInterval > 0 && autoExportEnabled;
-        TextView autoExportLocation_label = findViewById(R.id.autoExportLocation_label);
-        autoExportLocation_label.setVisibility(testExportVisibility);
-
-        TextView autoExportLocation_path = findViewById(R.id.autoExportLocation_path);
-        autoExportLocation_path.setVisibility(testExportVisibility);
-        autoExportLocation_path.setText(getAutoExportLocationUserString() + " (" + getAutoExportLocationPreferenceString() + ")" );
-
-        TextView autoExportEnabled_label = findViewById(R.id.autoExportEnabled);
-        if (isExportEnabled) {
-            autoExportEnabled_label.setText(getString(R.string.activity_db_management_autoexport_enabled_yes));
-        } else {
-            autoExportEnabled_label.setText(getString(R.string.activity_db_management_autoexport_enabled_no));
-        }
-
-        TextView autoExportScheduled = findViewById(R.id.autoExportScheduled);
-        autoExportScheduled.setVisibility(testExportVisibility);
-        long setAutoExportScheduledTimestamp = gbApp.getAutoExportScheduledTimestamp();
-        if (setAutoExportScheduledTimestamp > 0) {
-            autoExportScheduled.setText(getString(R.string.activity_db_management_autoexport_scheduled_yes,
-                    DateTimeUtils.formatDateTime(new Date(setAutoExportScheduledTimestamp))));
-        } else {
-            autoExportScheduled.setText(getResources().getString(R.string.activity_db_management_autoexport_scheduled_no));
-        }
-
-        TextView autoExport_lastTime_label = findViewById(R.id.autoExport_lastTime_label);
-        long lastAutoExportTimestamp = gbApp.getLastAutoExportTimestamp();
-
-        autoExport_lastTime_label.setVisibility(View.GONE);
-        autoExport_lastTime_label.setText(getString(R.string.autoExport_lastTime_label,
-                DateTimeUtils.formatDateTime(new Date(lastAutoExportTimestamp))));
-
-        if (lastAutoExportTimestamp > 0) {
-            autoExport_lastTime_label.setVisibility(testExportVisibility);
-            autoExport_lastTime_label.setVisibility(testExportVisibility);
-        }
-
-        final Context context = getApplicationContext();
-        Button testExportDBButton = findViewById(R.id.testExportDBButton);
-        testExportDBButton.setVisibility(testExportVisibility);
-        testExportDBButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sendBroadcast(new Intent(context, PeriodicExporter.class));
-                GB.toast(context,
-                        context.getString(R.string.activity_DB_test_export_message),
-                        Toast.LENGTH_SHORT, GB.INFO);
-            }
-        });
 
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
     }
 
     private String getAutoExportLocationPreferenceString() {
-        String autoExportLocation = GBApplication.getPrefs().getString(GBPrefs.AUTO_EXPORT_LOCATION, null);
+        String autoExportLocation = GBApplication.getPrefs().getString(GBPrefs.AUTO_EXPORT_DB_LOCATION, null);
         if (autoExportLocation == null) {
             return "";
         }
@@ -277,14 +216,6 @@ public class DataManagementActivity extends AbstractGBActivity {
         return "";
     }
 
-    private String getAutoExportLocationUserString() {
-        String location = getAutoExportLocationUri();
-        if (location == "") {
-            return getString(R.string.activity_db_management_autoexport_location);
-        }
-        return location;
-    }
-
     private boolean hasOldActivityDatabase() {
         return new DBHelper(this).existsDB("ActivityDatabase");
     }
@@ -304,7 +235,7 @@ public class DataManagementActivity extends AbstractGBActivity {
             File myFile = new File(myPath, "Export_preference");
             ImportExportSharedPreferences.exportToFile(sharedPrefs, myFile);
         } catch (IOException ex) {
-            GB.toast(this, getString(R.string.dbmanagementactivity_error_exporting_shared, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
+            GB.toast(this, getString(R.string.dbmanagementactivity_error_exporting_shared, ex.getLocalizedMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
         }
         try (DBHandler lockHandler = GBApplication.acquireDB()) {
             List<Device> activeDevices = DBHelper.getActiveDevices(lockHandler.getDaoSession());
@@ -331,7 +262,7 @@ public class DataManagementActivity extends AbstractGBActivity {
             File myFile = new File(myPath, "Export_preference");
             ImportExportSharedPreferences.importFromFile(sharedPrefs, myFile);
         } catch (Exception ex) {
-            GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_error_importing_db, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
+            GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_error_importing_db, ex.getLocalizedMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
         }
 
         try (DBHandler lockHandler = GBApplication.acquireDB()) {
@@ -357,7 +288,7 @@ public class DataManagementActivity extends AbstractGBActivity {
                 }
             }
         } catch (Exception e) {
-            GB.toast("Error importing device specific preferences", Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Error importing device specific preferences", Toast.LENGTH_SHORT, GB.ERROR, e);
         }
     }
 
@@ -377,7 +308,7 @@ public class DataManagementActivity extends AbstractGBActivity {
                             File destFile = helper.exportDB(dbHandler, dir);
                             GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_exported_to, destFile.getAbsolutePath()), Toast.LENGTH_LONG, GB.INFO);
                         } catch (Exception ex) {
-                            GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_error_exporting_db, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
+                            GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_error_exporting_db, ex.getLocalizedMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
                         }
                     }
                 })
@@ -407,7 +338,7 @@ public class DataManagementActivity extends AbstractGBActivity {
                             helper.validateDB(sqLiteOpenHelper);
                             GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_import_successful), Toast.LENGTH_LONG, GB.INFO);
                         } catch (Exception ex) {
-                            GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_error_importing_db, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
+                            GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_error_importing_db, ex.getLocalizedMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
                         }
                         importShared();
                     }
@@ -495,7 +426,7 @@ public class DataManagementActivity extends AbstractGBActivity {
                             }
                             GB.toast(getString(R.string.dbmanagementactivity_export_finished), Toast.LENGTH_SHORT, GB.INFO);
                         } catch (Exception ex) {
-                            GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_error_cleaning_export_directory, ex.getMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
+                            GB.toast(DataManagementActivity.this, getString(R.string.dbmanagementactivity_error_cleaning_export_directory, ex.getLocalizedMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
                         }
                     }
                 })

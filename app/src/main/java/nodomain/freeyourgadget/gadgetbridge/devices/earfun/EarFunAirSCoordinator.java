@@ -2,9 +2,6 @@ package nodomain.freeyourgadget.gadgetbridge.devices.earfun;
 
 import androidx.annotation.NonNull;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -21,14 +18,10 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.earfun.airs.EarFunAi
 import nodomain.freeyourgadget.gadgetbridge.service.devices.earfun.airs.EarFunAirSSettingsCustomizer;
 
 public class EarFunAirSCoordinator extends AbstractEarFunCoordinator {
-
-    private static final Logger LOG = LoggerFactory.getLogger(EarFunAirSCoordinator.class);
-
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_earfun_air_s;
     }
-
 
     @Override
     public boolean supports(GBDeviceCandidate candidate) {

@@ -23,6 +23,7 @@ import android.widget.Toast;
 import java.io.IOException;
 import java.util.UUID;
 
+import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.id115.ID115Constants;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEOperation;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
@@ -48,10 +49,10 @@ public abstract class AbstractID115Operation extends AbstractBTLEOperation<ID115
     @Override
     protected void prePerform() throws IOException {
         super.prePerform();
-        getDevice().setBusyTask("AbstractID115Operation starting..."); // mark as busy quickly to avoid interruptions from the outside
+        getDevice().setBusyTask(R.string.busy_task_busy, getContext()); // mark as busy quickly to avoid interruptions from the outside
         TransactionBuilder builder = performInitialized("disabling some notifications");
         enableNotifications(builder, true);
-        builder.queue(getQueue());
+        builder.queue();
     }
 
     @Override
@@ -63,7 +64,7 @@ public abstract class AbstractID115Operation extends AbstractBTLEOperation<ID115
                 TransactionBuilder builder = performInitialized("reenabling disabled notifications");
                 enableNotifications(builder, false);
                 builder.setCallback(null); // unset ourselves from being the queue's gatt callback
-                builder.queue(getQueue());
+                builder.queue();
             } catch (IOException ex) {
                 GB.toast(getContext(), "Error enabling ID115 notifications, you may need to connect and disconnect", Toast.LENGTH_LONG, GB.ERROR, ex);
             }
@@ -85,9 +86,9 @@ public abstract class AbstractID115Operation extends AbstractBTLEOperation<ID115
 
     void enableNotifications(TransactionBuilder builder, boolean enable) {
         if (isHealthOperation()) {
-            builder.notify(getCharacteristic(ID115Constants.UUID_CHARACTERISTIC_NOTIFY_HEALTH), enable);
+            builder.notify(ID115Constants.UUID_CHARACTERISTIC_NOTIFY_HEALTH, enable);
         } else {
-            builder.notify(getCharacteristic(ID115Constants.UUID_CHARACTERISTIC_NOTIFY_NORMAL), enable);
+            builder.notify(ID115Constants.UUID_CHARACTERISTIC_NOTIFY_NORMAL, enable);
         }
     }
 

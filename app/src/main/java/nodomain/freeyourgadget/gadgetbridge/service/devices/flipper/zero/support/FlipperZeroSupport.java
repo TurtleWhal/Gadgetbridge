@@ -26,6 +26,9 @@ import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -48,6 +51,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.protobuf.messagefields.StringMe
 import nodomain.freeyourgadget.gadgetbridge.util.protobuf.messagefields.VarintMessageField;
 
 public class FlipperZeroSupport extends FlipperZeroBaseSupport{
+    private static final Logger LOG = LoggerFactory.getLogger(FlipperZeroSupport.class);
     private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
 
     private BatteryInfoProfile batteryInfoProfile = new BatteryInfoProfile(this);
@@ -87,11 +91,11 @@ public class FlipperZeroSupport extends FlipperZeroBaseSupport{
 
         String filePath = intent.getStringExtra("EXTRA_FILE_PATH");
         if(filePath == null){
-            GB.log("missing EXTRA_FILE_PATH in intent", GB.ERROR, null);
+            LOG.error("missing EXTRA_FILE_PATH in intent");
             return;
         }
         if(filePath.isEmpty()){
-            GB.log("empty EXTRA_FILE_PATH in intent", GB.ERROR, null);
+            LOG.error("empty EXTRA_FILE_PATH in intent");
             return;
         }
 
@@ -133,16 +137,16 @@ public class FlipperZeroSupport extends FlipperZeroBaseSupport{
             recevierRegistered = true;
         }
 
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
-        builder.read(getCharacteristic(GattCharacteristic.UUID_CHARACTERISTIC_FIRMWARE_REVISION_STRING));
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
+        builder.read(GattCharacteristic.UUID_CHARACTERISTIC_FIRMWARE_REVISION_STRING);
 
         batteryInfoProfile.requestBatteryInfo(builder);
         batteryInfoProfile.enableNotify(builder, true);
 
         return builder
-                .notify(getCharacteristic(UUID.fromString(UUID_SERIAL_CHARACTERISTIC_RESPONSE)), true)
+                .notify(UUID.fromString(UUID_SERIAL_CHARACTERISTIC_RESPONSE), true)
                 .requestMtu(512)
-                .setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+                .setDeviceState(GBDevice.State.INITIALIZED);
     }
 
     @Override
@@ -157,18 +161,20 @@ public class FlipperZeroSupport extends FlipperZeroBaseSupport{
 
     @Override
     public void dispose() {
-        super.dispose();
+        synchronized (ConnectionMonitor) {
+            super.dispose();
 
-        if(recevierRegistered) {
-            getContext().unregisterReceiver(receiver);
-            recevierRegistered = false;
+            if (recevierRegistered) {
+                getContext().unregisterReceiver(receiver);
+                recevierRegistered = false;
+            }
         }
     }
 
     private void sendSerialData(byte[] data){
-        new TransactionBuilder("send serial data")
-                .write(getCharacteristic(UUID.fromString(UUID_SERIAL_CHARACTERISTIC_WRITE)), data)
-                .queue(getQueue());
+        createTransactionBuilder("send serial data")
+                .write(UUID.fromString(UUID_SERIAL_CHARACTERISTIC_WRITE), data)
+                .queue();
     }
 
     private RootMessageField createMainRequest(int requestFieldNumber, MessageField... children){

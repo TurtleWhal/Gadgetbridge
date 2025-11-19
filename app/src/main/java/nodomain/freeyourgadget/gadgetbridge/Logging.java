@@ -17,6 +17,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge;
 
+import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -57,7 +58,23 @@ public abstract class Logging {
             } else {
                 stopFileLogger();
             }
-            getLogger().info("Gadgetbridge version: {}-{}", BuildConfig.VERSION_NAME, BuildConfig.GIT_HASH_SHORT);
+            getLogger().info("Gadgetbridge version: {}-{} {} {}", BuildConfig.VERSION_NAME,
+                    BuildConfig.GIT_HASH_SHORT, BuildConfig.FLAVOR, BuildConfig.BUILD_TYPE);
+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) {
+                getLogger().info(
+                        "Android: SDK_INT={} SECURITY_PATCH={}",
+                        Build.VERSION.SDK_INT,
+                        Build.VERSION.SECURITY_PATCH
+                );
+            } else {
+                getLogger().info(
+                        "Android: SDK_INT={} SDK_INT_FULL={} SECURITY_PATCH={}",
+                        Build.VERSION.SDK_INT,
+                        Build.VERSION.SDK_INT_FULL,
+                        Build.VERSION.SECURITY_PATCH
+                );
+            }
         } catch (Exception ex) {
             Log.e("GBApplication", "External files dir not available, cannot log to file", ex);
             stopFileLogger();
@@ -121,7 +138,7 @@ public abstract class Logging {
         fileLogger = fileAppender;
     }
 
-    private void stopFileLogger() {
+    void stopFileLogger() {
         if (fileLogger == null) {
             return;
         }
@@ -198,7 +215,7 @@ public abstract class Logging {
         rollingPolicy.setContext(lc);
         rollingPolicy.setFileNamePattern(logDirectory + "/gadgetbridge-%d{yyyy-MM-dd}.%i.log.zip");
         rollingPolicy.setParent(fileAppender);
-        rollingPolicy.setMaxFileSize(FileSize.valueOf("2MB"));
+        rollingPolicy.setMaxFileSize(FileSize.valueOf("10MB"));
         rollingPolicy.setMaxHistory(10);
         rollingPolicy.setTotalSizeCap(FileSize.valueOf("100MB"));
         rollingPolicy.start();

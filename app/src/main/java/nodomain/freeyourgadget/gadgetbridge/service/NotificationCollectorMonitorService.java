@@ -17,20 +17,29 @@
 package nodomain.freeyourgadget.gadgetbridge.service;
 
 import android.app.ActivityManager;
+import android.app.Notification;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.Process;
+
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.NotificationListener;
+
+import static nodomain.freeyourgadget.gadgetbridge.util.GB.NOTIFICATION_CHANNEL_ID;
 
 /**
  * Original source by xinghui - see https://gist.github.com/xinghui/b2ddd8cffe55c4b62f5d8846d5545bf9
@@ -39,16 +48,30 @@ import nodomain.freeyourgadget.gadgetbridge.externalevents.NotificationListener;
 public class NotificationCollectorMonitorService extends Service {
 
     private static final Logger LOG = LoggerFactory.getLogger(NotificationCollectorMonitorService.class);
+    private static final int ONGOING_NOTIFICATION_ID = 1;
 
 
     @Override
     public void onCreate() {
         super.onCreate();
-        ensureCollectorRunning();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+
+        if (GBApplication.isRunningOreoOrLater()) {
+            Notification notification = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                    .setContentTitle(getString(R.string.service_notification_collector_service_title))
+                    .setContentText(getString(R.string.service_notification_collector_service_text))
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                    .build();
+
+            startForeground(ONGOING_NOTIFICATION_ID, notification);
+        }
+
+        ensureCollectorRunning();
+
         return START_STICKY;
     }
 
@@ -91,5 +114,19 @@ public class NotificationCollectorMonitorService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    @Override
+    @RequiresApi(api = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    public void onTimeout(int startId) {
+        LOG.info("onTimeout startId={}", startId);
+        super.onTimeout(startId);
+    }
+
+    @Override
+    @RequiresApi(api = Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    public void onTimeout(int startId, int fgsType) {
+        LOG.info("onTimeout startId={} fgsType={}", startId, fgsType);
+        super.onTimeout(startId, fgsType);
     }
 }

@@ -16,8 +16,13 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.discovery;
 
+import android.os.Build;
 import android.os.ParcelUuid;
+import android.util.SparseArray;
 
+import androidx.annotation.Nullable;
+
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
@@ -62,20 +68,21 @@ public final class GBScanEventProcessor implements Runnable {
 
     private boolean discoverUnsupported = false;
 
-    private volatile boolean running = false;
+    private final AtomicBoolean running;
     private Thread thread = null;
 
     private final Callback callback;
 
     public GBScanEventProcessor(final Callback callback) {
         this.callback = callback;
+        running = new AtomicBoolean(false);
     }
 
     @Override
     public void run() {
         LOG.info("Device Found Processor Thread started.");
 
-        while (running) {
+        while (running.get()) {
             try {
                 LOG.debug("Polling found devices queue, current size = {}", eventsToProcessQueue.size());
                 final String candidateAddress = eventsToProcessQueue.take();
@@ -93,12 +100,11 @@ public final class GBScanEventProcessor implements Runnable {
     }
 
     public void start() {
-        if (running) {
+        if (running.getAndSet(true)) {
             LOG.warn("Already running!");
             return;
         }
 
-        running = true;
         thread = new Thread("GBScanEventProcessor_" + THREAD_COUNTER.getAndIncrement()) {
             @Override
             public void run() {
@@ -109,7 +115,7 @@ public final class GBScanEventProcessor implements Runnable {
     }
 
     public void stop() {
-        running = false;
+        running.set(false);
 
         if (thread != null) {
             thread.interrupt();
@@ -169,7 +175,7 @@ public final class GBScanEventProcessor implements Runnable {
             final ParcelUuid[] uuids = candidate.getServiceUuids();
             if (uuids != null && uuids.length > 0) {
                 for (ParcelUuid uuid : uuids) {
-                    LOG.debug("  supports uuid: " + uuid.toString());
+                    LOG.debug("  supports uuid: {}", uuid.toString());
                 }
             }
         }
@@ -183,6 +189,12 @@ public final class GBScanEventProcessor implements Runnable {
         }
 
         return deviceType.isSupported();
+    }
+
+    private boolean mfgDataEqual(@NotNull SparseArray<byte[]> a, @Nullable SparseArray<byte[]> b) {
+        // Objects.equals does not do a full deep comparison of the objects, but it is the best
+        // option on older APIs.
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? a.contentEquals(b) : Objects.equals(a, b);
     }
 
     private boolean processAllScanEvents(final String address) {
@@ -201,6 +213,7 @@ public final class GBScanEventProcessor implements Runnable {
 
         String previousName = null;
         ParcelUuid[] previousUuids = null;
+        SparseArray<byte[]> previousManufacturerSpecificData = null;
         boolean firstTime = false;
 
         if (candidate == null) {
@@ -209,16 +222,21 @@ public final class GBScanEventProcessor implements Runnable {
             firstTime = true;
             final GBScanEvent firstEvent = events.get(0);
             events.remove(0);
-            candidate = new GBDeviceCandidate(firstEvent.getDevice(), firstEvent.getRssi(), firstEvent.getServiceUuids());
+            candidate = new GBDeviceCandidate(firstEvent.getDevice(),
+                                              firstEvent.getRssi(),
+                                              firstEvent.getServiceUuids(),
+                                              firstEvent.getManufacturerSpecificData());
         } else {
             previousName = candidate.getName();
             previousUuids = candidate.getServiceUuids();
+            previousManufacturerSpecificData = candidate.getManufacturerSpecificData();
         }
 
         // Update the device with the remaining events
         for (final GBScanEvent event : events) {
             candidate.setRssi(event.getRssi());
             candidate.addUuids(event.getServiceUuids());
+            candidate.addManufacturerSpecificData(event.getManufacturerSpecificData());
         }
 
         candidate.refreshNameIfUnknown();
@@ -229,8 +247,10 @@ public final class GBScanEventProcessor implements Runnable {
         }
 
         if (!firstTime) {
-            if (Objects.equals(candidate.getName(), previousName) && Arrays.equals(candidate.getServiceUuids(), previousUuids)) {
-                // Neither name nor uuids changed, do not reprocess
+            if (Objects.equals(candidate.getName(), previousName) &&
+                Arrays.equals(candidate.getServiceUuids(), previousUuids) &&
+                mfgDataEqual(candidate.getManufacturerSpecificData(), previousManufacturerSpecificData)) {
+                // The name, uuids, and MFG data did not change, do not reprocess.
                 LOG.trace("Not reprocessing {} due to no changes", address);
                 return false;
             }

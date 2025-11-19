@@ -22,6 +22,8 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
+
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -37,7 +39,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 
 /**
@@ -83,7 +84,7 @@ public interface EventHandler {
 
     void onEnableRealtimeSteps(boolean enable);
 
-    void onInstallApp(Uri uri);
+    void onInstallApp(Uri uri, @NonNull Bundle options);
 
     void onAppInfoReq();
 
@@ -137,7 +138,7 @@ public interface EventHandler {
 
     void onTestNewFunction();
 
-    void onSendWeather(ArrayList<WeatherSpec> weatherSpecs);
+    void onSendWeather();
 
     void onSetFmFrequency(float frequency);
 

@@ -1,5 +1,7 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.communicator.v2;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport.calcMaxWriteChunk;
+
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
@@ -15,6 +17,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -29,6 +34,7 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminTimeUtils;
@@ -49,30 +55,28 @@ public class CommunicatorV2 implements ICommunicator {
 
     private final GarminSupport mSupport;
 
-    private int gfdiHandle = 0;
+    private final Map<Integer, Service> serviceByHandle = new HashMap<>();
+    private final Map<Service, Integer> handleByService = new HashMap<>();
+    private final Map<Service, ServiceCallback> serviceCallbacks = new HashMap<>();
+
     public int maxWriteSize = 20;
-    public final CobsCoDec cobsCoDec;
 
-    private int realtimeHrHandle = 0;
     private boolean realtimeHrOneShot = false;
-
-    private int realtimeStepsHandle = 0;
     private int previousSteps = -1;
 
-    private int realtimeAccelHandle = 0;
-
-    private int realtimeSpo2Handle = 0;
-    private int realtimeRespirationHandle = 0;
-    private int realtimeHrvHandle = 0;
+    // MLR support
+    private final Map<Integer, MlrCommunicator> mlrCommunicators = new HashMap<>();
 
     public CommunicatorV2(final GarminSupport garminSupport) {
         this.mSupport = garminSupport;
-        this.cobsCoDec = new CobsCoDec();
     }
 
     @Override
     public void onMtuChanged(final int mtu) {
-        maxWriteSize = mtu - 3;
+        maxWriteSize = calcMaxWriteChunk(mtu);
+        for (MlrCommunicator communicator : mlrCommunicators.values()) {
+            communicator.setMaxPacketSize(maxWriteSize);
+        }
     }
 
     @Override
@@ -99,29 +103,50 @@ public class CommunicatorV2 implements ICommunicator {
     }
 
     @Override
+    public void dispose() {
+        // Close all MLR communicators
+        for (MlrCommunicator mlrComm : mlrCommunicators.values()) {
+            mlrComm.close();
+        }
+        mlrCommunicators.clear();
+    }
+
+    @Override
+    public void onConnectionStateChange(final BluetoothGatt gatt, final int status, final int newState) {
+        for (MlrCommunicator mlrComm : mlrCommunicators.values()) {
+            mlrComm.onConnectionStateChange(gatt, status, newState);
+        }
+    }
+
+    @Override
     public void sendMessage(final String taskName, final byte[] message) {
         if (null == message)
             return;
-        if (0 == gfdiHandle) {
+        final Integer gfdiHandle = handleByService.get(Service.GFDI);
+        if (gfdiHandle == null) {
             LOG.error("CANNOT SENT GFDI MESSAGE, HANDLE NOT YET SET. MESSAGE {}", message);
             return;
         }
-        final byte[] payload = cobsCoDec.encode(message);
-//        LOG.debug("SENDING MESSAGE: {} - COBS ENCODED: {}", GB.hexdump(message), GB.hexdump(payload));
-        final TransactionBuilder builder = new TransactionBuilder(taskName);
+        final byte[] payload = CobsCoDec.encode(message);
+        final MlrCommunicator mlr = mlrCommunicators.get(gfdiHandle);
+        if (mlr != null) {
+            mlr.sendMessage(taskName, payload);
+            return;
+        }
+        final TransactionBuilder builder = mSupport.createTransactionBuilder(taskName);
         int remainingBytes = payload.length;
         if (remainingBytes > maxWriteSize - 1) {
             int position = 0;
             while (remainingBytes > 0) {
                 final byte[] fragment = Arrays.copyOfRange(payload, position, position + Math.min(remainingBytes, maxWriteSize - 1));
-                builder.write(characteristicSend, ArrayUtils.addAll(new byte[]{(byte) gfdiHandle}, fragment));
+                builder.write(characteristicSend, ArrayUtils.addAll(new byte[]{gfdiHandle.byteValue()}, fragment));
                 position += fragment.length;
                 remainingBytes -= fragment.length;
             }
         } else {
-            builder.write(characteristicSend, ArrayUtils.addAll(new byte[]{(byte) gfdiHandle}, payload));
+            builder.write(characteristicSend, ArrayUtils.addAll(new byte[]{gfdiHandle.byteValue()}, payload));
         }
-        builder.queue(this.mSupport.getQueue());
+        builder.queue();
     }
 
     @Override
@@ -131,64 +156,99 @@ public class CommunicatorV2 implements ICommunicator {
             return false;
         }
 
+        if ((value[0] & MlrCommunicator.MLR_FLAG_MASK) != 0) {
+            // MLR packet - extract handle and forward to appropriate MLR communicator, but keep the mlr flag
+            final int handle = ((value[0] & MlrCommunicator.HANDLE_MASK) >> 4) | MlrCommunicator.MLR_FLAG_MASK;
+            final MlrCommunicator mlrComm = mlrCommunicators.get(handle);
+            if (mlrComm != null) {
+                mlrComm.onPacketReceived(value);
+                return true;
+            }
+            // #5476 - It looks like non-MLR handles can also have the msb set, so we let it fall through
+        }
+
         final ByteBuffer message = ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN);
         final byte handle = message.get();
 
         if (0x00 == handle) {
             processHandleManagement(message);
-        } else if (this.gfdiHandle == handle) {
-            processGfdi(message);
-        } else if (this.realtimeHrHandle == handle) {
-            processRealtimeHeartRate(message);
-        } else if (this.realtimeStepsHandle == handle) {
-            processRealtimeSteps(message);
-        } else if (this.realtimeAccelHandle == handle) {
-            processRealtimeAccelerometer(message);
-        } else if (this.realtimeSpo2Handle == handle) {
-            processRealtimeSpo2(message);
-        } else if (this.realtimeRespirationHandle == handle) {
-            processRealtimeRespiration(message);
-        } else if (this.realtimeHrvHandle == handle) {
-            processRealtimeHrv(message);
+            return true;
+        }
+
+        final Service service = serviceByHandle.get(handle & 0xff);
+        if (service != null) {
+            final ServiceCallback serviceCallback = serviceCallbacks.get(service);
+            if (serviceCallback != null) {
+                serviceCallback.onMessage(Arrays.copyOfRange(value, 1, value.length));
+            } else {
+                LOG.warn("Got message for {}, but no callback found", service);
+            }
         } else {
-            LOG.warn("Got message for unknown handle {}: {}", handle, GB.hexdump(value));
+            LOG.warn("Got message for unknown service on handle {}: {}", handle, GB.hexdump(value));
         }
 
         return true;
     }
 
+    public void startTransfer(final ServiceCallback callback) {
+        final Service service;
+        if (!handleByService.containsKey(Service.FILE_TRANSFER_2)) {
+            service = Service.FILE_TRANSFER_2;
+        } else if (!handleByService.containsKey(Service.FILE_TRANSFER_4)) {
+            service = Service.FILE_TRANSFER_4;
+        } else if (!handleByService.containsKey(Service.FILE_TRANSFER_6)) {
+            service = Service.FILE_TRANSFER_6;
+        } else if (!handleByService.containsKey(Service.FILE_TRANSFER_A)) {
+            service = Service.FILE_TRANSFER_A;
+        } else if (!handleByService.containsKey(Service.FILE_TRANSFER_C)) {
+            service = Service.FILE_TRANSFER_C;
+        } else if (!handleByService.containsKey(Service.FILE_TRANSFER_E)) {
+            service = Service.FILE_TRANSFER_E;
+        } else {
+            LOG.error("No file transfer services available");
+            callback.onClose();
+            return;
+        }
+
+        serviceCallbacks.put(service, callback);
+        mSupport.createTransactionBuilder("start file transfer")
+                .write(characteristicSend, registerService(service, mSupport.mlrEnabled()))
+                .queue();
+    }
+
     @Override
     public void onHeartRateTest() {
         realtimeHrOneShot = true;
-        if (realtimeHrHandle == 0) {
-            new TransactionBuilder("heart rate test")
+        if (!handleByService.containsKey(Service.REALTIME_HR)) {
+            mSupport.createTransactionBuilder("heart rate test")
                     .write(characteristicSend, registerService(Service.REALTIME_HR, false))
-                    .queue(this.mSupport.getQueue());
+                    .queue();
         }
     }
 
     @Override
     public void onEnableRealtimeHeartRateMeasurement(final boolean enable) {
-        toggleService(Service.REALTIME_HR, realtimeHrHandle, enable);
+        toggleService(Service.REALTIME_HR, enable);
     }
 
     @Override
     public void onEnableRealtimeSteps(final boolean enable) {
-        if (toggleService(Service.REALTIME_STEPS, realtimeStepsHandle, enable)) {
+        if (toggleService(Service.REALTIME_STEPS, enable)) {
             previousSteps = -1;
         }
     }
 
-    private boolean toggleService(final Service service, final int currentHandle, final boolean enable) {
+    private boolean toggleService(final Service service, final boolean enable) {
+        final int currentHandle = Objects.requireNonNull(handleByService.getOrDefault(service, 0));
         if (enable && currentHandle == 0) {
-            new TransactionBuilder(service + " = true")
+            mSupport.createTransactionBuilder(service + " = true")
                     .write(characteristicSend, registerService(service, false))
-                    .queue(this.mSupport.getQueue());
+                    .queue();
             return true;
         } else if (!enable && currentHandle != 0) {
-            new TransactionBuilder(service + " = false")
+            mSupport.createTransactionBuilder(service + " = false")
                     .write(characteristicSend, closeService(service, currentHandle))
-                    .queue(this.mSupport.getQueue());
+                    .queue();
             return true;
         }
 
@@ -229,35 +289,57 @@ public class CommunicatorV2 implements ICommunicator {
                     LOG.warn("Failed to register {}, status={}", registeredService, status);
                     return;
                 }
-                final int handle = message.get();
+                final int handle = message.get() & 0xff;
                 final int reliable = message.get();
                 LOG.debug("Got register response for {}, handle={}, reliable={}", registeredService, handle, reliable);
 
-                switch (registeredService) {
+                serviceByHandle.put(handle, registeredService);
+                handleByService.put(registeredService, handle);
+
+                final ServiceCallback serviceCallback = switch (registeredService) {
                     case GFDI:
-                        this.gfdiHandle = handle;
-                        break;
+                        yield new GfdiCallback(mSupport);
                     case REALTIME_HR:
-                        this.realtimeHrHandle = handle;
-                        break;
+                        yield new RealtimeHeartRateCallback();
                     case REALTIME_STEPS:
-                        this.realtimeStepsHandle = handle;
-                        break;
+                        yield new RealtimeStepsCallback();
                     case REALTIME_ACCELEROMETER:
-                        this.realtimeAccelHandle = handle;
-                        new TransactionBuilder("start realtime accel")
-                                .write(characteristicSend, new byte[]{(byte) handle, 0x01})
-                                .queue(this.mSupport.getQueue());
-                        break;
+                        yield new RealtimeAccelerometerCallback();
                     case REALTIME_SPO2:
-                        this.realtimeSpo2Handle = handle;
-                        break;
+                        yield new RealtimeSpo2Callback();
                     case REALTIME_RESPIRATION:
-                        this.realtimeRespirationHandle = handle;
-                        break;
+                        yield new RealtimeRespirationCallback();
                     case REALTIME_HRV:
-                        this.realtimeHrvHandle = handle;
-                        break;
+                        yield new RealtimeHrvCallback();
+                    case FILE_TRANSFER_2:
+                    case FILE_TRANSFER_4:
+                    case FILE_TRANSFER_6:
+                    case FILE_TRANSFER_A:
+                    case FILE_TRANSFER_C:
+                    case FILE_TRANSFER_E:
+                        // For these, the callback should have been provided by the caller in startTransfer
+                        yield serviceCallbacks.get(registeredService);
+                    default:
+                        LOG.error("Got register response for unknown service {}", registeredService);
+                        yield null;
+                };
+
+                if (serviceCallback == null) {
+                    LOG.error("Got service registration, but got no callback");
+                    closeService(registeredService, handle);
+                    return;
+                }
+
+                serviceCallbacks.put(registeredService, serviceCallback);
+
+                if (reliable != 0) {
+                    // MLR mode - create reliable communicator
+                    final MlrCommunicator mlrComm = createMlrCommunicator(handle, serviceCallback);
+                    mlrCommunicators.put(handle, mlrComm);
+                    serviceCallback.onConnect(new MlrServiceWriter(mlrComm));
+                } else {
+                    // Regular ML mode
+                    serviceCallback.onConnect(new MlServiceWriter(handle));
                 }
                 break;
             }
@@ -268,44 +350,38 @@ public class CommunicatorV2 implements ICommunicator {
                 final byte status = message.get();
                 LOG.debug("Received close handle response: service={}, handle={}, status={}", service, handle, status);
                 if (service != null) {
-                    switch (service) {
-                        case GFDI:
-                            this.gfdiHandle = 0;
-                            break;
-                        case REALTIME_HR:
-                            this.realtimeHrHandle = 0;
-                            break;
-                        case REALTIME_STEPS:
-                            this.realtimeStepsHandle = 0;
-                            break;
-                        case REALTIME_ACCELEROMETER:
-                            this.realtimeAccelHandle = 0;
-                            break;
-                        case REALTIME_SPO2:
-                            this.realtimeSpo2Handle = 0;
-                            break;
-                        case REALTIME_RESPIRATION:
-                            this.realtimeRespirationHandle = 0;
-                            break;
-                        case REALTIME_HRV:
-                            this.realtimeHrvHandle = 0;
-                            break;
+                    final ServiceCallback serviceCallback = serviceCallbacks.get(service);
+                    if (serviceCallback == null) {
+                        LOG.error("Got service registration close, but got no callback");
+                    } else {
+                        serviceCallback.onClose();
                     }
+                    // Clean up MLR communicator if it exists
+                    final MlrCommunicator mlrComm = mlrCommunicators.get(handle);
+                    if (mlrComm != null) {
+                        mlrComm.close();
+                        mlrCommunicators.remove(handle);
+                    }
+
+                    handleByService.remove(service);
+                    serviceCallbacks.remove(service);
                 }
+
+                serviceByHandle.remove(handle);
+
                 break;
             }
             case CLOSE_ALL_RESP:
                 LOG.debug("Received close all handles response. Message: {}", message.array());
-                this.gfdiHandle = 0;
-                this.realtimeHrHandle = 0;
-                this.realtimeStepsHandle = 0;
-                this.realtimeAccelHandle = 0;
-                this.realtimeSpo2Handle = 0;
-                this.realtimeRespirationHandle = 0;
-                this.realtimeHrvHandle = 0;
-                new TransactionBuilder("open GFDI")
-                        .write(characteristicSend, registerService(Service.GFDI, false))
-                        .queue(this.mSupport.getQueue());
+                serviceByHandle.clear();
+                handleByService.clear();
+                for (ServiceCallback callback : serviceCallbacks.values()) {
+                    callback.onClose();
+                }
+                serviceCallbacks.clear();
+                mSupport.createTransactionBuilder("open GFDI")
+                        .write(characteristicSend, registerService(Service.GFDI, mSupport.mlrEnabled()))
+                        .queue();
                 break;
             case UNK_RESP:
                 LOG.debug("Received unknown. Message: {}", message.array());
@@ -313,69 +389,95 @@ public class CommunicatorV2 implements ICommunicator {
         }
     }
 
-    private void processGfdi(final ByteBuffer message) {
-        final byte[] partial = new byte[message.remaining()];
-        message.get(partial);
-        this.cobsCoDec.receivedBytes(partial);
+    private static class GfdiCallback implements ServiceCallback {
+        private final CobsCoDec cobsCoDec = new CobsCoDec();
+        private final GarminSupport mSupport;
 
-        this.mSupport.onMessage(this.cobsCoDec.retrieveMessage());
+        private GfdiCallback(final GarminSupport support) {
+            this.mSupport = support;
+        }
+
+        @Override
+        public void onMessage(final byte[] value) {
+            this.cobsCoDec.receivedBytes(value);
+            this.mSupport.onMessage(this.cobsCoDec.retrieveMessage());
+        }
     }
 
-    private void processRealtimeHeartRate(final ByteBuffer buf) {
-        final byte type = buf.get(); // 0/2/3? 3 == realtime?
-        final int hr = buf.get();
-        final int resting = buf.get();
-        // ff ff after
-        LOG.debug("Got realtime HR: type={} hr={} resting={}", type, hr, resting);
+    private class RealtimeHeartRateCallback implements ServiceCallback {
+        @Override
+        public void onMessage(final byte[] value) {
+            final byte type = value[0]; // 0/2/3? 3 == realtime?
+            final int hr = value[1] & 0xff;
+            final int resting = value[2] & 0xff;
+            // ff ff after
+            LOG.debug("Got realtime HR: type={} hr={} resting={}", type, hr, resting);
 
-        if (hr > 0) {
-            broadcastRealtimeActivity(hr, -1);
+            if (hr > 0) {
+                broadcastRealtimeActivity(hr, -1);
 
-            if (realtimeHrOneShot && realtimeHrHandle != 0) {
-                onEnableRealtimeHeartRateMeasurement(false);
+                if (realtimeHrOneShot && handleByService.containsKey(Service.REALTIME_HR)) {
+                    onEnableRealtimeHeartRateMeasurement(false);
+                }
             }
         }
     }
 
-    private void processRealtimeSteps(final ByteBuffer buf) {
-        final int steps = buf.getInt();
-        final int goal = buf.getInt();
-        LOG.debug("Got realtime steps: steps={} goal={}", steps, goal);
+    private class RealtimeStepsCallback implements ServiceCallback {
+        @Override
+        public void onMessage(final byte[] value) {
+            final int steps = BLETypeConversions.toUint32(value, 0);
+            final int goal = BLETypeConversions.toUint32(value, 4);
+            LOG.debug("Got realtime steps: steps={} goal={}", steps, goal);
 
-        if (previousSteps == -1) {
+            if (previousSteps == -1) {
+                previousSteps = steps;
+            }
+
+            broadcastRealtimeActivity(-1, steps - previousSteps);
+
             previousSteps = steps;
         }
-
-        broadcastRealtimeActivity(-1, steps - previousSteps);
-
-        previousSteps = steps;
     }
 
-    private void processRealtimeAccelerometer(final ByteBuffer message) {
-        final byte[] partial = new byte[message.remaining()];
-        message.get(partial);
+    private static class RealtimeAccelerometerCallback implements ServiceCallback {
+        @Override
+        public void onConnect(final ServiceWriter writer) {
+            writer.write("start realtime accel", new byte[]{0x01});
+        }
 
-        LOG.debug("Got realtime accel: {}", GB.hexdump(partial));
+        @Override
+        public void onMessage(final byte[] value) {
+            LOG.debug("Got realtime accel: {}", GB.hexdump(value));
+        }
     }
 
-    private void processRealtimeSpo2(final ByteBuffer message) {
-        final int spo2 = message.get(); // -1 when unknown, and the ts is not valid in that case
-        final int garminTs = message.getInt();
+    private static class RealtimeSpo2Callback implements ServiceCallback {
+        @Override
+        public void onMessage(final byte[] value) {
+            final int spo2 = value[0]; // -1 when unknown, and the ts is not valid in that case
+            final int garminTs = BLETypeConversions.toUint32(value, 1);
 
-        LOG.debug("Got realtime SpO2 at {}: {}", new Date(GarminTimeUtils.garminTimestampToJavaMillis(garminTs)), spo2);
+            LOG.debug("Got realtime SpO2 at {}: {}", new Date(GarminTimeUtils.garminTimestampToJavaMillis(garminTs)), spo2);
+        }
     }
 
-    private void processRealtimeRespiration(final ByteBuffer message) {
-        final int breathsPerMinute = message.get(); // can be negative if unknown, usually -2
+    private static class RealtimeRespirationCallback implements ServiceCallback {
+        @Override
+        public void onMessage(final byte[] value) {
+            final int breathsPerMinute = value[0]; // can be negative if unknown, usually -2
 
-        LOG.debug("Got realtime respiration: {}", breathsPerMinute);
+            LOG.debug("Got realtime respiration: {}", breathsPerMinute);
+        }
     }
 
-    private void processRealtimeHrv(final ByteBuffer message) {
-        final short rr = message.getShort();
-        final int unk = message.getInt();
-
-        LOG.debug("Got realtime HRV: rr={}, unk={}", rr, unk);
+    private static class RealtimeHrvCallback implements ServiceCallback {
+        @Override
+        public void onMessage(final byte[] value) {
+            final int rr = BLETypeConversions.toUint16(value, 0);
+            final int unk = BLETypeConversions.toUint32(value, 2);
+            LOG.debug("Got realtime HRV: rr={}, unk={}", rr, unk);
+        }
     }
 
     private byte[] closeAllServices() {
@@ -473,6 +575,12 @@ public class CommunicatorV2 implements ICommunicator {
         REALTIME_SPO2(19),
         REALTIME_BODY_BATTERY(20),
         REALTIME_RESPIRATION(21),
+        FILE_TRANSFER_2(0x2018),
+        FILE_TRANSFER_4(0x4018),
+        FILE_TRANSFER_6(0x6018),
+        FILE_TRANSFER_A(0xa018),
+        FILE_TRANSFER_C(0xc018),
+        FILE_TRANSFER_E(0xe018),
         ;
 
         private final short code;
@@ -494,6 +602,59 @@ public class CommunicatorV2 implements ICommunicator {
             }
 
             return null;
+        }
+    }
+
+    public interface ServiceCallback {
+        default void onConnect(ServiceWriter writer) {
+
+        }
+
+        default void onClose() {
+
+        }
+
+        void onMessage(byte[] value);
+    }
+
+    public interface ServiceWriter {
+        void write(String taskName, byte[] value);
+    }
+
+    public class MlServiceWriter implements ServiceWriter {
+        private final int handle;
+
+        private MlServiceWriter(final int handle) {
+            this.handle = handle;
+        }
+
+        public void write(final String taskName, final byte[] value) {
+            final ByteBuffer buf = ByteBuffer.allocate(value.length + 1);
+            buf.put((byte) handle);
+            buf.put(value);
+            mSupport.createTransactionBuilder(taskName)
+                    .write(characteristicSend, buf.array())
+                    .queue();
+        }
+    }
+
+    private MlrCommunicator createMlrCommunicator(final int handle, final ServiceCallback callback) {
+        final MlrCommunicator.MessageSender messageSender = (taskName, packet) -> mSupport.createTransactionBuilder(taskName)
+                .write(characteristicSend, packet)
+                .queue();
+
+        return new MlrCommunicator(handle, maxWriteSize, messageSender, callback::onMessage);
+    }
+
+    public static class MlrServiceWriter implements ServiceWriter {
+        private final MlrCommunicator mlrComm;
+
+        private MlrServiceWriter(final MlrCommunicator mlrComm) {
+            this.mlrComm = mlrComm;
+        }
+
+        public void write(final String taskName, final byte[] value) {
+            mlrComm.sendMessage(taskName, value);
         }
     }
 }

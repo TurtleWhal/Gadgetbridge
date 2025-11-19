@@ -28,9 +28,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -59,12 +61,14 @@ import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem;
+import nodomain.freeyourgadget.gadgetbridge.model.ItemWithDetails;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
@@ -187,8 +191,8 @@ public class QHybridSupport extends QHybridBaseSupport {
                         MoveHandsRequest.MovementConfiguration movement = new MoveHandsRequest.MovementConfiguration(false);
                         if (config != null) {
                             if(config.getHour() != -1) movement.setHourDegrees(config.getHour());
-                            if(config.getMin() != -1) movement.setHourDegrees(config.getMin());
-                            if(config.getSubEye() != -1) movement.setHourDegrees(config.getSubEye());
+                            if(config.getMin() != -1) movement.setMinuteDegrees(config.getMin());
+                            if(config.getSubEye() != -1) movement.setSubDegrees(config.getSubEye());
                             watchAdapter.setHands(movement);
                         } else {
                             movement.setHourDegrees(0);
@@ -206,13 +210,17 @@ public class QHybridSupport extends QHybridBaseSupport {
                         if(config == null) break;
                         MoveHandsRequest.MovementConfiguration movement = new MoveHandsRequest.MovementConfiguration(false);
                         if(config.getHour() != -1) movement.setHourDegrees(config.getHour());
-                        if(config.getMin() != -1) movement.setHourDegrees(config.getMin());
-                        if(config.getSubEye() != -1) movement.setHourDegrees(config.getSubEye());
+                        if(config.getMin() != -1) movement.setMinuteDegrees(config.getMin());
+                        if(config.getSubEye() != -1) movement.setSubDegrees(config.getSubEye());
                         watchAdapter.setHands(movement);
                         break;
                     }
                     case QHYBRID_COMMAND_MOVE: {
                         MoveHandsRequest.MovementConfiguration movement = new MoveHandsRequest.MovementConfiguration(true);
+                        if (extras == null) {
+                            logger.error("Got QHYBRID_COMMAND_MOVE without extras");
+                            break;
+                        }
                         if(extras.containsKey("EXTRA_DISTANCE_HOUR")) movement.setHourDegrees(extras.getShort("EXTRA_DISTANCE_HOUR"));
                         if(extras.containsKey("EXTRA_DISTANCE_MINUTE")) movement.setMinuteDegrees(extras.getShort("EXTRA_DISTANCE_MINUTE"));
                         if(extras.containsKey("EXTRA_DISTANCE_SUB")) movement.setSubDegrees(extras.getShort("EXTRA_DISTANCE_SUB"));
@@ -246,17 +254,36 @@ public class QHybridSupport extends QHybridBaseSupport {
                     }
                     case QHYBRID_COMMAND_UPDATE_SETTINGS: {
                         String newSetting = intent.getStringExtra("EXTRA_SETTING");
+                        if (newSetting == null) {
+                            logger.error("newSetting is null");
+                            break;
+                        }
                         switch (newSetting) {
                             case ITEM_VIBRATION_STRENGTH: {
-                                watchAdapter.setVibrationStrength(Short.parseShort(gbDevice.getDeviceInfo(ITEM_VIBRATION_STRENGTH).getDetails()));
+                                final ItemWithDetails itemVibrationStrength = gbDevice.getDeviceInfo(ITEM_VIBRATION_STRENGTH);
+                                if (itemVibrationStrength == null) {
+                                    logger.error("itemVibrationStrength is null");
+                                    break;
+                                }
+                                watchAdapter.setVibrationStrength(Short.parseShort(itemVibrationStrength.getDetails()));
                                 break;
                             }
                             case ITEM_STEP_GOAL: {
-                                watchAdapter.setStepGoal(Integer.parseInt(gbDevice.getDeviceInfo(ITEM_STEP_GOAL).getDetails()));
+                                final ItemWithDetails itemStepGoal = gbDevice.getDeviceInfo(ITEM_STEP_GOAL);
+                                if (itemStepGoal == null) {
+                                    logger.error("itemStepGoal is null");
+                                    break;
+                                }
+                                watchAdapter.setStepGoal(Integer.parseInt(itemStepGoal.getDetails()));
                                 break;
                             }
                             case ITEM_USE_ACTIVITY_HAND: {
-                                QHybridSupport.this.useActivityHand = gbDevice.getDeviceInfo(ITEM_USE_ACTIVITY_HAND).getDetails().equals("true");
+                                final ItemWithDetails itemUseActivityHand = gbDevice.getDeviceInfo(ITEM_USE_ACTIVITY_HAND);
+                                if (itemUseActivityHand == null) {
+                                    logger.error("itemUseActivityHand is null");
+                                    break;
+                                }
+                                QHybridSupport.this.useActivityHand = itemUseActivityHand.getDetails().equals("true");
                                 GBApplication.getPrefs().getPreferences().edit().putBoolean("QHYBRID_USE_ACTIVITY_HAND", useActivityHand).apply();
                                 break;
                             }
@@ -316,14 +343,20 @@ public class QHybridSupport extends QHybridBaseSupport {
         globalCommandReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (watchAdapter == null) {
+                if (watchAdapter == null || intent.getAction() == null) {
+                    return;
+                }
+
+                final Bundle extras = intent.getExtras();
+                if (extras == null) {
+                    logger.error("Got {} without extras", intent.getAction());
                     return;
                 }
 
                 switch (intent.getAction()) {
                     case QHYBRID_ACTION_SET_ACTIVITY_HAND: {
                         try {
-                            String extra = String.valueOf(intent.getExtras().get("EXTRA_PROGRESS"));
+                            String extra = String.valueOf(extras.get("EXTRA_PROGRESS"));
                             float progress = Float.parseFloat(extra);
                             watchAdapter.setActivityHand(progress);
 
@@ -334,14 +367,14 @@ public class QHybridSupport extends QHybridBaseSupport {
                                     PlayNotificationRequest.VibrationType.NO_VIBE
                             ));
                         } catch (Exception e) {
-                            GB.log("wrong number format", GB.ERROR, e);
+                            logger.error("wrong number format", e);
                             logger.debug("trash extra should be number 0.0-1.0");
                         }
                         break;
                     }
                     case QHYBRID_COMMAND_SET_MENU_MESSAGE: {
-                        String message = String.valueOf(intent.getExtras().get("EXTRA_MESSAGE"));
-                        boolean finished = Boolean.valueOf(String.valueOf(intent.getExtras().get("EXTRA_FINISHED")));
+                        String message = String.valueOf(extras.get("EXTRA_MESSAGE"));
+                        boolean finished = Boolean.parseBoolean(String.valueOf(extras.get("EXTRA_FINISHED")));
 
                         watchAdapter.setCommuteMenuMessage(message, finished);
 
@@ -350,13 +383,13 @@ public class QHybridSupport extends QHybridBaseSupport {
                     case QHYBRID_COMMAND_SET_WIDGET_CONTENT: {
                         HashMap<String, String> widgetValues = new HashMap<>();
 
-                        for(String key : intent.getExtras().keySet()){
+                        for(String key : extras.keySet()){
                             if(key.matches("^EXTRA_WIDGET_ID_.*$")){
-                                widgetValues.put(key.substring(16), String.valueOf(intent.getExtras().get(key)));
+                                widgetValues.put(key.substring(16), String.valueOf(extras.get(key)));
                             }
                         }
                         boolean render = intent.getBooleanExtra("EXTRA_RENDER", true);
-                        if(widgetValues.size() > 0){
+                        if (!widgetValues.isEmpty()){
                             Iterator<String> valuesIterator = widgetValues.keySet().iterator();
                             valuesIterator.next();
 
@@ -369,8 +402,8 @@ public class QHybridSupport extends QHybridBaseSupport {
                             String id = valuesIterator.next();
                             watchAdapter.setWidgetContent(id, widgetValues.get(id), render);
                         }else {
-                            String id = String.valueOf(intent.getExtras().get("EXTRA_WIDGET_ID"));
-                            String content = String.valueOf(intent.getExtras().get("EXTRA_CONTENT"));
+                            String id = String.valueOf(extras.get("EXTRA_WIDGET_ID"));
+                            String content = String.valueOf(extras.get("EXTRA_CONTENT"));
                             watchAdapter.setWidgetContent(id, content, render);
                         }
                         break;
@@ -381,11 +414,11 @@ public class QHybridSupport extends QHybridBaseSupport {
                         break;
                     }
                     case QHYBRID_COMMAND_PUSH_CONFIG:{
-                        handleConfigSetIntent(intent);
+                        handleConfigSetIntent(extras);
                         break;
                     }
                     case QHYBRID_COMMAND_SWITCH_WATCHFACE:{
-                        handleSwitchWatchfaceIntent(intent);
+                        handleSwitchWatchfaceIntent(extras);
                         break;
                     }
                     case QHYBRID_COMMAND_SET_MENU_STRUCTURE:{
@@ -398,14 +431,14 @@ public class QHybridSupport extends QHybridBaseSupport {
         ContextCompat.registerReceiver(GBApplication.getContext(), globalCommandReceiver, globalFilter, ContextCompat.RECEIVER_EXPORTED);
     }
 
-    private void handleConfigSetIntent(Intent intent) {
-        String configJson = intent.getExtras().getString("EXTRA_CONFIG_JSON", "{}");
+    private void handleConfigSetIntent(Bundle extras) {
+        String configJson = extras.getString("EXTRA_CONFIG_JSON", "{}");
         watchAdapter.pushConfigJson(configJson);
     }
 
-    private void handleSwitchWatchfaceIntent(Intent intent) {
-        String watchfaceName = intent.getExtras().getString("WATCHFACE_NAME", "");
-        if (watchfaceName != "") {
+    private void handleSwitchWatchfaceIntent(Bundle extras) {
+        String watchfaceName = extras.getString("WATCHFACE_NAME", "");
+        if (!StringUtils.isBlank(watchfaceName)) {
             ((FossilHRWatchAdapter) watchAdapter).activateWatchface(watchfaceName);
         }
     }
@@ -430,7 +463,7 @@ public class QHybridSupport extends QHybridBaseSupport {
             GB.toast(getContext().getString(R.string.info_menu_structure_set), Toast.LENGTH_SHORT, GB.INFO);
         } catch (JSONException e) {
             logger.error("Menu structure json empty");
-            GB.toast(getContext().getString(R.string.error_invalid_menu_structure), Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast(getContext().getString(R.string.error_invalid_menu_structure), Toast.LENGTH_SHORT, GB.ERROR, e);
         }
     }
 
@@ -450,8 +483,7 @@ public class QHybridSupport extends QHybridBaseSupport {
         if(handleObject instanceof String){
             handleObject = FileHandle.fromName((String)handleObject);
         }
-        if(!(handleObject instanceof FileHandle)) return;
-        FileHandle handle = (FileHandle) handleObject;
+        if(!(handleObject instanceof FileHandle handle)) return;
         watchAdapter.uploadFileGenerateHeader(handle, filePath, intent.getBooleanExtra("EXTRA_ENCRYPTED", false));
     }
 
@@ -463,12 +495,14 @@ public class QHybridSupport extends QHybridBaseSupport {
 
     @Override
     public void dispose() {
-        LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(commandReceiver);
-        GBApplication.getContext().unregisterReceiver(globalCommandReceiver);
-        if (watchAdapter != null) {
-            watchAdapter.dispose();
+        synchronized (ConnectionMonitor) {
+            LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(commandReceiver);
+            GBApplication.getContext().unregisterReceiver(globalCommandReceiver);
+            if (watchAdapter != null) {
+                watchAdapter.dispose();
+            }
+            super.dispose();
         }
-        super.dispose();
     }
 
     @Override
@@ -503,7 +537,7 @@ public class QHybridSupport extends QHybridBaseSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         this.useActivityHand = GBApplication.getPrefs().getBoolean("QHYBRID_USE_ACTIVITY_HAND", false);
         getDevice().addDeviceInfo(new GenericItem(ITEM_USE_ACTIVITY_HAND, String.valueOf(this.useActivityHand)));
@@ -514,16 +548,16 @@ public class QHybridSupport extends QHybridBaseSupport {
         }
 
         for (int i = 2; i <= 7; i++)
-            builder.notify(getCharacteristic(UUID.fromString("3dda000" + i + "-957f-7d4a-34a6-74696673696d")), true);
+            builder.notify(UUID.fromString("3dda000" + i + "-957f-7d4a-34a6-74696673696d"), true);
 
-        builder.notify(getCharacteristic(UUID.fromString("010541ae-efe8-11c0-91c0-105d1a1155f0")), true);
-        builder.notify(getCharacteristic(UUID.fromString("fef9589f-9c21-4d19-9fc0-105d1a1155f0")), true);
-        builder.notify(getCharacteristic(UUID.fromString("842d2791-0d20-4ce4-1ada-105d1a1155f0")), true);
+        builder.notify(UUID.fromString("010541ae-efe8-11c0-91c0-105d1a1155f0"), true);
+        builder.notify(UUID.fromString("fef9589f-9c21-4d19-9fc0-105d1a1155f0"), true);
+        builder.notify(UUID.fromString("842d2791-0d20-4ce4-1ada-105d1a1155f0"), true);
 
         builder
-                .read(getCharacteristic(UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")))
-                .read(getCharacteristic(UUID.fromString("00002a26-0000-1000-8000-00805f9b34fb")))
-                .read(getCharacteristic(UUID.fromString("00002a24-0000-1000-8000-00805f9b34fb")))
+                .read(UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb"))
+                .read(UUID.fromString("00002a26-0000-1000-8000-00805f9b34fb"))
+                .read(UUID.fromString("00002a24-0000-1000-8000-00805f9b34fb"))
                 // .notify(getCharacteristic(UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")), true)
         ;
 
@@ -540,7 +574,7 @@ public class QHybridSupport extends QHybridBaseSupport {
         try {
             watchAdapter.setMusicInfo(musicSpec);
         }catch (Exception e){
-            GB.log("setMusicInfo error", GB.ERROR, e);
+            logger.error("setMusicInfo error", e);
         }
     }
 
@@ -555,7 +589,7 @@ public class QHybridSupport extends QHybridBaseSupport {
     public void onFetchRecordedData(int dataTypes) {
         if ((dataTypes & RecordedDataTypes.TYPE_ACTIVITY) != 0) {
             GB.updateTransferNotification(getContext().getString(R.string.busy_task_fetch_activity_data), "", true, 0, getContext());
-            getDevice().setBusyTask(getContext().getString(R.string.busy_task_fetch_activity_data));
+            getDevice().setBusyTask(R.string.busy_task_fetch_activity_data, getContext());
             getDevice().sendDeviceUpdateIntent(getContext());
             this.watchAdapter.onFetchActivityData();
         }
@@ -652,7 +686,7 @@ public class QHybridSupport extends QHybridBaseSupport {
 
         for (String notificationPackage : NotificationListener.notificationStack) {
             for (NotificationConfiguration notificationConfiguration : configs.keySet()) {
-                if (configs.get(notificationConfiguration)) continue;
+                if (Boolean.TRUE.equals(configs.get(notificationConfiguration))) continue;
                 if (notificationConfiguration.getPackageName().equals(notificationPackage)) {
                     notificationProgress += 0.25;
                     configs.put(notificationConfiguration, true);
@@ -704,8 +738,12 @@ public class QHybridSupport extends QHybridBaseSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        watchAdapter.onSendWeather(weatherSpecs.get(0));
+    public void onSendWeather() {
+        final WeatherSpec weatherSpec = Weather.getWeatherSpec();
+        if (weatherSpec == null) {
+            return;
+        }
+        watchAdapter.onSendWeather(weatherSpec);
     }
 
     @Override
@@ -714,7 +752,7 @@ public class QHybridSupport extends QHybridBaseSupport {
     }
 
     @Override
-    public void onInstallApp(Uri uri) {
+    public void onInstallApp(Uri uri, @NonNull final Bundle options) {
         watchAdapter.onInstallApp(uri);
     }
 
@@ -724,7 +762,7 @@ public class QHybridSupport extends QHybridBaseSupport {
             if (file.exists()) {
                 throw new Exception("file " + file.getPath() + " exists");
             }
-            logger.debug("Writing file " + file.getPath());
+            logger.debug("Writing file {}", file.getPath());
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(request.file);
             }
@@ -738,7 +776,7 @@ public class QHybridSupport extends QHybridBaseSupport {
             //TODO file stuff
             // queueWrite(new EraseFileRequest((short) request.fileHandle));
         } catch (Exception e) {
-            GB.log("error", GB.ERROR, e);
+            logger.error("error", e);
             if (request.fileHandle > 257) {
                 // queueWrite(new DownloadFileRequest((short) (request.fileHandle - 1)));
             }
@@ -761,7 +799,7 @@ public class QHybridSupport extends QHybridBaseSupport {
                 Matcher matcher = Pattern
                         .compile("(?<=[A-Z]{2}[0-9]\\.[0-9]\\.)[0-9]+\\.[0-9]+")
                         .matcher(firmwareVersion);
-                if(matcher.find()){
+                if (matcher.find()){
                     gbDevice.setFirmwareVersion2(matcher.group());
                 }
 
@@ -778,7 +816,7 @@ public class QHybridSupport extends QHybridBaseSupport {
                     gbDevice.addDeviceInfo(new GenericItem(ITEM_EXTENDED_VIBRATION_SUPPORT, String.valueOf(watchAdapter.supportsExtendedVibration())));
                     gbDevice.addDeviceInfo(new GenericItem(ITEM_HAS_ACTIVITY_HAND, String.valueOf(watchAdapter.supportsActivityHand())));
                 } catch (UnsupportedOperationException e) {
-                    GB.log("error", GB.ERROR, e);
+                    logger.error("error", e);
                     gbDevice.addDeviceInfo(new GenericItem(ITEM_EXTENDED_VIBRATION_SUPPORT, "false"));
                 }
                 break;

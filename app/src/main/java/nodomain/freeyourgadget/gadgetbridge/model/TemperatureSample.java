@@ -17,12 +17,38 @@
 package nodomain.freeyourgadget.gadgetbridge.model;
 
 public interface TemperatureSample extends TimeSample {
+    int TYPE_UNKNOWN = 0;
+    int TYPE_BODY = 1;
+    int TYPE_SKIN = 2;
+    int TYPE_AMBIENT = 3;
+
+    int LOCATION_UNKNOWN = 0;
+    int LOCATION_ARMPIT = 1;
+    int LOCATION_FINGER = 2;
+    int LOCATION_FOREHEAD = 3;
+    int LOCATION_MOUTH = 4;
+    int LOCATION_RECTUM = 5;
+    int LOCATION_TEMPORAL_ARTERY = 6;
+    int LOCATION_TOE = 7;
+    int LOCATION_EAR = 8;
+    int LOCATION_WRIST = 9;
+
     /**
      * Returns the temperature value.
      */
     float getTemperature();
+
     /**
      * Returns the temperature type (the position on the body where the measurement was taken).
      */
-    int getTemperatureType();
+    default int getTemperatureType() {
+        return TYPE_UNKNOWN;
+    }
+
+    /**
+     * Returns the temperature measurement location (the position on the body where the measurement was taken).
+     */
+    default int getTemperatureLocation() {
+        return LOCATION_UNKNOWN;
+    }
 }

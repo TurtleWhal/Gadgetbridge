@@ -23,7 +23,6 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.content.Context;
 import android.os.Build;
 
-import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
@@ -111,11 +110,6 @@ public abstract class AbstractBTLEOperation<T extends AbstractBTLESingleDeviceSu
         TransactionBuilder builder = mSupport.createTransactionBuilder(taskName);
         builder.setCallback(this);
         return builder;
-    }
-
-    /// Delegates to {@link AbstractBTLESingleDeviceSupport#performImmediately(TransactionBuilder)}
-    public void performImmediately(TransactionBuilder builder) throws IOException {
-        mSupport.performImmediately(builder);
     }
 
     /// Delegates to {@link AbstractBTLESingleDeviceSupport#getContext()}

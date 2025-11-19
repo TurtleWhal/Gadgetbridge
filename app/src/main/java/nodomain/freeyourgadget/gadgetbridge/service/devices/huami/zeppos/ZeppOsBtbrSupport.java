@@ -26,6 +26,8 @@ import android.os.Looper;
 import android.util.SparseArray;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+
 import org.apache.commons.lang3.RandomUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +52,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.AbstractBTBRDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder;
@@ -99,9 +100,8 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
     private long lastWrite = -1;
 
     public ZeppOsBtbrSupport() {
-        super(LOG);
+        super(LOG, MAX_MTU);
         addSupportedService(HuamiService.UUID_BT_SERIAL_SERVICE);
-        setBufferSize(MAX_MTU);
     }
 
     @Override
@@ -117,9 +117,11 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
 
     @Override
     public void dispose() {
-        zeppOsSupport.dispose();
-        pingHandler.removeCallbacksAndMessages(null);
-        super.dispose();
+        synchronized (ConnectionMonitor) {
+            zeppOsSupport.dispose();
+            pingHandler.removeCallbacksAndMessages(null);
+            super.dispose();
+        }
     }
 
     @Override
@@ -257,7 +259,7 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
                 sessionNonce = RandomUtils.insecure().randomInt();
                 final TransactionBuilder builder = createTransactionBuilder("session start");
                 write(builder, CMD_SESSION_START, BLETypeConversions.fromUint32(sessionNonce));
-                builder.queue(getQueue());
+                builder.queue();
                 return;
             }
             case CMD_SESSION_START_ACK: {
@@ -285,7 +287,7 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
 
                 final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder("auth phase 1");
                 zeppOsSupport.initializeDevice(builder);
-                builder.queue(zeppOsSupport);
+                builder.queue();
 
                 return;
             }
@@ -334,7 +336,7 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
                     // untested, based on what we see in the watch->phone ack when requested
                     final TransactionBuilder builder = createTransactionBuilder("channel ack");
                     write(builder, CMD_CHANNEL_ACK, new byte[]{session, seqNumRx, 0x01 /* ok */, 0x00 /* ? */});
-                    builder.queue(getQueue());
+                    builder.queue();
                 }
                 return;
             }
@@ -359,7 +361,7 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
 
                 final TransactionBuilder builder = createTransactionBuilder("pong");
                 write(builder, CMD_PONG, new byte[]{session, 0x01, 0x00, 0x00});
-                builder.queue(getQueue());
+                builder.queue();
 
                 // When we send a ping, watch replies with a pong. However, we never actually saw it happen
                 // in the other direction, and sending the pong is not enough. The official app will
@@ -407,7 +409,7 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
     private void sendPing() {
         final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder("ping with request apps");
         zeppOsSupport.requestApps(builder);
-        builder.queue(zeppOsSupport);
+        builder.queue();
     }
 
     // =============================================================================================
@@ -564,8 +566,8 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
     }
 
     @Override
-    public void onInstallApp(final Uri uri) {
-        zeppOsSupport.onInstallApp(uri);
+    public void onInstallApp(final Uri uri, @NonNull final Bundle options) {
+        zeppOsSupport.onInstallApp(uri, options);
     }
 
     @Override
@@ -594,8 +596,8 @@ public class ZeppOsBtbrSupport extends AbstractBTBRDeviceSupport implements Zepp
     }
 
     @Override
-    public void onSendWeather(final ArrayList<WeatherSpec> weatherSpecs) {
-        zeppOsSupport.onSendWeather(weatherSpecs);
+    public void onSendWeather() {
+        zeppOsSupport.onSendWeather();
     }
 
     @Override

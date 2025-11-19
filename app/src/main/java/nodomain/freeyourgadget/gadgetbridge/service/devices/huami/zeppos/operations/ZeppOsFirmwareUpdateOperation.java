@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.operations;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport.calcMaxWriteChunk;
+
 import android.net.Uri;
 import android.widget.Toast;
 
@@ -85,16 +87,16 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
             throw new IOException("Not a Zepp OS coordinator for " + getDevice().getAddress());
         }
 
-        getDevice().setBusyTask("Operation starting..."); // mark as busy quickly to avoid interruptions from the outside
+        getDevice().setBusyTask(R.string.updating_firmware, getContext()); // mark as busy quickly to avoid interruptions from the outside
         ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("fw update starting");
         enableOtherNotifications(builder, false);
         enableNeededNotifications(builder, true);
-        builder.queue(getSupport());
+        builder.queue();
 
         fwHelper = new ZeppOsFwHelper(
                 uri,
                 getContext(),
-                ((ZeppOsCoordinator) coordinator).getDeviceBluetoothName(),
+                ((ZeppOsCoordinator) coordinator).getDeviceBluetoothNames(),
                 ((ZeppOsCoordinator) coordinator).getDeviceSources()
         );
 
@@ -109,11 +111,12 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
 
     @Override
     protected void operationFinished() {
+        super.operationFinished();
         getSupport().onFirmwareUpdateFinished();
         ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("fw update finish");
         enableNeededNotifications(builder, false);
         enableOtherNotifications(builder, true);
-        builder.queue(getSupport());
+        builder.queue();
     }
 
     protected void done() {
@@ -150,7 +153,7 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
                     //    break;
                     case UpdateFirmwareOperation2020.REPLY_UPDATE_PROGRESS:
                         int offset = (value[2] & 0xff) | ((value[3] & 0xff) << 8) | ((value[4] & 0xff) << 16) | ((value[5] & 0xff) << 24);
-                        LOG.info("update progress " + offset + " bytes");
+                        LOG.info("update progress {} bytes", offset);
                         sendFirmwareDataChunk(offset);
                         break;
                     case UpdateFirmwareOperation2020.COMMAND_COMPLETE_TRANSFER:
@@ -160,7 +163,7 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
                         if (fwHelper.getFirmwareType() == HuamiFirmwareType.FIRMWARE) {
                             ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("reboot");
                             builder.write(HuamiService.UUID_CHARACTERISTIC_FIRMWARE_CONTROL, new byte[]{HuamiService.COMMAND_FIRMWARE_REBOOT});
-                            builder.queue(getSupport());
+                            builder.queue();
                         } else {
                             GB.updateInstallNotification(getContext().getString(R.string.updatefirmwareoperation_update_complete), false, 100, getContext());
                             done();
@@ -207,13 +210,13 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
                 ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("request display items and apps");
                 getSupport().requestDisplayItems(builder);
                 getSupport().requestApps(builder);
-                builder.queue(getSupport());
+                builder.queue();
             } else if (fwHelper.getFirmwareType() == HuamiFirmwareType.WATCHFACE) {
                 // After a watchface is installed, request the watchfaces from the band (new watchface will be at the end)
                 ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("request watchfaces and apps");
                 getSupport().requestWatchfaces(builder);
                 getSupport().requestApps(builder);
-                builder.queue(getSupport());
+                builder.queue();
             }
         }
     }
@@ -224,9 +227,9 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
 
     public void sendFwInfo() {
         ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("send firmware info");
-        builder.setBusy(getDevice(), getContext().getString(R.string.updating_firmware), getContext());
+        builder.setBusy(R.string.updating_firmware);
         builder.write(HuamiService.UUID_CHARACTERISTIC_FIRMWARE_CONTROL, buildFirmwareInfoCommand());
-        builder.queue(getSupport());
+        builder.queue();
     }
 
     protected byte[] buildFirmwareInfoCommand() {
@@ -259,13 +262,13 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
         ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("get update capabilities");
         byte[] bytes = new byte[]{UpdateFirmwareOperation2020.COMMAND_REQUEST_PARAMETERS};
         builder.write(HuamiService.UUID_CHARACTERISTIC_FIRMWARE_CONTROL, bytes);
-        builder.queue(getSupport());
+        builder.queue();
     }
 
     private void sendFirmwareDataChunk(int offset) {
         int len = fwHelper.getSize();
         int remaining = len - offset;
-        final int packetLength = getSupport().getMTU() - 3;
+        final int packetLength = calcMaxWriteChunk(getSupport().getMTU());
 
         int chunkLength = mChunkLength;
         if (remaining < mChunkLength) {
@@ -301,9 +304,9 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
 
             int progressPercent = (int) ((((float) (offset + chunkLength)) / len) * 100);
 
-            builder.setProgress(getContext().getString(R.string.updatefirmwareoperation_update_in_progress), true, progressPercent, getContext());
+            builder.setProgress(R.string.updatefirmwareoperation_update_in_progress, true, progressPercent);
 
-            builder.queue(getSupport());
+            builder.queue();
 
         } catch (final IOException e) {
             LOG.error("Unable to send fw to device", e);
@@ -316,7 +319,7 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
         builder.write(HuamiService.UUID_CHARACTERISTIC_FIRMWARE_CONTROL, new byte[]{
                 UpdateFirmwareOperation2020.COMMAND_START_TRANSFER, 1,
         });
-        builder.queue(getSupport());
+        builder.queue();
     }
 
     private void sendTransferComplete() {
@@ -324,7 +327,7 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
         builder.write(HuamiService.UUID_CHARACTERISTIC_FIRMWARE_CONTROL, new byte[]{
                 UpdateFirmwareOperation2020.COMMAND_COMPLETE_TRANSFER,
         });
-        builder.queue(getSupport());
+        builder.queue();
     }
 
     private void sendFinalize() {
@@ -332,6 +335,6 @@ public class ZeppOsFirmwareUpdateOperation extends AbstractZeppOsOperation<ZeppO
         builder.write(HuamiService.UUID_CHARACTERISTIC_FIRMWARE_CONTROL, new byte[]{
                 UpdateFirmwareOperation2020.COMMAND_FINALIZE_UPDATE,
         });
-        builder.queue(getSupport());
+        builder.queue();
     }
 }

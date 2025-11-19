@@ -51,9 +51,9 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
         try {
             TransactionBuilder builder = performInitialized("enableRequiredNotifications");
             builder.setCallback(this);
-            builder.notify(getCharacteristic(CasioConstants.CASIO_DATA_REQUEST_SP_CHARACTERISTIC_UUID), enable);
-            builder.notify(getCharacteristic(CasioConstants.CASIO_CONVOY_CHARACTERISTIC_UUID), enable);
-            builder.queue(getQueue());
+            builder.notify(CasioConstants.CASIO_DATA_REQUEST_SP_CHARACTERISTIC_UUID, enable);
+            builder.notify(CasioConstants.CASIO_CONVOY_CHARACTERISTIC_UUID, enable);
+            builder.queue();
         } catch(IOException e) {
             LOG.error("Error enabling required notifications", e);
         }
@@ -65,8 +65,8 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
         try {
             TransactionBuilder builder = performInitialized("requestStepCountDate");
             builder.setCallback(this);
-            builder.write(getCharacteristic(CasioConstants.CASIO_DATA_REQUEST_SP_CHARACTERISTIC_UUID), command);
-            builder.queue(getQueue());
+            builder.writeLegacy(getCharacteristic(CasioConstants.CASIO_DATA_REQUEST_SP_CHARACTERISTIC_UUID), command);
+            builder.queue();
         } catch(IOException e) {
             LOG.error("Error requesting step count data", e);
         }
@@ -78,8 +78,8 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
         try {
             TransactionBuilder builder = performInitialized("writeStepCountAck");
             builder.setCallback(this);
-            builder.write(getCharacteristic(CasioConstants.CASIO_DATA_REQUEST_SP_CHARACTERISTIC_UUID), command);
-            builder.queue(getQueue());
+            builder.writeLegacy(getCharacteristic(CasioConstants.CASIO_DATA_REQUEST_SP_CHARACTERISTIC_UUID), command);
+            builder.queue();
         } catch(IOException e) {
             LOG.error("Error writing step count ack", e);
         }
@@ -88,7 +88,7 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
     @Override
     protected void prePerform() throws IOException {
         super.prePerform();
-        getDevice().setBusyTask("FetchStepCountDataOperation starting..."); // mark as busy quickly to avoid interruptions from the outside
+        getDevice().setBusyTask(R.string.busy_task_fetch_steps, getContext()); // mark as busy quickly to avoid interruptions from the outside
         GB.updateTransferNotification(null, getContext().getString(R.string.busy_task_fetch_activity_data), true, 0, getContext());
     }
 
@@ -111,7 +111,7 @@ public class FetchStepCountDataOperation  extends AbstractBTLEOperation<CasioGBX
                 TransactionBuilder builder = performInitialized("finished operation");
                 builder.setCallback(null); // unset ourselves from being the queue's gatt callback
                 builder.wait(0);
-                builder.queue(getQueue());
+                builder.queue();
             } catch (IOException ex) {
                 LOG.error("Error resetting Gatt callback", ex);
             }

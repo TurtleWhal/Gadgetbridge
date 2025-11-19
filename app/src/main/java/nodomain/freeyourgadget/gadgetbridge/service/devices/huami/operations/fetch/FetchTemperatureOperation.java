@@ -18,6 +18,8 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fe
 
 import android.widget.Toast;
 
+import androidx.annotation.StringRes;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,9 +51,10 @@ public class FetchTemperatureOperation extends AbstractRepeatingFetchOperation {
         super(fetcher, HuamiFetchDataType.TEMPERATURE);
     }
 
+    @StringRes
     @Override
-    public String taskDescription() {
-        return getContext().getString(R.string.busy_task_fetch_temperature);
+    public int taskDescription() {
+        return R.string.busy_task_fetch_temperature;
     }
 
     @Override
@@ -80,7 +83,8 @@ public class FetchTemperatureOperation extends AbstractRepeatingFetchOperation {
             final GenericTemperatureSample sample = new GenericTemperatureSample();
             sample.setTimestamp(timestamp.getTimeInMillis());
             sample.setTemperature(temperature / 100f);
-            sample.setTemperatureType(0);
+            sample.setTemperatureLocation(GenericTemperatureSample.LOCATION_WRIST);
+            sample.setTemperatureType(GenericTemperatureSample.TYPE_SKIN);
             samples.add(sample);
 
             timestamp.add(Calendar.MINUTE, 1);

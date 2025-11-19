@@ -85,7 +85,7 @@ class AppMessageHandlerMorpheuz extends AppMessageHandler {
             keySnoozes = appKeys.getInt("keySnoozes");
             keyFault = appKeys.getInt("keyFault");
         } catch (JSONException e) {
-            GB.toast("There was an error accessing the morpheuz watchapp configuration.", Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast("There was an error accessing the morpheuz watchapp configuration.", Toast.LENGTH_LONG, GB.ERROR, e);
         } catch (IOException ignore) {
         }
     }
@@ -151,9 +151,6 @@ class AppMessageHandlerMorpheuz extends AppMessageHandler {
                 ctrl_message |= CTRL_VERSION_DONE;
             } else if (pair.first.equals(keyBase)) {
                 recording_base_timestamp = (int) pair.second;
-                if (mPebbleProtocol.mFwMajor < 3) {
-                    recording_base_timestamp -= SimpleTimeZone.getDefault().getOffset(recording_base_timestamp * 1000L) / 1000;
-                }
                 LOG.info("got base: " + recording_base_timestamp);
                 ctrl_message |= CTRL_SET_LAST_SENT | CTRL_DO_NEXT;
             } else if (pair.first.equals(keyAutoReset)) {

@@ -46,17 +46,6 @@
     <string name="app_move_to_top">Perkelti į viršų</string>
     <string name="title_activity_calblacklist">Kalendorių juodasis sąrašas</string>
     <string name="title_activity_fw_app_insaller">FW/Programų diegyklė</string>
-    <string name="devicetype_test">Išbandyti įrenginį</string>
-    <string name="devicetype_pebble">Pebble</string>
-    <string name="devicetype_miband">Mi Band</string>
-    <string name="devicetype_miband2">Mi Band 2</string>
-    <string name="devicetype_amazfit_bip">Amazfit Bip</string>
-    <string name="devicetype_amazfit_cor">Amazfit Cor</string>
-    <string name="devicetype_vibratissimo">Vibratissimo</string>
-    <string name="devicetype_liveview">LiveView</string>
-    <string name="devicetype_hplus">HPlus</string>
-    <string name="devicetype_makibes_f68">Makibes F68</string>
-    <string name="devicetype_exrizu_k8">Exrizu K8</string>
     <string name="menuitem_activity">Veikla</string>
     <string name="controlcenter_calibrate_device">Kalibruoti įrenginį</string>
     <string name="mi2_prefs_button_press_broadcast_default_value" translatable="false">nodomain.freeyourgadget.gadgetbridge.ButtonPressed</string>
@@ -241,8 +230,6 @@
     <string name="zetime_title_settings">ZeTime nustatymai</string>
     <string name="zetime_title_heartrate">Širdies ritmo nustatymai</string>
     <string name="zetime_heart_rate_alarm_enable">Leisti širdies ritmo aliarmą</string>
-    <string name="activity_prefs_alarm_max_heart_rate">Maksimalus širdies ritmas</string>
-    <string name="activity_prefs_alarm_min_heart_rate">Minimalus širdies ritmas</string>
     <string name="zetime_analog_mode_hands">Tik rankos</string>
     <string name="zetime_analog_mode_handsandsteps">Rankos ir žingsniai</string>
     <string name="zetime_activity_tracking">veiklos sekimas</string>
@@ -485,7 +472,7 @@
     <string name="pref_world_clocks_summary">Konfigūruoti laikrodžius kitoms laiko zonoms</string>
     <string name="pref_contacts_summary">Konfigūruoti adresatus laikrodyje</string>
     <string name="contact_no_free_slots_description">Įrenginys neturi laisvų vietų adresatams (iš viso vietų: %1$s)</string>
-    <string name="contact_delete_confirm_description">Ar tikrai norite ištrinti \'%1$s\'\?</string>
+    <string name="contact_delete_confirm_description">Ar tikrai norite ištrinti \'%1$s\'?</string>
     <string name="user_feedback_miband_set_alarms_failed">Įvyko klaida nustatant žadintuvus, bandykite dar kartą.</string>
     <string name="title_activity_world_clock_details">Pasaulio laikrodžio informacija</string>
     <string name="title_activity_contact_details">Adresato informacija</string>

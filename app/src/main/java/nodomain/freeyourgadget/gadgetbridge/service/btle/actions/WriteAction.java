@@ -26,10 +26,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BleNamesResolver;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCallback;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 /**
  * Invokes a write operation on a given {@link BluetoothGattCharacteristic}.
@@ -40,10 +40,16 @@ public class WriteAction extends BtLEAction {
     private static final Logger LOG = LoggerFactory.getLogger(WriteAction.class);
 
     private final byte[] value;
+    private final boolean legacyCompat;
 
     public WriteAction(BluetoothGattCharacteristic characteristic, byte[] value) {
+        this(characteristic, value, false);
+    }
+
+    public WriteAction(BluetoothGattCharacteristic characteristic, byte[] value, boolean legacyCompat) {
         super(characteristic);
         this.value = value;
+        this.legacyCompat = legacyCompat;
     }
 
     @Override
@@ -52,7 +58,7 @@ public class WriteAction extends BtLEAction {
         int properties = characteristic.getProperties();
         //TODO: expectsResult should return false if PROPERTY_WRITE_NO_RESPONSE is true, but this leads to timing issues
         if ((properties & BluetoothGattCharacteristic.PROPERTY_WRITE) > 0 || ((properties & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) > 0)) {
-            return writeCharacteristicImp(gatt, characteristic, getValue());
+            return writeCharacteristicImp(gatt, characteristic, getValue(), legacyCompat);
         }
 
         LOG.error("WriteAction for non-writeable characteristic {}", characteristic.getUuid());
@@ -62,14 +68,14 @@ public class WriteAction extends BtLEAction {
     /// shared write implementation that can be used without a BtLEAction
     public static boolean writeCharacteristic(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("writing to characteristic: {} - {}", characteristic.getUuid(), Logging.formatBytes(value));
+            LOG.debug("writing to characteristic: {} - {}", characteristic.getUuid(), GB.hexdump(value));
         }
-        return writeCharacteristicImp(gatt, characteristic, value);
+        return writeCharacteristicImp(gatt, characteristic, value, false);
     }
 
     @SuppressLint("MissingPermission")
-    private static boolean writeCharacteristicImp(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
-        if (GBApplication.isRunningTiramisuOrLater()) {
+    private static boolean writeCharacteristicImp(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, boolean legacyCompat) {
+        if (GBApplication.isRunningTiramisuOrLater() && !legacyCompat) {
             // use API introduced in SDK level 33 to catch exceptions and more specific errors
             try {
                 final int status = gatt.writeCharacteristic(characteristic, value, characteristic.getWriteType());
@@ -84,7 +90,12 @@ public class WriteAction extends BtLEAction {
         }
 
         if (characteristic.setValue(value)) {
-            return gatt.writeCharacteristic(characteristic);
+            if (gatt.writeCharacteristic(characteristic)) {
+                return true;
+            }
+            LOG.error("writing characteristic {} failed", characteristic.getUuid());
+        } else {
+            LOG.error("setting value of characteristic {} failed", characteristic.getUuid());
         }
         return false;
     }
@@ -102,7 +113,7 @@ public class WriteAction extends BtLEAction {
     public String toString() {
         BluetoothGattCharacteristic characteristic = getCharacteristic();
         String uuid = characteristic == null ? "(null)" : characteristic.getUuid().toString();
-        return getCreationTime() + ": " + getClass().getSimpleName() + " " + uuid + " - "
-                + Logging.formatBytes(getValue());
+        return getCreationTime() + " " + getClass().getSimpleName() + " " + uuid + " - "
+                + GB.hexdump(getValue());
     }
 }

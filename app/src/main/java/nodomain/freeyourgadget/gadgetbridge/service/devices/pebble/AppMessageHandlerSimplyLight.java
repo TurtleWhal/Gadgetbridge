@@ -29,7 +29,7 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -63,7 +63,7 @@ class AppMessageHandlerSimplyLight extends AppMessageHandler {
             KEY_CONDITION = appKeys.getInt("condition");
             KEY_ERR = appKeys.getInt("err");
         } catch (JSONException e) {
-            GB.toast("There was an error accessing the Simply Light watchface configuration.", Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast("There was an error accessing the Simply Light watchface configuration.", Toast.LENGTH_LONG, GB.ERROR, e);
         } catch (IOException ignore) {
         }
     }
@@ -109,8 +109,8 @@ private int getConditionForConditionCode(int conditionCode) {
         }
 
         ArrayList<Pair<Integer, Object>> pairs = new ArrayList<>(2);
-        pairs.add(new Pair<>(KEY_TEMPERATURE, (Object) (weatherSpec.currentTemp - 273)));
-        pairs.add(new Pair<>(KEY_CONDITION, (Object) (getConditionForConditionCode(weatherSpec.currentConditionCode))));
+        pairs.add(new Pair<>(KEY_TEMPERATURE, (Object) (weatherSpec.getCurrentTemp() - 273)));
+        pairs.add(new Pair<>(KEY_CONDITION, (Object) (getConditionForConditionCode(weatherSpec.getCurrentConditionCode()))));
         pairs.add(new Pair<>(KEY_ERR, (Object) 0));
         byte[] weatherMessage = mPebbleProtocol.encodeApplicationMessagePush(PebbleProtocol.ENDPOINT_APPLICATIONMESSAGE, mUUID, pairs, null);
 
@@ -123,7 +123,7 @@ private int getConditionForConditionCode(int conditionCode) {
 
     @Override
     public GBDeviceEvent[] onAppStart() {
-        WeatherSpec weatherSpec = Weather.getInstance().getWeatherSpec();
+        WeatherSpec weatherSpec = Weather.getWeatherSpec();
         if (weatherSpec == null) {
             return new GBDeviceEvent[]{null};
         }

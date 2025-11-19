@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.GregorianCalendar;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -68,9 +69,10 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
         this.fetchCount = fetchCount;
     }
 
+    @StringRes
     @Override
-    public String taskDescription() {
-        return getContext().getString(R.string.busy_task_fetch_sports_details);
+    public int taskDescription() {
+        return R.string.busy_task_fetch_sports_details;
     }
 
     @Override
@@ -103,7 +105,7 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
                 }
             }
         } catch (final Exception e) {
-            GB.toast(getContext(), "Error saving raw bytes: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+            GB.toast(getContext(), "Error saving raw bytes: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             return false;
         }
 
@@ -152,7 +154,7 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
                 dbHandler.getDaoSession().getBaseActivitySummaryDao().update(summary);
             }
         } catch (final Exception e) {
-            GB.toast(getContext(), "Error saving activity details: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+            GB.toast(getContext(), "Error saving activity details: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             // #4549 - we do not return false here, since this might cause the same activity to be fetched over and over again
             // the raw details are persisted above, we can always re-process if needed
         }
@@ -174,11 +176,6 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
         // We have 2 operations per fetch round: summary + details
         if (fetchCount > 20) {
             LOG.warn("Already have {} fetch rounds, not doing another one.", fetchCount/ 2);
-            return false;
-        }
-
-        if (DateUtils.isToday(lastSyncTimestamp.getTimeInMillis())) {
-            LOG.info("Hopefully no further fetch needed, last synced timestamp is from today.");
             return false;
         }
 

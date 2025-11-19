@@ -88,7 +88,7 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
         requestDeviceInfo(builder);
         enableNotifications(builder, true);
         setParameters(builder, 1.0f, 0, true);
@@ -104,11 +104,11 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
     }
 
     private void enableNotifications(TransactionBuilder builder, boolean enable) {
-        builder.notify(getCharacteristic(UUUD_CHARACTERISTICS_NOTIFY), enable);
+        builder.notify(UUUD_CHARACTERISTICS_NOTIFY, enable);
     }
 
     private void setInitialized(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
     }
 
     private void setDisplayValues(TransactionBuilder builder, int elapsedTime, int kCal, int heartRate, float incline, float speed, float distance) {
@@ -167,18 +167,8 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
     }
 
     void writeChunked(TransactionBuilder builder, byte[] data) {
-        final int MAX_CHUNKLENGTH = 20;
-        int remaining = data.length;
-        byte count = 0;
-        while (remaining > 0) {
-            int copybytes = Math.min(remaining, MAX_CHUNKLENGTH);
-            byte[] chunk = new byte[copybytes];
-
-            System.arraycopy(data, count++ * MAX_CHUNKLENGTH, chunk, 0, copybytes);
-            builder.write(getCharacteristic(UUUD_CHARACTERISTICS_WRITE), chunk);
-            remaining -= copybytes;
-        }
-        builder.wait(100);
+        builder.writeChunkedData(getCharacteristic(UUUD_CHARACTERISTICS_WRITE), data, 20)
+                .wait(100);
     }
 
     private byte getChecksum(byte[] command) {
@@ -205,11 +195,10 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
     public void onFindDevice(boolean start) {
         byte[] command = new byte[]{(byte) 0xf0, (byte) 0xaf, (byte) (start ? 0x01 : 0x00), 0x00};
         command[3] = getChecksum(command);
-        BluetoothGattCharacteristic characteristic = getCharacteristic(UUUD_CHARACTERISTICS_WRITE);
-
-        TransactionBuilder builder = new TransactionBuilder("beep");
-        builder.write(characteristic, command);
-        builder.queue(getQueue());
+        
+        TransactionBuilder builder = createTransactionBuilder("beep");
+        builder.write(UUUD_CHARACTERISTICS_WRITE, command);
+        builder.queue();
 
     }
 
@@ -247,7 +236,7 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
                 buf.get(); // ??
                 boolean workoutStarted = buf.get() > 0;
 
-                TransactionBuilder builder = new TransactionBuilder("send update");
+                TransactionBuilder builder = createTransactionBuilder("send update");
 
                 if (buttonCode == 6 || buttonCode == 7) {
                     if (workoutStarted || buttonCode == 7) {
@@ -267,7 +256,7 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
                     last_time = time;
                 }
 
-                builder.queue(getQueue());
+                builder.queue();
 
                 LOG.debug("speed: " + speed + " incline: " + incline + " distance: " + distance + " calories: " + calories + " average speed: " + averageSpeed + " heart rate: " + heartRate);
                 LOG.debug("key plugged in: " + keyPluggedIn + " tablet stand used: " + tabletStandUsed + " buttonCode: " + buttonCode + " workout started: " + workoutStarted);
@@ -295,11 +284,11 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onTestNewFunction() {
-        TransactionBuilder builder = new TransactionBuilder("xxx");
+        TransactionBuilder builder = createTransactionBuilder("xxx");
         //setDisplayValues(builder, 1, 10, 10, 10, 10);
         //writeChunked(builder, COMMAND_SET_DISPLAY);
 
-        builder.queue(getQueue());
+        builder.queue();
     }
 
     @Override

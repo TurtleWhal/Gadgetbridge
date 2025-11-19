@@ -24,6 +24,8 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 
 /**
@@ -78,6 +79,11 @@ public class ServiceDeviceSupport implements DeviceSupport {
     @Override
     public boolean isConnected() {
         return delegate.isConnected();
+    }
+
+    @Override
+    public boolean isConnecting() {
+        return delegate.isConnecting();
     }
 
     @Override
@@ -247,11 +253,11 @@ public class ServiceDeviceSupport implements DeviceSupport {
     }
 
     @Override
-    public void onInstallApp(Uri uri) {
+    public void onInstallApp(Uri uri, @NonNull final Bundle options) {
         if (checkBusy("install app")) {
             return;
         }
-        delegate.onInstallApp(uri);
+        delegate.onInstallApp(uri, options);
     }
 
     @Override
@@ -382,6 +388,7 @@ public class ServiceDeviceSupport implements DeviceSupport {
         delegate.onSetContacts(contacts);
     }
 
+    @Override
     public void onSetLoyaltyCards(final ArrayList<LoyaltyCard> cards) {
         if (checkBusy("set loyalty cards")) {
             return;
@@ -470,11 +477,11 @@ public class ServiceDeviceSupport implements DeviceSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        if (checkBusy("send weather events")) {
+    public void onSendWeather() {
+        if (checkBusy("send weather")) {
             return;
         }
-        delegate.onSendWeather(weatherSpecs);
+        delegate.onSendWeather();
     }
 
     @Override

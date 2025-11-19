@@ -16,8 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
-import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
@@ -31,7 +29,6 @@ import androidx.core.content.ContextCompat;
 
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.Chart;
-import com.github.mikephil.charting.charts.PieChart;
 import com.github.mikephil.charting.components.Legend;
 import com.github.mikephil.charting.components.LegendEntry;
 import com.github.mikephil.charting.components.XAxis;
@@ -88,6 +85,7 @@ public class PaiChartFragment extends AbstractChartFragment<PaiChartFragment.Pai
     protected int DESCRIPTION_COLOR;
     protected int CHART_TEXT_COLOR;
     protected int LEGEND_TEXT_COLOR;
+    protected int TEXT_COLOR;
 
     protected int PAI_TOTAL_COLOR;
     protected int PAI_DAY_COLOR;
@@ -95,7 +93,7 @@ public class PaiChartFragment extends AbstractChartFragment<PaiChartFragment.Pai
     @Override
     protected void init() {
         BACKGROUND_COLOR = GBApplication.getBackgroundColor(requireContext());
-        LEGEND_TEXT_COLOR = DESCRIPTION_COLOR = GBApplication.getTextColor(requireContext());
+        LEGEND_TEXT_COLOR = DESCRIPTION_COLOR = TEXT_COLOR = GBApplication.getTextColor(requireContext());
         CHART_TEXT_COLOR = ContextCompat.getColor(requireContext(), R.color.secondarytext);
 
         PAI_TOTAL_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_pai_weekly);
@@ -110,11 +108,9 @@ public class PaiChartFragment extends AbstractChartFragment<PaiChartFragment.Pai
 
         final View rootView = inflater.inflate(R.layout.fragment_pai_chart, container, false);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                getChartsHost().enableSwipeRefresh(scrollY == 0);
-            });
-        }
+        rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            getChartsHost().enableSwipeRefresh(scrollY == 0);
+        });
 
         mGoalMinutesGauge = rootView.findViewById(R.id.goal_minutes_gauge);
         mWeekChart = rootView.findViewById(R.id.pai_chart_week);
@@ -131,13 +127,13 @@ public class PaiChartFragment extends AbstractChartFragment<PaiChartFragment.Pai
         mTileModerate = rootView.findViewById(R.id.pai_tile_moderate);
         mTileHigh = rootView.findViewById(R.id.pai_tile_high);
 
-        if (!getChartsHost().getDevice().getDeviceCoordinator().supportsPaiTime()) {
+        if (!getChartsHost().getDevice().getDeviceCoordinator().supportsPaiTime(getChartsHost().getDevice())) {
             mLineLowTime.setVisibility(View.GONE);
             mLineModerateTime.setVisibility(View.GONE);
             mLineHighTime.setVisibility(View.GONE);
         }
 
-        if (!getChartsHost().getDevice().getDeviceCoordinator().supportsPaiLow()) {
+        if (!getChartsHost().getDevice().getDeviceCoordinator().supportsPaiLow(getChartsHost().getDevice())) {
             mTileLow.setVisibility(View.GONE);
         }
 
@@ -154,8 +150,8 @@ public class PaiChartFragment extends AbstractChartFragment<PaiChartFragment.Pai
         mWeekChart.getDescription().setTextColor(DESCRIPTION_COLOR);
         mWeekChart.getDescription().setText("");
         mWeekChart.setFitBars(true);
-
         configureBarLineChartDefaults(mWeekChart);
+        mWeekChart.setTouchEnabled(false);
 
         final XAxis x = mWeekChart.getXAxis();
         x.setDrawLabels(true);
@@ -316,10 +312,10 @@ public class PaiChartFragment extends AbstractChartFragment<PaiChartFragment.Pai
         set.setValueFormatter(getRoundFormatter());
 
         BarData barData = new BarData(set);
-        barData.setValueTextColor(Color.GRAY); //prevent tearing other graph elements with the black text. Another approach would be to hide the values cmpletely with data.setDrawValues(false);
+        barData.setValueTextColor(TEXT_COLOR); //prevent tearing other graph elements with the black text. Another approach would be to hide the values cmpletely with data.setDrawValues(false);
         barData.setValueTextSize(10f);
 
-        barChart.getAxisLeft().setAxisMaximum(Math.max(maxPai, getPaiTarget()));
+        barChart.getAxisLeft().setAxisMaximum(Math.max(maxPai, getPaiTarget()) + 20);
 
         return new WeekChartsData(barData, new PreformattedXIndexLabelFormatter(labels));
     }

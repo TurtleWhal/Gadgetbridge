@@ -1,4 +1,4 @@
-/*  Copyright (C) 2019-2024 Andreas Böhler
+/*  Copyright (C) 2019-2025 Andreas Böhler, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -17,12 +17,9 @@
 package nodomain.freeyourgadget.gadgetbridge.service.btle;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattServer;
-import android.bluetooth.BluetoothGattService;
 
-import java.util.Date;
+import androidx.annotation.NonNull;
 
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 
@@ -66,10 +63,12 @@ public abstract class BtLEServerAction {
 
 
     protected String getCreationTime() {
-        return DateTimeUtils.formatDateTime(new Date(creationTimestamp));
+        return DateTimeUtils.formatLocalTime(creationTimestamp);
     }
 
+    @NonNull
+    @Override
     public String toString() {
-        return getCreationTime() + ":" + getClass().getSimpleName() + " on device: " + getDevice().getAddress();
+        return getCreationTime() + " " + getClass().getSimpleName() + " on " + getDevice().getAddress();
     }
 }

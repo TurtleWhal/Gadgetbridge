@@ -4,10 +4,11 @@ import androidx.annotation.NonNull;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.unknown.UnknownDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.scannable.ScannableDeviceSupport;
 
 public class ScannableDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
@@ -35,7 +36,7 @@ public class ScannableDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     @NonNull
     @Override
     public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
-        return UnknownDeviceSupport.class;
+        return ScannableDeviceSupport.class;
     }
 
     @Override
@@ -51,5 +52,10 @@ public class ScannableDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_scannable;
+    }
+
+    @Override
+    public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceCoordinator.DeviceKind.UNKNOWN;
     }
 }

@@ -21,6 +21,9 @@ import android.bluetooth.BluetoothDevice;
 import android.os.Parcel;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
+import android.util.SparseArray;
+
+import androidx.annotation.NonNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +32,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-import androidx.annotation.NonNull;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 
 /**
@@ -52,10 +56,20 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
     private String deviceName;
     private Boolean isBonded = null;
 
-    public GBDeviceCandidate(BluetoothDevice device, short rssi, ParcelUuid[] serviceUuids) {
+    /**
+     * If set, forces this candidate to be recognized as a specific device type.
+     */
+    private DeviceType forcedType;
+
+    private SparseArray<byte[]> manufacturerSpecificData;
+
+    public GBDeviceCandidate(BluetoothDevice device, short rssi, ParcelUuid[] serviceUuids,
+                             SparseArray<byte[]> manufacturerSpecificData) {
         this.device = device;
         this.rssi = rssi;
         this.serviceUuids = serviceUuids != null ? serviceUuids : new ParcelUuid[0];
+        this.manufacturerSpecificData =
+                Objects.requireNonNullElseGet(manufacturerSpecificData, () -> new SparseArray<>(0));
     }
 
     private GBDeviceCandidate(Parcel in) {
@@ -68,10 +82,16 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
         serviceUuids = AndroidUtils.toParcelUuids(in.readParcelableArray(getClass().getClassLoader()));
 
         deviceName = in.readString();
+        final String forcedTypeName = in.readString();
+        if (forcedTypeName != null && !forcedTypeName.isEmpty()) {
+            forcedType = DeviceType.valueOf(forcedTypeName);
+        }
         final int isBondedInt = in.readInt();
         if (isBondedInt != -1) {
             isBonded = (isBondedInt == 1);
         }
+
+        manufacturerSpecificData = in.readSparseArray(getClass().getClassLoader());
     }
 
     @Override
@@ -80,11 +100,14 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
         dest.writeInt(rssi);
         dest.writeParcelableArray(serviceUuids, 0);
         dest.writeString(deviceName);
+        dest.writeString(forcedType != null ? forcedType.name() : "");
         if (isBonded == null) {
             dest.writeInt(-1);
         } else {
             dest.writeInt(isBonded ? 1 : 0);
         }
+
+        dest.writeSparseArray(manufacturerSpecificData);
     }
 
     public static final Creator<GBDeviceCandidate> CREATOR = new Creator<GBDeviceCandidate>() {
@@ -107,6 +130,14 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
         return device != null ? device.getAddress() : GBApplication.getContext().getString(R.string._unknown_);
     }
 
+    public DeviceType getForcedType() {
+        return forcedType;
+    }
+
+    public void setForcedType(final DeviceType forcedType) {
+        this.forcedType = forcedType;
+    }
+
     private ParcelUuid[] mergeServiceUuids(ParcelUuid[] serviceUuids, ParcelUuid[] deviceUuids) {
         Set<ParcelUuid> uuids = new LinkedHashSet<>();
         if (serviceUuids != null) {
@@ -120,6 +151,15 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
 
     public void addUuids(ParcelUuid[] newUuids) {
         this.serviceUuids = mergeServiceUuids(serviceUuids, newUuids);
+    }
+
+    public void addManufacturerSpecificData(SparseArray<byte[]> newData) {
+        if (newData != null) {
+            for (int i = 0; i < newData.size(); ++i) {
+                int key = newData.keyAt(i);
+                this.manufacturerSpecificData.set(key, newData.get(key));
+            }
+        }
     }
 
     public void setRssi(short rssi) {
@@ -143,14 +183,19 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
     }
 
     @NonNull
+    public SparseArray<byte[]> getManufacturerSpecificData() {
+        return manufacturerSpecificData;
+    }
+
+    @NonNull
     public ParcelUuid[] getServiceUuids() {
         return serviceUuids;
     }
 
     public boolean supportsService(UUID aService) {
         ParcelUuid[] uuids = getServiceUuids();
-        if (uuids == null || uuids.length == 0) {
-            LOG.warn("no cached services available for " + this);
+        if (uuids.length == 0) {
+            LOG.warn("no cached services available for {}", this);
             return false;
         }
 
@@ -183,6 +228,7 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
             }
         } else {
             try {
+                //noinspection JavaReflectionMemberAccess
                 final Method method = device.getClass().getMethod("getAliasName");
                 deviceName = (String) method.invoke(device);
             } catch (final NoSuchMethodException ignore) {
@@ -232,6 +278,7 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
         return device.getAddress().hashCode() ^ 37;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return getName() + ": " + getMacAddress();
@@ -247,6 +294,8 @@ public class GBDeviceCandidate implements Parcelable, Cloneable {
             clone.serviceUuids = this.serviceUuids;
             clone.deviceName = this.deviceName;
             clone.isBonded = this.isBonded;
+            clone.forcedType = this.forcedType;
+            clone.manufacturerSpecificData = this.manufacturerSpecificData;
             return clone;
         } catch (final CloneNotSupportedException e) {
             throw new RuntimeException(e);

@@ -20,6 +20,9 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.location.Location;
 import android.net.Uri;
+import android.os.Bundle;
+
+import androidx.annotation.NonNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +39,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.AbstractBTBRDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder;
 
@@ -46,9 +48,8 @@ public class HuaweiBRSupport extends AbstractBTBRDeviceSupport {
     private final HuaweiSupportProvider supportProvider;
 
     public HuaweiBRSupport() {
-        super(LOG);
+        super(LOG, 1032);
         addSupportedService(HuaweiConstants.UUID_SERVICE_HUAWEI_SDP);
-        setBufferSize(1032);
         supportProvider = new HuaweiSupportProvider(this);
     }
 
@@ -145,8 +146,8 @@ public class HuaweiBRSupport extends AbstractBTBRDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        supportProvider.onSendWeather(weatherSpecs);
+    public void onSendWeather() {
+        supportProvider.onSendWeather();
     }
 
     @Override
@@ -155,7 +156,7 @@ public class HuaweiBRSupport extends AbstractBTBRDeviceSupport {
     }
 
     @Override
-    public void onInstallApp(Uri uri) {
+    public void onInstallApp(Uri uri, @NonNull final Bundle options) {
         supportProvider.onInstallApp(uri);
     }
 
@@ -199,8 +200,10 @@ public class HuaweiBRSupport extends AbstractBTBRDeviceSupport {
 
     @Override
     public void dispose() {
-        supportProvider.dispose();
-        super.dispose();
+        synchronized (ConnectionMonitor) {
+            supportProvider.dispose();
+            super.dispose();
+        }
     }
 
     @Override

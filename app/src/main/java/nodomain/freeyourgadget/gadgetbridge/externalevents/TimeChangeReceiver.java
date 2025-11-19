@@ -39,8 +39,7 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.PendingIntentUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
+import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 
 
 public class TimeChangeReceiver extends BroadcastReceiver {
@@ -52,14 +51,14 @@ public class TimeChangeReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        final Prefs prefs = GBApplication.getPrefs();
+        final GBPrefs prefs = GBApplication.getPrefs();
         final String action = intent.getAction();
         if (action == null) {
             LOG.warn("Null action");
             return;
         }
 
-        if (!prefs.getBoolean("datetime_synconconnect", true)) {
+        if (!prefs.syncTime()) {
             LOG.warn("Ignoring time change for {}, time sync is disabled", action);
             return;
         }
@@ -100,7 +99,7 @@ public class TimeChangeReceiver extends BroadcastReceiver {
 
         final Intent i = new Intent(ACTION_DST_CHANGED_OR_PERIODIC_SYNC);
         i.setPackage(BuildConfig.APPLICATION_ID);
-        final PendingIntent pi = PendingIntentUtils.getBroadcast(context, 0, i, 0, false);
+        final PendingIntent pi = PendingIntent.getBroadcast(context, 0, i, PendingIntent.FLAG_IMMUTABLE);
 
         final AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
@@ -138,11 +137,7 @@ public class TimeChangeReceiver extends BroadcastReceiver {
         // Fallback to inexact alarm if the exact one failed
         if (!scheduledExact) {
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + delayMillis, pi);
-                } else {
-                    am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + delayMillis, pi);
-                }
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + delayMillis, pi);
             } catch (final Exception e) {
                 LOG.error("Failed to schedule inexact alarm for next DST change or periodic time sync", e);
             }
@@ -150,7 +145,7 @@ public class TimeChangeReceiver extends BroadcastReceiver {
     }
 
     public static void ifEnabledScheduleNextDstChangeOrPeriodicSync(final Context context) {
-        if (GBApplication.getPrefs().getBoolean("datetime_synconconnect", true)) {
+        if (GBApplication.getPrefs().syncTime()) {
             scheduleNextDstChangeOrPeriodicSync(context);
         }
     }

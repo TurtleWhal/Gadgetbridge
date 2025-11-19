@@ -16,12 +16,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.watches;
 
+import androidx.annotation.NonNull;
+
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.ZeppOsCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
@@ -32,8 +35,8 @@ public class AmazfitFalconCoordinator extends ZeppOsCoordinator {
     }
 
     @Override
-    public String getDeviceBluetoothName() {
-        return HuamiConst.AMAZFIT_FALCON_NAME;
+    public List<String> getDeviceBluetoothNames() {
+        return Collections.singletonList("Amazfit Falcon");
     }
 
     @Override
@@ -67,5 +70,10 @@ public class AmazfitFalconCoordinator extends ZeppOsCoordinator {
     @Override
     public boolean supportsBluetoothPhoneCalls(final GBDevice device) {
         return false;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

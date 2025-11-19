@@ -27,7 +27,6 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.AbstractHuamiFirmwareInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiFirmwareType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiSupport;
@@ -47,7 +46,7 @@ public class UpdateFirmwareOperationNew extends UpdateFirmwareOperation {
     public boolean sendFwInfo() {
         try {
             TransactionBuilder builder = performInitialized("send firmware info");
-            builder.add(new SetDeviceBusyAction(getDevice(), getContext().getString(R.string.updating_firmware), getContext()));
+            builder.setBusyTask(R.string.updating_firmware);
             int fwSize = getFirmwareInfo().getSize();
             byte[] sizeBytes = BLETypeConversions.fromUint32(fwSize);
             byte[] bytes = new byte[10];
@@ -68,7 +67,7 @@ public class UpdateFirmwareOperationNew extends UpdateFirmwareOperation {
             if (getFirmwareInfo().getFirmwareType() == HuamiFirmwareType.WATCHFACE) {
                 byte[] fwBytes = firmwareInfo.getBytes();
                 if (ArrayUtils.startsWith(fwBytes, UIHH_HEADER)) {
-                    builder.write(getCharacteristic(HuamiService.UUID_CHARACTERISTIC_3_CONFIGURATION),
+                    builder.write(HuamiService.UUID_CHARACTERISTIC_3_CONFIGURATION,
                             new byte[]{0x39, 0x00, 0x00, (byte) 0xff, (byte) 0xff, (byte) 0xff,
                                     fwBytes[18],
                                     fwBytes[19],
@@ -78,7 +77,7 @@ public class UpdateFirmwareOperationNew extends UpdateFirmwareOperation {
                 }
             }
             builder.write(fwCControlChar, bytes);
-            builder.queue(getQueue());
+            builder.queue();
             return true;
         } catch (IOException e) {
             LOG.error("Error sending firmware info: " + e.getLocalizedMessage(), e);
@@ -90,7 +89,7 @@ public class UpdateFirmwareOperationNew extends UpdateFirmwareOperation {
     protected void sendChecksum(AbstractHuamiFirmwareInfo firmwareInfo) throws IOException {
         TransactionBuilder builder = performInitialized("send firmware upload finished");
         builder.write(fwCControlChar, new byte[]{HuamiService.COMMAND_FIRMWARE_CHECKSUM});
-        builder.queue(getQueue());
+        builder.queue();
     }
 
     @Override

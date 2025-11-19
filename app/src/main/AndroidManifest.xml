@@ -7,9 +7,11 @@
         <uses-permission android:name="android.permission.INTERNET" />
     -->
     <!-- Used for Bluetooth access -->
-    <!-- Request legacy Bluetooth permissions on older devices. -->
-    <uses-permission android:name="android.permission.BLUETOOTH"
-        android:maxSdkVersion="30"/>
+    <!--
+        Request legacy Bluetooth permissions on older devices.
+        #5053 - keep the permission even on Android 12 and above
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH" tools:remove="android:maxSdkVersion"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
         android:maxSdkVersion="30"/>
     <!-- Needed to looks for Bluetooth devices. -->
@@ -67,6 +69,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
@@ -180,9 +183,26 @@
             android:label="@string/maps_settings"
             android:parentActivityName=".activities.SettingsActivity" />
         <activity
+            android:name=".activities.automations.AutomationsSettingsActivity"
+            android:label="@string/pref_header_automations"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.automations.AutoExportDbSettingsActivity"
+            android:label="@string/pref_header_auto_export_db"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.automations.AutoExportZipSettingsActivity"
+            android:label="@string/pref_header_auto_export_zip"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
             android:name=".activities.maps.MapsTrackActivity"
             android:label="@string/maps"
             android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.workouts.charts.WorkoutChartsActivity"
+            android:label="@string/workout_charts"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|layoutDirection|uiMode"
+            android:parentActivityName=".activities.workouts.WorkoutDetailsActivity" />
         <activity
             android:name=".activities.SleepAsAndroidPreferencesActivity"
             android:label="@string/sleepasandroid_settings"
@@ -228,11 +248,15 @@
             android:label="@string/huawei_stress_calibrate"
             android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
         <activity
+            android:name=".activities.heartratezones.HeartRateSettingsActivity"
+            android:label="@string/heart_rate_settings"
+            android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
+        <activity
             android:name=".activities.NotificationsAppIconUploadActivity"
             android:label="@string/notifications_app_icon_upload"
             android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
         <activity
-            android:name=".activities.ActivitySummariesActivity"
+            android:name=".activities.workouts.WorkoutListActivity"
             android:label="@string/activity_summaries"
             android:parentActivityName=".activities.ControlCenterv2" />
         <activity
@@ -265,8 +289,24 @@
             android:label="@string/devicetype_ultrahuma_ring_air"
             android:parentActivityName=".activities.ControlCenterv2" />
         <activity
-            android:name=".activities.FwAppInstallerActivity"
+            android:name=".devices.generic_scale.GenericWeightScaleMeasurementActivity"
+            android:label="@string/devicetype_generic_weight_scale"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".devices.thermalprinter.SendToPrinterActivity"
+            android:label="@string/devicetype_generic_thermal_printer"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.install.FwAppInstallerActivity"
             android:label="@string/title_activity_fw_app_insaller"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.install.GpxRouteInstallerActivity"
+            android:label="@string/title_activity_gps_track_installer"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.install.FileInstallerActivity"
+            android:label="@string/title_activity_file_installer"
             android:parentActivityName=".activities.ControlCenterv2"
             android:exported="true">
             <intent-filter>
@@ -503,6 +543,10 @@
             />
 
         <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+        <service
             android:name=".externalevents.NotificationListener"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
@@ -557,22 +601,6 @@
         </receiver>
 
         <receiver
-            android:name=".externalevents.WeatherNotificationReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="ru.gelin.android.weather.notification.ACTION_WEATHER_UPDATE_2" />
-            </intent-filter>
-        </receiver>
-
-        <activity android:name=".externalevents.WeatherNotificationConfig"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="ru.gelin.android.weather.notification.ACTION_WEATHER_SKIN_PREFERENCES" />
-            </intent-filter>
-        </activity>
-
-        <receiver
             android:name=".externalevents.AutoStartReceiver"
             android:permission="android.permission.RECEIVE_BOOT_COMPLETED"
             android:exported="false">
@@ -611,10 +639,6 @@
                 <action android:name="nodomain.freeyourgadget.gadgetbridge.callcontrol" />
             </intent-filter>
         </receiver>
-        <receiver
-            android:name=".database.PeriodicExporter"
-            android:enabled="true"
-            android:exported="false" />
         <!--
             forcing the DebugActivity to portrait mode avoids crashes with the progress
             dialog when changing orientation
@@ -646,14 +670,14 @@
             android:parentActivityName=".activities.ControlCenterv2" />
 
         <activity
-            android:name=".activities.ActivitySummaryDetail"
+            android:name=".activities.workouts.WorkoutDetailsActivity"
             android:label="@string/activity_summary_detail"
-            android:parentActivityName=".activities.ActivitySummariesActivity"
+            android:parentActivityName=".activities.workouts.WorkoutListActivity"
             android:windowSoftInputMode="stateHidden" />
         <activity
             android:name=".activities.ActivitySummariesFilter"
             android:label="@string/activity_filter_filter_title"
-            android:parentActivityName=".activities.ActivitySummariesActivity"
+            android:parentActivityName=".activities.workouts.WorkoutListActivity"
             android:excludeFromRecents="true"/>
 
         <activity
@@ -671,11 +695,21 @@
             android:label="@string/title_activity_discovery"
             android:parentActivityName=".activities.ControlCenterv2" />
         <activity
+            android:name=".activities.AuthKeyActivity"
+            android:label="@string/pref_title_authkey"
+            android:parentActivityName=".activities.discovery.DiscoveryActivityV2" />
+        <activity
             android:name=".activities.AndroidPairingActivity"
             android:label="@string/title_activity_android_pairing" />
         <activity
             android:name=".devices.banglejs.AppsManagementActivity"
             android:label="@string/title_activity_appmanager"
+            android:launchMode="singleTop"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|layoutDirection|uiMode"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.multipoint.MultipointPairingActivity"
+            android:label="@string/bluetooth_multipoint_pairing"
             android:launchMode="singleTop"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|layoutDirection|uiMode"
             android:parentActivityName=".activities.ControlCenterv2" />

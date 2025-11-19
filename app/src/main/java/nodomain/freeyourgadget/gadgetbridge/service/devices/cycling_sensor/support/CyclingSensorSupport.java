@@ -27,8 +27,6 @@ import nodomain.freeyourgadget.gadgetbridge.entities.User;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.NotifyAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.ReadAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfoProfile;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -127,18 +125,15 @@ public class CyclingSensorSupport extends CyclingSensorBaseSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
-        BluetoothGattCharacteristic measurementCharacteristic =
-                getCharacteristic(UUID_CYCLING_SENSOR_CSC_MEASUREMENT);
+        builder.notify(UUID_CYCLING_SENSOR_CSC_MEASUREMENT, true);
 
-        builder.add(new NotifyAction(measurementCharacteristic, true));
-
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
         batteryCharacteristic = getCharacteristic(BatteryInfoProfile.UUID_CHARACTERISTIC_BATTERY_LEVEL);
 
         if(batteryCharacteristic != null){
-            builder.add(new ReadAction(batteryCharacteristic));
+            builder.read(batteryCharacteristic);
         }
 
         loadConfiguration();

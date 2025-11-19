@@ -54,7 +54,7 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         // mark the device as initializing
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         getDevice().setBatteryLabel(R.string.left_earbud, 0);
         getDevice().setBatteryLabel(R.string.right_earbud, 1);
@@ -68,10 +68,10 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
         }
 
         // mark the device as initialized
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
 
-        builder.notify(getCharacteristic(UUID_RPC_RESPONSE_CHARACTERISTIC), true);
-        builder.notify(getCharacteristic(UUID_RPC_NOTIFICATION_CHARACTERISTIC), true);
+        builder.notify(UUID_RPC_RESPONSE_CHARACTERISTIC, true);
+        builder.notify(UUID_RPC_NOTIFICATION_CHARACTERISTIC, true);
         BandWBLEProfile.requestFirmware(builder);
         BandWBLEProfile.requestDeviceName(builder);
         BandWBLEProfile.requestBatteryLevels(builder);
@@ -150,7 +150,7 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             payloadValue = response.payloadUnpacker.unpackInt();
         } catch (IOException e) {
-            GB.toast("Could not extract ancMode from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Could not extract ancMode from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR, e);
             return false;
         }
         Editor editor = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).edit();
@@ -185,7 +185,7 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             wearSensorEnabled = response.getPayloadBoolean();
         } catch (IOException e) {
-            GB.toast("Failed to unpack wear sensor status from payload " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Failed to unpack wear sensor status from payload " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR, e);
             return false;
         }
         Editor editor = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).edit();
@@ -229,7 +229,7 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             payloadValue = response.payloadUnpacker.unpackBoolean();
         } catch (IOException e) {
-            GB.toast("Could not extract vptEnabled from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Could not extract vptEnabled from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR, e);
             return false;
         }
         int vptLevel = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getInt(PREF_BANDW_PSERIES_VPT_LEVEL, 0);
@@ -249,7 +249,7 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             payloadValue = response.payloadUnpacker.unpackInt();
         } catch (IOException e) {
-            GB.toast("Could not extract vptLevel from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Could not extract vptLevel from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR, e);
             return false;
         }
         boolean vptEnabled = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(PREF_BANDW_PSERIES_VPT_ENABLED, false);
@@ -281,9 +281,9 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     BandWBLEProfile.setWearSensorEnabled(builder, wearSensorEnabled);
                     break;
             }
-            performImmediately(builder);
+            builder.queueImmediately();
         } catch (IOException e) {
-            GB.toast("Failed to send settings update", Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Failed to send settings update", Toast.LENGTH_SHORT, GB.ERROR, e);
         }
     }
 
@@ -297,7 +297,7 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             payloadValue = response.payloadUnpacker.unpackBoolean();
         } catch (IOException e) {
-            GB.toast("Could not extract response from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Could not extract response from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR, e);
             return false;
         }
         return payloadValue;
@@ -308,7 +308,7 @@ public class BandWPSeriesDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             payloadValue = response.payloadUnpacker.unpackInt();
         } catch (IOException e) {
-            GB.toast("Could not extract response from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Could not extract response from payload: " + Arrays.toString(response.payload), Toast.LENGTH_SHORT, GB.ERROR, e);
             return false;
         }
         return payloadValue == 0;

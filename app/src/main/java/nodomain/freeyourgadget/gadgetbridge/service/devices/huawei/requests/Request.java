@@ -16,7 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests;
 
-import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
@@ -330,9 +329,7 @@ public class Request {
         if (!this.supportProvider.isBLE()) {
             this.builderBr.write(data);
         } else {
-            BluetoothGattCharacteristic characteristic = supportProvider
-                    .getLeCharacteristic(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_WRITE);
-            this.builderLe.write(characteristic, data);
+            this.builderLe.write(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_WRITE, data);
         }
     }
 
@@ -351,11 +348,9 @@ public class Request {
             handler.postDelayed(this.timeoutRunner, this.timeout);
 
         if (!this.supportProvider.isBLE()) {
-            nodomain.freeyourgadget.gadgetbridge.service.btbr.Transaction transaction = this.builderBr.getTransaction();
-            this.supportProvider.performConnected(transaction);
+            builderBr.queueConnected();
         } else {
-            nodomain.freeyourgadget.gadgetbridge.service.btle.Transaction transaction = this.builderLe.getTransaction();
-            this.supportProvider.performConnected(transaction);
+            builderLe.queueConnected();
         }
     }
 

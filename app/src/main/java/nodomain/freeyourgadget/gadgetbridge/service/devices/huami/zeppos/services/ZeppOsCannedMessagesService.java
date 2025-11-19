@@ -86,11 +86,7 @@ public class ZeppOsCannedMessagesService extends AbstractZeppOsService {
                 LOG.info("Canned Message reply SMS check");
                 final boolean canSendSms;
                 // TODO place this behind a setting as well?
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                    canSendSms = getContext().checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
-                } else {
-                    canSendSms = true;
-                }
+                canSendSms = getContext().checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
                 sendCannedSmsReplyAllow(canSendSms);
                 return;
             default:
@@ -135,7 +131,7 @@ public class ZeppOsCannedMessagesService extends AbstractZeppOsService {
             buf.put(cannedMessage.getBytes(StandardCharsets.UTF_8));
             write(builder, buf.array());
         }
-        builder.queue(getSupport());
+        builder.queue();
     }
 
     public void requestCannedMessages(final ZeppOsTransactionBuilder builder) {

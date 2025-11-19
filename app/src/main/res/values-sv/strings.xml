@@ -54,7 +54,6 @@
     <string name="sonyswr12_settings_low_vibration_summary">Aktivera låg vibrationsintensitet på armbandet</string>
     <string name="sonyswr12_settings_stamina_summary">Energisparläget stänger av periodisk automatisk mätning av hjärtfrekvensen, vilket ökar arbetstiden</string>
     <string name="sonyswr12_settings_alarm_interval_summary">Smart alarmintervall är intervall före installerat larm. I detta intervall försöker enheten att upptäcka den lättaste fasen av sömn för att vakna användare</string>
-    <string name="devicetype_galaxybuds_2"/>
     <string name="about_activity_title_generic">Om Gadgetbridge</string>
     <string name="about_activity_title_main_nightly">Om Gadgetbridge Nightly</string>
     <string name="gadgetbridge_running_banglejs_main">Bangle.js körs</string>
@@ -215,15 +214,7 @@
     <string name="battery_detail_activity_title">Batteristatus</string>
     <string name="prefs_activity_in_device_card_distance_title_summary">Avstånd beräknas från stegen och stegens längd (justeras i Inställningar - Om)</string>
     <string name="whitelist_all_for_notifications">Vitlista alla för aviseringar</string>
-    <string name="fw_upgrade_notice_amazfitcor2">Du är på väg att installera %s firmware på din Amazfit Cor 2.
-\n
-\nSe till att installera .fw-filen och efter det .res-filen. Ditt band kommer att starta om efter installation av .fw-filen.
-\n
-\nObs: Du behöver inte installera .res om det är exakt samma som det tidigare installerade.
-\n
-\nFORTSÄTT PÅ EGEN RISK!
-\n
-\nHELT OTESTAD, FÖRMODLIGT MÅSTE DU FLASH EN BEATS_W FIRMWARE OM DIN ENHET ÄR \"Amazfit Band 2\"</string>
+    <string name="fw_upgrade_notice_amazfitcor2">Du är på väg att installera %s firmware på din Amazfit Cor 2. \n \nSe till att installera .fw-filen och efter det .res-filen. Ditt band kommer att starta om efter installation av .fw-filen. \n \nObs: Du behöver inte installera .res om det är exakt samma som det tidigare installerade. \n \nFORTSÄTT PÅ EGEN RISK! \n \nHELT OTESTAD, FÖRMODLIGT MÅSTE DU FLASH EN BEATS_W FIRMWARE OM DIN ENHET ÄR \"Amazfit Band 2\"</string>
     <string name="fw_upgrade_notice_amazfitgts">Du håller på att installera %s firmware på din Amazfit GTS.
 \n
 \nSe till att installera .fw-filen, sedan .res-filen och slutligen .gps-filen. Din klocka kommer att starta om efter installation av .fw-filen.
@@ -362,11 +353,10 @@
     <string name="application_name_main_nightly">Gadgetbridge (Nightly)</string>
     <string name="pref_header_datetime">Datum och Tid</string>
     <string name="gps_galileo">GPS + GALILEO</string>
-    <string name="pref_time_sync"/>
+    <string name="pref_time_sync"></string>
     <string name="pref_title_touch_spotify">Spotify</string>
     <string name="vibration_profile_short">Kort</string>
     <string name="title_activity_vibration">Vibrering</string>
-    <string name="devicetype_waspos">Wasp-os</string>
     <string name="watchface_widget_type_date">Datum</string>
     <string name="sony_surround_mode_arena">Arena</string>
     <string name="chart_steps">Steg</string>
@@ -512,7 +502,6 @@
     <string name="alarm_wed_short">Ons</string>
     <string name="DEVINFO_HR_VER">"HR: "</string>
     <string name="Cancel">Avbryt</string>
-    <string name="devicetype_um25">UM-25</string>
     <string name="watchface_dialog_widget_type">Typ</string>
     <string name="prefs_galaxy_buds_experimental">Experimentiell</string>
     <string name="prefs_active_noise_cancelling_level_low">Låg</string>
@@ -534,7 +523,6 @@
     <string name="pref_workout_detection_sensitivity">Känslighet</string>
     <string name="dismiss">Avfärda</string>
     <string name="step_streak_ongoing">Pågående</string>
-    <string name="devicetype_asteroidos">AsteroidOS</string>
     <string name="sony_equalizer">Equalizer</string>
     <string name="menuitem_wifi">Wi-Fi</string>
     <string name="fossil_hr_new_action_cancel">avbryt</string>
@@ -572,7 +560,6 @@
     <string name="activity_type_gymnastics">Gymnastik</string>
     <string name="activity_type_stretching">Stretchning</string>
     <string name="activity_type_zumba">Zumba</string>
-    <string name="devicetype_fitpro">FitPro</string>
     <string name="pref_title_notifications_sms">SMS</string>
     <string name="calories">Kalorier</string>
     <string name="Activity">Aktivitet</string>

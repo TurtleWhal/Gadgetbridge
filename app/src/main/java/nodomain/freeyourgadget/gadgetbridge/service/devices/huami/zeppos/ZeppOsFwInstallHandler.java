@@ -18,9 +18,12 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos;
 
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiFirmwareType.AGPS_UIHH;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.net.Uri;
+
+import androidx.annotation.NonNull;
 
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -32,10 +35,12 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.List;
 import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.InstallActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.install.FwAppInstallerActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.install.InstallActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.ZeppOsFwHelper;
@@ -52,10 +57,16 @@ public class ZeppOsFwInstallHandler implements InstallHandler {
 
     private final ZeppOsFwHelper mHelper;
 
-    public ZeppOsFwInstallHandler(final Uri uri, final Context context, final String deviceName, final Set<Integer> deviceSources) {
+    public ZeppOsFwInstallHandler(final Uri uri, final Context context, final List<String> deviceNames, final Set<Integer> deviceSources) {
         mUri = uri;
         mContext = context;
-        mHelper = new ZeppOsFwHelper(uri, context, deviceName, deviceSources);
+        mHelper = new ZeppOsFwHelper(uri, context, deviceNames, deviceSources);
+    }
+
+    @NonNull
+    @Override
+    public Class<? extends Activity> getInstallActivity() {
+        return FwAppInstallerActivity.class;
     }
 
     @Override
@@ -148,6 +159,7 @@ public class ZeppOsFwInstallHandler implements InstallHandler {
         // write app zip
         final File appOutputFile = new File(appCacheDir, app.getUUID().toString() + coordinator.getAppFileExtension());
         try {
+            //noinspection ResultOfMethodCallIgnored
             appCacheDir.mkdirs();
             FileUtils.copyURItoFile(mContext, mUri, appOutputFile);
         } catch (final IOException e) {

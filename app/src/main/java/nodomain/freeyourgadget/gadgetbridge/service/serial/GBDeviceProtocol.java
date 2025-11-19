@@ -118,11 +118,6 @@ public abstract class GBDeviceProtocol {
     }
 
     @Nullable
-    public byte[] encodeSynchronizeActivityData() {
-        return null;
-    }
-
-    @Nullable
     public byte[] encodeReset(int flags) {
         return null;
     }
@@ -178,7 +173,7 @@ public abstract class GBDeviceProtocol {
     }
 
     @Nullable
-    public byte[] encodeSendWeather(WeatherSpec weatherSpec) {
+    public byte[] encodeSendWeather() {
         return null;
     }
 
@@ -214,6 +209,11 @@ public abstract class GBDeviceProtocol {
 
     @Nullable
     public byte[] encodeGpsLocation(Location location) {
+        return null;
+    }
+
+    @Nullable
+    public byte[] encodeFetchRecordedData(int dataTypes) {
         return null;
     }
 

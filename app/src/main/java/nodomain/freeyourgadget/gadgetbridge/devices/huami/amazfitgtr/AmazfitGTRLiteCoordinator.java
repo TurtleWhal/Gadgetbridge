@@ -63,12 +63,12 @@ public class AmazfitGTRLiteCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsMusicInfo() {
+    public boolean supportsMusicInfo(@NonNull GBDevice device) {
         return true;
     }
 
@@ -132,5 +132,10 @@ public class AmazfitGTRLiteCoordinator extends HuamiCoordinator {
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_amazfit_gtr_lite;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

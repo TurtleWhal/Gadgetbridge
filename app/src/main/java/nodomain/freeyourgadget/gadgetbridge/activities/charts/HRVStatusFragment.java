@@ -1,4 +1,4 @@
-/*  Copyright (C) 2017-2024 Andreas Shimokawa, Daniele Gobbetti, José Rebelo
+/*  Copyright (C) 2017-2024 a0z, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -16,9 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
-import static java.util.stream.Collectors.toCollection;
-
-import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -59,6 +56,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.HrvSummarySample;
 import nodomain.freeyourgadget.gadgetbridge.model.HrvValueSample;
+import nodomain.freeyourgadget.gadgetbridge.util.Accumulator;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 
 
@@ -86,11 +84,9 @@ public class HRVStatusFragment extends AbstractChartFragment<HRVStatusFragment.H
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_hrv_status, container, false);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                getChartsHost().enableSwipeRefresh(scrollY == 0);
-            });
-        }
+        rootView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            getChartsHost().enableSwipeRefresh(scrollY == 0);
+        });
 
         mWeeklyHRVStatusChart = rootView.findViewById(R.id.hrv_weekly_line_chart);
         mHRVStatusLastNight = rootView.findViewById(R.id.hrv_status_last_night);
@@ -145,12 +141,12 @@ public class HRVStatusFragment extends AbstractChartFragment<HRVStatusFragment.H
         lineDataSet.setFillAlpha(255);
         lineDataSet.setCircleRadius(5f);
         lineDataSet.setDrawCircles(true);
-        lineDataSet.setDrawCircleHole(true);
+        lineDataSet.setDrawCircleHole(false);
         lineDataSet.setCircleColor(getResources().getColor(R.color.hrv_status_char_line_color));
         lineDataSet.setAxisDependency(YAxis.AxisDependency.LEFT);
         lineDataSet.setDrawValues(true);
         lineDataSet.setValueTextSize(10f);
-        lineDataSet.setValueTextColor(CHART_TEXT_COLOR);
+        lineDataSet.setValueTextColor(TEXT_COLOR);
         lineDataSet.setValueFormatter(new ValueFormatter() {
             @Override
             public String getFormattedValue(float value) {
@@ -168,8 +164,10 @@ public class HRVStatusFragment extends AbstractChartFragment<HRVStatusFragment.H
         mWeeklyHRVStatusChart.setData(null); // workaround for https://github.com/PhilJay/MPAndroidChart/issues/2317
         List<Entry> lineEntries = new ArrayList<>();
         final List<ILineDataSet> lineDataSets = new ArrayList<>();
+        final Accumulator dailyAccumulator = new Accumulator();
         weeklyData.getDaysData().forEach((HRVStatusDayData day) -> {
             if (day.dayAvg > 0) {
+                dailyAccumulator.add(day.dayAvg);
                 lineEntries.add(new Entry(day.i, day.dayAvg));
             } else {
                 if (!lineEntries.isEmpty()) {
@@ -194,6 +192,14 @@ public class HRVStatusFragment extends AbstractChartFragment<HRVStatusFragment.H
 
         final LineData lineData = new LineData(lineDataSets);
         mWeeklyHRVStatusChart.setData(lineData);
+
+        if (dailyAccumulator.getCount() > 0) {
+            mWeeklyHRVStatusChart.getAxisLeft().setAxisMaximum(Math.round(dailyAccumulator.getMax()) + 15);
+            mWeeklyHRVStatusChart.getAxisLeft().setAxisMinimum(Math.max(0, Math.round(dailyAccumulator.getMin()) - 15));
+        } else {
+            mWeeklyHRVStatusChart.getAxisLeft().setAxisMaximum(120);
+            mWeeklyHRVStatusChart.getAxisLeft().setAxisMinimum(0);
+        }
 
         final XAxis x = mWeeklyHRVStatusChart.getXAxis();
         x.setValueFormatter(getHRVStatusChartDayValueFormatter(weeklyData));
@@ -327,8 +333,8 @@ public class HRVStatusFragment extends AbstractChartFragment<HRVStatusFragment.H
         xAxisBottom.setDrawGridLines(false);
         xAxisBottom.setEnabled(true);
         xAxisBottom.setDrawLimitLinesBehindData(true);
-        xAxisBottom.setAxisMaximum(6 + 0.5f);
-        xAxisBottom.setAxisMinimum(0 - 0.5f);
+        xAxisBottom.setAxisMaximum(6);
+        xAxisBottom.setAxisMinimum(0);
         xAxisBottom.setTextColor(CHART_TEXT_COLOR);
 
         final YAxis yAxisLeft = mWeeklyHRVStatusChart.getAxisLeft();

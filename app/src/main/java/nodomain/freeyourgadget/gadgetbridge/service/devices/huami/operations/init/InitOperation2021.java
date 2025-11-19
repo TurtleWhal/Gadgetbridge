@@ -73,7 +73,7 @@ public class InitOperation2021 extends InitOperation implements Huami2021Handler
     @Override
     protected void doPerform() {
         huamiSupport.enableNotifications(builder, true);
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
         // get random auth number
         generateKeyPair();
         final byte[] sendPubKeyCommand = new byte[48 + 4];
@@ -152,7 +152,7 @@ public class InitOperation2021 extends InitOperation implements Huami2021Handler
                     System.arraycopy(encryptedRandom2, 0, command, 17, 16);
                     TransactionBuilder builder = createTransactionBuilder("Sending double encryted random to device");
                     huami2021ChunkedEncoder.write(chunk -> builder.write(characteristicChunked2021Write, chunk), CHUNKED2021_ENDPOINT_AUTH, command, true, false);
-                    huamiSupport.performImmediately(builder);
+                    builder.queueImmediately();
                 }
             } catch (final Exception e) {
                 LOG.error("AES encryption failed", e);
@@ -162,7 +162,7 @@ public class InitOperation2021 extends InitOperation implements Huami2021Handler
 
             try {
                 final TransactionBuilder builder = createTransactionBuilder("Authenticated, now initialize phase 2");
-                builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+                builder.setDeviceState(GBDevice.State.INITIALIZING);
                 builder.setCallback(null); // remove init operation as the callback
                 huamiSupport.enableFurtherNotifications(builder, true);
                 huamiSupport.setCurrentTime(builder);
@@ -170,7 +170,7 @@ public class InitOperation2021 extends InitOperation implements Huami2021Handler
                 huamiSupport.phase2Initialize(builder);
                 huamiSupport.phase3Initialize(builder);
                 huamiSupport.setInitialized(builder);
-                huamiSupport.performImmediately(builder);
+                builder.queueImmediately();
             } catch (final Exception e) {
                 LOG.error("failed initializing device", e);
             }

@@ -113,13 +113,13 @@ public class MarstekB2500DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
         getDevice().setFirmwareVersion("N/A");
         getDevice().setFirmwareVersion2("N/A");
         builder.requestMtu(512);
-        builder.notify(getCharacteristic(UUID_CHARACTERISTIC_MAIN), true);
+        builder.notify(UUID_CHARACTERISTIC_MAIN, true);
         builder.wait(3500);
-        builder.write(getCharacteristic(UUID_CHARACTERISTIC_MAIN), COMMAND_GET_INFOS1);
+        builder.write(UUID_CHARACTERISTIC_MAIN, COMMAND_GET_INFOS1);
         return builder;
     }
 
@@ -129,12 +129,12 @@ public class MarstekB2500DeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     private void sendCommand(String taskName, byte[] contents) {
-        TransactionBuilder builder = new TransactionBuilder(taskName);
+        TransactionBuilder builder = createTransactionBuilder(taskName);
         BluetoothGattCharacteristic characteristic = getCharacteristic(UUID_CHARACTERISTIC_MAIN);
         if (characteristic != null && contents != null) {
             builder.write(characteristic, contents);
             builder.wait(750);
-            builder.queue(getQueue());
+            builder.queue();
         }
     }
 

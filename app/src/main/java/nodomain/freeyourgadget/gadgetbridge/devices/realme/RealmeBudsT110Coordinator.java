@@ -48,7 +48,7 @@ public class RealmeBudsT110Coordinator extends OppoHeadphonesCoordinator {
 
     @Override
     protected Map<Pair<TouchConfigSide, TouchConfigType>, List<TouchConfigValue>> getTouchOptions() {
-        return new LinkedHashMap<Pair<TouchConfigSide, TouchConfigType>, List<TouchConfigValue>>() {{
+        return new LinkedHashMap<>() {{
             final List<TouchConfigValue> options = Arrays.asList(
                     TouchConfigValue.OFF,
                     TouchConfigValue.PLAY_PAUSE,

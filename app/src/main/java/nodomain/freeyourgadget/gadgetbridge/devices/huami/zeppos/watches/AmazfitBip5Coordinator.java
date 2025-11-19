@@ -16,19 +16,22 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.watches;
 
+import androidx.annotation.NonNull;
+
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.ZeppOsCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class AmazfitBip5Coordinator extends ZeppOsCoordinator {
     @Override
-    public String getDeviceBluetoothName() {
-        return HuamiConst.AMAZFIT_BIP5_NAME;
+    public List<String> getDeviceBluetoothNames() {
+        return Collections.singletonList("Amazfit Bip 5");
     }
 
     @Override
@@ -67,5 +70,10 @@ public class AmazfitBip5Coordinator extends ZeppOsCoordinator {
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_amazfit_bip;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

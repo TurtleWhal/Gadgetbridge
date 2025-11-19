@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.UUID;
@@ -38,6 +37,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
@@ -63,7 +63,7 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
         normalWriteCharacteristic = getCharacteristic(SMAQ2OSSConstants.UUID_CHARACTERISTIC_WRITE_NORMAL);
         normalWriteCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
 
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         setTime(builder)
                 .setInitialized(builder);
@@ -71,7 +71,7 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
         getDevice().setFirmwareVersion("N/A");
         getDevice().setFirmwareVersion2("N/A");
 
-        builder.notify(getCharacteristic(SMAQ2OSSConstants.UUID_CHARACTERISTIC_NOTIFY_NORMAL), true);
+        builder.notify(SMAQ2OSSConstants.UUID_CHARACTERISTIC_NOTIFY_NORMAL, true);
 
         return builder;
     }
@@ -172,7 +172,7 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
 
             builder.write(normalWriteCharacteristic,createMessage(SMAQ2OSSConstants.MSG_NOTIFICATION,notification.build().toByteArray()));
 
-            builder.queue(getQueue());
+            builder.queue();
         } catch (Exception ex) {
             LOG.error("Error sending notification", ex);
         }
@@ -183,7 +183,7 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("time");
             setTime(builder);
-            performConnected(builder.getTransaction());
+            builder.queueConnected();
         } catch(IOException e) {
         }
     }
@@ -203,7 +203,7 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
 
             builder.write(normalWriteCharacteristic,createMessage(SMAQ2OSSConstants.MSG_CALL_NOTIFICATION,callnotif.build().toByteArray()));
 
-            builder.queue(getQueue());
+            builder.queue();
         } catch (Exception ex) {
             LOG.error("Error sending call state", ex);
         }
@@ -231,7 +231,7 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
 
             builder.write(normalWriteCharacteristic,createMessage(SMAQ2OSSConstants.MSG_SET_MUSIC_INFO,musicInfo.build().toByteArray()));
 
-            builder.queue(getQueue());
+            builder.queue();
         } catch (Exception ex) {
             LOG.error("Error sending music info", ex);
         }
@@ -252,41 +252,45 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        WeatherSpec weatherSpec = weatherSpecs.get(0);
+    public void onSendWeather() {
+        final WeatherSpec weatherSpec = Weather.getWeatherSpec();
+        if (weatherSpec == null) {
+            LOG.warn("No weather found in singleton");
+            return;
+        }
         try {
             TransactionBuilder builder;
             builder = performInitialized("Sending current weather");
 
             SMAQ2OSSProtos.SetWeather.Builder setWeather= SMAQ2OSSProtos.SetWeather.newBuilder();
 
-            setWeather.setTimestamp(weatherSpec.timestamp);
-            setWeather.setCondition(weatherSpec.currentConditionCode);
-            setWeather.setTemperature(weatherSpec.currentTemp-273);
-            setWeather.setTemperatureMin(weatherSpec.todayMinTemp-273);
-            setWeather.setTemperatureMax(weatherSpec.todayMaxTemp-273);
-            setWeather.setHumidity(weatherSpec.currentHumidity);
+            setWeather.setTimestamp(weatherSpec.getTimestamp());
+            setWeather.setCondition(weatherSpec.getCurrentConditionCode());
+            setWeather.setTemperature(weatherSpec.getCurrentTemp() -273);
+            setWeather.setTemperatureMin(weatherSpec.getTodayMinTemp() -273);
+            setWeather.setTemperatureMax(weatherSpec.getTodayMaxTemp() -273);
+            setWeather.setHumidity(weatherSpec.getCurrentHumidity());
 
-            for (WeatherSpec.Daily f:weatherSpec.forecasts) {
+            for (WeatherSpec.Daily f: weatherSpec.getForecasts()) {
 
                 SMAQ2OSSProtos.Forecast.Builder fproto = SMAQ2OSSProtos.Forecast.newBuilder();
 
-                fproto.setCondition(f.conditionCode);
-                fproto.setTemperatureMin(f.minTemp-273);
-                fproto.setTemperatureMax(f.maxTemp-273);
+                fproto.setCondition(f.getConditionCode());
+                fproto.setTemperatureMin(f.getMinTemp() -273);
+                fproto.setTemperatureMax(f.getMaxTemp() -273);
 
                 setWeather.addForecasts(fproto);
             }
 
             builder.write(normalWriteCharacteristic,createMessage(SMAQ2OSSConstants.MSG_SET_WEATHER,setWeather.build().toByteArray()));
-            builder.queue(getQueue());
+            builder.queue();
         } catch (Exception ex) {
             LOG.error("Error sending current weather", ex);
         }
     }
 
     private void setInitialized(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
     }
 
     byte[] createMessage(byte msgid, byte[] data){

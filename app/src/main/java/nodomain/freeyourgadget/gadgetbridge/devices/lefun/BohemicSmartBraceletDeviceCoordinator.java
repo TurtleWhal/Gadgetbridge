@@ -16,15 +16,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.lefun;
 
+import androidx.annotation.NonNull;
+
+import java.util.regex.Pattern;
+
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 
 public class BohemicSmartBraceletDeviceCoordinator extends LefunDeviceCoordinator {
+    @NonNull
     @Override
-    public boolean supports(GBDeviceCandidate candidate) {
-        // Since the Lefun coordinator overrides supports, we also need to
-        return ".bohemic".equals(candidate.getName());
+    protected Pattern getSupportedDeviceName() {
+        return Pattern.compile("^\\.bohemic$");
     }
 
     @Override
@@ -41,7 +45,7 @@ public class BohemicSmartBraceletDeviceCoordinator extends LefunDeviceCoordinato
     }
 
     @Override
-    public boolean supportsRealtimeData() {
+    public boolean supportsRealtimeData(@NonNull GBDevice device) {
         return false;  // not supported
     }
 
@@ -49,5 +53,10 @@ public class BohemicSmartBraceletDeviceCoordinator extends LefunDeviceCoordinato
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_bohemic_smart_bracelet;
+    }
+
+    @Override
+    public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceCoordinator.DeviceKind.FITNESS_BAND;
     }
 }

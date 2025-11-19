@@ -62,7 +62,7 @@ import java.util.stream.Collectors;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity;
-import nodomain.freeyourgadget.gadgetbridge.activities.FwAppInstallerActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.install.FwAppInstallerActivity;
 import nodomain.freeyourgadget.gadgetbridge.adapter.MusicListAdapter;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceMusic;
@@ -381,6 +381,7 @@ public class MusicManagerActivity extends AbstractGBActivity {
                 public void onActivityResult(ActivityResult result) {
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                         Intent startIntent = new Intent(MusicManagerActivity.this, FwAppInstallerActivity.class);
+                        startIntent.putExtra(GBDevice.EXTRA_DEVICE, mGBDevice);
                         startIntent.setAction(Intent.ACTION_VIEW);
                         startIntent.setDataAndType(result.getData().getData(), null);
                         startActivity(startIntent);

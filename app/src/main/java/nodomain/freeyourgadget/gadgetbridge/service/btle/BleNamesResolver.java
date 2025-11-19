@@ -16,6 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.btle;
 
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -23,13 +24,14 @@ import android.bluetooth.BluetoothProfile;
 import android.util.SparseArray;
 
 import java.util.HashMap;
+import java.util.Map;
 
 public class BleNamesResolver {
-    private static HashMap<String, String> mServices = new HashMap<>();
-    private static HashMap<String, String> mCharacteristics = new HashMap<>();
-    private static SparseArray<String> mValueFormats = new SparseArray<>();
-    private static SparseArray<String> mAppearance = new SparseArray<>();
-    private static SparseArray<String> mHeartRateSensorLocation = new SparseArray<>();
+    private static final Map<String, String> mServices = new HashMap<>(100);
+    private static final Map<String, String> mCharacteristics = new HashMap<>(600);
+    private static final SparseArray<String> mValueFormats = new SparseArray<>(10);
+    private static final SparseArray<String> mAppearance = new SparseArray<>(20);
+    private static final SparseArray<String> mHeartRateSensorLocation = new SparseArray<>(10);
 
     static public String resolveServiceName(final String uuid) {
         String result = mServices.get(uuid);
@@ -38,8 +40,7 @@ public class BleNamesResolver {
     }
 
     static public String resolveValueTypeDescription(final int format) {
-        Integer tmp = Integer.valueOf(format);
-        return mValueFormats.get(tmp, "Unknown Format");
+        return mValueFormats.get(format, "Unknown Format");
     }
 
     static public String resolveCharacteristicName(final String uuid) {
@@ -363,6 +364,29 @@ public class BleNamesResolver {
         }
     }
 
+    /// lookup description for numeric {@link BluetoothGatt#requestConnectionPriority} priorities
+    public static String getConnectionPriorityString(int priority){
+        return switch (priority) {
+            case BluetoothGatt.CONNECTION_PRIORITY_BALANCED -> "CONNECTION_PRIORITY_BALANCED";
+            case BluetoothGatt.CONNECTION_PRIORITY_HIGH -> "CONNECTION_PRIORITY_HIGH";
+            case BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER -> "CONNECTION_PRIORITY_LOW_POWER";
+            case BluetoothGatt.CONNECTION_PRIORITY_DCK -> "CONNECTION_PRIORITY_DCK";
+            default -> "priority_" + priority;
+        };
+    }
+
+    /// lookup description for numeric bond loss reasons (introduced in API 36.1)
+    public static String getBondLossReasonString(int reason){
+        return switch (reason) {
+            case 0 -> "BOND_LOSS_REASON_UNKNOWN";
+            case 1 -> "BOND_LOSS_REASON_BREDR_AUTH_FAILURE";
+            case 2 -> "BOND_LOSS_REASON_BREDR_INCOMING_PAIRING";
+            case 3 -> "BOND_LOSS_REASON_LE_ENCRYPT_FAILURE";
+            case 4 -> "BOND_LOSS_REASON_LE_INCOMING_PAIRING";
+            default -> "reason_" + reason;
+        };
+    }
+
     static public String getCharacteristicPropertyString(int property) {
         StringBuilder builder = new StringBuilder();
         if (BluetoothGattCharacteristic.PROPERTY_BROADCAST == (BluetoothGattCharacteristic.PROPERTY_BROADCAST & property)) {
@@ -387,6 +411,16 @@ public class BleNamesResolver {
             builder.setLength(builder.length() - 1);
         }
         return builder.toString();
+    }
+
+    static public String getAdapterStateString(int state) {
+        return switch (state) {
+            case BluetoothAdapter.STATE_OFF -> "STATE_OFF";
+            case BluetoothAdapter.STATE_TURNING_ON -> "STATE_TURNING_ON";
+            case BluetoothAdapter.STATE_ON -> "STATE_ON";
+            case BluetoothAdapter.STATE_TURNING_OFF -> "STATE_TURNING_OFF";
+            default -> "state_" + state;
+        };
     }
 
     static {
@@ -462,6 +496,85 @@ public class BleNamesResolver {
         mServices.put("00001859-0000-1000-8000-00805f9b34fb", "Mesh Proxy Solicitation");
         mServices.put("0000185a-0000-1000-8000-00805f9b34fb", "Industrial Measurement Device");
         mServices.put("0000185b-0000-1000-8000-00805f9b34fb", "Ranging");
+        mServices.put("0000185c-0000-1000-8000-00805f9b34fb", "HID ISO");
+
+        // source: https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/uuids/service_class.yaml
+        mServices.put("00001000-0000-1000-8000-00805f9b34fb", "ServiceDiscoveryServerServiceClassID");
+        mServices.put("00001001-0000-1000-8000-00805f9b34fb", "BrowseGroupDescriptorServiceClassID");
+        mServices.put("00001101-0000-1000-8000-00805f9b34fb", "SerialPort");
+        mServices.put("00001102-0000-1000-8000-00805f9b34fb", "LANAccessUsingPPP");
+        mServices.put("00001103-0000-1000-8000-00805f9b34fb", "Dial-Up Networking");
+        mServices.put("00001104-0000-1000-8000-00805f9b34fb", "IrMCSync");
+        mServices.put("00001105-0000-1000-8000-00805f9b34fb", "OBEXObjectPush");
+        mServices.put("00001106-0000-1000-8000-00805f9b34fb", "OBEX File Transfer");
+        mServices.put("00001107-0000-1000-8000-00805f9b34fb", "IrMCSyncCommand");
+        mServices.put("00001108-0000-1000-8000-00805f9b34fb", "Headset");
+        mServices.put("00001109-0000-1000-8000-00805f9b34fb", "CordlessTelephony");
+        mServices.put("0000110a-0000-1000-8000-00805f9b34fb", "Audio Source");
+        mServices.put("0000110b-0000-1000-8000-00805f9b34fb", "Audio Sink");
+        mServices.put("0000110c-0000-1000-8000-00805f9b34fb", "A/V Remote Control Target");
+        mServices.put("0000110d-0000-1000-8000-00805f9b34fb", "Advanced Audio Distribution");
+        mServices.put("0000110e-0000-1000-8000-00805f9b34fb", "A/V Remote Control");
+        mServices.put("0000110f-0000-1000-8000-00805f9b34fb", "A/V Remote Control Controller");
+        mServices.put("00001110-0000-1000-8000-00805f9b34fb", "Intercom");
+        mServices.put("00001111-0000-1000-8000-00805f9b34fb", "Fax");
+        mServices.put("00001112-0000-1000-8000-00805f9b34fb", "Headset Audio Gateway");
+        mServices.put("00001113-0000-1000-8000-00805f9b34fb", "WAP");
+        mServices.put("00001114-0000-1000-8000-00805f9b34fb", "WAP_CLIENT");
+        mServices.put("00001115-0000-1000-8000-00805f9b34fb", "PANU");
+        mServices.put("00001116-0000-1000-8000-00805f9b34fb", "NAP");
+        mServices.put("00001117-0000-1000-8000-00805f9b34fb", "GN");
+        mServices.put("00001118-0000-1000-8000-00805f9b34fb", "DirectPrinting");
+        mServices.put("00001119-0000-1000-8000-00805f9b34fb", "ReferencePrinting");
+        mServices.put("0000111a-0000-1000-8000-00805f9b34fb", "Imaging");
+        mServices.put("0000111b-0000-1000-8000-00805f9b34fb", "Imaging Responder");
+        mServices.put("0000111c-0000-1000-8000-00805f9b34fb", "Imaging Automatic Archive");
+        mServices.put("0000111d-0000-1000-8000-00805f9b34fb", "Imaging Referenced Objects");
+        mServices.put("0000111e-0000-1000-8000-00805f9b34fb", "Hands-Free");
+        mServices.put("0000111f-0000-1000-8000-00805f9b34fb", "AG Hands-Free");
+        mServices.put("00001120-0000-1000-8000-00805f9b34fb", "DirectPrintingReferencedObjectsService");
+        mServices.put("00001121-0000-1000-8000-00805f9b34fb", "ReflectedUI");
+        mServices.put("00001122-0000-1000-8000-00805f9b34fb", "BasicPrinting");
+        mServices.put("00001123-0000-1000-8000-00805f9b34fb", "PrintingStatus");
+        mServices.put("00001124-0000-1000-8000-00805f9b34fb", "HID");
+        mServices.put("00001125-0000-1000-8000-00805f9b34fb", "HardcopyCableReplacement");
+        mServices.put("00001126-0000-1000-8000-00805f9b34fb", "HCR_Print");
+        mServices.put("00001127-0000-1000-8000-00805f9b34fb", "HCR_Scan");
+        mServices.put("00001128-0000-1000-8000-00805f9b34fb", "Common_ISDN_Access");
+        mServices.put("0000112d-0000-1000-8000-00805f9b34fb", "SIM Access");
+        mServices.put("0000112e-0000-1000-8000-00805f9b34fb", "Phonebook Access Client");
+        mServices.put("0000112f-0000-1000-8000-00805f9b34fb", "Phonebook Access Server");
+        mServices.put("00001130-0000-1000-8000-00805f9b34fb", "Phonebook Access Profile");
+        mServices.put("00001131-0000-1000-8000-00805f9b34fb", "Headset - HS");
+        mServices.put("00001132-0000-1000-8000-00805f9b34fb", "Message Access Server");
+        mServices.put("00001133-0000-1000-8000-00805f9b34fb", "Message Notification Server");
+        mServices.put("00001134-0000-1000-8000-00805f9b34fb", "Message Access Profile");
+        mServices.put("00001135-0000-1000-8000-00805f9b34fb", "GNSS");
+        mServices.put("00001136-0000-1000-8000-00805f9b34fb", "GNSS_Server");
+        mServices.put("00001137-0000-1000-8000-00805f9b34fb", "3D Display");
+        mServices.put("00001138-0000-1000-8000-00805f9b34fb", "3D Glasses");
+        mServices.put("00001139-0000-1000-8000-00805f9b34fb", "3D Synch Profile");
+        mServices.put("0000113a-0000-1000-8000-00805f9b34fb", "Multi Profile Specification");
+        mServices.put("0000113b-0000-1000-8000-00805f9b34fb", "MPS");
+        mServices.put("0000113c-0000-1000-8000-00805f9b34fb", "CTN Access Service");
+        mServices.put("0000113d-0000-1000-8000-00805f9b34fb", "CTN Notification Service");
+        mServices.put("0000113e-0000-1000-8000-00805f9b34fb", "Calendar Tasks and Notes Profile");
+        mServices.put("00001200-0000-1000-8000-00805f9b34fb", "PnPInformation");
+        mServices.put("00001201-0000-1000-8000-00805f9b34fb", "Generic Networking");
+        mServices.put("00001202-0000-1000-8000-00805f9b34fb", "GenericFileTransfer");
+        mServices.put("00001203-0000-1000-8000-00805f9b34fb", "Generic Audio");
+        mServices.put("00001204-0000-1000-8000-00805f9b34fb", "GenericTelephony");
+        mServices.put("00001205-0000-1000-8000-00805f9b34fb", "UPNP_Service");
+        mServices.put("00001206-0000-1000-8000-00805f9b34fb", "UPNP_IP_Service");
+        mServices.put("00001300-0000-1000-8000-00805f9b34fb", "ESDP_UPNP_IP_PAN");
+        mServices.put("00001301-0000-1000-8000-00805f9b34fb", "ESDP_UPNP_IP_LAP");
+        mServices.put("00001302-0000-1000-8000-00805f9b34fb", "ESDP_UPNP_L2CAP");
+        mServices.put("00001303-0000-1000-8000-00805f9b34fb", "Video Source");
+        mServices.put("00001304-0000-1000-8000-00805f9b34fb", "Video Sink");
+        mServices.put("00001305-0000-1000-8000-00805f9b34fb", "Video Distribution");
+        mServices.put("00001400-0000-1000-8000-00805f9b34fb", "HDP");
+        mServices.put("00001401-0000-1000-8000-00805f9b34fb", "HDP Source");
+        mServices.put("00001402-0000-1000-8000-00805f9b34fb", "HDP Sink");
 
         mServices.put("0000fdab-0000-1000-8000-00805f9b34fb", "(Propr: Xiaomi Proximity Unlock Service)");
         mServices.put("0000fe95-0000-1000-8000-00805f9b34fb", "(Propr: Xiaomi Wear Service)");
@@ -477,6 +590,8 @@ public class BleNamesResolver {
         mServices.put("02f00000-0000-0000-0000-00000000ffe0", "(Propr: Nothing CMF Data");
         mServices.put("02f00000-0000-0000-0000-00000000fe00", "(Propr: Nothing CMF Firmware");
         mServices.put("77d4e67c-2fe2-2334-0d35-9ccd078f529c", "(Propr: Nothing CMF Shell");
+        mServices.put("000055ff-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Command");
+        mServices.put("000056ff-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Data");
         mServices.put("9b012401-bc30-ce9a-e111-0f67e491abde", "(Propr: Garmin GFDI V0)");
         mServices.put("6a4e2401-667b-11e3-949a-0800200c9a66", "(Propr: Garmin GFDI V1)");
         mServices.put("6a4e2800-667b-11e3-949a-0800200c9a66", "(Propr: Garmin ML)");
@@ -484,6 +599,8 @@ public class BleNamesResolver {
         mServices.put("86f65000-f706-58a0-95b2-1fb9261e4dc7", "(Propr: Ultrahuman Request)");
         mServices.put("86f66000-f706-58a0-95b2-1fb9261e4dc7", "(Propr: Ultrahuman Data)");
         mServices.put("8d53dc1d-1db7-4cd3-868b-8a527460aa84", "(Propr: SMP - Simple Management Protocol)");
+        mServices.put("6e40fff0-b5a3-f393-e0a9-e50e24dcca9e", "(Propr: NUS - Nordic UART Service)");
+        mServices.put("de5bf728-d711-4e47-af26-65e3012a5dc7", "(Propr: Yawell Serial)");
 
         // source https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/uuids/characteristic_uuids.yaml
         mCharacteristics.put("00002a00-0000-1000-8000-00805f9b34fb", "Device Name");
@@ -957,6 +1074,16 @@ public class BleNamesResolver {
         mCharacteristics.put("00002c17-0000-1000-8000-00805f9b34fb", "RAS Control Point");
         mCharacteristics.put("00002c18-0000-1000-8000-00805f9b34fb", "Ranging Data Ready");
         mCharacteristics.put("00002c19-0000-1000-8000-00805f9b34fb", "Ranging Data Overwritten");
+        mCharacteristics.put("00002c1b-0000-1000-8000-00805f9b34fb", "Humidity 8");
+        mCharacteristics.put("00002c1c-0000-1000-8000-00805f9b34fb", "Illuminance 16");
+        mCharacteristics.put("00002c1d-0000-1000-8000-00805f9b34fb", "Acceleration 3D");
+        mCharacteristics.put("00002c1e-0000-1000-8000-00805f9b34fb", "Precise Acceleration 3D");
+        mCharacteristics.put("00002c1f-0000-1000-8000-00805f9b34fb", "Acceleration Detection Status");
+        mCharacteristics.put("00002c20-0000-1000-8000-00805f9b34fb", "Door/Window Status");
+        mCharacteristics.put("00002c21-0000-1000-8000-00805f9b34fb", "Pushbutton Status 8");
+        mCharacteristics.put("00002c22-0000-1000-8000-00805f9b34fb", "Contact Status 8");
+        mCharacteristics.put("00002c23-0000-1000-8000-00805f9b34fb", "HID ISO Properties");
+        mCharacteristics.put("00002c24-0000-1000-8000-00805f9b34fb", "LE HID Operation Mode");
 
         mCharacteristics.put("14702856-620a-3973-7c78-9cfff0876abd", "(Propr: HPLUS Control)");
         mCharacteristics.put("14702853-620a-3973-7c78-9cfff0876abd", "(Propr: HPLUS Measurements)");
@@ -974,6 +1101,27 @@ public class BleNamesResolver {
         mCharacteristics.put("6a4e2823-667b-11e3-949a-0800200c9a66", "(Propr: Garmin ML 3 TX)");
         mCharacteristics.put("6a4e2814-667b-11e3-949a-0800200c9a66", "(Propr: Garmin ML 4 RX)");
         mCharacteristics.put("6a4e2824-667b-11e3-949a-0800200c9a66", "(Propr: Garmin ML 4 TX)");
+        mCharacteristics.put("00000051-0000-1000-8000-00805f9b34fb", "(Propr: Xiaomi V1 Command Read)");
+        mCharacteristics.put("00000052-0000-1000-8000-00805f9b34fb", "(Propr: Xiaomi V1 Command Write)");
+        mCharacteristics.put("00000053-0000-1000-8000-00805f9b34fb", "(Propr: Xiaomi V1 Activity Data)");
+        mCharacteristics.put("00000055-0000-1000-8000-00805f9b34fb", "(Propr: Xiaomi V1 Data Upload)");
+        mCharacteristics.put("16186f01-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi V1 Command Read)");
+        mCharacteristics.put("16186f02-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi V1 Command Write)");
+        mCharacteristics.put("16186f03-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi V1 Activity Data)");
+        mCharacteristics.put("16186f04-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi V1 Data Upload)");
+        mCharacteristics.put("16187f02-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi V1 Command Read)");
+        mCharacteristics.put("16187f01-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi V1 Command Write)");
+        mCharacteristics.put("16187f03-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi V1 Activity Data)");
+        mCharacteristics.put("16187f04-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi V1 Data Upload)");
+        mCharacteristics.put("1314f005-1000-9000-7000-301291e21220", "(Propr: Xiaomi V1 Command Read)");
+        mCharacteristics.put("1314f001-1000-9000-7000-301291e21220", "(Propr: Xiaomi V1 Command Write)");
+        mCharacteristics.put("1314f002-1000-9000-7000-301291e21220", "(Propr: Xiaomi V1 Activity Data)");
+        mCharacteristics.put("1314f007-1000-9000-7000-301291e21220", "(Propr: Xiaomi V1 Data Upload)");
+        mCharacteristics.put("74950002-a7f3-424b-92dd-4a006a3aef56", "(Propr: Xiaomi V1 Command Read)");
+        mCharacteristics.put("74950001-a7f3-424b-92dd-4a006a3aef56", "(Propr: Xiaomi V1 Command Write)");
+        mCharacteristics.put("74950003-a7f3-424b-92dd-4a006a3aef56", "(Propr: Xiaomi V1 Activity Data)");
+        mCharacteristics.put("0000005e-0000-1000-8000-00805f9b34fb", "(Propr: Xiaomi V2 RX)");
+        mCharacteristics.put("0000005f-0000-1000-8000-00805f9b34fb", "(Propr: Xiaomi V2 TX)");
         mCharacteristics.put("0000fff1-0000-1000-8000-00805f9b34fb", "(Propr: Nothing CMF Command Read");
         mCharacteristics.put("0000fff2-0000-1000-8000-00805f9b34fb", "(Propr: Nothing CMF Command Write");
         mCharacteristics.put("02f00000-0000-0000-0000-00000000ffe1", "(Propr: Nothing CMF Data Write");
@@ -982,6 +1130,10 @@ public class BleNamesResolver {
         mCharacteristics.put("77d4ff02-2fe2-2334-0d35-9ccd078f529c", "(Propr: Nothing CMF Shell Read");
         mCharacteristics.put("02f00000-0000-0000-0000-00000000ff01", "(Propr: Nothing CMF Firmware Write");
         mCharacteristics.put("02f00000-0000-0000-0000-00000000ff02", "(Propr: Nothing CMF Firmware Read");
+        mCharacteristics.put("000033f1-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Command Write");
+        mCharacteristics.put("000033f2-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Command Read");
+        mCharacteristics.put("000034f1-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Data Write");
+        mCharacteristics.put("000034f2-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Data Read");
         mCharacteristics.put("00010203-0405-0607-0809-0a0b0c0d2b12", "(Propr: Telink OTA Write)");
         mCharacteristics.put("ebe0ccb7-7a0a-4b0c-8a1a-6ff2997da3a6", "(Propr: Lywsd TIME)");
         mCharacteristics.put("ebe0ccc4-7a0a-4b0c-8a1a-6ff2997da3a6", "(Propr: Lywsd BATTERY)");
@@ -1015,6 +1167,10 @@ public class BleNamesResolver {
         mCharacteristics.put("86f65002-f706-58a0-95b2-1fb9261e4dc7", "(Propr: Ultrahuman Response)");
         mCharacteristics.put("86f66001-f706-58a0-95b2-1fb9261e4dc7", "(Propr: Ultrahuman Data)");
         mCharacteristics.put("da2e7828-fbce-4e01-ae9e-261174997c48", "(Propr: SMP - Simple Management Protocol)");
+        mCharacteristics.put("6e400002-b5a3-f393-e0a9-e50e24dcca9e", "(Propr: Nordic UART TX)");
+        mCharacteristics.put("6e400003-b5a3-f393-e0a9-e50e24dcca9e", "(Propr: Nordic UART RX)");
+        mCharacteristics.put("de5bf729-d711-4e47-af26-65e3012a5dc7", "(Propr: Yawell Notify)");
+        mCharacteristics.put("de5bf72a-d711-4e47-af26-65e3012a5dc7", "(Propr: Yawell Write)");
 
         mValueFormats.put(52, "32bit float");
         mValueFormats.put(50, "16bit float");

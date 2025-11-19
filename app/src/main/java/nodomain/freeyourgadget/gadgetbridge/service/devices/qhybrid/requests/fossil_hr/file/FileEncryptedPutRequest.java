@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil_hr.file;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport.calcMaxWriteChunk;
+
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.widget.Toast;
 
@@ -30,7 +32,6 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil.FossilWatchAdapter;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil_hr.FossilHRWatchAdapter;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.FossilRequest;
 import nodomain.freeyourgadget.gadgetbridge.util.CRC32C;
@@ -85,7 +86,7 @@ public class FileEncryptedPutRequest extends FossilRequest implements FileEncryp
                     }
                     state = UploadState.UPLOADING;
 
-                    TransactionBuilder transactionBuilder = new TransactionBuilder("file upload");
+                    TransactionBuilder transactionBuilder = adapter.getDeviceSupport().createTransactionBuilder("file upload");
                     BluetoothGattCharacteristic uploadCharacteristic = adapter.getDeviceSupport().getCharacteristic(UUID.fromString("3dda0004-957f-7d4a-34a6-74696673696d"));
 
                     this.prepareFilePackets(this.file);
@@ -94,7 +95,7 @@ public class FileEncryptedPutRequest extends FossilRequest implements FileEncryp
                     try {
                         keySpec = new SecretKeySpec(this.adapter.getSecretKey(), "AES");
                     } catch (IllegalAccessException e) {
-                        GB.toast("error getting key: " + e.getMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+                        GB.toast("error getting key: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
                         return;
                     }
                     try {
@@ -121,7 +122,7 @@ public class FileEncryptedPutRequest extends FossilRequest implements FileEncryp
                         GB.toast("error encrypting file", Toast.LENGTH_LONG, GB.ERROR, e);
                     }
 
-                    transactionBuilder.queue(adapter.getDeviceSupport().getQueue());
+                    transactionBuilder.queue();
                     break;
                 }
                 case 8: {
@@ -151,12 +152,12 @@ public class FileEncryptedPutRequest extends FossilRequest implements FileEncryp
                     buffer2.put((byte) 4);
                     buffer2.putShort(this.handle);
 
-                    new TransactionBuilder("file close")
+                    adapter.getDeviceSupport().createTransactionBuilder("file close")
                             .write(
-                                    adapter.getDeviceSupport().getCharacteristic(UUID.fromString("3dda0003-957f-7d4a-34a6-74696673696d")),
+                                    UUID.fromString("3dda0003-957f-7d4a-34a6-74696673696d"),
                                     buffer2.array()
                             )
-                            .queue(adapter.getDeviceSupport().getQueue());
+                            .queue();
 
                     this.state = UploadState.CLOSING;
                     break;
@@ -221,7 +222,7 @@ public class FileEncryptedPutRequest extends FossilRequest implements FileEncryp
     }
 
     private void prepareFilePackets(byte[] file) {
-        int maxPacketSize = adapter.getMTU() - 4;
+        int maxPacketSize = calcMaxWriteChunk(adapter.getMTU()) - 1;
 
         ByteBuffer buffer = ByteBuffer.allocate(file.length + 12 + 4);
         buffer.order(ByteOrder.LITTLE_ENDIAN);

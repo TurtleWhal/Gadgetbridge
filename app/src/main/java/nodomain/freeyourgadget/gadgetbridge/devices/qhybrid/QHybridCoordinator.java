@@ -25,6 +25,7 @@ import android.net.Uri;
 import android.os.ParcelUuid;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +34,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import de.greenrobot.dao.AbstractDao;
+import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
@@ -46,19 +51,31 @@ import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
+import nodomain.freeyourgadget.gadgetbridge.entities.HybridHRActivitySampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HybridHRSpo2SampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.parser.HybridHRWorkoutSummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Version;
 
 public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     private static final Logger LOG = LoggerFactory.getLogger(QHybridCoordinator.class);
+
+    @Override
+    public Map<AbstractDao<?, ?>, Property> getAllDeviceDao(@NonNull final DaoSession session) {
+        return new HashMap<>() {{
+            put(session.getHybridHRActivitySampleDao(), HybridHRActivitySampleDao.Properties.DeviceId);
+            put(session.getHybridHRSpo2SampleDao(), HybridHRSpo2SampleDao.Properties.DeviceId);
+        }};
+    }
 
     @Override
     public boolean supports(GBDeviceCandidate candidate) {
@@ -77,23 +94,28 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching() {
-        List<GBDevice> devices = GBApplication.app().getDeviceManager().getSelectedDevices();
-        for(GBDevice device : devices){
-            if(isFossilHybrid(device) && device.getState() == GBDevice.State.INITIALIZED){
-                return true;
-            }
-        }
-        return false;
+    public boolean supportsActivityDataFetching(final GBDevice device) {
+        return isFossilHybrid(device) && device.getState() == GBDevice.State.INITIALIZED;
     }
 
     @Override
-    public boolean supportsActivityTracking() {
+    public boolean supportsActivityTracking(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsUnicodeEmojis() {
+    public boolean supportsActivityTracks(final GBDevice device) {
+        return isHybridHR(device);
+    }
+
+    @Override
+    @Nullable
+    public ActivitySummaryParser getActivitySummaryParser(GBDevice device, Context context) {
+        return new HybridHRWorkoutSummaryParser();
+    }
+
+    @Override
+    public boolean supportsUnicodeEmojis(@NonNull GBDevice device) {
         return true;
     }
 
@@ -122,20 +144,13 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
         return installHandler.isValid() ? installHandler : null;
     }
 
-    private boolean supportsAlarmConfiguration() {
-        List<GBDevice> devices = GBApplication.app().getDeviceManager().getSelectedDevices();
-        LOG.debug("devices count: " + devices.size());
-        for(GBDevice device : devices){
-            if(isFossilHybrid(device) && device.getState() == GBDevice.State.INITIALIZED){
-                return true;
-            }
-        }
-        return false;
+    private boolean supportsAlarmConfiguration(final GBDevice device) {
+        return isFossilHybrid(device) && device.getState() == GBDevice.State.INITIALIZED;
     }
 
     @Override
-    public int getAlarmSlotCount(GBDevice device) {
-        return this.supportsAlarmConfiguration() ? 5 : 0;
+    public int getAlarmSlotCount(final GBDevice device) {
+        return supportsAlarmConfiguration(device) ? 5 : 0;
     }
 
     @Override
@@ -173,18 +188,18 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsAppListFetching() {
+    public boolean supportsAppListFetching(final GBDevice device) {
         return true;
     }
 
     @Override
-    public Class<? extends Activity> getAppsManagementActivity() {
-        return isHybridHR() ? AppManagerActivity.class : QHybridConfigActivity.class;
+    public Class<? extends Activity> getAppsManagementActivity(final GBDevice device) {
+        return isHybridHR(device) ? AppManagerActivity.class : QHybridConfigActivity.class;
     }
 
     @Override
-    public Class<? extends Activity> getWatchfaceDesignerActivity() {
-        return isHybridHR() ? HybridHRWatchfaceDesignerActivity.class : null;
+    public Class<? extends Activity> getWatchfaceDesignerActivity(final GBDevice device) {
+        return isHybridHR(device) ? HybridHRWatchfaceDesignerActivity.class : null;
     }
 
     /**
@@ -213,23 +228,23 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsWeather() {
-        return isHybridHR();
+    public boolean supportsWeather(final GBDevice device) {
+        return isHybridHR(device);
     }
 
     @Override
-    public boolean supportsFindDevice() {
+    public boolean supportsFindDevice(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsFlashing() {
+    public boolean supportsFlashing(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsCalendarEvents() {
-        return isHybridHR();
+    public boolean supportsCalendarEvents(final GBDevice device) {
+        return isHybridHR(device);
     }
 
     @Override
@@ -254,12 +269,13 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
         }
         final List<Integer> generic = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.GENERIC);
         // Firmware version specific settings
-        if (getFirmwareVersion() != null && getFirmwareVersion().smallerThan(new Version("3.0"))) {
+        final Version firmwareVersion = getFirmwareVersion(device);
+        if (firmwareVersion != null && firmwareVersion.smallerThan(new Version("3.0"))) {
             generic.add(R.xml.devicesettings_fossilhybridhr_pre_fw300);
         } else {
             generic.add(R.xml.devicesettings_fossilhybridhr_post_fw300);
         }
-        if (getFirmwareVersion() != null && getFirmwareVersion().smallerThan(new Version("2.20"))) {
+        if (firmwareVersion != null && firmwareVersion.smallerThan(new Version("2.20"))) {
             generic.add(R.xml.devicesettings_fossilhybridhr_pre_fw220);
         }
         // Settings applicable to all firmware versions
@@ -299,6 +315,12 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
         };
     }
 
+    @Nullable
+    @Override
+    public String getAuthHelp() {
+        return "https://gadgetbridge.org/basics/pairing/fossil-server/";
+    }
+
     @Deprecated // we should use the isHybridHR(GBDevice) instead of iterating every single device
     private boolean isHybridHR() {
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getSelectedDevices();
@@ -315,12 +337,9 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
         return device.getName().startsWith("Hybrid HR") || device.getName().equals("Fossil Gen. 6 Hybrid");
     }
 
-    private Version getFirmwareVersion() {
-        List<GBDevice> devices = GBApplication.app().getDeviceManager().getSelectedDevices();
-        for (GBDevice device : devices) {
-            if (isFossilHybrid(device)) {
-                return new Version(device.getFirmwareVersion2());
-            }
+    private Version getFirmwareVersion(final GBDevice device) {
+        if (isFossilHybrid(device)) {
+            return new Version(device.getFirmwareVersion2());
         }
 
         return null;
@@ -341,12 +360,17 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsNavigation() {
-        return isHybridHR();
+    public boolean supportsNavigation(final GBDevice device) {
+        return isHybridHR(device);
     }
 
     @Override
     public boolean supportsSpo2(GBDevice device) {
         return device.getName().equals("Fossil Gen. 6 Hybrid");
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

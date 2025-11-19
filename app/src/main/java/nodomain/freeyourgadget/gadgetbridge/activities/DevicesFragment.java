@@ -189,10 +189,6 @@ public class DevicesFragment extends Fragment {
 
         refreshPairedDevices();
 
-        if (GB.isBluetoothEnabled() && deviceList.isEmpty() && Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            startActivity(new Intent(getActivity(), DiscoveryActivityV2.class));
-        }
-
         return currentView;
     }
 
@@ -264,7 +260,7 @@ public class DevicesFragment extends Fragment {
         private void updateDevice(final DBHandler db, final GBDevice gbDevice) {
             final DeviceCoordinator coordinator = gbDevice.getDeviceCoordinator();
             final boolean showActivityCard = GBApplication.getDevicePrefs(gbDevice).getBoolean(DeviceSettingsPreferenceConst.PREFS_ACTIVITY_IN_DEVICE_CARD, true);
-            if ((coordinator.supportsStepCounter() || coordinator.supportsSleepMeasurement()) && showActivityCard) {
+            if ((coordinator.supportsStepCounter(gbDevice) || coordinator.supportsSleepMeasurement(gbDevice)) && showActivityCard) {
                 final DailyTotals stepsAndSleepData = getSteps(gbDevice, db);
                 deviceActivityHashMap.put(gbDevice.getAddress(), stepsAndSleepData);
             }

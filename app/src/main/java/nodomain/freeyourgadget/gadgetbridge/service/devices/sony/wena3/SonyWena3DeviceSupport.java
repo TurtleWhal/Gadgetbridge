@@ -164,7 +164,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
         if(perAppNotificationSettingsRepository == null) {
             perAppNotificationSettingsRepository = new AppSpecificNotificationSettingsRepository(getDevice());
         }
@@ -175,23 +175,23 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         sendAllCalendarEvents(builder);
 
         // Get battery state
-        builder.read(getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_STATE_UUID));
+        builder.read(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_STATE_UUID);
 
         // Subscribe to updates
-        builder.notify(getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_STATE_UUID), true);
-        builder.notify(getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID), true);
-        builder.notify(getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_INFO_UUID), true);
-        builder.notify(getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_MODE_UUID), true);
-        builder.notify(getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID), true);
-        builder.notify(getCharacteristic(SonyWena3Constants.ACTIVITY_LOG_CHARACTERISTIC_UUID), true);
+        builder.notify(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_STATE_UUID, true);
+        builder.notify(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID, true);
+        builder.notify(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_INFO_UUID, true);
+        builder.notify(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_MODE_UUID, true);
+        builder.notify(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID, true);
+        builder.notify(SonyWena3Constants.ACTIVITY_LOG_CHARACTERISTIC_UUID, true);
 
         // Get serial number and firmware version
-        builder.read(getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_INFO_UUID));
+        builder.read(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_INFO_UUID);
 
         // Finally, sync activity data
         requestActivityDataDownload(builder, false);
 
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
         CalendarReceiver.forceSync(getDevice());
         return builder;
     }
@@ -270,16 +270,16 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
             Date currentTime = new Date();
 
             builder.write(
-                    getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                    SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                     new TimeSetting(currentTime).toByteArray()
             );
 
             builder.write(
-                    getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                    SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                     new TimeZoneSetting(tz, currentTime).toByteArray()
             );
 
-            if(b == null) performImmediately(builder);
+            if(b == null) builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to send current time", e);
         }
@@ -290,11 +290,11 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
             TransactionBuilder builder = performInitialized("updateMusic");
 
             builder.write(
-                    getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID),
+                    SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                     new MusicInfo(musicInfo != null ? musicInfo: "").toByteArray()
             );
 
-            performImmediately(builder);
+            builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to send music info", e);
         }
@@ -384,7 +384,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
             builder.write(sportsCharacteristic, new ActivitySyncStartPacket().toByteArray());
 
-            if(b == null) performImmediately(builder);
+            if(b == null) builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to force request a sync", e);
         }
@@ -395,11 +395,11 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
             TransactionBuilder builder = b == null ? performInitialized("updateWeather") : b;
 
             builder.write(
-                    getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID),
+                    SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                     weather.toByteArray()
             );
 
-            if(b == null) performImmediately(builder);
+            if(b == null) builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to send current weather", e);
         }
@@ -458,7 +458,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 }
 
                 builder.write(
-                        getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID),
+                        SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                         new NotificationArrival(
                                 NotificationKind.CALL,
                                 INCOMING_CALL_ID,
@@ -473,12 +473,12 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 );
             } else {
                 builder.write(
-                        getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID),
+                        SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                         new NotificationRemoval(NotificationKind.CALL, INCOMING_CALL_ID).toByteArray()
                 );
             }
 
-            performImmediately(builder);
+            builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to send call", e);
         }
@@ -558,7 +558,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
             }
 
             builder.write(
-                    getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID),
+                    SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                     new NotificationArrival(
                             NotificationKind.APP,
                             notificationSpec.getId(),
@@ -572,7 +572,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                     ).toByteArray()
             );
 
-            performImmediately(builder);
+            builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to send notification", e);
         }
@@ -588,35 +588,39 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
             TransactionBuilder builder = performInitialized("delNotify");
 
             builder.write(
-                    getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID),
+                    SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                     new NotificationRemoval(NotificationKind.APP, id).toByteArray()
             );
 
-            performImmediately(builder);
+            builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to send notification", e);
         }
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        WeatherSpec weatherSpec = weatherSpecs.get(0);
-        if(weatherSpec.forecasts.size() < 4) return;
+    public void onSendWeather() {
+        WeatherSpec weatherSpec = nodomain.freeyourgadget.gadgetbridge.model.weather.Weather.getWeatherSpec();
+        if (weatherSpec == null) {
+            LOG.warn("No weather found in singleton");
+            return;
+        }
+        if(weatherSpec.getForecasts().size() < 4) return;
 
         ArrayList<WeatherDay> days = new ArrayList<>();
         // Add today
         days.add(
                 new WeatherDay(
-                        Weather.fromOpenWeatherMap(weatherSpec.currentConditionCode),
-                        Weather.fromOpenWeatherMap(weatherSpec.currentConditionCode),
-                        weatherSpec.todayMaxTemp,
-                        weatherSpec.todayMinTemp
+                        Weather.fromOpenWeatherMap(weatherSpec.getCurrentConditionCode()),
+                        Weather.fromOpenWeatherMap(weatherSpec.getCurrentConditionCode()),
+                        weatherSpec.getTodayMaxTemp(),
+                        weatherSpec.getTodayMinTemp()
                 )
         );
 
         // Add other days
         for(int i = 0; i < 4; i++) {
-            days.add(WeatherDay.fromSpec(weatherSpec.forecasts.get(i)));
+            days.add(WeatherDay.fromSpec(weatherSpec.getForecasts().get(i)));
         }
 
         WeatherReport report = new WeatherReport(days);
@@ -656,12 +660,12 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 }
 
                 builder.write(
-                        getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                        SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                         pkt.toByteArray()
                 );
             }
 
-            performImmediately(builder);
+            builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to send alarms", e);
             GB.toast("Failed to save alarms", Toast.LENGTH_SHORT, GB.ERROR);
@@ -707,7 +711,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         );
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 pkt.toByteArray()
         );
     }
@@ -737,7 +741,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         DoNotDisturbSettings dndPkt = new DoNotDisturbSettings(isDndOn, startH, startM, endH, endM);
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 dndPkt.toByteArray()
         );
     }
@@ -767,7 +771,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         AutoPowerOffSettings powerOffPkt = new AutoPowerOffSettings(isAutoPowerOffEnabled, startH, startM, endH, endM);
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 powerOffPkt.toByteArray()
         );
     }
@@ -779,7 +783,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         VibrationSetting pkt = new VibrationSetting(smartVibration, strength);
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 pkt.toByteArray()
         );
     }
@@ -791,7 +795,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         String rightIdName = prefs.getString(SonyWena3SettingKeys.RIGHT_HOME_ICON, HomeIconId.CALORIES.name()).toUpperCase();
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 new HomeIconOrderSetting(
                         HomeIconId.valueOf(leftIdName),
                         HomeIconId.valueOf(centerIdName),
@@ -816,7 +820,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         }
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 menu.toByteArray()
         );
     }
@@ -835,7 +839,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         }
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 pageOrderSetting.toByteArray()
         );
     }
@@ -865,11 +869,11 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         GoalStepsSetting stepsSetting = new GoalStepsSetting(stepsNotification, user.getStepsGoal());
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 bodyPropertiesSetting.toByteArray()
         );
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 stepsSetting.toByteArray()
         );
     }
@@ -880,7 +884,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         DayStartHourSetting setting = new DayStartHourSetting(hour);
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 setting.toByteArray()
         );
     }
@@ -895,7 +899,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         );
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 setting.toByteArray()
         );
     }
@@ -907,7 +911,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         CalendarNotificationEnableSetting setting = new CalendarNotificationEnableSetting(enableCalendar, enableNotifications);
 
         b.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 setting.toByteArray()
         );
     }
@@ -915,7 +919,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
     private void sendAllSettings(TransactionBuilder builder) {
         sendCurrentTime(builder);
         builder.write(
-                getCharacteristic(SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID),
+                SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
                 CameraAppTypeSetting.findOut(getContext().getPackageManager()).toByteArray()
         );
         sendMenuSettings(builder);
@@ -940,7 +944,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
             if(!enableCalendar || calendarEvents.isEmpty()) {
                 builder.write(
-                        getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID),
+                        SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                         CalendarEntry.byteArrayForEmptyEvent((byte) 0, (byte) 0)
                 );
             }
@@ -949,7 +953,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 int total = Math.min(calendarEvents.size(), 255);
                 for(CalendarEventSpec evt: calendarEvents) {
                     builder.write(
-                            getCharacteristic(SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID),
+                            SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                             new CalendarEntry(
                                     new Date(evt.timestamp * 1000L),
                                     new Date((evt.timestamp * 1000L) + (evt.durationInSeconds * 1000L)),
@@ -965,7 +969,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 }
             }
 
-            if(b == null) performImmediately(builder);
+            if(b == null) builder.queueImmediately();
         } catch (IOException e) {
             LOG.warn("Unable to send calendar events", e);
         }
@@ -1072,9 +1076,9 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                     return;
             }
 
-            performImmediately(builder);
+            builder.queueImmediately();
         } catch(Exception e) {
-            GB.toast("Failed to send settings update", Toast.LENGTH_SHORT, GB.ERROR);
+            GB.toast("Failed to send settings update", Toast.LENGTH_SHORT, GB.ERROR, e);
         }
     }
 

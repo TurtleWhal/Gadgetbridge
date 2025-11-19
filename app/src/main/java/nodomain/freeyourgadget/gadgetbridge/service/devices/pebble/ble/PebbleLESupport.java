@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.ble;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport.calcMaxWriteChunk;
+
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.os.Handler;
@@ -31,27 +33,28 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.PebbleSupport;
 
 public class PebbleLESupport {
     private static final Logger LOG = LoggerFactory.getLogger(PebbleLESupport.class);
     private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
 
-    private final GBDevice mgbDevice;
     private final BluetoothDevice mBtDevice;
     private PipeReader mPipeReader;
     private PebbleGATTServer mPebbleGATTServer;
     private PebbleGATTClient mPebbleGATTClient;
-    private PipedInputStream mPipedInputStream;
-    private PipedOutputStream mPipedOutputStream;
+    private final PipedInputStream mPipedInputStream;
+    private final PipedOutputStream mPipedOutputStream;
     private int mMTU = 20;
-    private int mMTULimit = Integer.MAX_VALUE;
-    public boolean clientOnly = false; // currently experimental, and only possible for Pebble 2
+    private int mMTULimit;
+    public boolean clientOnly; // currently experimental, and only possible for Pebble 2
     private boolean mIsConnected = false;
-    private HandlerThread mWriteHandlerThread;
-    private Handler mWriteHandler;
+    private final HandlerThread mWriteHandlerThread;
+    private final Handler mWriteHandler;
+    private final PebbleSupport mPebbleSupport;
 
-    public PebbleLESupport(Context context, GBDevice gbDevice, final BluetoothDevice btDevice, PipedInputStream pipedInputStream, PipedOutputStream pipedOutputStream) throws IOException {
-        mgbDevice = gbDevice;
+    public PebbleLESupport(Context context, PebbleSupport pebbleSupport, GBDevice gbDevice, final BluetoothDevice btDevice, PipedInputStream pipedInputStream, PipedOutputStream pipedOutputStream) throws IOException {
+        mPebbleSupport = pebbleSupport;
         mBtDevice = btDevice;
         mPipedInputStream = new PipedInputStream();
         mPipedOutputStream = new PipedOutputStream();
@@ -65,15 +68,18 @@ public class PebbleLESupport {
         mWriteHandlerThread = new HandlerThread("PebbleLESupport_write_" + THREAD_COUNTER.getAndIncrement());
         mWriteHandlerThread.start();
         mWriteHandler = new Handler(mWriteHandlerThread.getLooper());
+        mWriteHandler.post(() -> LOG.debug("started thread {}", Thread.currentThread().getName()));
 
-        mMTULimit = GBApplication.getDevicePrefs(mgbDevice).getInt("pebble_mtu_limit", 512);
+        mMTULimit = GBApplication.getDevicePrefs(gbDevice).getInt("pebble_mtu_limit", 512);
         mMTULimit = Math.max(mMTULimit, 20);
         mMTULimit = Math.min(mMTULimit, 512);
 
-        clientOnly = GBApplication.getDevicePrefs(mgbDevice).getBoolean("pebble_gatt_clientonly", false);
+        clientOnly = GBApplication.getDevicePrefs(gbDevice).getBoolean("pebble_gatt_clientonly", false);
 
         if (!clientOnly) {
             mPebbleGATTServer = new PebbleGATTServer(this, context, mBtDevice);
+        } else {
+            LOG.info ("using client only mode");
         }
         if (clientOnly || mPebbleGATTServer.initialize()) {
             mPebbleGATTClient = new PebbleGATTClient(this, context, mBtDevice);
@@ -91,9 +97,9 @@ public class PebbleLESupport {
         throw new IOException("connection failed");
     }
 
-    private void writeToPipedOutputStream(byte[] value, int offset, int count) {
+    private void writeToPipedOutputStream(byte[] value, int count) {
         try {
-            mPipedOutputStream.write(value, offset, count);
+            mPipedOutputStream.write(value, 1, count);
         } catch (IOException e) {
             LOG.warn("error writing to output stream", e);
         }
@@ -119,6 +125,7 @@ public class PebbleLESupport {
         }
         if (mWriteHandlerThread != null) {
             mWriteHandlerThread.quit();
+            LOG.debug("finished thread {}", mWriteHandlerThread.getName());
         }
     }
 
@@ -147,6 +154,10 @@ public class PebbleLESupport {
         mMTU = Math.min(mtu, mMTULimit);
     }
 
+    public void readBatteryCharacteristic() {
+        mPebbleGATTClient.readBatteryCharacteristic();
+    }
+
     public void handlePPoGATTPacket(byte[] value) {
         if (!mIsConnected) {
             mIsConnected = true;
@@ -159,22 +170,22 @@ public class PebbleLESupport {
         int command = header & 7;
         int serial = header >> 3;
         if (command == 0x01) {
-            LOG.info("got ACK for serial = " + serial);
+            LOG.info("got ACK for serial = {}", serial);
         }
         if (command == 0x02) { // some request?
             LOG.info("got command 0x02");
             if (value.length > 1) {
                 sendDataToPebble(new byte[]{0x03, 0x19, 0x19}); // no we don't know what that means
-                createPipedInputReader(); // FIXME: maybe not here
+                createPipedInputReader(); // maybe better not here?
             } else {
                 sendDataToPebble(new byte[]{0x03}); // no we don't know what that means
             }
         } else if (command == 0) { // normal package
-            LOG.info("got PPoGATT package serial = " + serial + " sending ACK");
+            LOG.info("got PPoGATT package serial = {} sending ACK", serial);
 
             sendAckToPebble(serial);
 
-            writeToPipedOutputStream(value, 1, value.length - 1);
+            writeToPipedOutputStream(value, value.length - 1);
         }
     }
 
@@ -184,21 +195,15 @@ public class PebbleLESupport {
 
     private synchronized void sendDataToPebble(final byte[] bytes) {
         if (mPebbleGATTServer != null) {
-            mWriteHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    mPebbleGATTServer.sendDataToPebble(bytes);
-                }
-            });
+            mWriteHandler.post(() -> mPebbleGATTServer.sendDataToPebble(bytes));
         } else {
             // For now only in experimental client only code
-            mWriteHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    mPebbleGATTClient.sendDataToPebble(bytes);
-                }
-            });
+            mWriteHandler.post(() -> mPebbleGATTClient.sendDataToPebble(bytes));
         }
+    }
+
+    public PebbleSupport getPebbleSupport() {
+        return mPebbleSupport;
     }
 
     private class PipeReader extends Thread {
@@ -214,10 +219,14 @@ public class PebbleLESupport {
             int bytesRead;
             while (true) {
                 try {
-                    // this code is very similar to iothread, that is bad
+                    // this code is very similar to IOThread, that is bad
                     // because we are the ones who prepared the buffer, there should be no
                     // need to do crazy stuff just to find out the PP boundaries again.
                     bytesRead = mPipedInputStream.read(buf, 0, 4);
+                    if (bytesRead < 0) {
+                        LOG.info("It seams the InputStream is closed, will shut down the PipeReader.");
+                        break;
+                    }
                     while (bytesRead < 4) {
                         bytesRead += mPipedInputStream.read(buf, bytesRead, 4 - bytesRead);
                     }
@@ -232,8 +241,9 @@ public class PebbleLESupport {
 
                     int payloadToSend = bytesRead + 4;
                     int srcPos = 0;
+                    int maxChunkSize = calcMaxWriteChunk(mMTU) - 1;
                     while (payloadToSend > 0) {
-                        int chunkSize = (payloadToSend < (mMTU - 4)) ? payloadToSend : mMTU - 4;
+                        int chunkSize = Math.min(payloadToSend, maxChunkSize);
                         byte[] outBuf = new byte[chunkSize + 1];
                         outBuf[0] = (byte) ((mmSequence++ << 3) & 0xff);
                         System.arraycopy(buf, srcPos, outBuf, 1, chunkSize);
@@ -247,26 +257,26 @@ public class PebbleLESupport {
                     break;
                 }
             }
-            LOG.info("Pipereader thread shut down");
+            LOG.info("PipeReader thread shut down");
         }
 
         @Override
         public void interrupt() {
             super.interrupt();
             try {
-                LOG.info("closing piped inputstream");
+                LOG.info("closing piped InputStream");
                 mPipedInputStream.close();
             } catch (IOException ignore) {
             }
         }
     }
 
-    boolean isExpectedDevice(BluetoothDevice device) {
+    boolean isUnexpectedDevice(BluetoothDevice device) {
         if (!device.getAddress().equals(mBtDevice.getAddress())) {
-            LOG.info("unhandled device: " + device.getAddress() + " , ignoring, will only talk to " + mBtDevice.getAddress());
-            return false;
+            LOG.info("unhandled device: {} , ignoring, will only talk to {}", device.getAddress(), mBtDevice.getAddress());
+            return true;
         }
-        return true;
+        return false;
     }
 }
 

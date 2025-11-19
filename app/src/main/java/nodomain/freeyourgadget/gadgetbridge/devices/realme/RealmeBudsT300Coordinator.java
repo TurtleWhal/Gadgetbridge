@@ -26,6 +26,8 @@ import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.oppo.OppoHeadphonesCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.oppo.commands.TouchConfigSide;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.oppo.commands.TouchConfigType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.oppo.commands.TouchConfigValue;
@@ -47,8 +49,21 @@ public class RealmeBudsT300Coordinator extends OppoHeadphonesCoordinator {
     }
 
     @Override
+    public BatteryConfig[] getBatteryConfig(final GBDevice device) {
+        final BatteryConfig battery1 = new BatteryConfig(0, R.drawable.ic_realme_buds_t300_l, R.string.left_earbud);
+        final BatteryConfig battery2 = new BatteryConfig(1, R.drawable.ic_realme_buds_t300_r, R.string.right_earbud);
+        final BatteryConfig battery3 = new BatteryConfig(2, R.drawable.ic_realme_buds_t300_case, R.string.battery_case);
+        return new BatteryConfig[]{battery1, battery2, battery3};
+    }
+
+    @Override
+    public int getDefaultIconResource() {
+        return R.drawable.ic_realme_buds_t300;
+    }
+
+    @Override
     protected Map<Pair<TouchConfigSide, TouchConfigType>, List<TouchConfigValue>> getTouchOptions() {
-        return new LinkedHashMap<Pair<TouchConfigSide, TouchConfigType>, List<TouchConfigValue>>() {{
+        return new LinkedHashMap<>() {{
             final List<TouchConfigValue> options = Arrays.asList(
                     TouchConfigValue.OFF,
                     TouchConfigValue.PLAY_PAUSE,

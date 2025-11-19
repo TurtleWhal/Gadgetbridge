@@ -29,14 +29,13 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetProgressAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.AbstractHuamiFirmwareInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiFirmwareType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.ArrayUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport.calcMaxWriteChunk;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiFirmwareInfo.UIHH_HEADER;
 
 public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
@@ -107,7 +106,7 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
                         if (getFirmwareInfo().getFirmwareType() == HuamiFirmwareType.FIRMWARE) {
                             TransactionBuilder builder = performInitialized("reboot");
                             getSupport().sendReboot(builder);
-                            builder.queue(getQueue());
+                            builder.queue();
                         } else {
                             GB.updateInstallNotification(getContext().getString(R.string.updatefirmwareoperation_update_complete), false, 100, getContext());
                             done();
@@ -156,7 +155,7 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
     public boolean sendFwInfo() {
         try {
             TransactionBuilder builder = performInitialized("send firmware info");
-            builder.add(new SetDeviceBusyAction(getDevice(), getContext().getString(R.string.updating_firmware), getContext()));
+            builder.setBusyTask(R.string.updating_firmware);
             int fwSize = getFirmwareInfo().getSize();
             byte[] sizeBytes = BLETypeConversions.fromUint32(fwSize);
             byte[] bytes = buildFirmwareInfoCommand();
@@ -178,7 +177,7 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
                 }
             }
             builder.write(fwCControlChar, bytes);
-            builder.queue(getQueue());
+            builder.queue();
             return true;
         } catch (IOException e) {
             LOG.error("Error sending firmware info: " + e.getLocalizedMessage(), e);
@@ -220,7 +219,7 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
             TransactionBuilder builder = performInitialized("get update capabilities");
             byte[] bytes = new byte[]{COMMAND_REQUEST_PARAMETERS};
             builder.write(fwCControlChar, bytes);
-            builder.queue(getQueue());
+            builder.queue();
             return true;
         } catch (IOException e) {
             LOG.error("Error sending firmware info: " + e.getLocalizedMessage(), e);
@@ -233,7 +232,7 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
         byte[] fwbytes = info.getBytes();
         int len = fwbytes.length;
         int remaining = len - offset;
-        final int packetLength = getSupport().getMTU() - 3;
+        final int packetLength = calcMaxWriteChunk(getSupport().getMTU());
 
         int chunkLength = mChunkLength;
         if (remaining < mChunkLength) {
@@ -265,9 +264,9 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
 
             int progressPercent = (int) ((((float) (offset + chunkLength)) / len) * 100);
 
-            builder.add(new SetProgressAction(getContext().getString(R.string.updatefirmwareoperation_update_in_progress), true, progressPercent, getContext()));
+            builder.setProgress(R.string.updatefirmwareoperation_update_in_progress, true, progressPercent);
 
-            builder.queue(getQueue());
+            builder.queue();
 
         } catch (IOException ex) {
             LOG.error("Unable to send fw to device", ex);
@@ -283,7 +282,7 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
         builder.write(fwCControlChar, new byte[]{
                 COMMAND_START_TRANSFER, 1,
         });
-        builder.queue(getQueue());
+        builder.queue();
     }
 
     protected void sendTransferComplete() throws IOException {
@@ -291,7 +290,7 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
         builder.write(fwCControlChar, new byte[]{
                 COMMAND_COMPLETE_TRANSFER,
         });
-        builder.queue(getQueue());
+        builder.queue();
     }
 
     protected void sendFinalize() throws IOException {
@@ -299,6 +298,6 @@ public class UpdateFirmwareOperation2020 extends UpdateFirmwareOperation {
         builder.write(fwCControlChar, new byte[]{
                 COMMAND_FINALIZE_UPDATE,
         });
-        builder.queue(getQueue());
+        builder.queue();
     }
 }

@@ -36,7 +36,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
 
@@ -56,6 +55,9 @@ import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
 public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractSerialDeviceSupport.class);
 
+    /// used to guard {@link #connect()} and {@link #dispose()}
+    protected final Object ConnectionMonitor = new Object();
+
     private GBDeviceProtocol gbDeviceProtocol;
     protected GBDeviceIoThread gbDeviceIOThread;
 
@@ -70,12 +72,25 @@ public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport 
     protected abstract GBDeviceIoThread createDeviceIOThread();
 
     @Override
+    public boolean connect() {
+        synchronized (ConnectionMonitor) {
+            final GBDeviceIoThread deviceIOThread = getDeviceIOThread();
+            if (!deviceIOThread.isAlive()) {
+                deviceIOThread.start();
+            }
+            return true;
+        }
+    }
+
+    @Override
     public void dispose() {
-        // currently only one thread allowed
-        if (gbDeviceIOThread != null) {
-            gbDeviceIOThread.quit();
-            gbDeviceIOThread.interrupt();
-            gbDeviceIOThread = null;
+        synchronized (ConnectionMonitor) {
+            // currently only one thread allowed
+            if (gbDeviceIOThread != null) {
+                gbDeviceIOThread.quit();
+                gbDeviceIOThread.interrupt();
+                gbDeviceIOThread = null;
+            }
         }
     }
 
@@ -199,7 +214,7 @@ public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport 
 
     @Override
     public void onFetchRecordedData(int dataTypes) {
-        byte[] bytes = gbDeviceProtocol.encodeSynchronizeActivityData();
+        byte[] bytes = gbDeviceProtocol.encodeFetchRecordedData(dataTypes);
         sendToDevice(bytes);
     }
 
@@ -270,9 +285,8 @@ public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport 
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        WeatherSpec weatherSpec = weatherSpecs.get(0);
-        byte[] bytes = gbDeviceProtocol.encodeSendWeather(weatherSpec);
+    public void onSendWeather() {
+        byte[] bytes = gbDeviceProtocol.encodeSendWeather();
         sendToDevice(bytes);
     }
 

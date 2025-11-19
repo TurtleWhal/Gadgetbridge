@@ -72,6 +72,9 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
     private final List<AbstractBleProfile<?>> mSupportedProfiles = new ArrayList<>();
     private final Object characteristicsMonitor = new Object();
 
+    /// used to guard {@link #connect()}, {@link #disconnect()} and {@link #dispose()}
+    protected final Object ConnectionMonitor = new Object();
+
     private BleIntentApi bleApi = null;
 
     public AbstractBTLESingleDeviceSupport(Logger logger) {
@@ -81,21 +84,30 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
         }
     }
 
+    /// Device specific code usually should {@code synchronize()} on {@link #ConnectionMonitor}.
+    /// @see AbstractBTLEDeviceSupport#connect()
+    @CallSuper
     @Override
     public boolean connect() {
-        if (mQueue == null) {
-            mQueue = new BtLEQueue(getDevice(), mSupportedServerServices, this);
-            if(bleApi != null) {
-                bleApi.setQueue(mQueue);
+        synchronized (ConnectionMonitor) {
+            if (mQueue == null) {
+                mQueue = new BtLEQueue(getDevice(), mSupportedServerServices, this);
             }
-        }
 
-        return mQueue.connect();
+            return mQueue.connect();
+        }
     }
 
+    /// Disconnects, but doesn't dispose.
+    /// <p>
+    /// Device specific code usually should {@code synchronize()} on {@link #ConnectionMonitor}.
+    /// </p>
+    @CallSuper
     public void disconnect() {
-        if (mQueue != null) {
-            mQueue.disconnect();
+        synchronized (ConnectionMonitor) {
+            if (mQueue != null) {
+                mQueue.disconnect();
+            }
         }
     }
 
@@ -118,7 +130,7 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
         super.setContext(gbDevice, btAdapter, context);
 
         if(BleIntentApi.isEnabled(gbDevice)) {
-            bleApi = new BleIntentApi(context, gbDevice);
+            bleApi = new BleIntentApi(this, 0);
             bleApi.handleBLEApiPrefs();
         }
     }
@@ -134,20 +146,25 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
         return builder;
     }
 
+    /// Device specific code usually should {@code synchronize()} on {@link #ConnectionMonitor}.
+    /// @see AbstractBTLEDeviceSupport#dispose()
+    @CallSuper
     @Override
     public void dispose() {
-        if (mQueue != null) {
-            mQueue.dispose();
-            mQueue = null;
-        }
+        synchronized (ConnectionMonitor) {
+            if (mQueue != null) {
+                mQueue.dispose();
+                mQueue = null;
+            }
 
-        if(bleApi != null) {
-            bleApi.dispose();
+            if (bleApi != null) {
+                bleApi.dispose();
+            }
         }
     }
 
     public TransactionBuilder createTransactionBuilder(String taskName) {
-        return new TransactionBuilder(taskName);
+        return new TransactionBuilder(taskName, this, 0);
     }
 
     @Override
@@ -160,7 +177,7 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
     /**
      * Send commands like this to the device:
      * <p>
-     * <code>performInitialized("sms notification").write(someCharacteristic, someByteArray).queue(getQueue());</code>
+     * <code>performInitialized("sms notification").write(someCharacteristic, someByteArray).queue();</code>
      * </p>
      * This will asynchronously
      * <ul>
@@ -169,7 +186,7 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
      * <li>execute the commands collected with the returned transaction builder</li>
      * </ul>
      *
-     * @see #performConnected(Transaction)
+     * @see TransactionBuilder#queueConnected()
      * @see #initializeDevice(TransactionBuilder)
      */
     public TransactionBuilder performInitialized(String taskName) throws IOException {
@@ -184,7 +201,8 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
             // first, add a transaction that performs device initialization
             TransactionBuilder builder = createTransactionBuilder("Initialize device");
             builder.add(new CheckInitializedAction(gbDevice));
-            initializeDevice(builder).queue(getQueue());
+            initializeDevice(builder);
+            builder.queue();
         }
         return createTransactionBuilder(taskName);
     }
@@ -202,38 +220,16 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
         return createServerTransactionBuilder(taskName);
     }
 
-    /**
-     * Ensures that the device is connected and (only then) performs the actions of the given
-     * transaction builder.
-     * <p>
-     * In contrast to {@link #performInitialized(String)}, no initialization sequence is performed
-     * with the device, only the actions of the given builder are executed.
-     * @throws IOException if unable to connect to the device
-     * @see #performInitialized(String)
-     */
-    public void performConnected(Transaction transaction) throws IOException {
-        if (!isConnected()) {
-            if (!connect()) {
-                throw new IOException("2: Unable to connect to device: " + getDevice());
-            }
-        }
-        getQueue().add(transaction);
-    }
-
-    /**
-     * Performs the actions of the given transaction as soon as possible,
-     * that is, before any other queued transactions, but after the actions
-     * of the currently executing transaction.
-     */
-    public void performImmediately(TransactionBuilder builder) throws IOException {
-        if (!isConnected()) {
-            throw new IOException("Not connected to device: " + getDevice());
-        }
-        getQueue().insert(builder.getTransaction());
-    }
-
     public BtLEQueue getQueue() {
         return mQueue;
+    }
+
+    @Override
+    BtLEQueue getQueue(int deviceIdx){
+        if(deviceIdx != 0){
+            throw new IllegalArgumentException("deviceIdx is " + deviceIdx);
+        }
+        return getQueue();
     }
 
     /**
@@ -274,6 +270,15 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
             }
             return mAvailableCharacteristics.get(uuid);
         }
+    }
+
+    @Nullable
+    @Override
+    BluetoothGattCharacteristic getCharacteristic(UUID uuid, int deviceIdx){
+        if(deviceIdx != 0){
+            throw new IllegalArgumentException("deviceIdx is " + deviceIdx);
+        }
+        return getCharacteristic(uuid);
     }
 
     private void gattServicesDiscovered(List<BluetoothGattService> discoveredGattServices) {
@@ -367,7 +372,7 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
         // request. Else low power would become a set once option.
         builder.requestConnectionPriority(lowPower ? BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER : BluetoothGatt.CONNECTION_PRIORITY_BALANCED);
 
-        builder.queue(getQueue());
+        builder.queue();
     }
 
     @Override
@@ -494,10 +499,17 @@ public abstract class AbstractBTLESingleDeviceSupport extends AbstractBTLEDevice
     }
 
     /**
-     * Gets the current MTU, or 0 if unknown
-     * @return the current MTU, 0 if unknown
+     * Get the current MTU, or the minimum 23 if unknown
      */
     public int getMTU() {
         return mMTU;
+    }
+
+    @Override
+    int getMTU(int deviceIdx) {
+        if(deviceIdx != 0){
+            throw new IllegalArgumentException("deviceIdx is " + deviceIdx);
+        }
+        return getMTU();
     }
 }

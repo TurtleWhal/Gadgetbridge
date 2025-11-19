@@ -21,6 +21,8 @@ import androidx.annotation.NonNull;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLClassicDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public abstract class RoidmiCoordinator extends AbstractBLClassicDeviceCoordinator {
     @Override
@@ -34,7 +36,7 @@ public abstract class RoidmiCoordinator extends AbstractBLClassicDeviceCoordinat
     }
 
     @Override
-    public boolean supportsLedColor() {
+    public boolean supportsLedColor(@NonNull GBDevice device) {
         return true;
     }
 
@@ -47,5 +49,10 @@ public abstract class RoidmiCoordinator extends AbstractBLClassicDeviceCoordinat
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_roidmi;
+    }
+
+    @Override
+    public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceCoordinator.DeviceKind.UNKNOWN;
     }
 }

@@ -1,3 +1,20 @@
+/*  Copyright (C) 2024-2025 Linos Giannopoulos, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+
 package nodomain.freeyourgadget.gadgetbridge.service.devices.idasen;
 
 import android.bluetooth.BluetoothGatt;
@@ -26,7 +43,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDevic
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.devices.idasen.IdasenConstants;
 
 public class IdasenDeviceSupport extends AbstractBTLESingleDeviceSupport {
@@ -95,14 +111,14 @@ public class IdasenDeviceSupport extends AbstractBTLESingleDeviceSupport {
                         // needs to get from the lowest to the highest point.
                         int cutOff = 100;
                         do {
-                            TransactionBuilder builder = new TransactionBuilder("height");
+                            TransactionBuilder builder = createTransactionBuilder("height");
 
                             builder.write(characteristic, setHeightRequest);
-                            builder.queue(getQueue());
+                            builder.queue();
                             try {
                                 Thread.sleep(300);
                             } catch (InterruptedException e) {
-                                GB.log("error", GB.ERROR, e);
+                                LOG.error("error", e);
                             }
                             cutOff--;
                         } while (deskSpeed != 0F && cutOff != 0);
@@ -123,19 +139,21 @@ public class IdasenDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void dispose() {
-        super.dispose();
-        LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(commandReceiver);
+        synchronized (ConnectionMonitor) {
+            super.dispose();
+            LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(commandReceiver);
+        }
     }
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
-        builder.notify(getCharacteristic(IdasenConstants.CHARACTERISTIC_HEIGHT), true);
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
+        builder.notify(IdasenConstants.CHARACTERISTIC_HEIGHT, true);
         sendCommand("dpg", IdasenConstants.CHARACTERISTIC_DPG, IdasenConstants.CMD_DPG_WAKEUP_PREP);
         sendCommand("dpg", IdasenConstants.CHARACTERISTIC_DPG, IdasenConstants.CMD_DPG_WAKEUP);
         sendCommand("dpg", IdasenConstants.CHARACTERISTIC_COMMAND, IdasenConstants.CMD_WAKEUP);
         initBroadcast();
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
         return builder;
     }
 
@@ -164,11 +182,9 @@ public class IdasenDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     private void readCharacteristic(String taskName, UUID charac) {
-        BluetoothGattCharacteristic characteristic = getCharacteristic(charac);
-
-        TransactionBuilder builder = new TransactionBuilder(taskName);
-        builder.read(characteristic);
-        builder.queue(getQueue());
+        TransactionBuilder builder = createTransactionBuilder(taskName);
+        builder.read(charac);
+        builder.queue();
     }
 
     private void initBroadcast() {
@@ -198,11 +214,11 @@ public class IdasenDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     private void sendCommand(String taskName, UUID charac,  byte[] contents) {
-        TransactionBuilder builder = new TransactionBuilder(taskName);
+        TransactionBuilder builder = createTransactionBuilder(taskName);
         BluetoothGattCharacteristic characteristic = getCharacteristic(charac);
         if (characteristic != null) {
             builder.write(characteristic, contents);
-            builder.queue(getQueue());
+            builder.queue();
         }
     }
 }

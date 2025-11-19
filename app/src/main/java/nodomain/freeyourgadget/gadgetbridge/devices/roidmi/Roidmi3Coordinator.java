@@ -16,10 +16,10 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.roidmi;
 
+import androidx.annotation.NonNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import androidx.annotation.NonNull;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -30,9 +30,8 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.roidmi.RoidmiSupport
 public class Roidmi3Coordinator extends RoidmiCoordinator {
     private static final Logger LOG = LoggerFactory.getLogger(Roidmi3Coordinator.class);
 
-    @NonNull
     @Override
-    public boolean supports(final GBDeviceCandidate candidate) {
+    public boolean supports(@NonNull final GBDeviceCandidate candidate) {
         try {
             final String name = candidate.getName();
 
@@ -51,7 +50,7 @@ public class Roidmi3Coordinator extends RoidmiCoordinator {
     }
 
     @Override
-    public boolean supportsRgbLedColor() {
+    public boolean supportsRgbLedColor(@NonNull GBDevice device) {
         return true;
     }
 

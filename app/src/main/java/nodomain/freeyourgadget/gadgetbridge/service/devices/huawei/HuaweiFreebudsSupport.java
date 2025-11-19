@@ -56,7 +56,6 @@ public class HuaweiFreebudsSupport extends HuaweiBRSupport implements HeadphoneH
     public HuaweiFreebudsSupport() {
         super();
         addSupportedService(UUID.fromString("00001101-0000-1000-8000-00805f9b34fb"));
-        setBufferSize(1032);
     }
 
     @Override
@@ -85,7 +84,7 @@ public class HuaweiFreebudsSupport extends HuaweiBRSupport implements HeadphoneH
 
         super.getSupportProvider().setup(getDevice(), getContext());
 
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
         try {
             builder.setCallback(this);
             final GetProductInformationRequest deviceProductReq = new GetProductInformationRequest(super.getSupportProvider());
@@ -102,15 +101,17 @@ public class HuaweiFreebudsSupport extends HuaweiBRSupport implements HeadphoneH
             LOG.error("Connection failed", e);
             GB.toast("Connection failed", Toast.LENGTH_SHORT, GB.ERROR, e);
         }
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
         return builder;
     }
 
     @Override
     public void dispose() {
-        if (headphoneHelper != null)
-            headphoneHelper.dispose();
-        super.dispose();
+        synchronized (ConnectionMonitor) {
+            if (headphoneHelper != null)
+                headphoneHelper.dispose();
+            super.dispose();
+        }
     }
 
     @Override

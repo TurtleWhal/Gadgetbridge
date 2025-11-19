@@ -286,15 +286,7 @@
 \nLưu ý: Bạn không cần phải cài đặt .res và .gps nếu các tệp đó giống hệt với các tệp đã cài đặt trước đó.
 \n
 \nBẠN TỰ CHỊU RỦI RO KHI TIẾP TỤC!</string>
-    <string name="fw_upgrade_notice_amazfitcor2">Bạn sắp cài đặt phần mềm hệ thống %s lên Amazfit Cor 2 của bạn.
-\n
-\nHãy chắc chắn bạn cài đặt tệp .fw, và sau đó là tệp .res. Băng đeo tay của bạn sẽ khởi động lại sau khi cài đặt tệp .fw.
-\n
-\nLưu ý: Bạn không cần phải cài đặt .res nếu tệp đó giống hệt với tệp đã cài đặt trước đó.
-\n
-\nBẠN TỰ CHỊU RỦI RO KHI TIẾP TỤC!
-\n
-\nHOÀN TOÀN CHƯA ĐƯỢC THỬ NGHIỆM, CÓ THỂ BẠN CẦN CÀI ĐẶT PHẦN MỀM BEATS_W NẾU TÊN THIẾT BỊ CỦA BẠN LÀ \"Amazfit Band 2\"</string>
+    <string name="fw_upgrade_notice_amazfitcor2">Bạn sắp cài đặt phần mềm hệ thống %s lên Amazfit Cor 2 của bạn. \n \nHãy chắc chắn bạn cài đặt tệp .fw, và sau đó là tệp .res. Băng đeo tay của bạn sẽ khởi động lại sau khi cài đặt tệp .fw. \n \nLưu ý: Bạn không cần phải cài đặt .res nếu tệp đó giống hệt với tệp đã cài đặt trước đó. \n \nBẠN TỰ CHỊU RỦI RO KHI TIẾP TỤC! \n \nHOÀN TOÀN CHƯA ĐƯỢC THỬ NGHIỆM, CÓ THỂ BẠN CẦN CÀI ĐẶT PHẦN MỀM BEATS_W NẾU TÊN THIẾT BỊ CỦA BẠN LÀ \"Amazfit Band 2\"</string>
     <string name="fw_upgrade_notice_amazfitcor">Bạn sắp cài đặt phần mềm hệ thống %s lên Amazfit Cor của bạn.
 \n
 \nHãy chắc chắn bạn cài đặt tệp .fw, và sau đó là tệp .res. Băng đeo tay của bạn sẽ khởi động lại sau khi cài đặt tệp .fw.
@@ -399,4 +391,6 @@
     <string name="pref_title_notifications_and_calls_repeat_on_misscall">Lặp lại trong X phút</string>
     <string name="prefs_notifications_and_calls_reject">Nút bỏ qua/từ chối cuộc gọi</string>
     <string name="pref_summary_notifications_and_calls_title_reject">Tắt - bỏ qua, Bật - từ chối</string>
+    <string name="about_activity_title_generic">Về gadgetbridge</string>
+    <string name="controlcenter_power_off_confirm_description">Bạn muốn tắt thiết bị này ?</string>
 </resources>

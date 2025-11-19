@@ -1,4 +1,4 @@
-/*  Copyright (C) 2022-2024 Damien Gaignon
+/*  Copyright (C) 2022-2025 Damien Gaignon, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -16,6 +16,10 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.btbr;
 
+import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothDevice;
+import android.os.ParcelUuid;
+
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -24,6 +28,7 @@ import java.util.UUID;
 import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.BleNamesResolver;
 
 /**
  * Abstract base class for devices connected through a serial protocol, like RFCOMM BT or TCP socket.
@@ -36,13 +41,21 @@ import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
  * @see nodomain.freeyourgadget.gadgetbridge.service.btclassic.BtClassicIoThread
  */
 public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport implements SocketCallback {
+
+    /// used to guard {@link #connect()}, {@link #disconnect()} and {@link #dispose()}
+    protected final Object ConnectionMonitor = new Object();
+
     private BtBRQueue mQueue;
     private UUID mSupportedService = null;
-    private int mBufferSize = 1024;
+    private final int mBufferSize;
     private final Logger logger;
 
-    public AbstractBTBRDeviceSupport(Logger logger) {
+    /**
+     * @param bufferSize should be larger than the maximum expected message side, or messages might be lost.
+     */
+    public AbstractBTBRDeviceSupport(Logger logger, final int bufferSize) {
         this.logger = logger;
+        this.mBufferSize = bufferSize;
         if (logger == null) {
             throw new IllegalArgumentException("logger must not be null");
         }
@@ -50,20 +63,39 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
 
     @Override
     public boolean connect() {
-        final UUID supportedService = getSupportedService();
-        if (supportedService == null) {
-            throw new NullPointerException("No supported service UUID specified");
-        }
+        synchronized (ConnectionMonitor) {
+            final UUID supportedService = getSupportedService();
+            if (supportedService == null) {
+                // Before throwing the exception, list the available UUIDs
+                final BluetoothDevice btDevice = getBluetoothAdapter().getRemoteDevice(gbDevice.getAddress());
+                @SuppressLint("MissingPermission") final ParcelUuid[] uuids = btDevice.getUuids();
+                if (uuids == null || uuids.length == 0) {
+                    logger.warn("Device provided no UUIDs to connect to: {}", gbDevice);
+                } else {
+                    for (ParcelUuid uuid : uuids) {
+                        logger.debug(
+                                "discovered service: {}: {}",
+                                BleNamesResolver.resolveServiceName(uuid.toString()),
+                                uuid
+                        );
+                    }
+                }
 
-        if (mQueue == null) {
-            mQueue = new BtBRQueue(getBluetoothAdapter(), getDevice(), getContext(), this, supportedService, getBufferSize());
+                throw new NullPointerException("No supported service UUID specified");
+            }
+
+            if (mQueue == null) {
+                mQueue = new BtBRQueue(getBluetoothAdapter(), getDevice(), getContext(), this, supportedService, getBufferSize());
+            }
+            return mQueue.connect();
         }
-        return mQueue.connect();
     }
 
     public void disconnect() {
-        if (mQueue != null) {
-            mQueue.disconnect();
+        synchronized (ConnectionMonitor) {
+            if (mQueue != null) {
+                mQueue.disconnect();
+            }
         }
     }
 
@@ -80,43 +112,26 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
 
     @Override
     public void dispose() {
-        if (mQueue != null) {
-            mQueue.dispose();
-            mQueue = null;
+        synchronized (ConnectionMonitor) {
+            if (mQueue != null) {
+                mQueue.dispose();
+                mQueue = null;
+            }
         }
     }
 
     public TransactionBuilder createTransactionBuilder(String taskName) {
-        return new TransactionBuilder(taskName);
+        return new TransactionBuilder(taskName, this);
     }
 
     @Override
-    public boolean isConnected(){
+    public boolean isConnected() {
         // in a multi-threaded environment the queue knows
         // best about the up-to-date connection status
         return (mQueue != null) && mQueue.isConnected();
     }
 
-    /**
-     * Ensures that the device is connected and (only then) performs the actions of the given
-     * transaction builder.
-     * <p>
-     * In contrast to {@link #performInitialized(String)}, no initialization sequence is performed
-     * with the device, only the actions of the given builder are executed.
-     * @param transaction
-     * @throws IOException if connection to the device fails
-     * @see #performInitialized(String)
-     */
-    public void performConnected(Transaction transaction) throws IOException {
-        if (!isConnected()) {
-            if (!connect()) {
-                throw new IOException("2: Unable to connect to device: " + getDevice());
-            }
-        }
-        getQueue().add(transaction);
-    }
-
-    public BtBRQueue getQueue() {
+    BtBRQueue getQueue() {
         return mQueue;
     }
 
@@ -134,10 +149,6 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
         return mSupportedService;
     }
 
-    protected void setBufferSize(int bufferSize) {
-        mBufferSize = bufferSize;
-    }
-
     protected int getBufferSize() {
         return mBufferSize;
     }
@@ -150,9 +161,10 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
         Logging.logBytes(logger, value);
     }
 
+    @Override
     public void onConnectionEstablished() {
         try {
-            initializeDevice(createTransactionBuilder("Initializing device")).queue(getQueue());
+            initializeDevice(createTransactionBuilder("Initializing device")).queue();
         } catch (final Exception ex) {
             final GBDevice device = getDevice();
 

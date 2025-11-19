@@ -25,7 +25,7 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 
 class AppMessageHandlerZalewszczak extends AppMessageHandler {
@@ -70,8 +70,8 @@ class AppMessageHandlerZalewszczak extends AppMessageHandler {
         }
 
         ArrayList<Pair<Integer, Object>> pairs = new ArrayList<>(2);
-        pairs.add(new Pair<Integer, Object>(KEY_TEMP, weatherSpec.currentTemp - 273 + "C"));
-        pairs.add(new Pair<Integer, Object>(KEY_ICON, getIconForConditionCode(weatherSpec.currentConditionCode)));
+        pairs.add(new Pair<Integer, Object>(KEY_TEMP, weatherSpec.getCurrentTemp() - 273 + "C"));
+        pairs.add(new Pair<Integer, Object>(KEY_ICON, getIconForConditionCode(weatherSpec.getCurrentConditionCode())));
         byte[] weatherMessage = mPebbleProtocol.encodeApplicationMessagePush(PebbleProtocol.ENDPOINT_APPLICATIONMESSAGE, mUUID, pairs, null);
 
         ByteBuffer buf = ByteBuffer.allocate(weatherMessage.length);
@@ -83,7 +83,7 @@ class AppMessageHandlerZalewszczak extends AppMessageHandler {
 
     @Override
     public GBDeviceEvent[] onAppStart() {
-        WeatherSpec weatherSpec = Weather.getInstance().getWeatherSpec();
+        WeatherSpec weatherSpec = Weather.getWeatherSpec();
         if (weatherSpec == null) {
             return new GBDeviceEvent[]{null};
         }

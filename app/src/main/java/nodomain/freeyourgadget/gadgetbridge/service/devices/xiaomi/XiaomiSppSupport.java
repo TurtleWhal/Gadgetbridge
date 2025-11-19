@@ -20,7 +20,6 @@ import static nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.Xiaomi
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiSppPacketV1.OPCODE_READ;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
@@ -41,15 +40,13 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.proto.xiaomi.XiaomiProto;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.AbstractBTBRDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.PlainAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btbr.actions.SetProgressAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiChannelHandler.Channel;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class XiaomiSppSupport extends XiaomiConnectionSupport {
     private static final Logger LOG = LoggerFactory.getLogger(XiaomiSppSupport.class);
 
-    AbstractBTBRDeviceSupport commsSupport = new AbstractBTBRDeviceSupport(LOG) {
+    AbstractBTBRDeviceSupport commsSupport = new AbstractBTBRDeviceSupport(LOG, 1024) {
         @Override
         public boolean useAutoConnect() {
             return mXiaomiSupport.useAutoConnect();
@@ -71,8 +68,8 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
                         "N/A");
             }
 
-            builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
-            builder.setUpdateState(getDevice(), GBDevice.State.AUTHENTICATING, getContext());
+            builder.setDeviceState(GBDevice.State.INITIALIZING);
+            builder.setDeviceState(GBDevice.State.AUTHENTICATING);
             builder.write(XiaomiSppPacketV1.newBuilder()
                     .channel(Channel.Version)
                     .needsResponse(true)
@@ -81,13 +78,7 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
                     .frameSerial(0)
                     .build()
                     .encode(null, null));
-            builder.add(new PlainAction() {
-                @Override
-                public boolean run(BluetoothSocket socket) {
-                    mVersionResponseTimeoutHandler.postDelayed(new VersionTimeoutRunnable(), 5000L);
-                    return true;
-                }
-            });
+            builder.run(() -> mVersionResponseTimeoutHandler.postDelayed(new VersionTimeoutRunnable(), 5000L));
 
             return builder;
         }
@@ -131,6 +122,7 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
     @Override
     public void dispose() {
         commsSupport.dispose();
+        mVersionResponseTimeoutHandler.removeCallbacksAndMessages(null);
     }
 
     protected XiaomiAuthService getAuthService() {
@@ -141,13 +133,12 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
     public void onUploadProgress(final int textRsrc, final int progressPercent, final boolean ongoing) {
         try {
             final TransactionBuilder builder = commsSupport.createTransactionBuilder("send data upload progress");
-            builder.add(new SetProgressAction(
-                    commsSupport.getContext().getString(textRsrc),
+            builder.setProgress(
+                    textRsrc,
                     ongoing,
-                    progressPercent,
-                    commsSupport.getContext()
-            ));
-            builder.queue(commsSupport.getQueue());
+                    progressPercent
+            );
+            builder.queue();
         } catch (final Exception e) {
             LOG.error("Failed to update progress notification", e);
         }
@@ -161,14 +152,8 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
         }
 
         final TransactionBuilder b = commsSupport.createTransactionBuilder("run task " + taskName + " on queue");
-        b.add(new PlainAction() {
-            @Override
-            public boolean run(BluetoothSocket socket) {
-                runnable.run();
-                return true;
-            }
-        });
-        b.queue(commsSupport.getQueue());
+        b.run(runnable);
+        b.queue();
     }
 
     private void skipBuffer(int newStart) {
@@ -243,14 +228,14 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
         try {
             final TransactionBuilder builder = this.commsSupport.createTransactionBuilder("send " + taskName);
             sendCommand(builder, command);
-            builder.queue(this.commsSupport.getQueue());
+            builder.queue();
         } catch (final Exception ex) {
             LOG.error("Caught unexpected exception while sending command, device may not have been informed!", ex);
         }
     }
 
     public void sendCommand(final TransactionBuilder builder, final XiaomiProto.Command command) {
-        LOG.debug("sendCommand(): encoded command for task '{}': {}", builder.getTransaction().getTaskName(), GB.hexdump(command.toByteArray()));
+        LOG.debug("sendCommand(): encoded command for task '{}': {}", builder.getTaskName(), GB.hexdump(command.toByteArray()));
         if (command.getType() == XiaomiAuthService.COMMAND_TYPE) {
             builder.write(mProtocol.encodePacket(Channel.Authentication, command.toByteArray()));
         } else {
@@ -260,11 +245,11 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
     }
 
     @Override
-    public void sendDataChunk(final String taskName, final byte[] chunk, @Nullable final XiaomiCharacteristic.SendCallback callback) {
+    public void sendDataChunk(final String taskName, final byte[] chunk, @Nullable final XiaomiSendCallback callback) {
         LOG.debug("sendDataChunk(): encoded data chunk for task '{}': {}", taskName, GB.hexdump(chunk));
         this.commsSupport.createTransactionBuilder("send " + taskName)
             .write(mProtocol.encodePacket(Channel.Data, chunk))
-            .queue(commsSupport.getQueue());
+            .queue();
 
         if (callback != null) {
             // callback puts a SetProgressAction onto the queue
@@ -295,9 +280,9 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
         }
     }
 
-    @Override
     public void reset() {
         buffer.reset();
+        mVersionResponseTimeoutHandler.removeCallbacksAndMessages(null);
         // FIXME this is a bit ugly, reset the protocol back to V1 so we're able to parse the version packet
         mProtocol = new XiaomiSppProtocolV1(this);
     }

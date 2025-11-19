@@ -27,7 +27,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsT
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsAgpsService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsConfigService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsFileTransferService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.operations.OperationStatus;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 /**
@@ -72,15 +71,6 @@ public class ZeppOsAgpsUpdateOperation extends AbstractZeppOsOperation<ZeppOsSup
     }
 
     @Override
-    protected void operationFinished() {
-        operationStatus = OperationStatus.FINISHED;
-        if (getDevice() != null && getDevice().isConnected()) {
-            unsetBusy();
-            getDevice().sendDeviceUpdateIntent(getContext());
-        }
-    }
-
-    @Override
     public void onFileUploadFinish(final boolean success) {
         LOG.info("Finished file upload operation, success={}", success);
 
@@ -120,7 +110,7 @@ public class ZeppOsAgpsUpdateOperation extends AbstractZeppOsOperation<ZeppOsSup
             try {
                 final ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("request agps config");
                 configService.requestConfig(builder, ZeppOsConfigService.ConfigGroup.AGPS);
-                builder.queue(getSupport());
+                builder.queue();
             } catch (final Exception e) {
                 LOG.error("Failed to request agps config", e);
             }
@@ -132,8 +122,8 @@ public class ZeppOsAgpsUpdateOperation extends AbstractZeppOsOperation<ZeppOsSup
     private void updateProgress(final int progressPercent) {
         try {
             final ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("send agps update progress");
-            builder.setProgress(getContext().getString(R.string.updatefirmwareoperation_update_in_progress), true, progressPercent, getContext());
-            builder.queue(getSupport());
+            builder.setProgress(R.string.updatefirmwareoperation_update_in_progress, true, progressPercent);
+            builder.queue();
         } catch (final Exception e) {
             LOG.error("Failed to update progress notification", e);
         }

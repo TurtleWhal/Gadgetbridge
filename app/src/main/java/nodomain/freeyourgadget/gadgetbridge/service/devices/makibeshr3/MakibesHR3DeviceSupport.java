@@ -232,7 +232,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
                 sender, message);
 
         try {
-            this.performConnected(transactionBuilder.getTransaction());
+            transactionBuilder.queueConnected();
         } catch (Exception ex) {
             LoggerFactory.getLogger(this.getClass()).error("notification failed");
         }
@@ -245,7 +245,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
         this.setDateTime(transactionBuilder);
 
         try {
-            this.performConnected(transactionBuilder.getTransaction());
+            transactionBuilder.queueConnected();
         } catch (Exception ex) {
             LoggerFactory.getLogger(this.getClass()).error("factory reset failed");
         }
@@ -298,7 +298,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
         }
 
         try {
-            this.performConnected(transactionBuilder.getTransaction());
+            transactionBuilder.queueConnected();
         } catch (Exception ex) {
             LoggerFactory.getLogger(this.getClass()).error("setalarms failed");
         }
@@ -315,7 +315,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
         }
 
         try {
-            this.performConnected(transactionBuilder.getTransaction());
+            transactionBuilder.queueConnected();
         } catch (Exception ex) {
             LoggerFactory.getLogger(this.getClass()).error("call state failed");
         }
@@ -329,7 +329,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
             this.factoryReset(transactionBuilder);
 
             try {
-                this.performConnected(transactionBuilder.getTransaction());
+                transactionBuilder.queueConnected();
             } catch (Exception ex) {
                 LoggerFactory.getLogger(this.getClass()).error("factory reset failed");
             }
@@ -338,7 +338,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
             this.reboot(transactionBuilder);
 
             try {
-                this.performConnected(transactionBuilder.getTransaction());
+                transactionBuilder.queueConnected();
             } catch (Exception ex) {
                 LoggerFactory.getLogger(this.getClass()).error("factory reset failed");
             }
@@ -352,7 +352,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
         this.setEnableRealTimeHeartRate(transactionBuilder, enable);
 
         try {
-            this.performConnected(transactionBuilder.getTransaction());
+            transactionBuilder.queueConnected();
         } catch (Exception e) {
             LOG.debug("ERROR");
         }
@@ -402,7 +402,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
         this.findDevice(transactionBuilder);
 
         try {
-            this.performConnected(transactionBuilder.getTransaction());
+            transactionBuilder.queueConnected();
         } catch (Exception e) {
             LOG.debug("ERROR");
         }
@@ -460,7 +460,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
         }
 
         try {
-            this.performConnected(transactionBuilder.getTransaction());
+            transactionBuilder.queueConnected();
         } catch (Exception ex) {
             LOG.warn(ex.getMessage());
         }
@@ -488,7 +488,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
 
         GB.updateTransferNotification(null, getContext().getString(R.string.busy_task_fetch_activity_data), true, 0, getContext());
 
-        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         this.mControlCharacteristic = getCharacteristic(MakibesHR3Constants.UUID_CHARACTERISTIC_CONTROL);
         this.mReportCharacteristic = getCharacteristic(MakibesHR3Constants.UUID_CHARACTERISTIC_REPORT);
@@ -505,7 +505,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
 
         this.requestFitness(builder);
 
-        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
 
         getDevice().setFirmwareVersion("N/A");
         getDevice().setFirmwareVersion2("N/A");
@@ -537,7 +537,7 @@ public class MakibesHR3DeviceSupport extends AbstractBTLESingleDeviceSupport imp
 
         } catch (Exception ex) {
             // Why is this a toast? The user doesn't care about the error.
-            GB.toast(getContext(), "Error saving samples: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error saving samples: " + ex.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
             GB.updateTransferNotification(null, "Data transfer failed", false, 0, getContext());
 
             LOG.error(ex.getMessage());

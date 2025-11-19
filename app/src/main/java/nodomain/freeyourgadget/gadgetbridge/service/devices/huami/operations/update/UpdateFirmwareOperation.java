@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.update;
 
+import static nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEDeviceSupport.calcMaxWriteChunk;
+
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
@@ -36,8 +38,6 @@ import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiFWHelper;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceBusyAction;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetProgressAction;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.AbstractHuamiFirmwareInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiFirmwareType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiSupport;
@@ -155,7 +155,7 @@ public class UpdateFirmwareOperation extends AbstractMiBandOperation<HuamiSuppor
                         if (getFirmwareInfo().getFirmwareType() == HuamiFirmwareType.FIRMWARE) {
                             TransactionBuilder builder = performInitialized("reboot");
                             getSupport().sendReboot(builder);
-                            builder.queue(getQueue());
+                            builder.queue();
                         } else {
                             GB.updateInstallNotification(getContext().getString(R.string.updatefirmwareoperation_update_complete), false, 100, getContext());
                             done();
@@ -197,7 +197,7 @@ public class UpdateFirmwareOperation extends AbstractMiBandOperation<HuamiSuppor
         try {
             TransactionBuilder builder = performInitialized("send firmware info");
 //                getSupport().setLowLatency(builder);
-            builder.add(new SetDeviceBusyAction(getDevice(), getContext().getString(R.string.updating_firmware), getContext()));
+            builder.setBusyTask(R.string.updating_firmware);
             int fwSize = getFirmwareInfo().getSize();
             byte[] sizeBytes = BLETypeConversions.fromUint24(fwSize);
             int arraySize = 4;
@@ -216,7 +216,7 @@ public class UpdateFirmwareOperation extends AbstractMiBandOperation<HuamiSuppor
             }
 
             builder.write(fwCControlChar, bytes);
-            builder.queue(getQueue());
+            builder.queue();
             return true;
         } catch (IOException e) {
             LOG.error("Error sending firmware info: " + e.getLocalizedMessage(), e);
@@ -237,7 +237,7 @@ public class UpdateFirmwareOperation extends AbstractMiBandOperation<HuamiSuppor
     private boolean sendFirmwareData(AbstractHuamiFirmwareInfo info) {
         byte[] fwbytes = info.getBytes();
         int len = fwbytes.length;
-        final int packetLength = getSupport().getMTU() - 3;
+        final int packetLength = calcMaxWriteChunk(getSupport().getMTU());
         int packets = len / packetLength;
 
         try {
@@ -256,7 +256,7 @@ public class UpdateFirmwareOperation extends AbstractMiBandOperation<HuamiSuppor
                 int progressPercent = (int) ((((float) firmwareProgress) / len) * 100);
                 if ((i > 0) && (i % 100 == 0)) {
                     builder.write(fwCControlChar, new byte[]{HuamiService.COMMAND_FIRMWARE_UPDATE_SYNC});
-                    builder.add(new SetProgressAction(getContext().getString(R.string.updatefirmwareoperation_update_in_progress), true, progressPercent, getContext()));
+                    builder.setProgress(R.string.updatefirmwareoperation_update_in_progress, true, progressPercent);
                 }
             }
 
@@ -266,7 +266,7 @@ public class UpdateFirmwareOperation extends AbstractMiBandOperation<HuamiSuppor
             }
 
             builder.write(fwCControlChar, new byte[]{HuamiService.COMMAND_FIRMWARE_UPDATE_SYNC});
-            builder.queue(getQueue());
+            builder.queue();
 
         } catch (IOException ex) {
             LOG.error("Unable to send fw to device", ex);
@@ -286,7 +286,7 @@ public class UpdateFirmwareOperation extends AbstractMiBandOperation<HuamiSuppor
                 bytes[0],
                 bytes[1],
         });
-        builder.queue(getQueue());
+        builder.queue();
     }
 
     protected AbstractHuamiFirmwareInfo getFirmwareInfo() {

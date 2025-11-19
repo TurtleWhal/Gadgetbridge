@@ -22,7 +22,10 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
 import android.location.Location;
 import android.net.Uri;
+import android.os.Bundle;
 
+
+import androidx.annotation.NonNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +43,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
@@ -150,8 +152,8 @@ public class HuaweiLESupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        supportProvider.onSendWeather(weatherSpecs);
+    public void onSendWeather() {
+        supportProvider.onSendWeather();
     }
 
     @Override
@@ -160,7 +162,7 @@ public class HuaweiLESupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onInstallApp(Uri uri) {
+    public void onInstallApp(Uri uri, @NonNull final Bundle options) {
         supportProvider.onInstallApp(uri);
     }
 
@@ -203,8 +205,10 @@ public class HuaweiLESupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void dispose() {
-        supportProvider.dispose();
-        super.dispose();
+        synchronized (ConnectionMonitor) {
+            supportProvider.dispose();
+            super.dispose();
+        }
     }
 
     @Override

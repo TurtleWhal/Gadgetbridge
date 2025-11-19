@@ -26,7 +26,6 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsFileTransferService;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.miband.operations.OperationStatus;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.audio.AudioInfo;
 
@@ -66,15 +65,6 @@ public class ZeppOsMusicUploadOperation extends AbstractZeppOsOperation<ZeppOsSu
     }
 
     @Override
-    protected void operationFinished() {
-        operationStatus = OperationStatus.FINISHED;
-        if (getDevice() != null && getDevice().isConnected()) {
-            unsetBusy();
-            getDevice().sendDeviceUpdateIntent(getContext());
-        }
-    }
-
-    @Override
     public void onFileUploadFinish(final boolean success) {
         LOG.info("Finished music upload operation, success={}", success);
 
@@ -98,8 +88,8 @@ public class ZeppOsMusicUploadOperation extends AbstractZeppOsOperation<ZeppOsSu
     private void updateProgress(final int progressPercent) {
         try {
             final ZeppOsTransactionBuilder builder = getSupport().createZeppOsTransactionBuilder("send music upload progress");
-            builder.setProgress(getContext().getString(R.string.music_upload_in_progress), true, progressPercent, getContext());
-            builder.queue(getSupport());
+            builder.setProgress(R.string.music_upload_in_progress, true, progressPercent);
+            builder.queue();
         } catch (final Exception e) {
             LOG.error("Failed to update progress notification", e);
         }

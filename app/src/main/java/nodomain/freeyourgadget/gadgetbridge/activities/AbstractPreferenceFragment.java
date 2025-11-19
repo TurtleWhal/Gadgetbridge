@@ -20,9 +20,18 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextUtils;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.XmlRes;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.MenuProvider;
 import androidx.fragment.app.DialogFragment;
+import androidx.lifecycle.Lifecycle;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.MultiSelectListPreference;
@@ -34,6 +43,8 @@ import androidx.preference.PreferenceScreen;
 import androidx.preference.SeekBarPreference;
 import androidx.preference.SwitchPreferenceCompat;
 
+import com.bytehamster.lib.preferencesearch.SearchConfiguration;
+import com.bytehamster.lib.preferencesearch.SearchPreference;
 import com.mobeta.android.dslv.DragSortListPreference;
 import com.mobeta.android.dslv.DragSortListPreferenceFragment;
 
@@ -41,12 +52,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.XDatePreference;
 import nodomain.freeyourgadget.gadgetbridge.util.XDatePreferenceFragment;
 import nodomain.freeyourgadget.gadgetbridge.util.XTimePreference;
@@ -56,10 +70,55 @@ import nodomain.freeyourgadget.gadgetbridge.util.dialogs.MaterialListPreferenceD
 import nodomain.freeyourgadget.gadgetbridge.util.dialogs.MaterialMultiSelectListPreferenceDialogFragment;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.MinMaxTextWatcher;
 
-public abstract class AbstractPreferenceFragment extends PreferenceFragmentCompat {
-    protected static final Logger LOG = LoggerFactory.getLogger(AbstractPreferenceFragment.class);
+public abstract class AbstractPreferenceFragment extends PreferenceFragmentCompat implements MenuProvider {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractPreferenceFragment.class);
 
     private final SharedPreferencesChangeHandler sharedPreferencesChangeHandler = new SharedPreferencesChangeHandler();
+
+    public static final String FRAGMENT_TAG = "preference_fragment";
+
+    private SearchConfiguration mSearchConfiguration;
+
+    @Override
+    public void onCreate(@Nullable final Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        final SearchPreference searchPreference = findPreference("searchPreference");
+        if (searchPreference != null) {
+            mSearchConfiguration = searchPreference.getSearchConfiguration();
+            mSearchConfiguration.setActivity((AppCompatActivity) requireActivity());
+            mSearchConfiguration.setHistoryId(requireActivity().getClass().getName());
+        }
+    }
+
+    @Override
+    public void onViewCreated(@NonNull final View view, @Nullable final Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        requireActivity().addMenuProvider(this, getViewLifecycleOwner(), Lifecycle.State.RESUMED);
+    }
+
+    @Override
+    public void onCreateMenu(@NonNull final Menu menu, @NonNull final MenuInflater inflater) {
+        menu.clear();
+        if (mSearchConfiguration != null) {
+            inflater.inflate(R.menu.menu_preferences, menu);
+        }
+    }
+
+    @Override
+    public boolean onMenuItemSelected(@NonNull final MenuItem item) {
+        final int itemId = item.getItemId();
+        if (itemId == R.id.preferences_search) {
+            final SearchPreference searchPreference = findPreference("searchPreference");
+            if (searchPreference != null) {
+                //searchPreference.setVisible(true);
+                mSearchConfiguration.showSearchFragment();
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     @Override
     public void onStart() {
@@ -155,6 +214,29 @@ public abstract class AbstractPreferenceFragment extends PreferenceFragmentCompa
         }
     }
 
+    protected void index(@XmlRes final int preferencesResId) {
+        index(preferencesResId, 0);
+    }
+
+    protected void index(@XmlRes final int preferencesResId, final int breadcrumb) {
+        if (mSearchConfiguration == null) {
+            final SearchPreference searchPreference = findPreference("searchPreference");
+            if (searchPreference != null) {
+                mSearchConfiguration = searchPreference.getSearchConfiguration();
+                mSearchConfiguration.setActivity((AppCompatActivity) requireActivity());
+                mSearchConfiguration.setHistoryId(requireActivity().getClass().getName());
+                mSearchConfiguration.setBreadcrumbsEnabled(true);
+            }
+        }
+
+        if (mSearchConfiguration != null) {
+            final SearchConfiguration.SearchIndexItem indexItem = mSearchConfiguration.index(preferencesResId);
+            if (breadcrumb != 0) {
+                indexItem.addBreadcrumb(breadcrumb);
+            }
+        }
+    }
+
     /**
      * Reload the preferences in the current screen. This is needed when the user enters or exists a PreferenceScreen,
      * otherwise the settings won't be reloaded by the {@link SharedPreferencesChangeHandler}, as the preferences return
@@ -187,8 +269,10 @@ public abstract class AbstractPreferenceFragment extends PreferenceFragmentCompa
      */
     private class SharedPreferencesChangeHandler implements SharedPreferences.OnSharedPreferenceChangeListener {
         @Override
-        public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
+        public void onSharedPreferenceChanged(final SharedPreferences sharedPreferences, final String key) {
             LOG.trace("Preference changed: {}", key);
+
+            final Prefs prefs = new Prefs(sharedPreferences);
 
             if (key == null) {
                 LOG.warn("Preference null, ignoring");
@@ -202,18 +286,20 @@ public abstract class AbstractPreferenceFragment extends PreferenceFragmentCompa
                 return;
             }
 
-            if (preference instanceof SeekBarPreference) {
-                final SeekBarPreference seekBarPreference = (SeekBarPreference) preference;
+            if (preference instanceof SeekBarPreference seekBarPreference) {
                 seekBarPreference.setValue(prefs.getInt(key, seekBarPreference.getValue()));
-            } else if (preference instanceof SwitchPreferenceCompat) {
-                final SwitchPreferenceCompat switchPreference = (SwitchPreferenceCompat) preference;
+            } else if (preference instanceof SwitchPreferenceCompat switchPreference) {
                 switchPreference.setChecked(prefs.getBoolean(key, switchPreference.isChecked()));
-            } else if (preference instanceof ListPreference) {
-                final ListPreference listPreference = (ListPreference) preference;
+            } else if (preference instanceof ListPreference listPreference) {
                 listPreference.setValue(prefs.getString(key, listPreference.getValue()));
-            } else if (preference instanceof EditTextPreference) {
-                final EditTextPreference editTextPreference = (EditTextPreference) preference;
+            } else if (preference instanceof EditTextPreference editTextPreference) {
                 editTextPreference.setText(prefs.getString(key, editTextPreference.getText()));
+            } else if (preference instanceof XTimePreference xTimePreference) {
+                final LocalTime localTime = prefs.getLocalTime(key, xTimePreference.getPrefValue());
+                xTimePreference.setValue(localTime.getHour(), localTime.getMinute());
+            } else if (preference instanceof XDatePreference xDatePreference) {
+                final LocalDate localDate = prefs.getLocalDate(key, xDatePreference.getPrefValue());
+                xDatePreference.setValue(localDate.getYear(), localDate.getMonthValue(), localDate.getDayOfMonth());
             } else if (preference instanceof PreferenceScreen || Preference.class.equals(preference.getClass())) {
                 LOG.trace("Unknown preference class {} for {}, ignoring", preference.getClass(), key);
             } else {
@@ -224,12 +310,11 @@ public abstract class AbstractPreferenceFragment extends PreferenceFragmentCompa
                 final String summary;
 
                 // For multi select preferences, let's set the summary to the values, comma-delimited
-                if (preference instanceof MultiSelectListPreference) {
+                if (preference instanceof MultiSelectListPreference multiSelectListPreference) {
                     final Set<String> prefSetValue = prefs.getStringSet(key, Collections.emptySet());
                     if (prefSetValue.isEmpty()) {
                         summary = requireContext().getString(R.string.not_set);
                     } else {
-                        final MultiSelectListPreference multiSelectListPreference = (MultiSelectListPreference) preference;
                         final CharSequence[] entries = multiSelectListPreference.getEntries();
                         final CharSequence[] entryValues = multiSelectListPreference.getEntryValues();
                         final List<String> translatedEntries = new ArrayList<>();

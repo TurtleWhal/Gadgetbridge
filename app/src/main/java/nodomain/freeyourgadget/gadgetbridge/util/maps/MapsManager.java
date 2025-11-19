@@ -1,4 +1,4 @@
-/*  Copyright (C) 2024 José Rebelo
+/*  Copyright (C) 2024-2025 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -19,25 +19,22 @@ package nodomain.freeyourgadget.gadgetbridge.util.maps;
 import android.content.Context;
 import android.net.Uri;
 
+import androidx.core.content.ContextCompat;
 import androidx.documentfile.provider.DocumentFile;
 
-import org.mapsforge.core.graphics.Canvas;
-import org.mapsforge.core.graphics.GraphicFactory;
 import org.mapsforge.core.graphics.Paint;
 import org.mapsforge.core.graphics.Style;
 import org.mapsforge.core.model.BoundingBox;
+import org.mapsforge.core.model.Dimension;
 import org.mapsforge.core.model.LatLong;
-import org.mapsforge.core.model.Point;
-import org.mapsforge.core.model.Rotation;
+import org.mapsforge.core.util.LatLongUtils;
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
 import org.mapsforge.map.android.util.AndroidUtil;
 import org.mapsforge.map.android.view.MapView;
-import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.datastore.MultiMapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.overlay.Polyline;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
-import org.mapsforge.map.model.MapViewPosition;
 import org.mapsforge.map.reader.MapFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +43,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
+import nodomain.freeyourgadget.gadgetbridge.util.Accumulator;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 
 public final class MapsManager {
@@ -63,6 +63,7 @@ public final class MapsManager {
     private Polyline polyline;
 
     private TileRendererLayer tileRendererLayer;
+    private boolean tileRenderedAdded;
 
     private boolean isMapLoaded = false;
 
@@ -86,21 +87,18 @@ public final class MapsManager {
         AndroidGraphicFactory.createInstance(GBApplication.app());
         final GBPrefs prefs = GBApplication.getPrefs();
 
+        final DocumentFile[] documentFiles;
         final String folderUri = prefs.getString(PREF_MAPS_FOLDER, "");
-        if (folderUri.isEmpty()) {
-            return;
+        if (!folderUri.isEmpty()) {
+            final DocumentFile folder = DocumentFile.fromTreeUri(mContext, Uri.parse(folderUri));
+            documentFiles = folder != null ? folder.listFiles() : new DocumentFile[0];
+        } else {
+            documentFiles = new DocumentFile[0];
         }
-
-        final DocumentFile folder = DocumentFile.fromTreeUri(mContext, Uri.parse(folderUri));
-        if (folder == null || folder.listFiles().length == 0) {
-            return;
-        }
-
-        final MultiMapDataStore multiMapDataStore = new MultiMapDataStore(MultiMapDataStore.DataPolicy.RETURN_ALL);
-
-        final DocumentFile[] documentFiles = folder.listFiles();
 
         LOG.debug("Got {} map files", documentFiles.length);
+
+        final MultiMapDataStore multiMapDataStore = new MultiMapDataStore(MultiMapDataStore.DataPolicy.RETURN_ALL);
 
         for (final DocumentFile documentFile : documentFiles) {
             if (!documentFile.canRead()) {
@@ -153,18 +151,52 @@ public final class MapsManager {
             theme = MapTheme.DEFAULT;
         }
         tileRendererLayer.setXmlRenderTheme(theme);
-
-        mapView.getLayerManager().getLayers().add(0, tileRendererLayer);
+        // Do not add the tile renderer layer before setting the bounding box in setTrack,
+        // otherwise we load the entire map to memory and might crash with OOM
     }
 
     public boolean isMapLoaded() {
         return isMapLoaded;
     }
 
-    public void setTrack(final List<LatLong> points) {
+    public void onDestroy() {
+        if (polyline != null) {
+            mapView.getLayerManager().getLayers().remove(polyline);
+            polyline.onDestroy();
+            polyline = null;
+        }
+
+        if (tileRendererLayer != null) {
+            if (tileRenderedAdded) {
+                mapView.getLayerManager().getLayers().remove(tileRendererLayer);
+            }
+            tileRendererLayer.onDestroy();
+            tileRendererLayer.getTileCache().purge();
+            tileRendererLayer = null;
+        }
+
+        isMapLoaded = false;
+    }
+
+    public void setTrack(final List<? extends GPSCoordinate> trackPoints) {
+        final Accumulator latitudeAccumulator = new Accumulator();
+        final Accumulator longitudeAccumulator = new Accumulator();
+        for (GPSCoordinate trackPoint : trackPoints) {
+            latitudeAccumulator.add(trackPoint.getLatitude());
+            longitudeAccumulator.add(trackPoint.getLongitude());
+        }
+        final double maxLat = latitudeAccumulator.getMax();
+        final double minLat = latitudeAccumulator.getMin();
+        final double maxLon = longitudeAccumulator.getMax();
+        final double minLon = longitudeAccumulator.getMin();
+
+        final List<LatLong> points = trackPoints.stream()
+                .map(p -> new LatLong(p.getLatitude(), p.getLongitude()))
+                .collect(Collectors.toList());
+
         if (polyline == null) {
             final Paint paint = AndroidGraphicFactory.INSTANCE.createPaint();
-            final int trackColor = GBApplication.getPrefs().getInt(MapsManager.PREF_TRACK_COLOR, mContext.getResources().getColor(R.color.map_track_default));
+            final int trackColor = GBApplication.getPrefs().getInt(MapsManager.PREF_TRACK_COLOR, ContextCompat.getColor(mContext, R.color.map_track_default));
             paint.setColor(trackColor);
             paint.setStrokeWidth(8);
             paint.setStyle(Style.STROKE);
@@ -173,12 +205,24 @@ public final class MapsManager {
             mapView.addLayer(polyline);
         }
         polyline.setPoints(points);
-        mapView.getLayerManager().redrawLayers();
+
+        mapView.setCenter(new LatLong(minLat + (maxLat - minLat) / 2, minLon + (maxLon - minLon) / 2));
+        final byte zoom = LatLongUtils.zoomForBounds(
+                new Dimension(mapView.getWidth(), mapView.getHeight()),
+                new BoundingBox(minLat, minLon, maxLat, maxLon),
+                mapView.getModel().displayModel.getTileSize()
+        );
+        mapView.setZoomLevel(zoom);
+
+        if (!tileRenderedAdded) {
+            mapView.getLayerManager().getLayers().add(0, tileRendererLayer);
+            tileRenderedAdded = true;
+        }
     }
 
     public void reload() {
         if (polyline != null) {
-            final int trackColor = GBApplication.getPrefs().getInt(MapsManager.PREF_TRACK_COLOR, mContext.getResources().getColor(R.color.map_track_default));
+            final int trackColor = GBApplication.getPrefs().getInt(MapsManager.PREF_TRACK_COLOR, ContextCompat.getColor(mContext, R.color.map_track_default));
             polyline.getPaintStroke().setColor(trackColor);
             polyline.requestRedraw();
         }

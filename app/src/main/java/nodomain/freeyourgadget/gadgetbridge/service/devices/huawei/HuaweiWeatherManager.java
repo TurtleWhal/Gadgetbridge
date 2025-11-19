@@ -16,15 +16,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei;
 
+import android.location.Location;
 import android.widget.Toast;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Calendar;
 import java.util.Date;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
@@ -39,6 +43,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.Send
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherSunMoonSupportRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherSupportRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWeatherUnitRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.webview.CurrentPosition;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -152,43 +157,53 @@ public class HuaweiWeatherManager {
         Date currentDay = DateTimeUtils.dayStart(DateTimeUtils.todayUTC());
         Date nextDay = DateTimeUtils.shiftByDays(currentDay, 1);
 
-        if (timeOutOfDateInterval(weatherSpec.sunRise, currentDay, nextDay)) {
-            LOG.warn("Sun rise for today out of bounds: {}", DateTimeUtils.parseTimeStamp(weatherSpec.sunRise));
-            weatherSpec.sunRise = 0;
+        if (timeOutOfDateInterval(weatherSpec.getSunRise(), currentDay, nextDay)) {
+            LOG.warn("Sun rise for today out of bounds: {}", DateTimeUtils.parseTimeStamp(weatherSpec.getSunRise()));
+            weatherSpec.setSunRise(0);
         }
-        if (timeOutOfDateInterval(weatherSpec.sunSet, currentDay, nextDay)) {
-            LOG.warn("Sun set for today out of bounds: {}", DateTimeUtils.parseTimeStamp(weatherSpec.sunSet));
-            weatherSpec.sunSet = 0;
+        if (timeOutOfDateInterval(weatherSpec.getSunSet(), currentDay, nextDay)) {
+            LOG.warn("Sun set for today out of bounds: {}", DateTimeUtils.parseTimeStamp(weatherSpec.getSunSet()));
+            weatherSpec.setSunSet(0);
         }
-        if (timeOutOfDateInterval(weatherSpec.moonRise, currentDay, nextDay)) {
-            LOG.warn("Moon rise for today out of bounds: {}", DateTimeUtils.parseTimeStamp(weatherSpec.moonRise));
-            weatherSpec.moonRise = 0;
+        if (timeOutOfDateInterval(weatherSpec.getMoonRise(), currentDay, nextDay)) {
+            LOG.warn("Moon rise for today out of bounds: {}", DateTimeUtils.parseTimeStamp(weatherSpec.getMoonRise()));
+            weatherSpec.setMoonRise(0);
         }
-        if (timeOutOfDateInterval(weatherSpec.moonSet, currentDay, nextDay)) {
-            LOG.warn("Moon set for today out of bounds: {}", DateTimeUtils.parseTimeStamp(weatherSpec.moonSet));
-            weatherSpec.moonSet = 0;
+        if (timeOutOfDateInterval(weatherSpec.getMoonSet(), currentDay, nextDay)) {
+            LOG.warn("Moon set for today out of bounds: {}", DateTimeUtils.parseTimeStamp(weatherSpec.getMoonSet()));
+            weatherSpec.setMoonSet(0);
         }
 
-        for (WeatherSpec.Daily point : weatherSpec.forecasts) {
+        for (WeatherSpec.Daily point : weatherSpec.getForecasts()) {
+            if(point == null)
+                continue;
             currentDay = nextDay;
             nextDay = DateTimeUtils.shiftByDays(currentDay, 1);
 
-            if (timeOutOfDateInterval(point.sunRise, currentDay, nextDay)) {
-                LOG.warn("Sun rise for {} out of bounds: {}", currentDay, DateTimeUtils.parseTimeStamp(point.sunRise));
-                point.sunRise = 0;
+            if (timeOutOfDateInterval(point.getSunRise(), currentDay, nextDay)) {
+                LOG.warn("Sun rise for {} out of bounds: {}", currentDay, DateTimeUtils.parseTimeStamp(point.getSunRise()));
+                point.setSunRise(0);
             }
-            if (timeOutOfDateInterval(point.sunSet, currentDay, nextDay)) {
-                LOG.warn("Sun set for {} out of bounds: {}", currentDay, DateTimeUtils.parseTimeStamp(point.sunSet));
-                point.sunSet = 0;
+            if (timeOutOfDateInterval(point.getSunSet(), currentDay, nextDay)) {
+                LOG.warn("Sun set for {} out of bounds: {}", currentDay, DateTimeUtils.parseTimeStamp(point.getSunSet()));
+                point.setSunSet(0);
             }
-            if (timeOutOfDateInterval(point.moonRise, currentDay, nextDay)) {
-                LOG.warn("Moon rise for {} out of bounds: {}", currentDay, DateTimeUtils.parseTimeStamp(point.moonRise));
-                point.moonRise = 0;
+            if (timeOutOfDateInterval(point.getMoonRise(), currentDay, nextDay)) {
+                LOG.warn("Moon rise for {} out of bounds: {}", currentDay, DateTimeUtils.parseTimeStamp(point.getMoonRise()));
+                point.setMoonRise(0);
             }
-            if (timeOutOfDateInterval(point.moonSet, currentDay, nextDay)) {
-                LOG.warn("Moon set for {} out of bounds: {}", currentDay, DateTimeUtils.parseTimeStamp(point.moonSet));
-                point.moonSet = 0;
+            if (timeOutOfDateInterval(point.getMoonSet(), currentDay, nextDay)) {
+                LOG.warn("Moon set for {} out of bounds: {}", currentDay, DateTimeUtils.parseTimeStamp(point.getMoonSet()));
+                point.setMoonSet(0);
             }
+        }
+    }
+
+    private BigDecimal toBigDecimal(double d2) {
+        try {
+            return new BigDecimal(d2);
+        } catch (NumberFormatException unused) {
+            return null;
         }
     }
 
@@ -212,6 +227,7 @@ public class HuaweiWeatherManager {
 
         Weather.Settings weatherSettings = new Weather.Settings();
         weatherSettings.uvIndexSupported = supportProvider.getHuaweiCoordinator().supportsWeatherUvIndex();
+        weatherSettings.extendedHourlyForecast = supportProvider.getHuaweiCoordinator().supportsWeatherExtendedHourForecast();
 
         SendWeatherStartRequest weatherStartRequest = new SendWeatherStartRequest(supportProvider, weatherSettings);
         weatherStartRequest.setFinalizeReq(errorHandler);
@@ -251,10 +267,23 @@ public class HuaweiWeatherManager {
         lastRequest.nextRequest(sendWeatherCurrentRequest);
         lastRequest = sendWeatherCurrentRequest;
 
-        SendGpsAndTimeToDeviceRequest sendGpsAndTimeToDeviceRequest = new SendGpsAndTimeToDeviceRequest(supportProvider);
-        sendGpsAndTimeToDeviceRequest.setFinalizeReq(errorHandler);
-        lastRequest.nextRequest(sendGpsAndTimeToDeviceRequest);
-        lastRequest = sendGpsAndTimeToDeviceRequest;
+
+        if (supportProvider.getHuaweiCoordinator().supportsGpsAndTimeToDevice() &&
+                GBApplication.getDevicePrefs(supportProvider.getDevice()).getBoolean("pref_huawei_gps_and_time", true)) {
+            Location location = new CurrentPosition().getLastKnownLocation();
+            BigDecimal latitude = toBigDecimal(location.getLatitude());
+            BigDecimal longitude = toBigDecimal(location.getLongitude());
+            if (latitude != null && longitude != null) {
+                double lat = latitude.setScale(7, RoundingMode.HALF_UP).doubleValue();
+                double lon = longitude.setScale(7, RoundingMode.HALF_UP).doubleValue();
+                //TODO: should be timestamp when location is set, set old enough to prevent override location determined by workout
+                int timestamp = (int) (Calendar.getInstance().getTime().getTime() / 1000L) - 86400;
+                SendGpsAndTimeToDeviceRequest sendGpsAndTimeToDeviceRequest = new SendGpsAndTimeToDeviceRequest(supportProvider, timestamp, lat, lon);
+                sendGpsAndTimeToDeviceRequest.setFinalizeReq(errorHandler);
+                lastRequest.nextRequest(sendGpsAndTimeToDeviceRequest);
+                lastRequest = sendGpsAndTimeToDeviceRequest;
+            }
+        }
 
         if (supportProvider.getHuaweiCoordinator().supportsWeatherForecasts()) {
             SendWeatherForecastRequest sendWeatherForecastRequest = new SendWeatherForecastRequest(supportProvider, weatherSettings, weatherSpec);
@@ -277,8 +306,8 @@ public class HuaweiWeatherManager {
     public void handleAsyncMessage(HuaweiPacket response) {
         if (response.getTlv().getInteger(0x7f, -1) == 0x000186AA) {
             // Send weather
-            final ArrayList<WeatherSpec> specs = new ArrayList<>(nodomain.freeyourgadget.gadgetbridge.model.Weather.getInstance().getWeatherSpecs());
-            if (specs.isEmpty()) {
+            final WeatherSpec weatherSpec = nodomain.freeyourgadget.gadgetbridge.model.weather.Weather.getWeatherSpec();
+            if (weatherSpec == null) {
                 LOG.debug("Weather specs empty, returning that weather is disabled.");
                 try {
                     new SendWeatherErrorRequest(supportProvider, Weather.ErrorCode.WEATHER_DISABLED).doPerform();
@@ -287,7 +316,7 @@ public class HuaweiWeatherManager {
                 }
                 return;
             }
-            this.sendWeather(specs.get(0));
+            this.sendWeather(weatherSpec);
             return;
         }
 

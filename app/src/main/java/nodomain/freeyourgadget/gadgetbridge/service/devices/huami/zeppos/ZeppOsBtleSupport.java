@@ -24,6 +24,8 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCharacteristic;
@@ -107,8 +108,10 @@ public class ZeppOsBtleSupport extends AbstractBTLESingleDeviceSupport implement
 
     @Override
     public void dispose() {
-        zeppOsSupport.dispose();
-        super.dispose();
+        synchronized (ConnectionMonitor) {
+            zeppOsSupport.dispose();
+            super.dispose();
+        }
     }
 
     @Override
@@ -117,7 +120,7 @@ public class ZeppOsBtleSupport extends AbstractBTLESingleDeviceSupport implement
         final BluetoothGattCharacteristic characteristicChunked2021Write = getCharacteristic(HuamiService.UUID_CHARACTERISTIC_CHUNKEDTRANSFER_2021_WRITE);
         if (characteristicChunked2021Write == null || characteristicChunked2021Read == null) {
             LOG.warn("Chunked 2021 characteristics are null, will attempt to reconnect");
-            builder.setUpdateState(getDevice(), GBDevice.State.WAITING_FOR_RECONNECT, getContext());
+            builder.setDeviceState(GBDevice.State.WAITING_FOR_RECONNECT);
             return builder;
         }
 
@@ -310,8 +313,8 @@ public class ZeppOsBtleSupport extends AbstractBTLESingleDeviceSupport implement
     }
 
     @Override
-    public void onInstallApp(final Uri uri) {
-        zeppOsSupport.onInstallApp(uri);
+    public void onInstallApp(final Uri uri, @NonNull final Bundle options) {
+        zeppOsSupport.onInstallApp(uri, options);
     }
 
     @Override
@@ -340,8 +343,8 @@ public class ZeppOsBtleSupport extends AbstractBTLESingleDeviceSupport implement
     }
 
     @Override
-    public void onSendWeather(final ArrayList<WeatherSpec> weatherSpecs) {
-        zeppOsSupport.onSendWeather(weatherSpecs);
+    public void onSendWeather() {
+        zeppOsSupport.onSendWeather();
     }
 
     @Override

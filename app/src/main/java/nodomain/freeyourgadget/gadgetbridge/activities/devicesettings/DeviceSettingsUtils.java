@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
@@ -72,6 +73,7 @@ public final class DeviceSettingsUtils {
 
     /**
      * Populates a list preference, or hides it if no known supported values are known.
+     * @noinspection ConstantValue
      */
     public static void populateOrHideListPreference(final CharSequence prefKey,
                                                     final DeviceSpecificSettingsHandler handler,
@@ -137,11 +139,10 @@ public final class DeviceSettingsUtils {
             final String possibleValue = possibleValues.get(i);
             final CharSequence knownLabel = entryNames.get(possibleValue);
 
-            if (knownLabel != null) {
-                entries[i] = knownLabel;
-            } else {
-                entries[i] = handler.getContext().getString(R.string.menuitem_unknown_app, possibleValue);
-            }
+            entries[i] = Objects.requireNonNullElseGet(
+                    knownLabel,
+                    () -> handler.getContext().getString(R.string.menuitem_unknown_app, possibleValue)
+            );
             values[i] = possibleValue;
         }
 
@@ -194,7 +195,7 @@ public final class DeviceSettingsUtils {
         });
     }
 
-    public static void sortListPreference(final ListPreference listPreference) {
+    public static void sortListPreference(final ListPreference listPreference, final boolean keepFirst) {
         final CharSequence[] entries = listPreference.getEntries();
         final CharSequence[] entryValues = listPreference.getEntryValues();
 
@@ -211,8 +212,8 @@ public final class DeviceSettingsUtils {
             combined[i][1] = entryValues[i].toString();
         }
 
-        // Sort, keeping "auto" at the top
-        Arrays.sort(combined, 1, length, Comparator.comparing(o -> o[0]));
+        // Sort, keeping "the first" at the top
+        Arrays.sort(combined, keepFirst ? 1 : 0, length, Comparator.comparing(o -> o[0]));
 
         // Reassign sorted values
         for (int i = 0; i < length; i++) {
@@ -280,5 +281,37 @@ public final class DeviceSettingsUtils {
                     .show();
             return false;
         });
+    }
+
+    public static void populateWithBpmRange(final CharSequence prefKey,
+                                            final DeviceSpecificSettingsHandler handler,
+                                            final int rangeMin,
+                                            final int rangeMax) {
+        final Preference pref = handler.findPreference(prefKey);
+        if (pref == null) {
+            return;
+        }
+
+        if (rangeMin >= rangeMax) {
+            throw new IllegalArgumentException("Invalid range [" + rangeMin + ", " + rangeMax + "]");
+        }
+
+        final CharSequence[] entries = new CharSequence[rangeMax - rangeMin + 2];
+        final CharSequence[] values = new CharSequence[rangeMax - rangeMin + 2];
+        entries[0] = handler.getContext().getString(R.string.off);
+        values[0] = "0";
+
+        for (int i = 1, bpm = rangeMin; bpm <= rangeMax; i++, bpm++) {
+            entries[i] = handler.getContext().getString(R.string.bpm_value_unit, bpm);
+            values[i] = String.valueOf(bpm);
+        }
+
+        if (pref instanceof ListPreference) {
+            ((ListPreference) pref).setEntries(entries);
+            ((ListPreference) pref).setEntryValues(values);
+        } else if (pref instanceof MultiSelectListPreference) {
+            ((MultiSelectListPreference) pref).setEntries(entries);
+            ((MultiSelectListPreference) pref).setEntryValues(values);
+        }
     }
 }

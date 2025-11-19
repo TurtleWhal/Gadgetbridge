@@ -18,9 +18,6 @@ package nodomain.freeyourgadget.gadgetbridge.devices.yawell.ring;
 
 import androidx.annotation.NonNull;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +25,6 @@ import java.util.Map;
 
 import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
-import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
@@ -51,7 +47,6 @@ import nodomain.freeyourgadget.gadgetbridge.entities.ColmiSleepStageSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.ColmiSpo2SampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.ColmiStressSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.HrvSummarySample;
@@ -63,13 +58,9 @@ import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.yawell.ring.YawellRingDeviceSupport;
 
 public abstract class AbstractYawellRingCoordinator extends AbstractBLEDeviceCoordinator {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractYawellRingCoordinator.class);
-
     @Override
-    protected void deleteDevice(@NonNull GBDevice gbDevice, @NonNull Device device, @NonNull DaoSession session) throws GBException {
-        final Long deviceId = device.getId();
-
-        final Map<AbstractDao<?, ?>, Property> daoMap = new HashMap<AbstractDao<?, ?>, Property>() {{
+    public Map<AbstractDao<?, ?>, Property> getAllDeviceDao( @NonNull final DaoSession session) {
+        return new HashMap<>() {{
             put(session.getColmiActivitySampleDao(), ColmiActivitySampleDao.Properties.DeviceId);
             put(session.getColmiHeartRateSampleDao(), ColmiHeartRateSampleDao.Properties.DeviceId);
             put(session.getColmiSpo2SampleDao(), ColmiSpo2SampleDao.Properties.DeviceId);
@@ -79,12 +70,6 @@ public abstract class AbstractYawellRingCoordinator extends AbstractBLEDeviceCoo
             put(session.getColmiHrvSummarySampleDao(), ColmiHrvSummarySampleDao.Properties.DeviceId);
             put(session.getColmiHrvValueSampleDao(), ColmiHrvValueSampleDao.Properties.DeviceId);
         }};
-
-        for (final Map.Entry<AbstractDao<?, ?>, Property> e : daoMap.entrySet()) {
-            e.getKey().queryBuilder()
-                    .where(e.getValue().eq(deviceId))
-                    .buildDelete().executeDeleteWithoutDetachingEntities();
-        }
     }
 
     @Override
@@ -114,27 +99,27 @@ public abstract class AbstractYawellRingCoordinator extends AbstractBLEDeviceCoo
     }
 
     @Override
-    public boolean supportsFindDevice() {
+    public boolean supportsFindDevice(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracking() {
+    public boolean supportsActivityTracking(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityDataFetching() {
+    public boolean supportsActivityDataFetching(final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsRealtimeData() {
+    public boolean supportsRealtimeData(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsStressMeasurement() {
+    public boolean supportsStressMeasurement(@NonNull GBDevice device) {
         return true;
     }
 
@@ -144,7 +129,7 @@ public abstract class AbstractYawellRingCoordinator extends AbstractBLEDeviceCoo
     }
 
     @Override
-    public boolean supportsHeartRateStats() {
+    public boolean supportsHeartRateStats(@NonNull GBDevice device) {
         return true;
     }
 
@@ -159,12 +144,12 @@ public abstract class AbstractYawellRingCoordinator extends AbstractBLEDeviceCoo
     }
 
     @Override
-    public boolean supportsRemSleep() {
+    public boolean supportsRemSleep(@NonNull GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsAwakeSleep() {
+    public boolean supportsAwakeSleep(@NonNull GBDevice device) {
         return true;
     }
 
@@ -247,5 +232,10 @@ public abstract class AbstractYawellRingCoordinator extends AbstractBLEDeviceCoo
     @Override
     public int getLiveActivityFragmentPulseInterval() {
         return 2000;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.RING;
     }
 }

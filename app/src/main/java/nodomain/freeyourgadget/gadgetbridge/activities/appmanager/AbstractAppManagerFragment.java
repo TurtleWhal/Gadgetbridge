@@ -26,7 +26,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -209,6 +208,9 @@ public abstract class AbstractAppManagerFragment extends Fragment {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
+            if (action == null) {
+                return;
+            }
             switch (action) {
                 case ACTION_REFRESH_APPLIST: {
                     if (intent.hasExtra("app_count")) {
@@ -217,7 +219,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
                             LOG.info("will refresh list based on data from device");
                             refreshListFromDevice(intent);
                         }
-                    } else if (mCoordinator.supportsAppListFetching()) {
+                    } else if (mCoordinator.supportsAppListFetching(mGBDevice)) {
                         refreshList();
                     } else if (isCacheManager()) {
                         refreshList();
@@ -236,7 +238,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
                     }
                     String path = intent.getStringExtra("EXTRA_PATH");
                     String name = intent.getStringExtra("EXTRA_NAME");
-                    LOG.info("Attempting to add downloaded app " + name + " to cache");
+                    LOG.info("Attempting to add downloaded app {} to cache", name);
                     FossilFileReader fileReader;
                     try {
                         fileReader = new FossilFileReader(Uri.fromFile(new File(path)), context);
@@ -245,7 +247,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
                         break;
                     }
                     if (FossilHRInstallHandler.saveAppInCache(fileReader, fileReader.getBackground(), fileReader.getPreview(), mCoordinator, context)) {
-                        LOG.info("Successfully moved downloaded app " + name + " to cache");
+                        LOG.info("Successfully moved downloaded app {} to cache", name);
                         GB.toast(String.format(context.getString(R.string.appmanager_downloaded_to_cache), name), Toast.LENGTH_LONG, GB.INFO);
                         if (isCacheManager()) {
                             refreshList();
@@ -395,7 +397,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
 
         LocalBroadcastManager.getInstance(getContext()).registerReceiver(mReceiver, filter);
 
-        if (mCoordinator.supportsAppListFetching()) {
+        if (mCoordinator.supportsAppListFetching(mGBDevice)) {
             GBApplication.deviceService(mGBDevice).onAppInfoReq();
             if (isCacheManager()) {
                 refreshList();
@@ -424,7 +426,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
 
         final FloatingActionButton appListFab = ((FloatingActionButton) getActivity().findViewById(R.id.fab));
         final FloatingActionButton appListFabNew = ((FloatingActionButton) getActivity().findViewById(R.id.fab_new));
-        watchfaceDesignerActivity = mCoordinator.getWatchfaceDesignerActivity();
+        watchfaceDesignerActivity = mCoordinator.getWatchfaceDesignerActivity(mGBDevice);
         View rootView = inflater.inflate(R.layout.activity_appmanager, container, false);
 
         RecyclerView appListView = (RecyclerView) (rootView.findViewById(R.id.appListView));
@@ -436,7 +438,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
                     appListFab.hide();
                     appListFabNew.hide();
                 } else if (dy < 0) {
-                    if (mCoordinator.supportsFlashing()) {
+                    if (mCoordinator.supportsFlashing(mGBDevice)) {
                         appListFab.show();
                     }
                     if (watchfaceDesignerActivity != null) {
@@ -450,7 +452,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
                 appList,
                 R.layout.item_appmanager_watchapp,
                 this,
-                mCoordinator.supportsAppReordering() || isCacheManager()
+                mCoordinator.supportsAppReordering(mGBDevice) || isCacheManager()
         );
         appListView.setAdapter(mGBDeviceAppAdapter);
 
@@ -526,24 +528,12 @@ public abstract class AbstractAppManagerFragment extends Fragment {
         if (!PebbleProtocol.UUID_WEATHER.equals(selectedApp.getUUID())) {
             menu.removeItem(R.id.appmanager_weather_activate);
             menu.removeItem(R.id.appmanager_weather_deactivate);
-            menu.removeItem(R.id.appmanager_weather_install_provider);
         }
         if (selectedApp.getType() == GBDeviceApp.Type.APP_SYSTEM || selectedApp.getType() == GBDeviceApp.Type.WATCHFACE_SYSTEM) {
             menu.removeItem(R.id.appmanager_app_delete);
         }
         if (!selectedApp.isConfigurable()) {
             menu.removeItem(R.id.appmanager_app_configure);
-        }
-
-        if (PebbleProtocol.UUID_WEATHER.equals(selectedApp.getUUID())) {
-            PackageManager pm = getActivity().getPackageManager();
-            try {
-                pm.getPackageInfo("ru.gelin.android.weather.notification", PackageManager.GET_ACTIVITIES);
-                menu.removeItem(R.id.appmanager_weather_install_provider);
-            } catch (PackageManager.NameNotFoundException e) {
-                //menu.removeItem(R.id.appmanager_weather_activate);
-                //menu.removeItem(R.id.appmanager_weather_deactivate);
-            }
         }
 
         if ((mGBDevice.getType() != DeviceType.FOSSILQHYBRID) || (selectedApp.getType() != GBDeviceApp.Type.WATCHFACE)) {
@@ -604,7 +594,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
             return true;
         } else if (itemId == R.id.appmanager_app_reinstall) {
             final File cachePath = new File(appCacheDir, selectedApp.getUUID() + mCoordinator.getAppFileExtension());
-            GBApplication.deviceService(mGBDevice).onInstallApp(Uri.fromFile(cachePath));
+            GBApplication.deviceService(mGBDevice).onInstallApp(Uri.fromFile(cachePath), Bundle.EMPTY);
             return true;
         } else if (itemId == R.id.appmanager_app_share) {
             final File origFilePath = new File(appCacheDir, selectedApp.getUUID() + mCoordinator.getAppFileExtension());
@@ -627,19 +617,16 @@ public abstract class AbstractAppManagerFragment extends Fragment {
             }
             return true;
         } else if (itemId == R.id.appmanager_health_activate) {
-            GBApplication.deviceService(mGBDevice).onInstallApp(Uri.parse("fake://health"));
+            GBApplication.deviceService(mGBDevice).onInstallApp(Uri.parse("fake://health"), Bundle.EMPTY);
             return true;
         } else if (itemId == R.id.appmanager_hrm_activate) {
-            GBApplication.deviceService(mGBDevice).onInstallApp(Uri.parse("fake://hrm"));
+            GBApplication.deviceService(mGBDevice).onInstallApp(Uri.parse("fake://hrm"), Bundle.EMPTY);
             return true;
         } else if (itemId == R.id.appmanager_weather_activate) {
-            GBApplication.deviceService(mGBDevice).onInstallApp(Uri.parse("fake://weather"));
+            GBApplication.deviceService(mGBDevice).onInstallApp(Uri.parse("fake://weather"), Bundle.EMPTY);
             return true;
         } else if (itemId == R.id.appmanager_health_deactivate || itemId == R.id.appmanager_hrm_deactivate || itemId == R.id.appmanager_weather_deactivate) {
             GBApplication.deviceService(mGBDevice).onAppDelete(selectedApp.getUUID());
-            return true;
-        } else if (itemId == R.id.appmanager_weather_install_provider) {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://f-droid.org/app/ru.gelin.android.weather.notification")));
             return true;
         } else if (itemId == R.id.appmanager_app_configure) {
             GBApplication.deviceService(mGBDevice).onAppStart(selectedApp.getUUID(), true);
@@ -707,7 +694,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
     }
 
     private void deleteAppFromDevice(final GBDeviceApp selectedApp) {
-        if (mCoordinator.supportsAppReordering()) {
+        if (mCoordinator.supportsAppReordering(mGBDevice)) {
             AppManagerActivity.deleteFromAppOrderFile(mGBDevice.getAddress() + ".watchapps", selectedApp.getUUID()); // FIXME: only if successful
             AppManagerActivity.deleteFromAppOrderFile(mGBDevice.getAddress() + ".watchfaces", selectedApp.getUUID()); // FIXME: only if successful
             Intent refreshIntent = new Intent(AbstractAppManagerFragment.ACTION_REFRESH_APPLIST);
@@ -757,7 +744,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
 
         @Override
         public int getMovementFlags(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder) {
-            if (!mCoordinator.supportsAppReordering() && !isCacheManager()) {
+            if (!mCoordinator.supportsAppReordering(mGBDevice) && !isCacheManager()) {
                 return 0;
             }
             //we only support up and down movement and only for moving, not for swiping apps away

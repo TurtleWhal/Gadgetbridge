@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <SwitchPreferenceCompat
         android:defaultValue="false"
         android:icon="@drawable/ic_power_settings_new"
@@ -15,7 +16,7 @@
         android:entryValues="@array/wearside_values"
         android:key="wearlocation"
         android:title="@string/prefs_wearside"
-        android:summary="%s" />
+        app:useSimpleSummaryProvider="true" />
     <SeekBarPreference
         android:dependency="display_enabled"
         android:defaultValue="2"
@@ -35,11 +36,13 @@
     <nodomain.freeyourgadget.gadgetbridge.util.XTimePreference
         android:dependency="display_all_day"
         android:defaultValue="07:00"
+        android:icon="@drawable/ic_start"
         android:key="display_on_start"
         android:title="@string/mi2_prefs_do_not_disturb_start" />
     <nodomain.freeyourgadget.gadgetbridge.util.XTimePreference
         android:dependency="display_all_day"
         android:defaultValue="22:00"
+        android:icon="@drawable/ic_keyboard_tab"
         android:key="display_on_end"
         android:title="@string/mi2_prefs_do_not_disturb_end" />
 </PreferenceScreen>

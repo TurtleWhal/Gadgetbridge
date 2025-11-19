@@ -43,7 +43,17 @@ public class FieldDefinition implements FieldInterface {
             if (global.getBaseType().equals(baseType)) {
                 return global;
             } else {
-                LOG.warn("Global is of type {}, but message declares {}", global.getBaseType(), baseType);
+                if (baseType == BaseType.UINT8 && global.getBaseType() == BaseType.ENUM) {
+                    // Allow uint8 -> enum, as older fit versions changed the type of some fields
+                    return global;
+                }
+                LOG.warn(
+                        "Global for {}[{}] is of type {}, but message declares {}",
+                        globalFITMessage.name(),
+                        global.name,
+                        global.getBaseType(),
+                        baseType
+                );
             }
         }
 

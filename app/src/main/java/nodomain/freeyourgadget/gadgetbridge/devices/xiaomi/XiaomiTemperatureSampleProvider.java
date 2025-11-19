@@ -120,7 +120,12 @@ public class XiaomiTemperatureSampleProvider implements TimeSampleProvider<Tempe
 
         @Override
         public int getTemperatureType() {
-            return 0; // ?
+            return TemperatureSample.TYPE_SKIN;
+        }
+
+        @Override
+        public int getTemperatureLocation() {
+            return TemperatureSample.LOCATION_WRIST;
         }
     }
 }

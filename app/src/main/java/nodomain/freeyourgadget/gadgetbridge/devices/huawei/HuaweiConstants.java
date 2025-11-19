@@ -84,6 +84,8 @@ public final class HuaweiConstants {
     public static final String HU_WATCHGT4_NAME = "huawei watch gt 4-";
     public static final String HU_WATCHGT5_NAME = "huawei watch gt 5-";
     public static final String HU_WATCHGT5PRO_NAME = "huawei watch gt 5 pro-";
+    public static final String HU_WATCHGT6_NAME = "huawei watch gt 6-";
+    public static final String HU_WATCHGT6PRO_NAME = "huawei watch gt 6 pro-";
     public static final String HU_WATCHFIT_NAME = "huawei watch fit-";
     public static final String HU_WATCHFIT2_NAME = "huawei watch fit 2-";
     public static final String HU_WATCHFIT3_NAME = "huawei watch fit 3-";
@@ -97,6 +99,7 @@ public final class HuaweiConstants {
     public static final String PREF_HUAWEI_ADDRESS = "huawei_address";
     public static final String PREF_HUAWEI_WORKMODE = "workmode";
     public static final String PREF_HUAWEI_TRUSLEEP = "trusleep";
+    public static final String PREF_HUAWEI_SLEEP_BREATH = "huawei_sleep_breath";
     public static final String PREF_HUAWEI_ACCOUNT = "huawei_account";
     public static final String PREF_HUAWEI_DND_LIFT_WRIST_TYPE = "dnd_lift_wrist_type"; // SharedPref for 0x01 0x1D
     public static final String PREF_HUAWEI_DEBUG_REQUEST = "debug_huawei_request";
@@ -111,6 +114,11 @@ public final class HuaweiConstants {
     public static final String PREF_HUAWEI_ACTIVITY_REMINDER_STAND = "pref_huawei_activity_reminder_stand";
     public static final String PREF_HUAWEI_ACTIVITY_REMINDER_PROGRESS = "pref_huawei_activity_reminder_progress";
     public static final String PREF_HUAWEI_ACTIVITY_REMINDER_GOAL_REACHED = "pref_huawei_activity_reminder_goal_reached";
+    public static final String PREF_HUAWEI_ARRHYTHMIA_SWITCH = "pref_huawei_arrhythmia_switch";
+    public static final String PREF_HUAWEI_ARRHYTHMIA_AUTOMATIC = "pref_huawei_arrhythmia_automatic";
+    public static final String PREF_HUAWEI_ARRHYTHMIA_ALERT = "pref_huawei_arrhythmia_alert";
+    public static final String PREF_HUAWEI_ECG_SWITCH = "pref_huawei_ecg_switch";
+    public static final String PREF_HUAWEI_ARTERIAL_STIFFNESS_DETECTION_SWITCH = "pref_huawei_arterial_stiffness_detection_switch";
 
 
 

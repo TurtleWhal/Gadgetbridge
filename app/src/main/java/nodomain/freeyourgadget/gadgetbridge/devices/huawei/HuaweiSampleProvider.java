@@ -19,9 +19,14 @@ package nodomain.freeyourgadget.gadgetbridge.devices.huawei;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import de.greenrobot.dao.AbstractDao;
@@ -33,6 +38,8 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiActivitySampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiSleepStageSample;
+import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiSleepStatsSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutDataSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutDataSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiWorkoutSummarySample;
@@ -42,6 +49,9 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 
 public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivitySample> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(HuaweiSampleProvider.class);
+
     /*
      * We save all data by saving a marker at the begin and end. We do not actively use these for
      * showing the data at the moment, but the samples are still saved as such, to keep the table
@@ -61,6 +71,10 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
 
         public static final int DEEP_SLEEP = 0x07;
         public static final int LIGHT_SLEEP = 0x06;
+
+        public static final int TRUSLEEP_REM = 0x5656;
+        public static final int TRUSLEEP_AWAKE = 0x5658;
+        public static final int TRUSLEEP_NAP = 0x5659;
     }
 
     public HuaweiSampleProvider(GBDevice device, DaoSession session) {
@@ -69,26 +83,25 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
 
     @Override
     public ActivityKind normalizeType(int rawType) {
-        switch (rawType) {
-            case RawTypes.DEEP_SLEEP:
-                return ActivityKind.DEEP_SLEEP;
-            case RawTypes.LIGHT_SLEEP:
-                return ActivityKind.LIGHT_SLEEP;
-            default:
-                return ActivityKind.UNKNOWN;
-        }
+        return switch (rawType) {
+            case RawTypes.DEEP_SLEEP -> ActivityKind.DEEP_SLEEP;
+            case RawTypes.LIGHT_SLEEP -> ActivityKind.LIGHT_SLEEP;
+            case RawTypes.TRUSLEEP_REM -> ActivityKind.REM_SLEEP;
+            case RawTypes.TRUSLEEP_AWAKE -> ActivityKind.AWAKE_SLEEP;
+            case RawTypes.TRUSLEEP_NAP -> ActivityKind.LIGHT_SLEEP; // TODO:
+            default -> ActivityKind.UNKNOWN;
+        };
     }
 
     @Override
     public int toRawActivityKind(ActivityKind activityKind) {
-        switch (activityKind) {
-            case DEEP_SLEEP:
-                return RawTypes.DEEP_SLEEP;
-            case LIGHT_SLEEP:
-                return RawTypes.LIGHT_SLEEP;
-            default:
-                return RawTypes.NOT_MEASURED;
-        }
+        return switch (activityKind) {
+            case DEEP_SLEEP -> RawTypes.DEEP_SLEEP;
+            case LIGHT_SLEEP -> RawTypes.LIGHT_SLEEP;
+            case REM_SLEEP -> RawTypes.TRUSLEEP_REM;
+            case AWAKE_SLEEP -> RawTypes.TRUSLEEP_AWAKE;
+            default -> RawTypes.NOT_MEASURED;
+        };
     }
 
     @Override
@@ -266,6 +279,9 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
         List<HuaweiActivitySample> samples = qb.build().list();
         for (HuaweiActivitySample sample : samples) {
             sample.setProvider(this);
+            if(sample.getHeartRate() != ActivitySample.NOT_MEASURED) {
+                sample.setHeartRate(sample.getHeartRate() & 0xFF);
+            }
         }
         detachFromSession();
         return samples;
@@ -292,6 +308,20 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
         return samples;
     }
 
+    private static int adjustTimeSecToMinute(int time) {
+        if (time % 60 != 0) {
+            time = (time / 60) * 60;
+        }
+        return time;
+    }
+
+    private static long adjustTimeMillisToMinute(long time) {
+        if (time % 60000L != 0) {
+            time = (time / 60000L) * 60000L;
+        }
+        return time;
+    }
+
     /*
      * This takes the following three steps:
      *  - Generate a sample every minute
@@ -302,12 +332,22 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
     protected List<HuaweiActivitySample> getGBActivitySamples(int timestamp_from, int timestamp_to) {
         List<HuaweiActivitySample> processedSamples = new ArrayList<>();
 
+        int adjustedTimestampFrom = adjustTimeSecToMinute(timestamp_from);
+        int adjustedTimestampTo = adjustTimeSecToMinute(timestamp_to);
+
+        timestamp_from = (adjustedTimestampFrom < timestamp_from)?adjustedTimestampFrom + 60:adjustedTimestampFrom;
+        timestamp_to = (adjustedTimestampTo > timestamp_to)?adjustedTimestampTo - 60:adjustedTimestampTo;
+
+        if(timestamp_from > timestamp_to)
+            return processedSamples;
+
         for (int timestamp = timestamp_from; timestamp <= timestamp_to; timestamp += 60) {
             processedSamples.add(createDummySample(timestamp));
         }
 
         overlayActivitySamples(processedSamples, timestamp_from, timestamp_to);
         overlayWorkoutSamples(processedSamples, timestamp_from, timestamp_to);
+        overlaySleep(processedSamples, timestamp_from, timestamp_to);
 
         return processedSamples;
     }
@@ -325,7 +365,8 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
         return true;
     }
 
-    private HuaweiActivitySample createDummySample(int timestamp) {
+    @Override
+    protected HuaweiActivitySample createDummySample(int timestamp) {
         HuaweiActivitySample activitySample = new HuaweiActivitySample(
                 timestamp,
                 -1,
@@ -468,8 +509,12 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
             // Skip the processed sample that are before this workout sample
             while (workoutSamples.get(i).getTimestamp() > processedSamples.get(currentIndex).getTimestamp()) {
                 if (inWorkout) {
-                    processedSamples.get(currentIndex).setHeartRate(lastHr);
-                    processedSamples.get(currentIndex).setRawIntensity(0);
+                    // In the DB we have samples where timestamp > otherTimestamp and where otherTimestamp > timestamp.
+                    // Do not overwrite this sample
+                    if(workoutSamples.get(i).getTimestamp() > processedSamples.get(currentIndex).getOtherTimestamp() || processedSamples.get(currentIndex).getHeartRate() == ActivitySample.NOT_MEASURED) {
+                        processedSamples.get(currentIndex).setHeartRate(lastHr);
+                        processedSamples.get(currentIndex).setRawIntensity(0);
+                    }
                 }
 
                 // Reset
@@ -507,8 +552,12 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
             // and intensity - see #4126 for the reasoning
             while (currentIndex < processedSamples.size() && workoutSamples.get(i).getTimestamp() > processedSamples.get(currentIndex).getTimestamp()) {
                 if (inWorkout) {
-                    processedSamples.get(currentIndex).setHeartRate(ActivitySample.NOT_MEASURED);
-                    processedSamples.get(currentIndex).setRawIntensity(0);
+                    // In the DB we have samples where timestamp > otherTimestamp and where otherTimestamp > timestamp.
+                    // Do not clear this sample
+                    if(workoutSamples.get(i).getTimestamp() > processedSamples.get(currentIndex).getOtherTimestamp() || processedSamples.get(currentIndex).getHeartRate() == ActivitySample.NOT_MEASURED) {
+                        processedSamples.get(currentIndex).setHeartRate(ActivitySample.NOT_MEASURED);
+                        processedSamples.get(currentIndex).setRawIntensity(0);
+                    }
                 }
 
                 currentIndex += 1;
@@ -543,4 +592,59 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
         newSample.setProvider(this);
         return newSample;
     }
+
+    private int toActivityKind(final HuaweiSleepStageSample stageSample) {
+        return switch (stageSample.getStage()) {
+            case 1 -> RawTypes.LIGHT_SLEEP;
+            case 2 -> RawTypes.TRUSLEEP_REM;
+            case 3 -> RawTypes.DEEP_SLEEP;
+            case 4 -> RawTypes.TRUSLEEP_AWAKE;
+            case 5 -> RawTypes.TRUSLEEP_NAP;
+            default -> RawTypes.UNKNOWN;
+        };
+    }
+
+    public void overlaySleep(final List<HuaweiActivitySample> samples, final int timestamp_from, final int timestamp_to) {
+        final Map<Long, Integer> stagesMap = new LinkedHashMap<>();
+        final HuaweiSleepStatsSampleProvider sleepStatsSampleProvider = new HuaweiSleepStatsSampleProvider(getDevice(), getSession());
+        final HuaweiSleepStageSampleProvider sleepStageSampleProvider = new HuaweiSleepStageSampleProvider(getDevice(), getSession());
+
+        List<HuaweiSleepStatsSample> sleepStatsSamples = sleepStatsSampleProvider.getSleepSamples(timestamp_from * 1000L, timestamp_to * 1000L);
+
+        if (!sleepStatsSamples.isEmpty()) {
+            for(HuaweiSleepStatsSample sample: sleepStatsSamples) {
+                final List<HuaweiSleepStageSample> stageSamples = sleepStageSampleProvider.getAllSamples(
+                        adjustTimeMillisToMinute(sample.getTimestamp()),
+                        adjustTimeMillisToMinute(sample.getWakeupTime()) - 60000L
+                );
+                for (final HuaweiSleepStageSample stageSample : stageSamples) {
+                    stagesMap.put(stageSample.getTimestamp(), toActivityKind(stageSample));
+                }
+            }
+        }
+
+        if (!stagesMap.isEmpty()) {
+            if (!samples.isEmpty()) {
+                for (final HuaweiActivitySample sample : samples) {
+                    final long ts = sample.getTimestamp();
+                    final Integer sleepType = stagesMap.get(ts * 1000L);
+                    if (sleepType != null && !sleepType.equals(RawTypes.UNKNOWN)) {
+                        sample.setRawKind(sleepType);
+                        sample.setRawIntensity(ActivitySample.NOT_MEASURED);
+                    }
+                }
+            } else {
+                for (int ts = timestamp_from; ts <= timestamp_to; ts += 60) {
+                    final HuaweiActivitySample sample = createDummySample(ts);
+                    final Integer sleepType = stagesMap.get(ts * 1000L);
+                    if (sleepType != null && !sleepType.equals(RawTypes.UNKNOWN)) {
+                        sample.setRawKind(sleepType);
+                        sample.setRawIntensity(ActivitySample.NOT_MEASURED);
+                    }
+                    samples.add(sample);
+                }
+            }
+        }
+    }
+
 }

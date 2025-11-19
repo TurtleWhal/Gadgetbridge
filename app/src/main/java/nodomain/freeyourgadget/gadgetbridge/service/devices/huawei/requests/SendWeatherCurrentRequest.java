@@ -47,26 +47,29 @@ public class SendWeatherCurrentRequest extends Request {
         try {
             Short pm25 = null;
             Short aqi = null;
-            if (weatherSpec.airQuality != null) {
-                pm25 = (short) weatherSpec.airQuality.pm25; // TODO: does this work?
-                aqi = (short) weatherSpec.airQuality.aqi;
+            if (weatherSpec.getAirQuality() != null) {
+                pm25 = (short) weatherSpec.getAirQuality().getPm25(); // TODO: does this work?
+                aqi = (short) weatherSpec.getAirQuality().getAqi();
             }
             return new Weather.CurrentWeatherRequest(
                     this.paramsProvider,
                     settings,
-                    supportProvider.openWeatherMapConditionCodeToHuaweiIcon(weatherSpec.currentConditionCode),
-                    (byte) weatherSpec.windDirection,
+                    supportProvider.openWeatherMapConditionCodeToHuaweiIcon(weatherSpec.getCurrentConditionCode()),
+                    weatherSpec.getWindDirection(),
                     (byte) weatherSpec.windSpeedAsBeaufort(),
-                    (byte) (weatherSpec.todayMinTemp - 273),
-                    (byte) (weatherSpec.todayMaxTemp - 273),
+                    (byte) (weatherSpec.getTodayMinTemp() - 273),
+                    (byte) (weatherSpec.getTodayMaxTemp() - 273),
                     pm25,
-                    weatherSpec.location,
-                    (byte) (weatherSpec.currentTemp - 273),
+                    weatherSpec.getLocation(),
+                    (byte) (weatherSpec.getCurrentTemp() - 273),
                     temperatureFormat,
                     aqi,
-                    weatherSpec.timestamp,
-                    weatherSpec.uvIndex,
-                    "Gadgetbridge"
+                    weatherSpec.getTimestamp(),
+                    weatherSpec.getUvIndex(),
+                    "Gadgetbridge",
+                    (byte) weatherSpec.getCurrentHumidity(),
+                    Math.round(weatherSpec.getWindSpeed()),
+                    (weatherSpec.getFeelsLikeTemp() - 273)
                 ).serialize();
         } catch (HuaweiPacket.CryptoException e) {
             throw new RequestCreationException(e);

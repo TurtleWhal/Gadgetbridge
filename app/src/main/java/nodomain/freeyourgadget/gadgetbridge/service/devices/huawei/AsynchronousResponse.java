@@ -261,7 +261,7 @@ public class AsynchronousResponse {
 
                 MusicControl.MusicStatusResponse resp = (MusicControl.MusicStatusResponse) response;
                 if (resp.status != -1 && resp.status != 0x000186A0) {
-                    LOG.warn("Music information error, will stop here: " + Integer.toHexString(resp.status));
+                    LOG.warn("Music information error, will stop here: {}", Integer.toHexString(resp.status));
                     return;
                 }
 
@@ -319,26 +319,22 @@ public class AsynchronousResponse {
                 if (resp.volumePresent) {
                     byte volume = resp.volume;
                     if (volume > audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)) {
-                        LOG.warn("Music - Received volume is too high: 0x"
-                                + Integer.toHexString(volume)
-                                + " > 0x"
-                                + Integer.toHexString(audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC))
-                        );
+                        LOG.warn("Music - Received volume is too high: 0x{} > 0x{}",
+                                Integer.toHexString(volume),
+                                Integer.toHexString(audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)));
                         // TODO: probably best to send back an error code, though I wouldn't know which
                         return;
                     }
                     if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
                         if (volume < audioManager.getStreamMinVolume(AudioManager.STREAM_MUSIC)) {
-                            LOG.warn("Music - Received volume is too low: 0x"
-                                    + Integer.toHexString(volume)
-                                    + " < 0x"
-                                    + audioManager.getStreamMinVolume(AudioManager.STREAM_MUSIC)
-                            );
+                            LOG.warn("Music - Received volume is too low: 0x{} < 0x{}",
+                                    Integer.toHexString(volume),
+                                    audioManager.getStreamMinVolume(AudioManager.STREAM_MUSIC));
                             // TODO: probably best to send back an error code, though I wouldn't know which
                             return;
                         }
                     }
-                    LOG.debug("Music - Setting volume to: 0x" + Integer.toHexString(volume));
+                    LOG.debug("Music - Setting volume to: 0x{}", Integer.toHexString(volume));
                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0);
                 }
 
@@ -394,7 +390,7 @@ public class AsynchronousResponse {
                     callControlEvent.event = GBDeviceEventCallControl.Event.REJECT;
                     LOG.info("Rejected call");
 
-                    if (!prefs.getBoolean("enable_call_reject", true)) {
+                    if (!prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_ENABLE_CALL_REJECT, true)) {
                         LOG.info("Disabled rejecting calls, ignoring");
                         return;
                     }
@@ -532,6 +528,23 @@ public class AsynchronousResponse {
                         LOG.error("Could not send file upload result request", e);
                     }
                 }
+            } else if(response.commandId == FileUpload.FileUploadDeviceResponse.id) {
+                // TODO: I don't currently know how to recover from this state. The proper solution is restart the watch or wait while timeout is expired in the watch
+                // Usually happened on the programmer error on the previous state.
+                // The value of timeout is unknown
+                LOG.error("File upload error. Possible error in the previous state. Try to restart your watch.");
+                if (support.huaweiUploadManager.getFileUploadInfo() == null) {
+                    LOG.error("No current upload");
+                } else {
+                    FileUpload.FileUploadDeviceResponse.Response resp = (FileUpload.FileUploadDeviceResponse.Response) response;
+                    if(support.huaweiUploadManager.getFileUploadInfo().getFileId() == resp.fileId) {
+                        if (support.huaweiUploadManager.getFileUploadInfo().getFileUploadCallback() != null) {
+                            support.huaweiUploadManager.getFileUploadInfo().getFileUploadCallback().onError(resp.code);
+                        }
+                        //Cleanup
+                        support.huaweiUploadManager.setFileUploadInfo(null);
+                    }
+                }
             }
         }
     }
@@ -587,7 +600,7 @@ public class AsynchronousResponse {
     }
 
     private void handleWeatherCheck(HuaweiPacket response) {
-        if (response.serviceId == Weather.id && response.commandId == 0x04) {
+        if (response.serviceId == Weather.id && response.commandId == Weather.WeatherDeviceRequest.id) {
             support.huaweiWeatherManager.handleAsyncMessage(response);
         }
     }

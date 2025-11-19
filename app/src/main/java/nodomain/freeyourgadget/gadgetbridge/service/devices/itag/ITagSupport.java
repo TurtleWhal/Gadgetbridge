@@ -80,7 +80,7 @@ public class ITagSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
         requestDeviceInfo(builder);
         setInitialized(builder);
         batteryInfoProfile.requestBatteryInfo(builder);
@@ -93,7 +93,7 @@ public class ITagSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     private void setInitialized(TransactionBuilder builder) {
-        builder.setUpdateState(getDevice(), GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
     }
 
 
@@ -114,11 +114,10 @@ public class ITagSupport extends AbstractBTLESingleDeviceSupport {
     @Override
     public void onSetConstantVibration(int intensity) {
         getQueue().clear();
-        BluetoothGattCharacteristic characteristic = getCharacteristic(ITagConstants.UUID_LINK_LOSS_ALERT_LEVEL);
 
-        TransactionBuilder builder = new TransactionBuilder("beeping");
-        builder.write(characteristic, new byte[]{(byte) intensity});
-        builder.queue(getQueue());
+        TransactionBuilder builder = createTransactionBuilder("beeping");
+        builder.write(ITagConstants.UUID_LINK_LOSS_ALERT_LEVEL, new byte[]{(byte) intensity});
+        builder.queue();
     }
 
     @Override

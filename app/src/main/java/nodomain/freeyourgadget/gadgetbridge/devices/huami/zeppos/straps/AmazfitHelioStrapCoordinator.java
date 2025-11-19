@@ -16,7 +16,10 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.straps;
 
+import androidx.annotation.NonNull;
+
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -30,8 +33,8 @@ public class AmazfitHelioStrapCoordinator extends ZeppOsCoordinator {
     }
 
     @Override
-    public String getDeviceBluetoothName() {
-        return "Amazfit Helio Strap"; // no mac address at the end
+    public List<String> getDeviceBluetoothNames() {
+        return Collections.singletonList("Amazfit Helio Strap"); // no mac address at the end
     }
 
     @Override
@@ -45,52 +48,12 @@ public class AmazfitHelioStrapCoordinator extends ZeppOsCoordinator {
     }
 
     @Override
-    public boolean supportsScreenshots(final GBDevice device) {
+    public boolean hasDisplay() {
         return false;
     }
 
     @Override
-    public boolean supportsWeather() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsMusicInfo() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsHrvMeasurement(final GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public int getWorldClocksSlotCount() {
-        return 0;
-    }
-
-    @Override
-    public boolean supportsCalendarEvents() {
-        return false;
-    }
-
-    @Override
-    public int getCannedRepliesSlotCount(final GBDevice device) {
-        return 0;
-    }
-
-    @Override
-    public boolean supportsTemperatureMeasurement(final GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsContinuousTemperature(final GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsAgpsUpdates() {
-        return false;
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.FITNESS_BAND;
     }
 }

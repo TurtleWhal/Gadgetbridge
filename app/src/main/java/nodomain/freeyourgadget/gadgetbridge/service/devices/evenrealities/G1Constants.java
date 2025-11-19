@@ -1,5 +1,7 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.evenrealities;
 
+import android.util.Pair;
+
 import java.util.UUID;
 
 public class G1Constants {
@@ -10,23 +12,45 @@ public class G1Constants {
     public static final UUID UUID_CHARACTERISTIC_NORDIC_UART_RX =
             UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
     public static final int MTU = 251;
-    public static final int HEART_BEAT_DELAY_MS = 28000;
+    // The MTU is set to 251, which suggests there should be a larger packet size, however,
+    // (excluding headers) the glasses only ever send a payload of 180 bytes.
+    // TODO: Try out a larger MTU and a larger packet size to see if these numbers are flexible.
+    //       It could be that a 180 byte buffer is allocated in the FW for the payload and sending
+    //       more will cause the glasses to crash.
+    public static final int MAX_PACKET_SIZE_BYTES = 180;
+    // YUCK! The glasses require a constant connection otherwise they will completely shut down.
+    // Every 32 seconds (BLE timeout), a packet MUST be sent to the glasses to keep the connection
+    // alive. Due to scheduling of background threads in Android, the system can add upwards of 20
+    // seconds to the sleep time. There is not a great way around this, so the sleep time is set to
+    // 8 seconds. In deep sleep, that means the connection is generally refreshed every 28 seconds.
+    // Occasionally, the timeout will be exceeded, in which case we rely on the auto reconnection,
+    // however that process requires full initialization of the glasses, and as such it is more
+    // expensive from a battery budget than just sending the heartbeat message.
+    public static final int HEART_BEAT_BASE_DELAY_MS = 8000;
+    public static final int HEART_BEAT_TARGET_DELAY_MS = 25000;
     public static final int DEFAULT_COMMAND_TIMEOUT_MS = 5000;
     public static final int DISPLAY_SETTINGS_PREVIEW_DELAY = 3000;
     public static final int DEFAULT_RETRY_COUNT = 5;
     public static final int CASE_BATTERY_INDEX = 2;
     public static final String INTENT_TOGGLE_SILENT_MODE = "nodomain.freeyourgadget.gadgetbridge.evenrealities.silent_mode";
+    // The glasses have a filter based on a whitelist of apps and it will only display
+    // notifications from apps that are on that list. GadgetBridge already filters the
+    // notifications before sending to the glasses and GadgetBridge can work as either a
+    // blacklist or a whitelist. To get around this, a fixed application id is used since the
+    // glasses don't display it, it doesn't matter to the user experience and it allows all of
+    // the notification filtering to happen on the phone side.
+    public static final Pair<String, String>
+            FIXED_NOTIFICATION_APP_ID = new Pair<>("nodomain.freeyourgadget.gadget", "Name");
 
     // Extract the L or R at the end of the device prefix.
     public static Side getSideFromFullName(String deviceName) {
-        int prefixSize = "Even G1_XX_X".length();
+        // Name will be "G1_XX_[L|R]_YYYYY"
+        int firstUnderScore = deviceName.indexOf('_');
+        if (firstUnderScore < 0) return null;
+        int prefixSize = deviceName.indexOf('_', firstUnderScore + 1);
+        if (prefixSize < 0) return null;
 
-        if (deviceName.length() < prefixSize) {
-            return null;
-        }
-
-        String prefix = deviceName.substring(0, prefixSize);
-        char side = prefix.charAt(prefix.length() - 1);
+        char side = deviceName.charAt(prefixSize + 1);
         if (side == 'L' || side == 'R') {
             return side == 'L' ? Side.LEFT : Side.RIGHT;
         }
@@ -35,11 +59,11 @@ public class G1Constants {
     }
 
     public static String getNameFromFullName(String deviceName) {
-        int prefixSize = "Even G1_XX".length();
-
-        if (deviceName.length() < prefixSize) {
-            return null;
-        }
+        // Name will be "G1_XX_[L|R]_YYYYY"
+        int firstUnderScore = deviceName.indexOf('_');
+        if (firstUnderScore < 0) return null;
+        int prefixSize = deviceName.indexOf('_', firstUnderScore + 1);
+        if (prefixSize < 0) return null;
 
         return deviceName.substring(0, prefixSize);
     }
@@ -90,14 +114,13 @@ public class G1Constants {
 
     // TODO: Lifted these from a different project, some of them are wrong.
     public enum CommandId {
-        NOTIFICATION_CONFIG((byte) 0x04),
         DASHBOARD_CONFIG((byte) 0x06),
         SYNC_SEQUENCE((byte) 0x22), // 0x05
         DASHBOARD_SHOWN((byte) 0x22), // 0x0A
         SYSTEM((byte) 0x23),
         HEARTBEAT((byte) 0x25),
         BATTERY_LEVEL((byte) 0x2C),
-        INIT((byte) 0x4D),
+        SET_MTU((byte) 0x4D),
         NOTIFICATION((byte) 0x4B),
         FW_INFO_RESPONSE((byte) 0x6E),
         DEBUG_LOG((byte) 0xF4),
@@ -112,7 +135,12 @@ public class G1Constants {
         SET_BRIGHTNESS_SETTINGS((byte) 0x01),
         GET_WEAR_DETECTION_SETTINGS((byte) 0x3A),
         SET_WEAR_DETECTION_SETTINGS((byte) 0x27),
-        GET_SERIAL_NUMBER((byte) 0x34);
+        GET_SERIAL_NUMBER((byte) 0x34),
+        GET_NOTIFICATION_DISPLAY_SETTINGS((byte) 0x3C),
+        SET_NOTIFICATION_DISPLAY_SETTINGS((byte) 0x4F),
+        SET_NOTIFICATION_APP_SETTINGS((byte) 0x04),
+        SEND_NOTIFICATION((byte) 0x4B),
+        SEND_CLEAR_NOTIFICATION((byte) 0x4C);
 
         final public byte id;
 

@@ -16,12 +16,23 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.watches;
 
+import androidx.annotation.NonNull;
+
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.xiaomi.XiaomiCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class MiBand9ActiveCoordinator extends XiaomiCoordinator {
+    @Override
+    public boolean isExperimental() {
+        // Activity fetching is broken
+        // Some settings are broken
+        return true;
+    }
+
     @Override
     public int getDeviceNameResource() {
         return R.string.devicetype_miband9active;
@@ -33,19 +44,22 @@ public class MiBand9ActiveCoordinator extends XiaomiCoordinator {
     }
 
     @Override
-    public boolean isExperimental() {
-        // Untested - based on btsnoops provided on matrix
-        return true;
-    }
-
-    @Override
-    public ConnectionType getConnectionType() {
-        // Unconfirmed - but actually looks like SPPv2 packets over BLE?
-        return ConnectionType.BOTH;
-    }
-
-    @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_default;
+    }
+
+    @Override
+    public boolean supportsFindDevice(@NonNull GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsManualHeartRateMeasurement(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceCoordinator.DeviceKind.FITNESS_BAND;
     }
 }

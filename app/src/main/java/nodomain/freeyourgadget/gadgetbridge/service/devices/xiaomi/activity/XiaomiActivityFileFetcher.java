@@ -20,6 +20,8 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -170,7 +172,7 @@ public class XiaomiActivityFileFetcher {
             final XiaomiSupport support = mHealthService.getSupport();
             final Context context = support.getContext();
             GB.updateTransferNotification(context.getString(R.string.busy_task_fetch_activity_data), "", true, 0, context);
-            support.getDevice().setBusyTask(context.getString(R.string.busy_task_fetch_activity_data));
+            support.getDevice().setBusyTask(R.string.busy_task_fetch_activity_data, context);
             support.getDevice().sendDeviceUpdateIntent(support.getContext());
             triggerNextFetch();
         }
@@ -199,14 +201,31 @@ public class XiaomiActivityFileFetcher {
         mHealthService.requestRecordedData(fileId);
     }
 
+    @Nullable
+    public static File getRawFile(final XiaomiSupport support, final XiaomiActivityFileId fileId) {
+        try {
+            final GBDevice device = support.getDevice();
+            final File exportDirectory = device.getDeviceCoordinator().getWritableExportDirectory(device, true);
+            final File targetDir = new File(exportDirectory, "rawFetchOperations");
+            final File outputFile = fileId.getOutputFile(targetDir);
+            if (!outputFile.isFile()) {
+                LOG.warn("Raw bytes not a file: {}", outputFile.getAbsolutePath());
+            }
+            return outputFile;
+        } catch (final Exception e) {
+            LOG.error("Failed to build path to raw bytes", e);
+        }
+        return null;
+    }
+
     protected void dumpBytesToExternalStorage(final XiaomiActivityFileId fileId, final byte[] bytes) {
         try {
-            final GBDevice device = mHealthService.getSupport().getDevice();
-            final File exportDirectory = device.getDeviceCoordinator().getWritableExportDirectory(device);
-            final File targetDir = new File(exportDirectory, "rawFetchOperations");
-            targetDir.mkdirs();
-
-            final File outputFile = new File(targetDir, fileId.getFilename());
+            final File outputFile = getRawFile(mHealthService.getSupport(), fileId);
+            final File parentFile = outputFile.getParentFile();
+            if (parentFile != null) {
+                //noinspection ResultOfMethodCallIgnored
+                parentFile.mkdirs();
+            }
 
             final OutputStream outputStream = new FileOutputStream(outputFile);
             outputStream.write(bytes);

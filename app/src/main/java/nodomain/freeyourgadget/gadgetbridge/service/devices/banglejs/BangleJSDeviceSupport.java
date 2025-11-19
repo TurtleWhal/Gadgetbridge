@@ -140,17 +140,17 @@ import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
-import nodomain.freeyourgadget.gadgetbridge.model.Weather;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.SleepAsAndroidSender;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEQueue;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
-import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.SetDeviceStateAction;
 import nodomain.freeyourgadget.gadgetbridge.util.EmojiConverter;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
+import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
 import nodomain.freeyourgadget.gadgetbridge.util.LimitedQueue;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.VolleyUtils;
@@ -212,11 +212,13 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void dispose() {
-        super.dispose();
-        stopGlobalUartReceiver();
-        stopLocationUpdate();
-        stopRequestQueue();
-        handler.removeCallbacksAndMessages(null);
+        synchronized (ConnectionMonitor) {
+            super.dispose();
+            stopGlobalUartReceiver();
+            stopLocationUpdate();
+            stopRequestQueue();
+            handler.removeCallbacksAndMessages(null);
+        }
     }
 
     private void stopGlobalUartReceiver(){
@@ -289,9 +291,9 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                             try {
                                 TransactionBuilder builder = performInitialized("TX");
                                 uartTx(builder, data);
-                                builder.queue(queue);
+                                builder.queue();
                             } catch (IOException e) {
-                                GB.toast(getContext(), "Error in TX: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                                GB.toast(getContext(), "Error in TX: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
                             }
                         }
                         break;
@@ -340,9 +342,9 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                         try {
                             TransactionBuilder builder = performInitialized("TX");
                             uartTx(builder, data);
-                            builder.queue(getQueue());
+                            builder.queue();
                         } catch (IOException e) {
-                            GB.toast(getContext(), "Error in TX: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                            GB.toast(getContext(), "Error in TX: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
                         }
                         break;
                     }
@@ -361,7 +363,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             sleepAsAndroidSender = new SleepAsAndroidSender(gbDevice);
         }
 
-        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZING, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZING);
 
         rxCharacteristic = getCharacteristic(BangleJSConstants.UUID_CHARACTERISTIC_NORDIC_UART_RX);
         txCharacteristic = getCharacteristic(BangleJSConstants.UUID_CHARACTERISTIC_NORDIC_UART_TX);
@@ -369,7 +371,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             // https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/2996 - sometimes we get
             // initializeDevice called but no characteristics have been fetched - try and reconnect in that case
             LOG.warn("RX/TX characteristics are null, will attempt to reconnect");
-            builder.setUpdateState(gbDevice, GBDevice.State.WAITING_FOR_RECONNECT, getContext());
+            builder.setDeviceState(GBDevice.State.WAITING_FOR_RECONNECT);
             return builder;
         }
         builder.setCallback(this);
@@ -383,13 +385,13 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         }
         // No need to clear active line with Ctrl-C now - firmwares in 2023 auto-clear on connect
 
-        Prefs prefs = GBApplication.getPrefs();
-        if (prefs.getBoolean("datetime_synconconnect", true))
+        GBPrefs prefs = GBApplication.getPrefs();
+        if (prefs.syncTime())
           transmitTime(builder);
         //sendSettings(builder);
 
         // get version
-        builder.setUpdateState(gbDevice, GBDevice.State.INITIALIZED, getContext());
+        builder.setDeviceState(GBDevice.State.INITIALIZED);
         if (getDevice().getFirmwareVersion() == null) {
             getDevice().setFirmwareVersion("N/A");
             getDevice().setFirmwareVersion2("N/A");
@@ -512,9 +514,9 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized(taskName);
             uartTxJSON(builder, json);
-            builder.queue(getQueue());
+            builder.queue();
         } catch (IOException e) {
-            GB.toast(getContext(), "Error in "+taskName+": " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error in "+taskName+": " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -530,7 +532,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 o.put("id", id);
             o.put("err", message);
         } catch (JSONException e) {
-            GB.toast(getContext(), "uartTxJSONError: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "uartTxJSONError: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
         uartTxJSON(taskName, o);
     }
@@ -553,7 +555,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     LOG.warn("UART RX JSON parsed but doesn't contain 't' - ignoring");
             } catch (JSONException e) {
                 LOG.error("UART RX JSON parse failure: "+ e.getLocalizedMessage());
-                GB.toast(getContext(), "Malformed JSON from Bangle.js: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                GB.toast(getContext(), "Malformed JSON from Bangle.js: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
         } else if (line.startsWith("data:image/bmp;base64,")) {
             LOG.debug("Got screenshot bmp");
@@ -829,7 +831,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         final String state = json.getString("state");
         if ("start".equals(state)) {
             GB.updateTransferNotification(getContext().getString(R.string.busy_task_fetch_activity_data),"", true, 0, getContext());
-            getDevice().setBusyTask(getContext().getString(R.string.busy_task_fetch_activity_data));
+            getDevice().setBusyTask(R.string.busy_task_fetch_activity_data, getContext());
         } else if ("end".equals(state)) {
             saveLastSyncTimestamp(System.currentTimeMillis() - 1000L * 60);
             getDevice().unsetBusyTask();
@@ -994,7 +996,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                             if (response!=null)
                                 o.put("resp", response);
                         } catch (JSONException e) {
-                            GB.toast(getContext(), "HTTP: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+                            GB.toast(getContext(), "HTTP: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
                         }
                         uartTxJSON("http", o);
                     }
@@ -1168,7 +1170,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         } catch (final Exception e) {
             // The user sent an invalid flag
             LOG.info("Flag '"+flag+"' isn't implemented or doesn't exist and was therefore not set.");
-            GB.toast(getContext(), "Flag '"+flag+"' isn't implemented or it doesn't exist and was therefore not set.", Toast.LENGTH_LONG, GB.INFO);
+            GB.toast(getContext(), "Flag '"+flag+"' isn't implemented or it doesn't exist and was therefore not set.", Toast.LENGTH_LONG, GB.INFO, e);
         }
         return intent;
     }
@@ -1289,7 +1291,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             LOG.debug("Requesting gps power status: {}", o);
             uartTxJSON(builder, o);
         } catch (JSONException e) {
-            GB.toast(getContext(), "uartTxJSONError: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "uartTxJSONError: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1348,7 +1350,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             LOG.debug("Sending gps value: " + o.toString());
             uartTxJSON("gps", o);
         } catch (JSONException e) {
-            GB.toast(getContext(), "uartTxJSONError: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "uartTxJSONError: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1550,9 +1552,9 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             //TODO: once we have a common strategy for sending events (e.g. EventHandler), remove this call from here. Meanwhile it does no harm.
             // = we should generalize the pebble calender code
             forceCalendarSync();
-            builder.queue(getQueue());
+            builder.queue();
         } catch (Exception e) {
-            GB.toast(getContext(), "Error setting time: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Error setting time: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1845,9 +1847,9 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             final TransactionBuilder builder = performInitialized("screenshot");
             uartTx(builder, "\u0010g.dump()\n");
-            builder.queue(getQueue());
+            builder.queue();
         } catch (final IOException e) {
-            GB.toast(getContext(), "Failed to get screenshot: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR);
+            GB.toast(getContext(), "Failed to get screenshot: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
         }
     }
 
@@ -1992,52 +1994,43 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             }
     }
 
-    private void handleWeather(JSONObject json)
-    {
-        if (!json.has("v")) {
-            handleWeatherV1(Weather.getInstance().getWeatherSpecs());
+    private void handleWeather(final JSONObject json) {
+        final WeatherSpec weatherSpec = Weather.getWeatherSpec();
+        if (weatherSpec == null) {
+            LOG.warn("No weather found in singleton");
             return;
         }
-        try {
-            int version = json.getInt("v");
-            boolean forecast = false;
-            if (json.has("f")) {
-                forecast = json.getBoolean("f");
-            }
-            if (version == 1) {
-                handleWeatherV1(Weather.getInstance().getWeatherSpecs());
-            } else if (version == 2) {
-                handleWeatherV2(Weather.getInstance().getWeatherSpecs(), forecast);
-            }
-        } catch (JSONException e) {
-            LOG.info("JSONException: " + e.getLocalizedMessage());
+
+        final int version = json.optInt("v", 1);
+        switch (version) {
+            case 1:
+                handleWeatherV1(weatherSpec);
+                break;
+            case 2:
+                final boolean forecast = json.optBoolean("f", false);
+                handleWeatherV2(weatherSpec, forecast);
+                break;
         }
     }
 
-    private void handleWeatherV1(List<WeatherSpec> weatherSpecs)
-    {
-        if (weatherSpecs.isEmpty()) {
-            return;
-        }
-
-        WeatherSpec weatherSpec = weatherSpecs.get(0);
+    private void handleWeatherV1(final WeatherSpec weatherSpec) {
         try {
             JSONObject o = new JSONObject();
             o.put("t", "weather");
             o.put("v", 1);
 
             // Current weather
-            o.put("temp", weatherSpec.currentTemp);
-            o.put("hi", weatherSpec.todayMaxTemp);
-            o.put("lo", weatherSpec.todayMinTemp);
-            o.put("hum", weatherSpec.currentHumidity);
-            o.put("rain", weatherSpec.precipProbability);
-            o.put("uv", Math.round(weatherSpec.uvIndex*10)/10);
-            o.put("code", weatherSpec.currentConditionCode);
-            o.put("txt", weatherSpec.currentCondition);
-            o.put("wind", Math.round(weatherSpec.windSpeed*100)/100.0);
-            o.put("wdir", weatherSpec.windDirection);
-            o.put("loc", weatherSpec.location);
+            o.put("temp", weatherSpec.getCurrentTemp());
+            o.put("hi", weatherSpec.getTodayMaxTemp());
+            o.put("lo", weatherSpec.getTodayMinTemp());
+            o.put("hum", weatherSpec.getCurrentHumidity());
+            o.put("rain", weatherSpec.getPrecipProbability());
+            o.put("uv", Math.round(weatherSpec.getUvIndex() *10)/10);
+            o.put("code", weatherSpec.getCurrentConditionCode());
+            o.put("txt", weatherSpec.getCurrentCondition());
+            o.put("wind", Math.round(weatherSpec.getWindSpeed() *100)/100.0);
+            o.put("wdir", weatherSpec.getWindDirection());
+            o.put("loc", weatherSpec.getLocation());
 
             uartTxJSON("handleWeather", o);
         } catch (JSONException e) {
@@ -2045,93 +2038,87 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         }
     }
 
-    private void handleWeatherV2(List<WeatherSpec> weatherSpecs, boolean includeForecast)
-    {
-        if (weatherSpecs.isEmpty()) {
-            return;
-        }
-
-        WeatherSpec weatherSpec = weatherSpecs.get(0);
+    private void handleWeatherV2(final WeatherSpec weatherSpec, final boolean includeForecast) {
         try {
             JSONObject o = new JSONObject();
             o.put("t", "weather");
             o.put("v", 2);
-            o.put("l", weatherSpec.location);
-            o.put("c", weatherSpec.currentCondition);
+            o.put("l", weatherSpec.getLocation());
+            o.put("c", weatherSpec.getCurrentCondition());
 
             ByteArrayOutputStream weatherData = new ByteArrayOutputStream();
 
             // Current weather
-            write1ByteSigned(weatherData, weatherSpec.currentTemp - 273);
-            write1ByteSigned(weatherData, weatherSpec.todayMaxTemp - 273);
-            write1ByteSigned(weatherData, weatherSpec.todayMinTemp - 273);
-            weatherData.write(weatherSpec.currentHumidity);
-            weatherData.write(weatherSpec.precipProbability);
-            weatherData.write(Math.round(weatherSpec.uvIndex*10));  // fixed point decimal
-            weatherData.write(conditionCodeMapping(weatherSpec.currentConditionCode));
-            write2Bytes(weatherData, Math.round(weatherSpec.windSpeed*100));  // fixed point decimal
-            write2Bytes(weatherData, weatherSpec.windDirection);
-            write1ByteSigned(weatherData, weatherSpec.dewPoint - 273);
-            write2Bytes(weatherData, Math.round(weatherSpec.pressure*10));  // fixed point decimal
-            weatherData.write(weatherSpec.cloudCover);
-            write4Bytes(weatherData, Math.round(weatherSpec.visibility*10)); // fixed point decimal
-            write4Bytes(weatherData, weatherSpec.sunRise);
-            write4Bytes(weatherData, weatherSpec.sunSet);
-            write4Bytes(weatherData, weatherSpec.moonRise);
-            write4Bytes(weatherData, weatherSpec.moonSet);
-            write2Bytes(weatherData, weatherSpec.moonPhase);
-            write1ByteSigned(weatherData, weatherSpec.feelsLikeTemp - 273);
+            write1ByteSigned(weatherData, weatherSpec.getCurrentTemp() - 273);
+            write1ByteSigned(weatherData, weatherSpec.getTodayMaxTemp() - 273);
+            write1ByteSigned(weatherData, weatherSpec.getTodayMinTemp() - 273);
+            weatherData.write(weatherSpec.getCurrentHumidity());
+            weatherData.write(weatherSpec.getPrecipProbability());
+            weatherData.write(Math.round(weatherSpec.getUvIndex() *10));  // fixed point decimal
+            weatherData.write(conditionCodeMapping(weatherSpec.getCurrentConditionCode()));
+            write2Bytes(weatherData, Math.round(weatherSpec.getWindSpeed() *100));  // fixed point decimal
+            write2Bytes(weatherData, weatherSpec.getWindDirection());
+            write1ByteSigned(weatherData, weatherSpec.getDewPoint() - 273);
+            write2Bytes(weatherData, Math.round(weatherSpec.getPressure() *10));  // fixed point decimal
+            weatherData.write(weatherSpec.getCloudCover());
+            write4Bytes(weatherData, Math.round(weatherSpec.getVisibility() *10)); // fixed point decimal
+            write4Bytes(weatherData, weatherSpec.getSunRise());
+            write4Bytes(weatherData, weatherSpec.getSunSet());
+            write4Bytes(weatherData, weatherSpec.getMoonRise());
+            write4Bytes(weatherData, weatherSpec.getMoonSet());
+            write2Bytes(weatherData, weatherSpec.getMoonPhase());
+            write1ByteSigned(weatherData, weatherSpec.getFeelsLikeTemp() - 273);
 
             if (includeForecast) {
                 // Hourly forecast as Structure of Arrays
-                int hourlyAmount = Math.min(weatherSpec.hourly.size(), 25);
+                int hourlyAmount = Math.min(weatherSpec.getHourly().size(), 25);
                 weatherData.write(hourlyAmount);
                 if(hourlyAmount>0)
                 {
-                    write4Bytes(weatherData, weatherSpec.hourly.get(0).timestamp);
+                    write4Bytes(weatherData, weatherSpec.getHourly().get(0).getTimestamp());
                 }
-                List<WeatherSpec.Hourly> hourly = weatherSpec.hourly.subList(0, hourlyAmount);
+                List<WeatherSpec.Hourly> hourly = weatherSpec.getHourly().subList(0, hourlyAmount);
                 for (final WeatherSpec.Hourly hour : hourly) {
-                    float hoursDelta = (float) (hour.timestamp - weatherSpec.hourly.get(0).timestamp)/3600;
+                    float hoursDelta = (float) (hour.getTimestamp() - weatherSpec.getHourly().get(0).getTimestamp())/3600;
                     weatherData.write(Math.round(hoursDelta*10)); // fixed point decimal (max 25 hours ahead)
                 }
                 for (final WeatherSpec.Hourly hour :hourly) {
-                    write1ByteSigned(weatherData, hour.temp - 273);
+                    write1ByteSigned(weatherData, hour.getTemp() - 273);
                 }
                 for (final WeatherSpec.Hourly hour : hourly) {
-                    weatherData.write(conditionCodeMapping(hour.conditionCode));
+                    weatherData.write(conditionCodeMapping(hour.getConditionCode()));
                 }
                 for (final WeatherSpec.Hourly hour : hourly) {
-                    weatherData.write(Math.round(hour.windSpeed));
+                    weatherData.write(Math.round(hour.getWindSpeed()));
                 }
                 for (final WeatherSpec.Hourly hour : hourly) {
-                    weatherData.write(hour.windDirection / 2); // Divide 2 by to save 1 Byte
+                    weatherData.write(hour.getWindDirection() / 2); // Divide 2 by to save 1 Byte
                 }
                 for (final WeatherSpec.Hourly hour : hourly) {
-                    weatherData.write(hour.precipProbability);
+                    weatherData.write(hour.getPrecipProbability());
                 }
 
                 // Daily forecast as Structure of Arrays
-                int dailyAmount = Math.min(weatherSpec.forecasts.size(), 7);
+                int dailyAmount = Math.min(weatherSpec.getForecasts().size(), 7);
                 weatherData.write(dailyAmount);
-                List<WeatherSpec.Daily> daily = weatherSpec.forecasts.subList(0, dailyAmount);
+                List<WeatherSpec.Daily> daily = weatherSpec.getForecasts().subList(0, dailyAmount);
                 for (final WeatherSpec.Daily day : daily) {
-                    write1ByteSigned(weatherData, day.maxTemp - 273);
+                    write1ByteSigned(weatherData, day.getMaxTemp() - 273);
                 }
                 for (final WeatherSpec.Daily day : daily) {
-                    write1ByteSigned(weatherData, day.minTemp - 273);
+                    write1ByteSigned(weatherData, day.getMinTemp() - 273);
                 }
                 for (final WeatherSpec.Daily day : daily) {
-                    weatherData.write(conditionCodeMapping(day.conditionCode));
+                    weatherData.write(conditionCodeMapping(day.getConditionCode()));
                 }
                 for (final WeatherSpec.Daily day : daily) {
-                    weatherData.write(Math.round(day.windSpeed));
+                    weatherData.write(Math.round(day.getWindSpeed()));
                 }
                 for (final WeatherSpec.Daily day : daily) {
-                    weatherData.write(day.windDirection / 2); // Divide 2 by to save 1 Byte
+                    weatherData.write(day.getWindDirection() / 2); // Divide 2 by to save 1 Byte
                 }
                 for (final WeatherSpec.Daily day : daily) {
-                    weatherData.write(day.precipProbability);
+                    weatherData.write(day.getPrecipProbability());
                 }
             }
             o.put("d", Base64.encodeToString(weatherData.toByteArray(), Base64.DEFAULT));
@@ -2191,8 +2178,13 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onSendWeather(ArrayList<WeatherSpec> weatherSpecs) {
-        handleWeatherV1(weatherSpecs);
+    public void onSendWeather() {
+        final WeatherSpec weatherSpec = Weather.getWeatherSpec();
+        if (weatherSpec == null) {
+            LOG.warn("No weather found in singleton");
+            return;
+        }
+        handleWeatherV1(weatherSpec);
     }
 
     public Bitmap textToBitmap(String text) {

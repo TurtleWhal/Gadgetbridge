@@ -43,7 +43,7 @@ public class AmazfitGTSCoordinator extends HuamiCoordinator {
 
     @Override
     protected Pattern getSupportedDeviceName() {
-        return Pattern.compile("Amazfit GTS", Pattern.CASE_INSENSITIVE);
+        return Pattern.compile("Amazfit GTS");
     }
 
     @Override
@@ -63,17 +63,17 @@ public class AmazfitGTSCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsWeather() {
+    public boolean supportsWeather(final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracks() {
+    public boolean supportsActivityTracks(final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsMusicInfo() {
+    public boolean supportsMusicInfo(@NonNull GBDevice device) {
         return true;
     }
 
@@ -144,5 +144,10 @@ public class AmazfitGTSCoordinator extends HuamiCoordinator {
     @Override
     public int getDefaultIconResource() {
         return R.drawable.ic_device_amazfit_bip;
+    }
+
+    @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.WATCH;
     }
 }

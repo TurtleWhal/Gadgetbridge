@@ -29,7 +29,6 @@ import java.util.List;
 import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.gpx.GpxParser;
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxFile;
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxTrackPoint;
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxWaypoint;
@@ -39,14 +38,14 @@ public class ZeppOsGpxRouteFile {
 
     private static final double COORD_MULTIPLIER = 3000000.0;
 
-    private final byte[] xmlBytes;
     private final long timestamp;
     private final GpxFile gpxFile;
+    private final String trackName;
 
-    public ZeppOsGpxRouteFile(final byte[] xmlBytes) {
-        this.xmlBytes = xmlBytes;
+    public ZeppOsGpxRouteFile(final GpxFile gpxFile, final String trackName) {
         this.timestamp = System.currentTimeMillis() / 1000;
-        this.gpxFile = GpxParser.parseGpx(xmlBytes);
+        this.gpxFile = gpxFile;
+        this.trackName = trackName;
     }
 
     public boolean isValid() {
@@ -55,18 +54,6 @@ public class ZeppOsGpxRouteFile {
 
     public long getTimestamp() {
         return timestamp;
-    }
-
-    public String getName() {
-        if (gpxFile == null) {
-            return "";
-        }
-
-        if (!StringUtils.isNullOrEmpty(gpxFile.getName())) {
-            return gpxFile.getName();
-        } else {
-            return String.valueOf(getTimestamp());
-        }
     }
 
     public byte[] getEncodedBytes() {
@@ -106,7 +93,7 @@ public class ZeppOsGpxRouteFile {
             baos.write(BLETypeConversions.fromUint32((int) (maxLongitude * COORD_MULTIPLIER)));
             baos.write(BLETypeConversions.fromUint32((int) minAltitude));
             baos.write(BLETypeConversions.fromUint32((int) maxAltitude));
-            baos.write(truncatePadString(getName()));
+            baos.write(truncatePadString(trackName));
             baos.write(BLETypeConversions.fromUint32(0)); // ?
 
             if (!waypoints.isEmpty()) {
