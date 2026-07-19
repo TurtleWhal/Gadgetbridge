@@ -103,7 +103,7 @@ public class GBDaoGenerator {
             outputDir.mkdirs();
         }
 
-        final Schema schema = new Schema(136, MAIN_PACKAGE + ".entities");
+        final Schema schema = new Schema(137, MAIN_PACKAGE + ".entities");
 
         final List<Entity> sampleProvidersToGenerate = new LinkedList<>();
 
@@ -1751,6 +1751,8 @@ public class GBDaoGenerator {
         batteryLevel.addToOne(device, deviceId);
         batteryLevel.addIntProperty("level").notNull();
         batteryLevel.addIntProperty("batteryIndex").notNull().primaryKey();
+        batteryLevel.addFloatProperty("voltage").notNull();
+        batteryLevel.addIntProperty("batteryState").notNull();
         return batteryLevel;
     }
 

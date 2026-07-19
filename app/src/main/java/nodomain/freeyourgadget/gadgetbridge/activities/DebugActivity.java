@@ -100,6 +100,7 @@ import java.util.TreeMap;
 
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.Widget;
 import nodomain.freeyourgadget.gadgetbridge.activities.welcome.WelcomeActivity;
@@ -337,7 +338,7 @@ public class DebugActivity extends AbstractGBActivity {
                                 GBApplication.deviceService().onReset(GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET);
                             }
                         })
-                        .setNegativeButton(R.string.Cancel, new DialogInterface.OnClickListener() {
+                        .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                             }
@@ -567,7 +568,7 @@ public class DebugActivity extends AbstractGBActivity {
                 boolean hasLog = false;
                 String filePath = "???";
                 try {
-                    filePath = GBApplication.getLogPath();
+                    filePath = Logging.getInstance().getLogPath();
                     if (filePath != null && filePath.length() > 0) {
                         File log = new File(filePath);
                         hasLog = log.exists();
@@ -631,7 +632,7 @@ public class DebugActivity extends AbstractGBActivity {
                                 GBApplication.deleteDeviceSpecificSharedPrefs(device.getAddress());
                             }
                         })
-                        .setNegativeButton(R.string.Cancel, (dialog, which) -> {})
+                        .setNegativeButton(R.string.cancel, (dialog, which) -> {})
                         .show();
             }
         });
@@ -726,7 +727,7 @@ public class DebugActivity extends AbstractGBActivity {
                                 createTestDevice(DebugActivity.this, selectedTestDeviceKey, selectedTestDeviceMAC, null);
                             }
                         })
-                        .setNegativeButton(R.string.Cancel, new DialogInterface.OnClickListener() {
+                        .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                             }
@@ -999,12 +1000,12 @@ public class DebugActivity extends AbstractGBActivity {
     private void deleteWidgetsPrefs() {
         WidgetPreferenceStorage widgetPreferenceStorage = new WidgetPreferenceStorage();
         widgetPreferenceStorage.deleteWidgetsPrefs(DebugActivity.this);
-        widgetPreferenceStorage.showAppWidgetsPrefs(DebugActivity.this);
+        GB.toast(widgetPreferenceStorage.getAppWidgetsPrefs(DebugActivity.this), Toast.LENGTH_LONG, GB.INFO);
     }
 
     private void showAppWidgetsPrefs() {
         WidgetPreferenceStorage widgetPreferenceStorage = new WidgetPreferenceStorage();
-        widgetPreferenceStorage.showAppWidgetsPrefs(DebugActivity.this);
+        GB.toast(widgetPreferenceStorage.getAppWidgetsPrefs(DebugActivity.this), Toast.LENGTH_LONG, GB.INFO);
 
     }
 
@@ -1037,7 +1038,7 @@ public class DebugActivity extends AbstractGBActivity {
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.note)
                 .setPositiveButton(R.string.ok, null)
-                .setMessage(R.string.share_log_not_enabled_message)
+                .setMessage(R.string.pref_write_logfiles_not_available)
                 .show();
     }
 
@@ -1052,7 +1053,7 @@ public class DebugActivity extends AbstractGBActivity {
                         shareLog();
                     }
                 })
-                .setNegativeButton(R.string.Cancel, new DialogInterface.OnClickListener() {
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         // do nothing
@@ -1062,7 +1063,7 @@ public class DebugActivity extends AbstractGBActivity {
     }
 
     private void testNewFunctionality() {
-        GBApplication.deviceService().onTestNewFunction();
+        GBApplication.deviceService().onTestNewFunction(null);
 
         //try (DBHandler db = GBApplication.acquireDB()) {
         //    db.getDatabase().execSQL("DROP TABLE IF EXISTS TABLE_NAME_TO_DROP_HERE");
@@ -1072,13 +1073,12 @@ public class DebugActivity extends AbstractGBActivity {
     }
 
     private void shareLog() {
-        String fileName = GBApplication.getLogPath();
+        String fileName = Logging.getInstance().getLogPath();
         if (fileName != null && fileName.length() > 0) {
-            if(GBApplication.isFileLoggingEnabled()) {
+            if (Logging.getInstance().isFileLoggerInitialized()) {
                 // Flush the logs, so that we ensure latest lines are also there
-                GBApplication.getLogging().setImmediateFlush(true);
                 LOG.debug("Flushing logs before sharing");
-                GBApplication.getLogging().setImmediateFlush(false);
+                Logging.getInstance().flush();
             }
 
             File logFile = new File(fileName);
