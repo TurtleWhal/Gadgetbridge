@@ -1,8 +1,27 @@
+/*  Copyright (C) 2024-2026 José Rebelo, a0z, punchdeerflyscorpion, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.garmin;
 
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.*;
 
 import android.content.Context;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +33,9 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.charts.DefaultWorkoutCharts;
@@ -22,19 +43,31 @@ import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.Activity
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummaryTableBuilder;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummaryValue;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummary;
+import nodomain.freeyourgadget.gadgetbridge.entities.GenericMetricSample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityPoint;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryData;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
+import nodomain.freeyourgadget.gadgetbridge.model.MetricSample;
 import nodomain.freeyourgadget.gadgetbridge.model.workout.Workout;
 import nodomain.freeyourgadget.gadgetbridge.model.workout.WorkoutChart;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.AntGadget;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.FitFile;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordData;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.GarminSport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.exception.FitParseException;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionBatteryStatus;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionExerciseCategory.ExerciseCategory;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionMeasurementSystem;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionWaterType;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitActivity;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitDeviceInfo;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitFileCreator;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitFileId;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitDeviceStatus;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitDiveGas;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitDiveSettings;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitDiveSummary;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitLap;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitPhysiologicalMetrics;
@@ -42,8 +75,11 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitSession;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitSet;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitSport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitTankSummary;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitTimeInZone;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitUserMetrics;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitUserProfile;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitWorkout;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
@@ -54,17 +90,62 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
 
     private final List<FitTimeInZone> timesInZone = new ArrayList<>();
     private final List<ActivityPoint> activityPoints = new ArrayList<>();
+    private List<ActivityPoint> sessionActivityPoints;
+    // Multi-session FIT files (triathlons, brick workouts) carry one FitSession per
+    // sport. Primary == first session — current import path produces a single
+    // BaseActivitySummary, so secondary sessions are recorded for surfacing in the
+    // summary table but do not produce additional summaries. Callers that need
+    // per-session records should iterate {@link #getAllSessions()}.
+    @Nullable
     private FitSession session = null;
+    private final List<FitSession> allSessions = new ArrayList<>();
+    @Nullable
     private FitSport sport = null;
+    @Nullable
+    private FitUserMetrics userMetrics = null;
+    @Nullable
     private FitUserProfile userProfile = null;
+    @Nullable
     private FitPhysiologicalMetrics physiologicalMetrics = null;
+    @Nullable
+    private FitDiveSettings diveSettings = null;
+    private final List<FitDiveSummary> diveLaps = new ArrayList<>();
+    @Nullable
     private FitDiveSummary diveSummary = null;
+    private final List<FitTankSummary> diveTanks = new ArrayList<>();
     private final List<FitDiveGas> diveGases = new ArrayList<>();
     private final List<FitSet> sets = new ArrayList<>();
     private final List<FitLap> laps = new ArrayList<>();
-
+    private final Map<Integer, FitDeviceInfo> deviceInfos = new TreeMap<>();
+    @Nullable
+    private FitDeviceStatus deviceStatusStart = null;
+    @Nullable
+    private FitDeviceStatus deviceStatusEnd = null;
+    @Nullable
+    private Number ebikeBatteryStart = null;
+    @Nullable
+    private Number ebikeBatteryEnd = null;
+    @Nullable
+    private FitWorkout workout = null;
+    private final List<GenericMetricSample> genericMetricSamples = new ArrayList<>();
+    @Nullable
+    private FitFileId fileId = null;
+    @Nullable
+    private FitFileCreator fileCreator = null;
+    @Nullable
+    private FitActivity activity = null;
     public GarminWorkoutParser(final Context context) {
         this.context = context;
+    }
+
+    @Nullable
+    public Long getSessionStartTime() {
+        return (session != null) ? session.getStartTime() : null;
+    }
+
+    @NonNull
+    public List<GenericMetricSample> getGenericMetricSamples(){
+        return genericMetricSamples;
     }
 
     @Override
@@ -74,7 +155,7 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
     }
 
     @Override
-    public Workout parseWorkout(BaseActivitySummary summary, final boolean forDetails) {
+    public Workout parseWorkout(final BaseActivitySummary summary, final boolean forDetails) {
         if (!forDetails) {
             // Our parsing is too slow, especially without a RecyclerView
             return new Workout(summary, ActivitySummaryData.fromJson(summary.getSummaryData()));
@@ -131,67 +212,186 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
         );
     }
 
+    public List<FitSession> getAllSessions() {
+        return allSessions;
+    }
+
     public void reset() {
         timesInZone.clear();
         activityPoints.clear();
         session = null;
+        allSessions.clear();
         sport = null;
+        userMetrics = null;
         userProfile = null;
         physiologicalMetrics = null;
+        diveLaps.clear();
+        diveSettings = null;
         diveSummary = null;
         diveGases.clear();
+        diveTanks.clear();
         sets.clear();
         laps.clear();
+        deviceInfos.clear();
+        deviceStatusStart = null;
+        deviceStatusEnd = null;
+        ebikeBatteryStart = null;
+        ebikeBatteryEnd = null;
+        workout = null;
+        fileId = null;
+        fileCreator = null;
+        activity = null;
     }
 
     public boolean handleRecord(final RecordData record) {
-        if (record instanceof FitRecord) {
-            activityPoints.add(((FitRecord) record).toActivityPoint());
-        } else if (record instanceof FitSession) {
-            LOG.debug("Session: {}", record);
-            if (session != null) {
-                LOG.warn("Got multiple sessions - NOT SUPPORTED: {}", record);
-            } else {
-                // We only support 1 session
-                session = (FitSession) record;
+        if (record instanceof FitRecord fitRecord) {
+            activityPoints.add(fitRecord.toActivityPoint());
+            final Integer ebikeBattery = fitRecord.getEbikeBatteryLevel();
+            if (ebikeBattery != null) {
+                if (ebikeBatteryStart == null) {
+                    ebikeBatteryStart = ebikeBattery;
+                } else {
+                    ebikeBatteryEnd = ebikeBattery;
+                }
             }
-        } else if (record instanceof FitPhysiologicalMetrics) {
-            LOG.debug("Physiological Metrics: {}", record);
-            physiologicalMetrics = (FitPhysiologicalMetrics) record;
-        } else if (record instanceof FitSport) {
-            LOG.debug("Sport: {}", record);
+        } else if (record instanceof FitSession fitSession) {
+            LOG.debug("Session: {}", fitSession);
+            allSessions.add(fitSession);
+            if (session == null) {
+                // Primary session drives the BaseActivitySummary; subsequent sessions
+                // (multi-sport / brick workouts) are kept in allSessions for the
+                // summary table only — current single-summary import path cannot
+                // split them into separate activity entries.
+                session = fitSession;
+                sessionActivityPoints = (session.toActivityPoints());
+            } else {
+                LOG.info("Multi-session FIT — primary preserved, secondary kept in allSessions for table render");
+            }
+        } else if (record instanceof FitPhysiologicalMetrics fitPhysiologicalMetrics) {
+            LOG.debug("Physiological Metrics: {}", fitPhysiologicalMetrics);
+            physiologicalMetrics = fitPhysiologicalMetrics;
+        } else if (record instanceof FitSport fitSport) {
+            LOG.debug("Sport: {}", fitSport);
             if (sport != null) {
-                LOG.warn("Got multiple sports - NOT SUPPORTED: {}", record);
+                LOG.warn("Got multiple sports - NOT SUPPORTED: {}", fitSport);
             } else {
                 // We only support 1 sport
-                sport = (FitSport) record;
+                sport = fitSport;
             }
-        } else if (record instanceof FitTimeInZone) {
-            LOG.trace("Time in zone: {}", record);
-            timesInZone.add((FitTimeInZone) record);
-        } else if (record instanceof FitSet) {
-            LOG.trace("Set: {}", record);
-            sets.add((FitSet) record);
-        } else if (record instanceof FitLap) {
-            LOG.trace("Lap: {}", record);
-            laps.add((FitLap) record);
-        } else if (record instanceof FitUserProfile) {
-            LOG.trace("User Profile: {}", record);
+        } else if (record instanceof FitTimeInZone fitTimeInZone) {
+            LOG.trace("Time in zone: {}", fitTimeInZone);
+            timesInZone.add(fitTimeInZone);
+        } else if (record instanceof FitSet fitSet) {
+            LOG.trace("Set: {}", fitSet);
+            sets.add(fitSet);
+        } else if (record instanceof FitLap fitLap) {
+            LOG.trace("Lap: {}", fitLap);
+            laps.add(fitLap);
+        } else if (record instanceof FitUserProfile fitUserProfile) {
+            LOG.trace("User Profile: {}", fitUserProfile);
             if (userProfile != null) {
-                LOG.warn("Got multiple user profiles - NOT SUPPORTED: {}", record);
+                LOG.warn("Got multiple user profiles - NOT SUPPORTED: {}", fitUserProfile);
             } else {
                 // We only support 1 user profile
-                userProfile = (FitUserProfile) record;
+                userProfile = fitUserProfile;
             }
-        } else if (record instanceof FitDiveSummary) {
-            LOG.trace("Dive summary: {}", record);
-            if (diveSummary != null) {
-                return false; // for some reason there is more than one message, in my activities the first one contains all data
+        } else if (record instanceof FitUserMetrics metrics) {
+            if (userMetrics != null) {
+                LOG.warn("Got multiple user metrics - NOT SUPPORTED: {}", metrics);
+            } else {
+                userMetrics = metrics;
             }
-            diveSummary = (FitDiveSummary) record;
-        } else if (record instanceof FitDiveGas) {
-            LOG.trace("Dive gas: {}", record);
-            diveGases.add((FitDiveGas) record);
+        } else if (record instanceof FitDiveSummary newDiveSummary) {
+            LOG.trace("Dive summary: {}", newDiveSummary);
+            Integer referenceMesg = newDiveSummary.getReferenceMesg();
+            if (referenceMesg != null && referenceMesg == 19) {
+                // laps
+                diveLaps.add(newDiveSummary);
+            } else if (referenceMesg == null || referenceMesg == 18) {
+                // sessions
+                Integer referenceIndex = newDiveSummary.getReferenceIndex();
+                if (referenceIndex == null || referenceIndex == 0) {
+                    diveSummary = newDiveSummary;
+                } else {
+                    LOG.warn("Got multiple dive sessions - NOT SUPPORTED: {}", newDiveSummary);
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } else if (record instanceof FitDiveGas fitDiveGas) {
+            LOG.trace("Dive gas: {}", fitDiveGas);
+            diveGases.add(fitDiveGas);
+        } else if (record instanceof FitDiveSettings settings) {
+            if (diveSettings != null) {
+                LOG.warn("Got multiple dive settings - NOT SUPPORTED: {}", settings);
+            } else {
+                diveSettings = settings;
+            }
+        } else if (record instanceof FitDeviceInfo deviceInfo) {
+            Integer deviceIndex = deviceInfo.getDeviceIndex();
+            if (deviceIndex == null) {
+                // Suunto quirk
+                deviceIndex = Integer.MAX_VALUE;
+            }
+
+            boolean relevant = false;
+            // extract the latest battery related information
+            final Integer level = deviceInfo.getBatteryLevel();
+            if (level != null && level != 0) {
+                relevant = true;
+            } else {
+                final Float volt = deviceInfo.getBatteryVoltage();
+                if (volt != null && volt != 0) {
+                    relevant = true;
+                } else {
+                    FieldDefinitionBatteryStatus.BatteryStatus batteryStatus = deviceInfo.getBatteryStatus();
+                    if (batteryStatus != null && batteryStatus != FieldDefinitionBatteryStatus.BatteryStatus.Unknown) {
+                        relevant = true;
+                    }
+                }
+            }
+
+            if (relevant) {
+                deviceInfos.put(deviceIndex, deviceInfo);
+            }
+        } else if (record instanceof FitDeviceStatus deviceStatus) {
+            if (deviceStatusStart == null) {
+                deviceStatusStart = deviceStatus;
+            } else {
+                deviceStatusEnd = deviceStatus;
+            }
+            // FitImporter implements the main processing for these records
+            return false;
+        } else if (record instanceof FitWorkout fitWorkout) {
+            if (workout != null) {
+                LOG.warn("Got multiple workout - NOT SUPPORTED: {}", fitWorkout);
+            } else {
+                workout = fitWorkout;
+            }
+        } else if (record instanceof FitActivity fitActivity) {
+            if (activity != null){
+                LOG.warn("Got multiple activities - NOT SUPPORTED: {}", fitActivity);
+            } else {
+                activity = fitActivity;
+            }
+        } else if (record instanceof FitTankSummary fitTankSummary){
+            final Float start = fitTankSummary.getStartPressure();
+            final Float end = fitTankSummary.getEndPressure();
+            final Double used = fitTankSummary.getVolumeUsed();
+            if ((start != null && start > 0)
+                    || (end != null && end > 0)
+                    || (used != null && used != 0)) {
+                diveTanks.add(fitTankSummary);
+            }
+        } else if (record instanceof FitFileId fitFileId) {
+            // Captured for the manufacturer=255 (development) fallback in updateSummary.
+            // Real Garmin/Suunto/Wahoo devices populate device_info messages; smartwatches
+            // running 3rd-party FIT writers (Watch5/Watch6 generic recorders) often only
+            // populate file_id and rely on the importer to display product_name.
+            fileId = fitFileId;
+        } else if (record instanceof FitFileCreator fitFileCreator) {
+            fileCreator = fitFileCreator;
         } else {
             return false;
         }
@@ -208,13 +408,31 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
         }
 
         final ActivityKind activityKind;
-        if (sport != null) {
-            if (StringUtils.isNullOrEmpty(summary.getName())) {
-                summary.setName(sport.getName());
+
+        // prioritize names: FitActivity > FitWorkout > FitSession > FitSport
+        if (StringUtils.isNullOrEmpty(summary.getName())) {
+            String workoutName = null;
+            if (activity != null) {
+                workoutName = activity.getName();
             }
-            activityKind = getActivityKind(sport.getSport(), sport.getSubSport());
-        } else {
+            if (StringUtils.isNullOrEmpty(workoutName) && workout != null) {
+                workoutName = workout.getName();
+            }
+            if (StringUtils.isNullOrEmpty(workoutName)) {
+                workoutName = session.getSportProfileName();
+            }
+            if (StringUtils.isNullOrEmpty(workoutName) && sport != null) {
+                workoutName = sport.getName();
+            }
+            if (!StringUtils.isNullOrEmpty(workoutName)) {
+                summary.setName(workoutName);
+            }
+        }
+
+        if (sport == null || session.getSport() != null) {
             activityKind = getActivityKind(session.getSport(), session.getSubSport());
+        } else {
+            activityKind = getActivityKind(sport.getSport(), sport.getSubSport());
         }
         final ActivityKind.CycleUnit cycleUnit = ActivityKind.getCycleUnit(activityKind);
 
@@ -231,114 +449,142 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
             summary.setEndTime(new Date(summary.getStartTime().getTime() + session.getTotalElapsedTime().intValue()));
         }
 
-        if (session.getTotalTimerTime() != null) {
-            summaryData.add(ACTIVE_SECONDS, session.getTotalTimerTime() / 1000f, UNIT_SECONDS);
-        }
-        if (session.getTotalDistance() != null) {
-            summaryData.add(DISTANCE_METERS, session.getTotalDistance() / 100f, UNIT_METERS);
-        }
-        if (session.getPoolLength() != null) {
-            summaryData.add(POOL_LENGTH, session.getPoolLength(), UNIT_METERS);
-        }
-        if (session.getAvgSwolf() != null) {
-            summaryData.add(SWOLF_AVG, session.getAvgSwolf(), UNIT_NONE);
-        }
-        if (session.getTotalCycles() != null && cycleUnit != ActivityKind.CycleUnit.NONE) {
-            if (cycleUnit == ActivityKind.CycleUnit.STEPS) {
-                summaryData.addTotal(session.getTotalCycles() * 2, cycleUnit);
-            } else {
-                // FIXME some of the rest might also need adjusting...
-                summaryData.addTotal(session.getTotalCycles(), cycleUnit);
+        summaryData.add(ACTIVE_SECONDS, session.getTotalTimerTime(), UNIT_SECONDS);
+        summaryData.add(DISTANCE_METERS, session.getTotalDistance(), UNIT_METERS);
+        summaryData.add(POOL_LENGTH, session.getPoolLength(), UNIT_METERS);
+        summaryData.add(SWOLF_AVG, session.getAvgSwolf(), UNIT_NONE);
+        if (cycleUnit != ActivityKind.CycleUnit.NONE) {
+            Number totalCycles = session.getTotalCycles();
+            if (totalCycles != null) {
+                final Number totalFractionalCycles = session.getTotalFractionalCycles();
+                if (totalFractionalCycles != null) {
+                    totalCycles = totalCycles.doubleValue() + totalFractionalCycles.doubleValue();
+                }
+                if (cycleUnit == ActivityKind.CycleUnit.STEPS) {
+                    summaryData.addTotal(totalCycles.doubleValue() * 2, cycleUnit);
+                } else {
+                    // FIXME some of the rest might also need adjusting...
+                    summaryData.addTotal(totalCycles, cycleUnit);
+                }
             }
         }
+
         summaryData.add(STEP_LENGTH_AVG, session.getAvgStepLength(), UNIT_MM);
         if (session.getTotalCalories() != null) {
-            summaryData.add(CALORIES_BURNT, session.getTotalCalories(), UNIT_KCAL);
+            summaryData.add(CALORIES_CONSUMED, session.getCaloriesConsumed(), UNIT_KCAL);
+            summaryData.add(CALORIES_TOTAL, session.getTotalCalories(), UNIT_KCAL);
             if (session.getRestingCalories() != null) {
-                summaryData.add(CALORIES_ACTIVE, session.getTotalCalories() - session.getRestingCalories(), UNIT_KCAL);
+                summaryData.add(CALORIES_BURNT, session.getTotalCalories() - session.getRestingCalories(), UNIT_KCAL);
                 summaryData.add(CALORIES_RESTING, session.getRestingCalories(), UNIT_KCAL);
             }
         }
-        if (session.getEstimatedSweatLoss() != null) {
-            summaryData.add(ESTIMATED_SWEAT_LOSS, session.getEstimatedSweatLoss(), UNIT_ML);
+        summaryData.add(FLUID_CONSUMED, session.getFluidConsumed(), UNIT_ML);
+        summaryData.add(ESTIMATED_SWEAT_LOSS, session.getEstimatedSweatLoss(), UNIT_ML);
+        summaryData.add(HR_MIN, session.getMinHeartRate(), UNIT_BPM);
+        if (!summaryData.add(HR_AVG, session.getAverageHeartRate(), UNIT_BPM) && physiologicalMetrics != null) {
+            summaryData.add(HR_AVG, physiologicalMetrics.getAverageHeartRate(), UNIT_BPM);
         }
-        if (session.getAverageHeartRate() != null) {
-            summaryData.add(HR_AVG, session.getAverageHeartRate(), UNIT_BPM);
-        }
-        if (session.getMaxHeartRate() != null) {
-            summaryData.add(HR_MAX, session.getMaxHeartRate(), UNIT_BPM);
-        }
-        if (session.getHrvSdrr() != null) {
-            summaryData.add(HRV_SDRR, session.getHrvSdrr(), UNIT_MILLISECONDS);
-        }
-        if (session.getHrvRmssd() != null) {
-            summaryData.add(HRV_RMSSD, session.getHrvRmssd(), UNIT_MILLISECONDS);
-        }
-        if (session.getAvgSpo2() != null) {
-            summaryData.add(SPO2_AVG, session.getAvgSpo2(), UNIT_PERCENTAGE);
-        }
-        if (session.getEnhancedMinRespirationRate() != null) {
-            summaryData.add(RESPIRATION_MIN, session.getEnhancedMinRespirationRate(), UNIT_BREATHS_PER_MIN);
-        }
-        if (session.getEnhancedMaxRespirationRate() != null) {
-            summaryData.add(RESPIRATION_MAX, session.getEnhancedMaxRespirationRate(), UNIT_BREATHS_PER_MIN);
-        }
-        if (session.getEnhancedAvgRespirationRate() != null) {
-            summaryData.add(RESPIRATION_AVG, session.getEnhancedAvgRespirationRate(), UNIT_BREATHS_PER_MIN);
-        }
-        if (session.getAvgStress() != null) {
-            summaryData.add(STRESS_AVG, session.getAvgStress(), UNIT_NONE);
-        }
-        if (session.getAvgCadence() != null) {
+        summaryData.add(HR_MAX, session.getMaxHeartRate(), UNIT_BPM);
+        summaryData.add(HRV_SDRR, session.getHrvSdrr(), UNIT_MILLISECONDS);
+        summaryData.add(HRV_RMSSD, session.getHrvRmssd(), UNIT_MILLISECONDS);
+        summaryData.add(SPO2_AVG, session.getAvgSpo2(), UNIT_PERCENTAGE);
+
+        summaryData.add(RESPIRATION_MIN, UNIT_BREATHS_PER_MIN,
+                session.getEnhancedMinRespirationRate(), session.getMinRespirationRate());
+        summaryData.add(RESPIRATION_MAX, UNIT_BREATHS_PER_MIN,
+                session.getEnhancedMaxRespirationRate(), session.getMaxRespirationRate());
+        summaryData.add(RESPIRATION_AVG, UNIT_BREATHS_PER_MIN,
+                session.getEnhancedAvgRespirationRate(), session.getAvgRespirationRate());
+
+        summaryData.add(ALTITUDE_MIN, UNIT_METERS,
+                session.getEnhancedMinAltitude(), session.getMinAltitude());
+        summaryData.add(ALTITUDE_MAX, UNIT_METERS,
+                session.getEnhancedMaxAltitude(), session.getMaxAltitude());
+        summaryData.add(ALTITUDE_AVG, UNIT_METERS,
+                session.getEnhancedAvgAltitude(), session.getAvgAltitude());
+
+        summaryData.add(STRESS_AVG, session.getAvgStress(), UNIT_NONE);
+        Number avgCadence = session.getAvgCadence();
+        if (avgCadence != null) {
+            final Number avgFractionalCadence = session.getAvgFractionalCadence();
+            if (avgFractionalCadence != null) {
+                avgCadence = avgCadence.doubleValue() + avgFractionalCadence.doubleValue();
+            }
             if (cycleUnit == ActivityKind.CycleUnit.STEPS) {
-                summaryData.addCadenceAvg(session.getAvgCadence() * 2, cycleUnit);
+                summaryData.addCadenceAvg(avgCadence.doubleValue() * 2, cycleUnit);
             } else {
                 // FIXME some of the rest might also need adjusting...
-                summaryData.addCadenceAvg(session.getAvgCadence(), cycleUnit);
+                summaryData.addCadenceAvg(avgCadence, cycleUnit);
             }
         }
-        if (session.getMaxCadence() != null) {
+
+        Number maxCadence = session.getMaxCadence();
+        if (maxCadence != null) {
+            final Number maxFractionalCadence = session.getMaxFractionalCadence();
+            if (maxFractionalCadence != null) {
+                maxCadence = maxCadence.doubleValue() + maxFractionalCadence.doubleValue();
+            }
             if (cycleUnit == ActivityKind.CycleUnit.STEPS) {
-                summaryData.addCadenceMax(session.getMaxCadence() * 2, cycleUnit);
+                summaryData.addCadenceMax(maxCadence.doubleValue() * 2, cycleUnit);
             } else {
                 // FIXME some of the rest might also need adjusting...
-                summaryData.addCadenceMax(session.getMaxCadence(), cycleUnit);
+                summaryData.addCadenceMax(maxCadence, cycleUnit);
             }
         }
-        if (session.getTotalAscent() != null && !ActivityKind.isDiving(activityKind)) {
-            summaryData.add(TOTAL_ASCENT, session.getTotalAscent(), UNIT_METERS);
-        }
-        if (session.getTotalDescent() != null && !ActivityKind.isDiving(activityKind)) {
-            summaryData.add(TOTAL_DESCENT, session.getTotalDescent(), UNIT_METERS);
-        }
-        if (session.getAvgSwimCadence() != null) {
-            summaryData.add(SWIM_AVG_CADENCE, session.getAvgSwimCadence(), UNIT_STROKES_PER_LENGTH);
-        }
 
-        if (session.getEnhancedAvgSpeed() != null) {
+        if (!ActivityKind.isDiving(activityKind)) {
+            if(!summaryData.add(TOTAL_ASCENT, session.getTotalAscent(), UNIT_METERS) && physiologicalMetrics != null){
+                summaryData.add(TOTAL_ASCENT, physiologicalMetrics.getTotalAscent(), UNIT_METERS);
+            }
+            if(!summaryData.add(TOTAL_DESCENT, session.getTotalDescent(), UNIT_METERS) && physiologicalMetrics != null){
+                summaryData.add(TOTAL_DESCENT, physiologicalMetrics.getTotalDescent(), UNIT_METERS);
+            }
+            if (session.getAvgVam() != null) {
+                summaryData.add(AVERAGE_ASCENT_VELOCITY, session.getAvgVam() * 3600, UNIT_METERS_PER_HOUR);
+            }
+        }
+        summaryData.add(SWIM_AVG_CADENCE, session.getAvgSwimCadence(), UNIT_STROKES_PER_LENGTH);
+
+        Number speedAvg = session.getEnhancedAvgSpeed();
+        if (speedAvg == null) {
+            speedAvg = session.getAvgSpeed();
+        }
+        if (speedAvg != null) {
             if (ActivityKind.isPaceActivity(activityKind)) {
-                summaryData.add(PACE_AVG_SECONDS_KM, Math.round((60 / (session.getEnhancedAvgSpeed() * 3.6)) * 60), UNIT_SECONDS);
+                summaryData.add(PACE_AVG_SECONDS_KM, 1000.0 / speedAvg.doubleValue(), UNIT_SECONDS_PER_KM);
+            } else if (ActivityKind.isDiving(activityKind)) {
+                // Hide speed for diving activities
             } else {
-                summaryData.add(SPEED_AVG, Math.round((session.getEnhancedAvgSpeed() * 3600 / 1000) * 100.0) / 100.0, UNIT_KMPH);
+                summaryData.add(SPEED_AVG, speedAvg.doubleValue() * 3600 / 1000, UNIT_KMPH);
             }
         }
 
-        if (session.getEnhancedMaxSpeed() != null) {
+        Number speedMax = session.getEnhancedMaxSpeed();
+        if (speedMax == null) {
+            speedMax = session.getMaxSpeed();
+        }
+        if (speedMax != null) {
             if (ActivityKind.isPaceActivity(activityKind)) {
-                summaryData.add(PACE_MAX, Math.round((60 / (session.getEnhancedMaxSpeed() * 3.6)) * 60), UNIT_SECONDS);
-            } else if (ActivityKind.isDiving(activityKind)) { // Hide average speed for diving activities
+                summaryData.add(PACE_MAX, 1000.0 / speedMax.doubleValue(), UNIT_SECONDS_PER_KM);
+            } else if (ActivityKind.isDiving(activityKind)) {
+                // Hide speed for diving activities
             } else {
-                summaryData.add(SPEED_MAX, Math.round((session.getEnhancedMaxSpeed() * 3600 / 1000) * 100.0) / 100.0, UNIT_KMPH);
+                summaryData.add(SPEED_MAX, speedMax.doubleValue() * 3600 / 1000, UNIT_KMPH);
             }
         }
 
-        summaryData.add(AVG_POWER, session.getAvgPower(), UNIT_WATT);
+        summaryData.add(RECOVERY_HR, session.getRecoveryHeartRate(), UNIT_BPM);
+        summaryData.add(RATING_OF_PERCEIVED_EXERTION, session.getWorkoutRpe(), UNIT_PERCENTAGE);
+        summaryData.add(WORKOUT_FEEL, session.getWorkoutFeel(), UNIT_PERCENTAGE);
+
+        if(!summaryData.add(AVG_POWER, session.getAvgPower(), UNIT_WATT) && physiologicalMetrics != null){
+            summaryData.add(AVG_POWER, physiologicalMetrics.getAveragePower(), UNIT_WATT);
+        }
         summaryData.add(MAX_POWER, session.getMaxPower(), UNIT_WATT);
         summaryData.add(NORMALIZED_POWER, session.getNormalizedPower(), UNIT_WATT);
+        summaryData.add(TOTAL_WORK, session.getTotalWork(), UNIT_JOULE);
 
-        if (session.getStandTime() != null) {
-            summaryData.add(STANDING_TIME, session.getStandTime() / 1000, UNIT_SECONDS);
-        }
+        summaryData.add(STANDING_TIME, session.getStandTime(), UNIT_SECONDS);
         summaryData.add(STANDING_COUNT, session.getStandCount(), UNIT_NONE);
         summaryData.add(AVG_LEFT_PCO, session.getAvgLeftPco(), UNIT_MM);
         summaryData.add(AVG_RIGHT_PCO, session.getAvgRightPco(), UNIT_MM);
@@ -346,13 +592,14 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
         summaryData.add(AVG_VERTICAL_OSCILLATION, session.getAvgVerticalOscillation(), UNIT_MM);
         summaryData.add(AVG_GROUND_CONTACT_TIME, session.getAvgStanceTime(), UNIT_MILLISECONDS);
         summaryData.add(AVG_VERTICAL_RATIO, session.getAvgVerticalRatio(), UNIT_PERCENTAGE);
-        if (session.getAvgStanceTimeBalance() != null) {
+        final Float avgStanceTimeBalance = session.getAvgStanceTimeBalance();
+        if (avgStanceTimeBalance != null && avgStanceTimeBalance > 0.0f) {
             summaryData.add(
                     AVG_GROUND_CONTACT_TIME_BALANCE,
                     context.getString(
                             R.string.range_percentage_float,
-                            session.getAvgStanceTimeBalance(),
-                            100f - session.getAvgStanceTimeBalance()
+                            avgStanceTimeBalance,
+                            100.0f - avgStanceTimeBalance
                     )
             );
         }
@@ -453,16 +700,16 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
 
         final Integer balance = session.getLeftRightBalance();
         if (balance != null) {
-            final float balancePercentage = (balance & 0x3fff) / 100f;
+            final float balancePercentage = (balance & 0x3fff) / 100.0f;
             final boolean isRight = (balance & 0x8000) != 0;
             final float balanceL;
             final float balanceR;
             if (isRight) {
-                balanceL = 100f - balancePercentage;
+                balanceL = 100.0f - balancePercentage;
                 balanceR = balancePercentage;
             } else {
                 balanceL = balancePercentage;
-                balanceR = 100f - balancePercentage;
+                balanceR = 100.0f - balancePercentage;
             }
             summaryData.add(
                     LEFT_RIGHT_BALANCE,
@@ -508,7 +755,7 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
                     continue;
                 }
                 final List<String> zoneOrder = Arrays.asList(HR_ZONE_NA, HR_ZONE_WARM_UP, HR_ZONE_EASY, HR_ZONE_AEROBIC, HR_ZONE_THRESHOLD, HR_ZONE_MAXIMUM);
-                final int[] zoneColors = new int[]{
+                final int[] zoneColors = {
                         0,
                         context.getResources().getColor(R.color.hr_zone_warm_up_color),
                         context.getResources().getColor(R.color.hr_zone_easy_color),
@@ -532,58 +779,129 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
             }
         }
 
+
+        if (!summaryData.add(TRAINING_EFFECT_ANAEROBIC, session.getTotalAnaerobicTrainingEffect(), UNIT_NONE, true)) {
+            if (physiologicalMetrics != null) {
+                summaryData.add(TRAINING_EFFECT_ANAEROBIC, physiologicalMetrics.getAnaerobicEffect(), UNIT_NONE, true);
+            }
+        }
+
         if (physiologicalMetrics != null) {
             if (physiologicalMetrics.getAerobicEffect() != null) {
                 summaryData.add(TRAINING_EFFECT_AEROBIC, physiologicalMetrics.getAerobicEffect(), UNIT_NONE, true);
             }
-            if (physiologicalMetrics.getAnaerobicEffect() != null) {
-                summaryData.add(TRAINING_EFFECT_ANAEROBIC, physiologicalMetrics.getAnaerobicEffect(), UNIT_NONE, true);
-            }
             if (physiologicalMetrics.getMetMax() != null) {
-                summaryData.add(MAXIMUM_OXYGEN_UPTAKE, physiologicalMetrics.getMetMax().floatValue() * 3.5f, UNIT_ML_KG_MIN);
+                float vo2Max = physiologicalMetrics.getMetMax().floatValue() * 3.5f;
+                if (vo2Max > 0.0f) {
+                    summaryData.add(MAXIMUM_OXYGEN_UPTAKE, vo2Max, UNIT_ML_KG_MIN);
+                    final GenericMetricSample sample = new GenericMetricSample();
+                    sample.setTimestamp(physiologicalMetrics.computedTimestamp * 1000L);
+                    sample.setMetric(MetricSample.Metric.GENERIC_MAXIMUM_OXYGEN_UPTAKE, vo2Max);
+                    genericMetricSamples.add(sample);
+                }
             }
             if (physiologicalMetrics.getRecoveryTime() != null) {
                 summaryData.add(RECOVERY_TIME, physiologicalMetrics.getRecoveryTime() * 60, UNIT_SECONDS);
             }
-            if (physiologicalMetrics.getLactateThresholdHeartRate() != null) {
-                summaryData.add(LACTATE_THRESHOLD_HR, physiologicalMetrics.getLactateThresholdHeartRate(), UNIT_BPM);
-            }
+            summaryData.add(LACTATE_THRESHOLD_HR, physiologicalMetrics.getLactateThresholdHeartRate(), UNIT_BPM);
         }
-        summaryData.add(TRAINING_LOAD, safeRound(session.getTrainingLoadPeak()), UNIT_NONE);
+
+        // diving related
+        summaryData.add(DIVE_NUMBER, UNIT_NONE, session.getDiveNumber(), diveSummary != null ? diveSummary.getDiveNumber() : null);
+        if (diveSummary != null) {
+            summaryData.add(BOTTOM_TIME, diveSummary.getBottomTime(), UNIT_SECONDS);
+        }
+        summaryData.add(AVG_DEPTH, UNIT_METERS, session.getAvgDepth(), diveSummary != null ? diveSummary.getAvgDepth() : null);
+        summaryData.add(MAX_DEPTH, UNIT_METERS, session.getMaxDepth(), diveSummary != null ? diveSummary.getMaxDepth() : null);
+
+        // force display even if value is 0
+        summaryData.add(START_CNS, UNIT_PERCENTAGE, session.getStartCns(), diveSummary != null ? diveSummary.getStartCns() : null, true);
+        summaryData.add(END_CNS, UNIT_PERCENTAGE, session.getEndCns(), diveSummary != null ? diveSummary.getEndCns() : null, true);
+        summaryData.add(START_N2, UNIT_PERCENTAGE, session.getStartN2(), diveSummary != null ? diveSummary.getStartN2() : null, true);
+        summaryData.add(END_N2, UNIT_PERCENTAGE, session.getEndN2(), diveSummary != null ? diveSummary.getEndN2() : null, true);
+        summaryData.add(OXYGEN_TOXICITY, UNIT_OXYGEN_TOXICITY_UNITs, session.getO2Toxicity(), diveSummary != null ? diveSummary.getO2Toxicity() : null, true);
+
+        summaryData.add(SURFACE_INTERVAL, UNIT_SECONDS, session.getSurfaceInterval(), diveSummary != null ? diveSummary.getSurfaceInterval() : null);
 
         if (diveSummary != null) {
-            if (diveSummary.getAvgDepth() != null) {
-                summaryData.add(AVG_DEPTH, diveSummary.getAvgDepth(), UNIT_METERS);
+            summaryData.add(PRESSURE_SAC_AVG, diveSummary.getAvgPressureSac(), UNIT_BAR_PER_MINUTE);
+        }
+
+        // unlike other diving, apnea encodes most information in the lap and not in the summary
+        // -> display interval table even if it is the only lap
+        if (diveLaps.size() > 1 || (!diveLaps.isEmpty() && null != diveLaps.get(0).getHangTime())) {
+            final List<String> header = new ArrayList<>(5);
+            header.add("#");
+            header.add(SURFACE_INTERVAL);
+            header.add(BOTTOM_TIME);
+            header.add("diving_depth");
+            header.add(DIVING_HANG_TIME);
+            final ActivitySummaryTableBuilder tableBuilder = new ActivitySummaryTableBuilder(GROUP_INTERVALS, "intervals_header", header);
+
+            for (int i = 0; i < diveLaps.size(); i++) {
+                FitDiveSummary diveLap = diveLaps.get(i);
+                tableBuilder.addRow(
+                        "interval_" + i,
+                        Arrays.asList(
+                                new ActivitySummaryValue(i + 1, UNIT_NONE),
+                                new ActivitySummaryValue(diveLap.getSurfaceInterval(), UNIT_SECONDS),
+                                new ActivitySummaryValue(diveLap.getBottomTime(), UNIT_SECONDS),
+                                new ActivitySummaryValue(diveLap.getMaxDepth(), UNIT_METERS),
+                                new ActivitySummaryValue(diveLap.getHangTime(), UNIT_SECONDS)
+                        )
+                );
             }
-            if (diveSummary.getMaxDepth() != null) {
-                summaryData.add(MAX_DEPTH, diveSummary.getMaxDepth(), UNIT_METERS);
-            }
-            if (diveSummary.getStartCns() != null) {
-                summaryData.add(START_CNS, diveSummary.getStartCns(), UNIT_PERCENTAGE);
-            }
-            if (diveSummary.getEndCns() != null) {
-                summaryData.add(END_CNS, diveSummary.getEndCns(), UNIT_PERCENTAGE);
-            }
-            if (diveSummary.getStartN2() != null) {
-                summaryData.add(START_N2, diveSummary.getStartN2(), UNIT_PERCENTAGE);
-            }
-            if (diveSummary.getEndN2() != null) {
-                summaryData.add(END_N2, diveSummary.getEndN2(), UNIT_PERCENTAGE);
-            }
-            if (diveSummary.getDiveNumber() != null) {
-                summaryData.add(DIVE_NUMBER, diveSummary.getDiveNumber(), UNIT_NONE);
-            }
-            if (diveSummary.getBottomTime() != null) {
-                summaryData.add(BOTTOM_TIME, diveSummary.getBottomTime(), UNIT_SECONDS);
+
+            if (tableBuilder.hasRows()) {
+                tableBuilder.addToSummaryData(summaryData);
             }
         }
 
-        summaryData.add(TRAINING_LOAD, safeRound(session.getTrainingLoadPeak()), UNIT_NONE);
+        if (diveSettings != null) {
+            if (diveSettings.getWaterDensity() != null) {
+                summaryData.add(WATER_TYPE, diveSettings.getWaterDensity(), UNIT_KG_PER_M3);
+            } else {
+                FieldDefinitionWaterType.WaterType waterType = diveSettings.getWaterType();
+                if (waterType != null) {
+                    summaryData.add(WATER_TYPE, waterType.toString(context));
+                }
+            }
+        }
+
+        summaryData.add(TEMPERATURE_MIN, session.getMinTemperature(), UNIT_CELSIUS);
+        summaryData.add(TEMPERATURE_MAX, session.getMaxTemperature(), UNIT_CELSIUS);
+        summaryData.add(TEMPERATURE_AVG, session.getAvgTemperature(), UNIT_CELSIUS);
+
+        summaryData.add(BATTERY_LEVEL_EBIKE_START, ebikeBatteryStart, UNIT_PERCENTAGE);
+        summaryData.add(BATTERY_LEVEL_EBIKE_END, ebikeBatteryEnd, UNIT_PERCENTAGE);
+
+        // MTB-specific metrics
+        summaryData.add(MOUNTAIN_BIKE_GRIT_SCORE, session.getTotalGrit(), UNIT_NONE);
+        summaryData.add(MOUNTAIN_BIKE_FLOW_SCORE, session.getAvgFlow(), UNIT_NONE);
+
+        summaryData.add(TRAINING_LOAD, session.getTrainingLoadPeak(), UNIT_NONE);
         summaryData.add(INTENSITY_FACTOR, session.getIntensityFactor(), UNIT_NONE);
         summaryData.add(TRAINING_STRESS_SCORE, session.getTrainingStressScore(), UNIT_NONE);
+        summaryData.add(TRAINING_EFFECT_TOTAL, session.getTotalTrainingEffect(), UNIT_NONE);
+        if (!summaryData.add(BODY_ENERGY_AT_START, session.getBeginningBodyBattery(), UNIT_PERCENTAGE)) {
+            if (userMetrics != null) {
+                summaryData.add(BODY_ENERGY_AT_START, userMetrics.getBeginningBodyBattery(), UNIT_PERCENTAGE);
+            }
+        }
+        if (!summaryData.add(BODY_ENERGY_AT_END, session.getEndingBodyBattery(), UNIT_PERCENTAGE)) {
+            if (physiologicalMetrics != null) {
+                summaryData.add(BODY_ENERGY_AT_END, physiologicalMetrics.getEndingBodyBattery(), UNIT_PERCENTAGE);
+            }
+        }
+        summaryData.add(STAMINA_AT_START, session.getBeginningPotential(), UNIT_PERCENTAGE);
+        summaryData.add(STAMINA_AT_END, session.getEndingPotential(), UNIT_PERCENTAGE);
+        summaryData.add(STAMINA_MIN, session.getMinStamina(), UNIT_PERCENTAGE);
+
+        summaryData.add(SOLAR_INTENSITY, session.getSolarIntensity(), UNIT_PERCENTAGE);
+        summaryData.add(BATTERY_GAIN, session.getBatteryGain(), UNIT_SECONDS);
 
         if (!diveGases.isEmpty()) {
-            final ActivitySummaryTableBuilder tableBuilder = new ActivitySummaryTableBuilder(GAS, "gases_header", Arrays.asList(
+            final ActivitySummaryTableBuilder tableBuilder = new ActivitySummaryTableBuilder(GROUP_GAS, "gases_header", Arrays.asList(
                     "diving_gas",
                     "helium_content",
                     "oxygen_content",
@@ -592,6 +910,12 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
 
             int i = 1;
             for (final FitDiveGas gas : diveGases) {
+                final Integer gasStatus = gas.getStatus();
+                if (gasStatus != null && gasStatus == 0) {
+                    // ignore disabled gasses
+                    continue;
+                }
+
                 int helium = gas.getHeliumContent() != null ? gas.getHeliumContent() : 0;
                 int oxygen = gas.getOxygenContent() != null ? gas.getOxygenContent() : 0;
                 int nitrogen = 100 - helium - oxygen;
@@ -607,7 +931,146 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
                 i++;
             }
 
-            tableBuilder.addToSummaryData(summaryData);
+            if (tableBuilder.hasRows()) {
+                tableBuilder.addToSummaryData(summaryData);
+            }
+        }
+
+        if (!diveTanks.isEmpty()) {
+            final ActivitySummaryTableBuilder tableBuilder = new ActivitySummaryTableBuilder(GROUP_GAS, "tanks_header", Arrays.asList(
+                    "diving_tank",
+                    "activity_detail_start_label",
+                    "activity_detail_end_label",
+                    "diving_tank_used"
+            ));
+            for(int i = 0; i< diveTanks.size(); i++) {
+                FitTankSummary tankSummary = diveTanks.get(i);
+                String label = AntGadget.Companion.formatAntID(tankSummary.getSensor());
+                Float start = tankSummary.getStartPressure();
+                Float end = tankSummary.getEndPressure();
+                Double used = tankSummary.getVolumeUsed();
+                String usedUOM = UNIT_LITER;
+
+                if(label == null){
+                    label = Integer.toString(i);
+                }
+                if(start == null){
+                    start = 0.0f;
+                }
+                if(end == null){
+                    end = 0.0f;
+                }
+                if(used == null){
+                    used = (double)(start - end);
+                    usedUOM = UNIT_BAR;
+                }
+                tableBuilder.addRow(
+                        "tank_" + i,
+                        Arrays.asList(
+                                new ActivitySummaryValue(label, UNIT_NONE),
+                                new ActivitySummaryValue(start, UNIT_BAR),
+                                new ActivitySummaryValue(end, UNIT_BAR),
+                                new ActivitySummaryValue(used, usedUOM)
+                        )
+                );
+            }
+            if (tableBuilder.hasRows()) {
+                tableBuilder.addToSummaryData(summaryData);
+            }
+        }
+
+        if (userProfile != null) {
+            summaryData.add(HR_USER_RESTING, userProfile.getRestingHeartRate(), UNIT_BPM);
+        }
+
+        if (userMetrics != null) {
+            final Integer remainingRecoveryTime = userMetrics.getRemainingRecoveryTime();
+            if (remainingRecoveryTime != null && remainingRecoveryTime > 1) {
+                summaryData.add(RECOVERY_TIME_REMAINING_AT_START, userMetrics.getRemainingRecoveryTime() * 60, UNIT_SECONDS);
+            }
+            summaryData.add(HR_USER_MAX, userMetrics.getMaxHr(), UNIT_BPM);
+        }
+
+        final ActivitySummaryTableBuilder gearTableBuilder = new ActivitySummaryTableBuilder(GROUP_GEAR_INFO, "gear_info_header", Arrays.asList(
+                "device",
+                "battery_status",
+                "battery_level"
+        ));
+
+        if (!deviceInfos.isEmpty()) {
+            for (final Map.Entry<Integer, FitDeviceInfo> entry : deviceInfos.entrySet()) {
+                final Integer deviceIndex = entry.getKey();
+                final FitDeviceInfo deviceInfo = entry.getValue();
+                final String device = AntGadget.Companion.NameGadget(deviceInfo);
+
+                FieldDefinitionBatteryStatus.BatteryStatus rawStatus = deviceInfo.getBatteryStatus();
+                @Nullable final String status;
+                if (rawStatus != null) {
+                    status = rawStatus.toString(context);
+                } else {
+                    status = null;
+                }
+
+                Number level = deviceInfo.getBatteryLevel();
+                String level_uom = UNIT_PERCENTAGE;
+                if (level == null) {
+                    level = deviceInfo.getBatteryVoltage();
+                    level_uom = UNIT_VOLT;
+                }
+
+                gearTableBuilder.addRow(
+                        "device_info_" + deviceIndex,
+                        Arrays.asList(
+                                new ActivitySummaryValue(device, UNIT_RAW_STRING),
+                                new ActivitySummaryValue(status),
+                                new ActivitySummaryValue(level, level_uom)
+                        )
+                );
+            }
+        } else if (fileId != null) {
+            // Manufacturer=255 (development) fallback. Devices that only populate file_id
+            // (Watch5/Watch6, third-party FIT recorders) get a synthetic gear row built
+            // from product_name + software_version so the activity detail view shows
+            // *something* rather than no device at all.
+            final String productName = fileId.getProductName();
+            if (productName != null && !productName.isEmpty()) {
+                final StringBuilder label = new StringBuilder(productName);
+                if (fileCreator != null && fileCreator.getSoftwareVersion() != null) {
+                    label.append(" (sw ").append(fileCreator.getSoftwareVersion()).append(')');
+                }
+                gearTableBuilder.addRow(
+                        "device_info_file_id",
+                        Arrays.asList(
+                                new ActivitySummaryValue(label.toString(), UNIT_RAW_STRING),
+                                new ActivitySummaryValue((String) null),
+                                new ActivitySummaryValue((Number) null, UNIT_PERCENTAGE)
+                        )
+                );
+            }
+        }
+
+        if (gearTableBuilder.hasRows()) {
+            gearTableBuilder.addToSummaryData(summaryData);
+        }
+
+        if (deviceStatusStart != null) {
+            Number batteryLevel = deviceStatusStart.getBatteryLevel();
+            String batteryUom = UNIT_PERCENTAGE;
+            if (batteryLevel == null) {
+                batteryLevel = deviceStatusStart.getBatteryVoltage();
+                batteryUom = UNIT_VOLT;
+            }
+            summaryData.add(BATTERY_LEVEL_START, batteryLevel, batteryUom);
+        }
+
+        if (deviceStatusEnd != null) {
+            Number batteryLevel = deviceStatusEnd.getBatteryLevel();
+            String batteryUom = UNIT_PERCENTAGE;
+            if (batteryLevel == null) {
+                batteryLevel = deviceStatusEnd.getBatteryVoltage();
+                batteryUom = UNIT_VOLT;
+            }
+            summaryData.add(BATTERY_LEVEL_END, batteryLevel, batteryUom);
         }
 
         if (!sets.isEmpty()) {
@@ -645,33 +1108,94 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
             tableBuilder.addToSummaryData(summaryData);
         }
 
-        // FIXME: For now we only support swimming intervals
         final boolean anyValidLaps = laps.stream()
-                .anyMatch(lap -> lap.getTotalDistance() != null && lap.getTotalDistance() != 0 && lap.getSwimStyle() != null);
+                .filter(lap -> (lap.getTotalTimerTime() != null && lap.getTotalTimerTime() != 0))
+                .count() > 1;
+        final boolean anySwimmingLaps = laps.stream()
+                .anyMatch(lap -> lap.getSwimStyle() != null);
 
-        if (anyValidLaps) {
+        if (activityKind == ActivityKind.STOP_WATCH) {
+            // The start value encoded in the FIT file is shifted to a later time if the stop watch was paused.
+            // There is not enough information in the FIT file to fix this so display the values as they
+            // were encoded.
+            // The duration / active seconds are accurate.
             final ActivitySummaryTableBuilder tableBuilder = new ActivitySummaryTableBuilder(GROUP_INTERVALS, "intervals_header", Arrays.asList(
                     "#",
-                    "swimming_stroke",
-                    "Distance",
-                    "pref_header_time"
+                    "start",
+                    "stop",
+                    ACTIVE_SECONDS
             ));
+            for (int lapIndex = 0; lapIndex < laps.size(); lapIndex++) {
+                FitLap lap = laps.get(lapIndex);
+                Integer index = lap.getMessageIndex();
+                if (index != null) {
+                    index = index + 1;
+                } else {
+                    index = lapIndex + 1;
+                }
+
+                final List<ActivitySummaryValue> row = new ArrayList<>();
+                row.add(new ActivitySummaryValue(index, UNIT_NONE));
+                row.add(new ActivitySummaryValue(lap.getStartTime(), UNIT_EPOC_TIME));
+                row.add(new ActivitySummaryValue(lap.getTimestamp(), UNIT_EPOC_TIME));
+                row.add(new ActivitySummaryValue(lap.getTotalTimerTime(), UNIT_SECONDS_SPORT));
+                tableBuilder.addRow("interval_" + lapIndex, row);
+            }
+            tableBuilder.addToSummaryData(summaryData);
+        } else if (anyValidLaps && diveLaps.isEmpty()) {
+            // Unfortunately our tables do not yet scroll horizontally, so can't always add all possible columns
+            final List<String> header = new ArrayList<>();
+            header.add("#");
+            if (anySwimmingLaps) {
+                header.add("swimming_stroke");
+                header.add("Distance");
+            } else {
+                header.add("Distance");
+                header.add(ActivityKind.isPaceActivity(activityKind) ? "Pace" : "Speed");
+            }
+            header.add("heart_rate");
+            header.add("pref_header_time");
+
+            final ActivitySummaryTableBuilder tableBuilder = new ActivitySummaryTableBuilder(GROUP_INTERVALS, "intervals_header", header);
 
             int i = 1;
             for (final FitLap lap : laps) {
-                if (lap.getTotalDistance() == null || lap.getTotalDistance() == 0) {
+                if (lap.getTotalTimerTime() == null || lap.getTotalTimerTime() == 0) {
                     continue;
                 }
 
-                tableBuilder.addRow(
-                        "interval_" + i,
-                        Arrays.asList(
-                                new ActivitySummaryValue(i, UNIT_NONE),
-                                new ActivitySummaryValue(lap.getSwimStyle() != null ? context.getString(lap.getSwimStyle().getNameResId()) : null, UNIT_NONE),
-                                new ActivitySummaryValue(lap.getTotalDistance(), UNIT_METERS),
-                                new ActivitySummaryValue(lap.getTotalTimerTime(), UNIT_SECONDS)
-                        )
-                );
+                final List<ActivitySummaryValue> row = new ArrayList<>();
+
+                Number speedValue = lap.getEnhancedAvgSpeed();
+                final String speedUnit;
+                if(speedValue == null){
+                    speedValue = lap.getAvgSpeed();
+                }
+                if (speedValue != null) {
+                    if (ActivityKind.isPaceActivity(activityKind)) {
+                        speedValue = 1000.0 / speedValue.doubleValue();
+                        speedUnit = UNIT_SECONDS_PER_KM;
+                    } else {
+                        speedValue = speedValue.doubleValue() * 3600.0 / 1000.0;
+                        speedUnit = UNIT_KMPH;
+                    }
+                } else {
+                    speedValue = null;
+                    speedUnit = UNIT_NONE;
+                }
+
+                row.add(new ActivitySummaryValue(i, UNIT_NONE));
+                if (anySwimmingLaps) {
+                    row.add(new ActivitySummaryValue(lap.getSwimStyle() != null ? context.getString(lap.getSwimStyle().getNameResId()) : null, UNIT_NONE));
+                    row.add(new ActivitySummaryValue(lap.getTotalDistance(), UNIT_METERS));
+                } else {
+                    row.add(new ActivitySummaryValue(lap.getTotalDistance(), UNIT_METERS));
+                    row.add(new ActivitySummaryValue(speedValue, speedUnit));
+                }
+                row.add(new ActivitySummaryValue(lap.getAvgHeartRate(), UNIT_BPM));
+                row.add(new ActivitySummaryValue(lap.getTotalTimerTime(), UNIT_SECONDS));
+
+                tableBuilder.addRow("interval_" + i, row);
 
                 i++;
             }
@@ -679,9 +1203,9 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
             tableBuilder.addToSummaryData(summaryData);
         }
 
-        summaryData.add(
-                INTERNAL_HAS_GPS,
-                String.valueOf(activityPoints.stream().anyMatch(p -> p.getLocation() != null))
+        summaryData.setHasGps(
+                activityPoints.stream().anyMatch(GarminWorkoutParser::hasNonNullIslandLocation) ||
+                        sessionActivityPoints.stream().anyMatch(GarminWorkoutParser::hasNonNullIslandLocation)
         );
 
         summary.setSummaryData(summaryData.toString());
@@ -689,15 +1213,22 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
         return summaryData;
     }
 
-    public Number safeRound(final Number number) {
-        if (number == null) {
-            return null;
+    // Some indoor activities record all points with fake Null Island (0°N 0°E) position.
+    private static boolean hasNonNullIslandLocation(final ActivityPoint point) {
+        if (point != null) {
+            final GPSCoordinate location = point.getLocation();
+            if (location != null) {
+                final double lat = location.getLatitude();
+                final double lon = location.getLongitude();
+                // test for any value other than NaN and 0.0
+                return (lat == lat && lat != 0.0) || (lon == lon && lon != 0.0);
+            }
         }
-
-        return Math.round(number.doubleValue());
+        return false;
     }
 
-    private static ActivityKind getActivityKind(Integer sport, Integer subsport) {
+    @NonNull
+    private static ActivityKind getActivityKind(@Nullable Integer sport, @Nullable Integer subsport) {
         // Garmin inReach Mini 2: sport and subsport are missing (null)
         if (sport == null) {
             sport = 0;

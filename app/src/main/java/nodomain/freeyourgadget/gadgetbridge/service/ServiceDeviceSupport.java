@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+/*  Copyright (C) 2015-2026 Andreas Shimokawa, Arjan Schrijver, Carsten
     Pfeiffer, Daniel Dakhno, José Rebelo, Julien Pivotto, Kasha, Sebastian Kranz,
     Steffen Liebergeld
 
@@ -25,6 +25,7 @@ import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.UUID;
 
+import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.config.DynamicAppConfig;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -52,7 +54,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
  * Wraps another device support instance and supports busy-checking and throttling of events.
  */
 public class ServiceDeviceSupport implements DeviceSupport {
-    public static enum Flags {
+    public enum Flags {
         THROTTLING,
         BUSY_CHECKING,
     }
@@ -151,7 +153,7 @@ public class ServiceDeviceSupport implements DeviceSupport {
             return false;
         }
         if (getDevice().isBusy()) {
-            LOG.info("Ignoring " + notificationKind + " because we're busy with " + getDevice().getBusyTask());
+            LOG.info("Ignoring {} because we're busy with {}", notificationKind, getDevice().getBusyTask());
             return true;
         }
         return false;
@@ -164,7 +166,7 @@ public class ServiceDeviceSupport implements DeviceSupport {
         long currentTime = System.currentTimeMillis();
         if ((currentTime - lastNotificationTime) < THROTTLING_THRESHOLD) {
             if (notificationKind != null && notificationKind.equals(lastNotificationKind)) {
-                LOG.info("Ignoring " + notificationKind + " because of throttling threshold reached");
+                LOG.info("Ignoring {} because of throttling threshold reached", notificationKind);
                 return true;
             }
         }
@@ -298,6 +300,22 @@ public class ServiceDeviceSupport implements DeviceSupport {
             return;
         }
         delegate.onAppConfiguration(uuid, config, id);
+    }
+
+    @Override
+    public void onAppConfigRequest(final UUID uuid) {
+        if (checkBusy("app config request")) {
+            return;
+        }
+        delegate.onAppConfigRequest(uuid);
+    }
+
+    @Override
+    public void onAppConfigSet(final UUID uuid, final ArrayList<DynamicAppConfig> configs) {
+        if (checkBusy("app config set")) {
+            return;
+        }
+        delegate.onAppConfigSet(uuid, configs);
     }
 
     @Override
@@ -469,11 +487,11 @@ public class ServiceDeviceSupport implements DeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         if (checkBusy("test new function event")) {
             return;
         }
-        delegate.onTestNewFunction();
+        delegate.onTestNewFunction(options);
     }
 
     @Override

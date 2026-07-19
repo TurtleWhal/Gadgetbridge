@@ -17,6 +17,7 @@
 package nodomain.freeyourgadget.gadgetbridge.activities.files;
 
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -35,9 +36,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -58,8 +64,10 @@ public class FileManagerActivity extends AbstractGBActivity implements MenuProvi
         fileListView.setLayoutManager(new LinearLayoutManager(this));
 
         final File directory;
+        final Map<String, String> deviceNames;
         if (getIntent().hasExtra(EXTRA_PATH)) {
             directory = new File(getIntent().getStringExtra(EXTRA_PATH));
+            deviceNames = Collections.emptyMap();
         } else {
             try {
                 directory = FileUtils.getExternalFilesDir();
@@ -69,6 +77,9 @@ public class FileManagerActivity extends AbstractGBActivity implements MenuProvi
                 finish();
                 return;
             }
+
+            deviceNames = GBApplication.app().getDeviceManager().getDevices().stream()
+                    .collect(Collectors.toMap(GBDevice::getAddress, GBDevice::getAliasOrName));
         }
 
         if (!directory.isDirectory()) {
@@ -82,11 +93,12 @@ public class FileManagerActivity extends AbstractGBActivity implements MenuProvi
             actionBar.setTitle(directory.getName());
         }
 
-        final FileManagerAdapter appListAdapter = new FileManagerAdapter(this, directory);
+        final FileManagerAdapter appListAdapter = new FileManagerAdapter(this, directory, deviceNames);
 
         fileListView.setAdapter(appListAdapter);
 
         searchView = findViewById(R.id.fileListSearchView);
+        searchView.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         searchView.setIconifiedByDefault(false);
         searchView.setVisibility(View.GONE);
         searchView.setIconified(false);

@@ -23,4 +23,19 @@ public class GarminSwim2Coordinator extends GarminWatchCoordinator {
     public boolean supportsTrainingLoad(@NonNull GBDevice device) {
         return false;
     }
+
+    @Override
+    public boolean supportsSpo2(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsRespiratoryRate(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsVO2Max(@NonNull final GBDevice device) {
+        return false;
+    }
 }

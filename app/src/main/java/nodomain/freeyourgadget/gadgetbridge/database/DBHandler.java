@@ -1,5 +1,5 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, JohnnySun
+/*  Copyright (C) 2015-2026 Andreas Shimokawa, Carsten Pfeiffer, Daniele
+    Gobbetti, JohnnySun, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -18,36 +18,18 @@
 package nodomain.freeyourgadget.gadgetbridge.database;
 
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
 
-import nodomain.freeyourgadget.gadgetbridge.entities.DaoMaster;
+import androidx.annotation.NonNull;
+
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 
 /**
  * Provides low-level access to the database.
  */
 public interface DBHandler extends AutoCloseable {
-    /**
-     * Closes the database.
-     */
-    void closeDb();
-
-    /**
-     * Opens the database. Note that this is only possible after an explicit
-     * #closeDb(). Initially the db is implicitly open.
-     */
-    void openDb();
-
-    SQLiteOpenHelper getHelper();
-
-    /**
-     * Releases the DB handler. No DB access will be possible before
-     * #openDb() will be called.
-     */
-    void close() throws Exception;
-
+    @NonNull
     SQLiteDatabase getDatabase();
 
-    DaoMaster getDaoMaster();
+    @NonNull
     DaoSession getDaoSession();
 }

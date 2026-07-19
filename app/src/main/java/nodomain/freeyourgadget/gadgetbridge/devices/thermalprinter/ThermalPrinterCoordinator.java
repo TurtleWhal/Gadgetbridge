@@ -1,8 +1,8 @@
 package nodomain.freeyourgadget.gadgetbridge.devices.thermalprinter;
 
 import android.content.Context;
-import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -34,12 +34,12 @@ public class ThermalPrinterCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public String getManufacturer() {
-        return "";
+        return "Unknown";
     }
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass(GBDevice gbDevice) {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(@NonNull GBDevice gbDevice) {
         return GenericThermalPrinterSupport.class;
     }
 
@@ -65,7 +65,7 @@ public class ThermalPrinterCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Nullable
     @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
+    public InstallHandler findInstallHandler(Uri uri, Bundle options, Context context) {
         final ImageFilePrinterHandler imageFilePrinterHandler = new ImageFilePrinterHandler(uri, context);
         if (imageFilePrinterHandler.isValid()) {
             return imageFilePrinterHandler;
@@ -83,33 +83,17 @@ public class ThermalPrinterCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public List<DeviceCardAction> getCustomActions() {
-        return Collections.singletonList(new ControlDeviceCardAction());
+        return Collections.singletonList(
+                DeviceCardAction.forActivity(
+                        R.drawable.ic_file_upload,
+                        R.string.activity_print_image_print_button,
+                        SendToPrinterActivity.class
+                )
+        );
     }
 
     @Override
     public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
         return DeviceCoordinator.DeviceKind.UNKNOWN;
-    }
-
-    private static final class ControlDeviceCardAction implements DeviceCardAction {
-
-        @Override
-        public int getIcon(GBDevice device) {
-            return R.drawable.ic_file_upload;
-        }
-
-        @Override
-        public String getDescription(final GBDevice device, final Context context) {
-            return context.getString(R.string.activity_print_image_print_button);
-        }
-
-        @Override
-        public void onClick(final GBDevice device, final Context context) {
-
-            final Intent startIntent = new Intent(context, SendToPrinterActivity.class);
-            startIntent.putExtra(GBDevice.EXTRA_DEVICE, device);
-            context.startActivity(startIntent);
-        }
-
     }
 }

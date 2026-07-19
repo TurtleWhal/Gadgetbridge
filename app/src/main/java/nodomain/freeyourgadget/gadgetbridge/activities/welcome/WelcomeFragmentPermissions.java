@@ -51,6 +51,7 @@ public class WelcomeFragmentPermissions extends Fragment {
     private FragmentWelcomePermissionsBinding binding;
     private PermissionAdapter permissionAdapter;
     private List<String> requestingPermissions = new ArrayList<>();
+    private boolean showDoNotAskAgain;
 
     @Nullable
     @Override
@@ -59,7 +60,7 @@ public class WelcomeFragmentPermissions extends Fragment {
         binding = FragmentWelcomePermissionsBinding.inflate(getLayoutInflater(), container, false);
 
         final Bundle arguments = getArguments();
-        final boolean showDoNotAskAgain = arguments != null && arguments.getBoolean(ARG_SHOW_DO_NOT_ASK_BUTTON, false);
+        showDoNotAskAgain = arguments != null && arguments.getBoolean(ARG_SHOW_DO_NOT_ASK_BUTTON, false);
         if (!showDoNotAskAgain) {
             binding.buttonDoNotAskAgain.setVisibility(View.GONE);
         }
@@ -74,7 +75,7 @@ public class WelcomeFragmentPermissions extends Fragment {
                                 .apply();
                         requireActivity().finish();
                     })
-                    .setNegativeButton(R.string.Cancel, (dialog, which) -> {
+                    .setNegativeButton(R.string.cancel, (dialog, which) -> {
                         // do nothing
                     })
                     .show();
@@ -96,7 +97,19 @@ public class WelcomeFragmentPermissions extends Fragment {
         }
 
         // Set up RecyclerView
-        permissionAdapter = new PermissionAdapter(PermissionsUtils.getRequiredPermissionsList(requireActivity()), requireContext());
+        final ArrayList<PermissionsUtils.PermissionDetails> requiredPermissionsList = PermissionsUtils.getRequiredPermissionsList(requireActivity());
+        requiredPermissionsList.sort((p1, p2) -> {
+            final boolean p1Granted = PermissionsUtils.checkPermission(requireContext(), p1.permission());
+            final boolean p2Granted = PermissionsUtils.checkPermission(requireContext(), p2.permission());
+
+            // Ungranted at the top
+            if (p1Granted && !p2Granted) return 1;
+            if (!p1Granted && p2Granted) return -1;
+
+            // Both granted or both ungranted -> sort by name
+            return p1.title().compareToIgnoreCase(p2.title());
+        });
+        permissionAdapter = new PermissionAdapter(requiredPermissionsList, requireContext());
         binding.permissionsList.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.permissionsList.setAdapter(permissionAdapter);
 
@@ -109,6 +122,10 @@ public class WelcomeFragmentPermissions extends Fragment {
         permissionAdapter.notifyDataSetChanged();
         if (PermissionsUtils.checkAllPermissions(requireActivity())) {
             binding.buttonRequestAll.setEnabled(false);
+            if (showDoNotAskAgain) {
+                // We just got all permissions, and this was pestering - disappear
+                requireActivity().finish();
+            }
         }
         if (!requestingPermissions.isEmpty()) {
             requestAllPermissions();

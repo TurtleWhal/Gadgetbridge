@@ -1,4 +1,4 @@
-/*  Copyright (C) 2024 Arjan Schrijver
+/*  Copyright (C) 2024-2026 Arjan Schrijver, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.yawell.ring;
 
+import static nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils.formatIso8601;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -30,9 +32,11 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -44,17 +48,17 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
-import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventBatteryInfo;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
+import nodomain.freeyourgadget.gadgetbridge.devices.ColmiHeartRateSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.yawell.ring.YawellRingLiveActivityContext;
 import nodomain.freeyourgadget.gadgetbridge.devices.yawell.ring.YawellRingConstants;
 import nodomain.freeyourgadget.gadgetbridge.devices.yawell.ring.YawellRingPacketHandler;
-import nodomain.freeyourgadget.gadgetbridge.devices.yawell.ring.samples.ColmiHeartRateSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.ColmiHeartRateSample;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
+import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
@@ -228,30 +232,29 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
                             minutesInPreviousPackets = 9 * 5;  // packet 1
                             minutesInPreviousPackets += (hrPacketNr - 2) * 13 * 5;
                         }
+                        final List<ColmiHeartRateSample> heartRateSamples = new ArrayList<>(value.length);
                         for (int i = startValue; i < value.length - 1; i++) {
-                            if (value[i] != 0x00) {
+                            final int heartRate = value[i] & 0xFF;
+                            if (heartRate != 0x00) {
                                 // Determine time of day
                                 int minuteOfDay = minutesInPreviousPackets + (i - startValue) * 5;
                                 sampleCal.set(Calendar.HOUR_OF_DAY, minuteOfDay / 60);
                                 sampleCal.set(Calendar.MINUTE, minuteOfDay % 60);
                                 sampleCal.set(Calendar.SECOND, 0);
-                                LOG.info("Value {} is {} bpm, time of day is {}", i, value[i] & 0xff, sampleCal.getTime());
-                                // Build sample object and save in database
-                                try (DBHandler db = GBApplication.acquireDB()) {
-                                    ColmiHeartRateSampleProvider sampleProvider = new ColmiHeartRateSampleProvider(getDevice(), db.getDaoSession());
-                                    Long userId = DBHelper.getUser(db.getDaoSession()).getId();
-                                    Long deviceId = DBHelper.getDevice(getDevice(), db.getDaoSession()).getId();
-                                    ColmiHeartRateSample gbSample = new ColmiHeartRateSample();
-                                    gbSample.setDeviceId(deviceId);
-                                    gbSample.setUserId(userId);
-                                    gbSample.setTimestamp(sampleCal.getTimeInMillis());
-                                    gbSample.setHeartRate(value[i] & 0xff);
-                                    sampleProvider.addSample(gbSample);
-                                } catch (Exception e) {
-                                    LOG.error("Error acquiring database for recording heart rate samples", e);
-                                }
+                                LOG.info("Value {} is {} bpm, time of day is {}", i, heartRate, formatIso8601(sampleCal));
+                                ColmiHeartRateSample gbSample = new ColmiHeartRateSample();
+                                gbSample.setTimestamp(sampleCal.getTimeInMillis());
+                                gbSample.setHeartRate(heartRate);
+                                heartRateSamples.add(gbSample);
                             }
                         }
+                        try (DBHandler db = GBApplication.acquireDB()) {
+                            ColmiHeartRateSampleProvider sampleProvider = new ColmiHeartRateSampleProvider(getDevice(), db.getDaoSession());
+                            sampleProvider.persistSamples(heartRateSamples, getContext());
+                        } catch (Exception e) {
+                            LOG.error("Error acquiring database for recording heart rate samples", e);
+                        }
+
                         if (hrPacketNr == packetsTotalNr - 1) {
                             getDevice().unsetBusyTask();
                             getDevice().sendDeviceUpdateIntent(getContext());
@@ -408,7 +411,7 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     }
                     switch (value[1]) {
                         case YawellRingConstants.BIG_DATA_TYPE_TEMPERATURE:
-                            YawellRingPacketHandler.historicalTemperature(getDevice(), value);
+                            YawellRingPacketHandler.historicalTemperature(getDevice(), getContext(), value);
                             fetchRecordedDataFinished();
                             break;
                         case YawellRingConstants.BIG_DATA_TYPE_SLEEP:
@@ -422,7 +425,7 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
                             fetchRecordedDataFinished();
                             break;
                         case YawellRingConstants.BIG_DATA_TYPE_SPO2:
-                            YawellRingPacketHandler.historicalSpo2(getDevice(), value);
+                            YawellRingPacketHandler.historicalSpo2(getDevice(), getContext(), value);
                             fetchHistorySleep();
                             break;
                         default:
@@ -523,7 +526,7 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
     public void onSendConfiguration(String config) {
         final Prefs prefs = getDevicePrefs();
         switch (config) {
-            case SettingsActivity.PREF_MEASUREMENT_SYSTEM:
+            case SettingsActivity.PREF_UNIT_DISTANCE:
                 setUserPreferences();
                 break;
             case DeviceSettingsPreferenceConst.PREF_SPO2_ALL_DAY_MONITORING:
@@ -601,9 +604,8 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     private void setUserPreferences() {
-        final Prefs prefs = getDevicePrefs();
         final ActivityUser user = new ActivityUser();
-        final String measurementSystem = prefs.getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, "metric");
+        final DistanceUnit distanceUnit = GBApplication.getPrefs().getDistanceUnit();
         byte userGender;
         switch (user.getGender()) {
             case ActivityUser.GENDER_FEMALE:
@@ -620,7 +622,7 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 YawellRingConstants.CMD_PREFERENCES,
                 YawellRingConstants.PREF_WRITE,
                 0x00,  // 24h format, 0x01 is 12h format
-                (byte) ("metric".equals(measurementSystem) ? 0x00 : 0x01),
+                (byte) (distanceUnit == DistanceUnit.METRIC ? 0x00 : 0x01),
                 userGender,
                 (byte) user.getAge(),
                 (byte) user.getHeightCm(),
@@ -828,7 +830,7 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
         hrvHistoryRequestBB.put(0, YawellRingConstants.CMD_SYNC_HRV);
         hrvHistoryRequestBB.putInt(1, daysAgo);
         byte[] hrvHistoryRequest = buildPacket(hrvHistoryRequestBB.array());
-        LOG.info("Fetch historical HRV data request sent ({}): {}", syncingDay.getTime(), StringUtils.bytesToHex(hrvHistoryRequest));
+        LOG.info("Fetch historical HRV data request sent ({}): {}", formatIso8601(syncingDay), StringUtils.bytesToHex(hrvHistoryRequest));
         sendWrite("hrvHistoryRequest", hrvHistoryRequest);
     }
 

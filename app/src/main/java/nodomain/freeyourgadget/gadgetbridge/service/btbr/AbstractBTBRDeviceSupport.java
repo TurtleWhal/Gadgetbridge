@@ -22,10 +22,8 @@ import android.os.ParcelUuid;
 
 import org.slf4j.Logger;
 
-import java.io.IOException;
 import java.util.UUID;
 
-import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BleNamesResolver;
@@ -67,8 +65,7 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
             final UUID supportedService = getSupportedService();
             if (supportedService == null) {
                 // Before throwing the exception, list the available UUIDs
-                final BluetoothDevice btDevice = getBluetoothAdapter().getRemoteDevice(gbDevice.getAddress());
-                @SuppressLint("MissingPermission") final ParcelUuid[] uuids = btDevice.getUuids();
+                final ParcelUuid[] uuids = getBluetoothDeviceUuids();
                 if (uuids == null || uuids.length == 0) {
                     logger.warn("Device provided no UUIDs to connect to: {}", gbDevice);
                 } else {
@@ -85,10 +82,25 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
             }
 
             if (mQueue == null) {
-                mQueue = new BtBRQueue(getBluetoothAdapter(), getDevice(), getContext(), this, supportedService, getBufferSize());
+                mQueue = new BtBRQueue(
+                        getBluetoothAdapter(),
+                        getDevice(),
+                        getContext(),
+                        this,
+                        supportedService,
+                        getBufferSize(),
+                        getConnectDelayMillis(),
+                        getRfcommChannel()
+                );
             }
             return mQueue.connect();
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    protected ParcelUuid[] getBluetoothDeviceUuids() {
+        final BluetoothDevice btDevice = getBluetoothAdapter().getRemoteDevice(gbDevice.getAddress());
+        return btDevice.getUuids();
     }
 
     public void disconnect() {
@@ -126,7 +138,7 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
 
     @Override
     public boolean isConnected() {
-        // in a multi-threaded environment the queue knows
+        // in a multithreaded environment the queue knows
         // best about the up-to-date connection status
         return (mQueue != null) && mQueue.isConnected();
     }
@@ -149,16 +161,25 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
         return mSupportedService;
     }
 
+    /**
+     * Subclasses can override this to specify a fixed RFCOMM channel number.
+     * If -1 (default), the service UUID is used for SDP resolution.
+     */
+    protected int getRfcommChannel() {
+        return -1;
+    }
+
+
     protected int getBufferSize() {
         return mBufferSize;
     }
 
     /**
-     * Utility method that may be used to log incoming messages when we don't know how to deal with them yet.
+     * Some devices fail to connect to the btrfcomm socket if we connect too fast. Increase this delay
+     * to wait a few milliseconds.
      */
-    public void logMessageContent(byte[] value) {
-        logger.info("RECEIVED DATA WITH LENGTH: {}", (value != null) ? value.length : "(null)");
-        Logging.logBytes(logger, value);
+    protected int getConnectDelayMillis() {
+        return 0;
     }
 
     @Override

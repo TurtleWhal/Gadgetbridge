@@ -1,7 +1,7 @@
-/*  Copyright (C) 2015-2024 Alicia Hormann, Andreas Böhler, Andreas Shimokawa,
+/*  Copyright (C) 2015-2026 Alicia Hormann, Andreas Böhler, Andreas Shimokawa,
     Arjan Schrijver, Carsten Pfeiffer, Daniele Gobbetti, Davis Mosenkovs,
     Dmitriy Bogdanov, foxstidious, Ganblejs, José Rebelo, Pauli Salmenrinne,
-    Petr Vaněk, Taavi Eomäe, Yoran Vulker
+    Petr Vaněk, Taavi Eomäe, Yoran Vulker, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -26,6 +26,7 @@ import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.config.DynamicAppConfig;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
@@ -47,10 +49,10 @@ import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
-import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
@@ -70,7 +72,13 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
     private Context context;
     private boolean autoReconnect, scanReconnect;
 
+    /// an optional {@link Bundle} extra of type {@code byte[]} used to pass
+    /// <u>small</u> transient data to {@link #onInstallApp(Uri, Bundle)}
+    public static final String BUNDLE_EXTRA_INSTALL_BYTES = "install_handler_bytes";
 
+    /// an optional {@link Bundle} extra of type {@code String} used to pass
+    /// a task name for logging to {@link #onInstallApp(Uri, Bundle)}
+    public static final String BUNDLE_EXTRA_INSTALL_TASK_NAME = "install_handler_task_name";
 
     @Override
     public void setContext(GBDevice gbDevice, BluetoothAdapter btAdapter, Context context) {
@@ -367,6 +375,8 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
      *
      * @param uri     reference to a watch app file
      * @param options a bundle of custom options
+     * @see #BUNDLE_EXTRA_INSTALL_BYTES
+     * @see #BUNDLE_EXTRA_INSTALL_TASK_NAME
      */
     @Override
     public void onInstallApp(Uri uri, @NonNull final Bundle options) {
@@ -423,6 +433,16 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
     @Override
     public void onAppConfiguration(UUID appUuid, String config, Integer id) {
 
+    }
+
+    @Override
+    public void onAppConfigRequest(final UUID appId) {
+
+    }
+
+    @Override
+    public void onAppConfigSet(final UUID appId, final ArrayList<DynamicAppConfig> configs) {
+        
     }
 
     /**
@@ -554,6 +574,13 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
         switch (config) {
             case DeviceSettingsPreferenceConst.PREF_SYNC_CALENDAR:
             case DeviceSettingsPreferenceConst.PREF_SYNC_BIRTHDAYS:
+            case DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_CANCELED:
+            case DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_DECLINED:
+            case DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_FOCUS_TIME:
+            case DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_ALL_DAY:
+            case DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_WORKING_LOCATION:
+            case DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_COLOR_BLACKLIST:
+            case DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_EVENT_REMINDERS:
                 CalendarReceiver.forceSync(getDevice());
                 break;
         }
@@ -586,7 +613,7 @@ public abstract class AbstractDeviceSupport implements DeviceSupport {
      * in the Debug menu.
      */
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
 
     }
 

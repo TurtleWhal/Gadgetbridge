@@ -20,10 +20,14 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.net.Uri;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -31,14 +35,17 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.regex.Pattern;
+import java.util.zip.ZipFile;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiBitmapUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.ArrayUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.GBZipFile;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.UriHelper;
+import nodomain.freeyourgadget.gadgetbridge.util.ZipFileException;
 
 public class XiaomiFWHelper {
     private static final Logger LOG = LoggerFactory.getLogger(XiaomiFWHelper.class);
@@ -82,10 +89,12 @@ public class XiaomiFWHelper {
     private boolean valid;
     private boolean typeFirmware;
     private boolean typeWatchface;
+    private boolean typeRpk;
 
     private String id;
     private String name;
     private String version;
+    private int versionCode;
 
     public XiaomiFWHelper(final Uri uri, final Context context) {
         this.uri = uri;
@@ -127,6 +136,10 @@ public class XiaomiFWHelper {
         return typeFirmware;
     }
 
+    public boolean isRpk() {
+        return typeRpk;
+    }
+
     public String getDetails() {
         return name != null ? name : (version != null ? version : "UNKNOWN");
     }
@@ -147,6 +160,10 @@ public class XiaomiFWHelper {
         return version;
     }
 
+    public int getVersionCode() {
+        return versionCode;
+    }
+
     public void unsetFwBytes() {
         this.fw = null;
     }
@@ -160,6 +177,12 @@ public class XiaomiFWHelper {
             assert version != null;
             valid = true;
             typeFirmware = true;
+        } else if (parseAsRpk()) {
+            assert version != null;
+            assert id != null;
+            assert name != null;
+            valid = true;
+            typeRpk = true;
         } else {
             valid = false;
         }
@@ -317,6 +340,24 @@ public class XiaomiFWHelper {
         );
     }
 
+    private boolean parseAsRpk() {
+        try {
+            GBZipFile file = new GBZipFile(fw);
+            String manifest = new String(file.getFileFromZip("manifest.json"));
+            LOG.debug("RPK manifest: {}", manifest);
+            JSONObject json = new JSONObject(manifest);
+            id = json.getString("package");
+            name = json.getString("name");
+            version = json.getString("versionName");
+            versionCode = json.optInt("versionCode", 1);
+            LOG.debug("Parsed RPK: id={}, name={}, version={}, versionCode={}", id, name, version, versionCode);
+        } catch (ZipFileException | JSONException e) {
+            LOG.warn("Failed to parse as RPK: {}", e.getMessage());
+            return false;
+        }
+        return true;
+    }
+
     private boolean parseAsWatchface() {
         if (fw[0] != (byte) 0x5A || fw[1] != (byte) 0xA5) {
             LOG.warn("File header not a watchface");
@@ -362,7 +403,12 @@ public class XiaomiFWHelper {
     }
 
     private boolean parseAsFirmware() {
-        // TODO parse and set version
+        // Only test for Mi Band 8 Pro
+        if (fw[0] == 96 && fw[1] == 90 && fw[2] == 90 && fw[4] == 126) {
+            version = new String(fw, 4, 11, StandardCharsets.UTF_8);
+            return true;
+        }
+        LOG.warn("File header not a firmware");
         return false;
     }
 }

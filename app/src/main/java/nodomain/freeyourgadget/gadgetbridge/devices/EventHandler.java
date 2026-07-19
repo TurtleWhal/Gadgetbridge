@@ -1,6 +1,6 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+/*  Copyright (C) 2015-2026 Andreas Shimokawa, Arjan Schrijver, Carsten
     Pfeiffer, José Rebelo, Julien Pivotto, Kasha, Sebastian Kranz, Steffen
-    Liebergeld, Uwe Hermann
+    Liebergeld, Uwe Hermann, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -23,10 +23,12 @@ import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.UUID;
 
+import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.config.DynamicAppConfig;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
@@ -47,7 +49,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
  * Implementations need to send/encode event to the connected device.
  */
 public interface EventHandler {
-    void onNotification(NotificationSpec notificationSpec);
+    void onNotification(@NonNull NotificationSpec notificationSpec);
 
     void onDeleteNotification(int id);
 
@@ -65,11 +67,11 @@ public interface EventHandler {
 
     void onSetCallState(CallSpec callSpec);
 
-    void onSetCannedMessages(CannedMessagesSpec cannedMessagesSpec);
+    void onSetCannedMessages(@NonNull CannedMessagesSpec cannedMessagesSpec);
 
-    void onSetMusicState(MusicStateSpec stateSpec);
+    void onSetMusicState(@NonNull MusicStateSpec stateSpec);
 
-    void onSetMusicInfo(MusicSpec musicSpec);
+    void onSetMusicInfo(@NonNull MusicSpec musicSpec);
 
     /**
      * Sets the current phone media volume.
@@ -80,7 +82,7 @@ public interface EventHandler {
 
     void onChangePhoneSilentMode(int ringerMode);
 
-    void onSetNavigationInfo(NavigationInfoSpec navigationInfoSpec);
+    void onSetNavigationInfo(@NonNull NavigationInfoSpec navigationInfoSpec);
 
     void onEnableRealtimeSteps(boolean enable);
 
@@ -95,6 +97,10 @@ public interface EventHandler {
     void onAppDelete(UUID uuid);
 
     void onAppConfiguration(UUID appUuid, String config, Integer id);
+
+    void onAppConfigRequest(final UUID uuid);
+
+    void onAppConfigSet(final UUID uuid, final ArrayList<DynamicAppConfig> configs);
 
     void onAppReorder(UUID[] uuids);
 
@@ -118,7 +124,7 @@ public interface EventHandler {
 
     void onSetHeartRateMeasurementInterval(int seconds);
 
-    void onAddCalendarEvent(CalendarEventSpec calendarEventSpec);
+    void onAddCalendarEvent(@NonNull CalendarEventSpec calendarEventSpec);
 
     void onDeleteCalendarEvent(byte type, long id);
 
@@ -127,7 +133,7 @@ public interface EventHandler {
      * The config name is device specific.
      * @param config the device specific option to set on the device
      */
-    void onSendConfiguration(String config);
+    void onSendConfiguration(@NonNull String config);
 
     /**
      * Gets the given option from the device, sets the values in the preferences.
@@ -136,7 +142,7 @@ public interface EventHandler {
      */
     void onReadConfiguration(String config);
 
-    void onTestNewFunction();
+    void onTestNewFunction(@Nullable Bundle options);
 
     void onSendWeather();
 

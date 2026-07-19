@@ -62,7 +62,7 @@ public class No1F1Coordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -88,7 +88,7 @@ public class No1F1Coordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public String getManufacturer() {
-        return "NO1";
+        return "No.1";
     }
 
     @Override

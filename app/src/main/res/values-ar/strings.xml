@@ -23,7 +23,6 @@
     <string name="appmananger_app_delete">حذف</string>
     <string name="appmananger_app_delete_cache">حذف وإزالة من ذاكرة التخزين المؤقت</string>
     <string name="appmananger_app_reinstall">أعد التثبيت</string>
-    <string name="appmanager_weather_install_provider">قم بتثبيت تطبيق إخطارات الطقس</string>
     <string name="app_move_to_top">انقل إلى الأعلى</string>
     <string name="title_activity_notification_management">إعدادات التنبيه</string>
     <string name="uncheck_all_applications">إلغاء تحديد جميع التطبيقات</string>
@@ -293,7 +292,6 @@
     <string name="prefs_activity_in_device_card_sleep_title_summary">عرض مدة النوم</string>
     <string name="controlcenter_get_heartrate_measurement">الحصول على قياس لمعدل نبضات القلب</string>
     <string name="device_card_activity_card_title">معلومات النشاط على بطاقة الجهاز</string>
-    <string name="title_activity_calblacklist">التقاويم المدرجة في القائمة السوداء</string>
     <string name="action_debug">التصحيح</string>
     <string name="title_activity_debug">تصحيح</string>
     <string name="open_fw_installer_warning_text">هذه الميزة لديها القدرة على عطب جهازك. ومع ذلك ، لم يحدث هذا مطلقًا لأي من المطورين من خلال التثبيت ، ولكن تذكر أنك تقوم بذلك على مسؤوليتك الخاصة.</string>
@@ -504,7 +502,6 @@
     <string name="pref_summary_pebble_enable_applogs">سيؤدي إلى تسجيل السجلات من تطبيقات الساعة بواسطة Gadgetbridge (يتطلب إعادة الاتصال)</string>
     <string name="test">الاختبار</string>
     <string name="mi2_prefs_goal_notification_summary">سيهتز السوار عند الوصول إلى هدف الخطوات اليومية</string>
-    <string name="share_log_not_enabled_message">يجب عليك أولاً تمكين التسجيل في الإعدادات - كتابة ملفات السجل</string>
     <string name="menuitem_timer">العد التنازلي</string>
     <string name="menuitem_compass">البوصلة</string>
     <string name="menuitem_settings">الإعدادات</string>
@@ -524,7 +521,6 @@
     <string name="menuitem_status">الحالة</string>
     <string name="discovery_pair_question">حدد إقران لإقران أجهزتك. إذا فشل ذلك ، حاول مرة أخرى بدون الاقتران.</string>
     <string name="mi2_fw_installhandler_fw53_hint">تحتاج إلى تثبيت الإصدار %1$s قبل تثبيت هذا البرنامج الثابت!</string>
-    <string name="activity_DB_clean_export_directory_warning_message">هل ترغب حقًا في حذف الملفات الموجودة في دليل التصدير / الاستيراد؟</string>
     <string name="StringUtils_sender">(%1$s)</string>
     <string name="pref_summary_opentracks_packagename">يستخدم لبدء / إيقاف تسجيل مسار GPS في تطبيق لياقة خارجي.</string>
     <string name="pref_title_banglejs_webview_url">عنوان URL لمحمل التطبيق</string>
@@ -533,7 +529,7 @@
     <string name="heartrate_bpm_115">115 نبضة في الدقيقة</string>
     <string name="heartrate_bpm_110">110 نبضة في الدقيقة</string>
     <string name="spo2_off">ايقاف</string>
-    <string name="Cancel">إلغاء</string>
+    <string name="cancel">إلغاء</string>
     <string name="pref_summary_third_party_app_device_settings">اسمح لتطبيقات الطرف الثالث المثبتة الأخرى بضبط إعدادات الجهاز من خلال النوايا.</string>
     <string name="pref_summary_low_latency_fw_update">قد يساعد هذا على الأجهزة التي يفشل فيها تثبيت البرامج الثابتة.</string>
     <string name="miband_prefs_hr_sleep_detection">استخدام أجهزة الاستشعار لمعدلات القلب لتحسين كشف النوم</string>
@@ -595,19 +591,11 @@
     <string name="dbmanagementactivity_export_confirmation">هل ترغب حقًا في تصدير البيانات؟ ستتم الكتابة فوق بيانات الأنشطة التي تم تصديرها مسبقًا (إن وجدت) والتفضيلات.</string>
     <string name="dbmanagementactivity_error_cleaning_export_directory">خطأ في محو الملفات من دليل التصدير %1$s</string>
     <string name="dbmanagementactivity_really_delete_entire_db">هل ترغب حقًا في حذف قاعدة البيانات بأكملها؟ ستفقد جميع بيانات نشاطك ومعلومات حول أجهزتك.</string>
-    <string name="activity_db_management_autoexport_explanation">تم تعيين موقع التصدير التلقائي لقاعدة البيانات إلى:</string>
     <string name="activity_db_management_autoexport_scheduled_yes">تمت جدولة التصدير التلقائي (في الأصل) لـ %1$s</string>
     <string name="activity_db_management_autoexport_location">لا يمكن فهم الموقع. من المحتمل وجود مشكلة في نظام أذونات Android الأحدث. على الأرجح ، لا يعمل Autoexport الآن.</string>
     <string name="activity_db_management_empty_db_warning">تحذير! بالضغط على هذا الزر ، سوف تمسح قاعدة البيانات الخاصة بك وتبدأ من الصفر.</string>
     <string name="title_activity_vibration">اهتزاز</string>
     <string name="pebble_pairing_hint">سيظهر مربع حوار الاقتران على جهاز Android الخاص بك. إذا لم يكن كذلك ، فابحث في درج الإشعارات واقبل طلب الاقتران. تقبله أيضًا على Pebble بعد ذلك.</string>
-    <string name="weather_notification_label">تأكد من تمكين هذا الشكل في تطبيق Weather Notification للحصول على معلومات الطقس على Pebble.
-\n
-\nلا يوجد تكوين مطلوب هنا.
-\n
-\nيمكنك تمكين تطبيق الطقس للنظام الخاص بـ Pebble من إدارة التطبيق.
-\n
-\nستظهر واجهات المراقبة المدعومة الطقس تلقائيًا.</string>
     <string name="pref_summary_setup_bt_pairing">قم بإلغاء تنشيط هذا إذا كنت تواجه مشكلة في الاتصال</string>
     <string name="unit_metric">متري</string>
     <string name="timeformat_24h">24 ساعة</string>
@@ -677,7 +665,7 @@
     <string name="heartrate_bpm_145">145 نبضة في الدقيقة</string>
     <string name="heartrate_bpm_150">150 نبضة في الدقيقة</string>
     <string name="prefs_find_phone_summary">استخدم سوارك لتشغيل نغمة رنين هاتفك.</string>
-    <string name="mi2_enable_text_notifications_summary"><![CDATA[Needs firmware >= 1.0.1.28 and Mili_pro.ft* installed.]]></string>
+    <string name="mi2_enable_text_notifications_summary"><![CDATA[يتطلب تثبيت إصدار البرنامج 1.0.1.28 أو أحدث وملف Mili_pro.ft*.]]></string>
     <string name="warning">تحذير!</string>
     <string name="pref_chart_heartrate_color_red">أحمر</string>
     <string name="pref_charts_range_on">تم تعيين نطاق الرسوم البيانية إلى شهر</string>
@@ -759,7 +747,6 @@
     <string name="activity_type_biking">ركوب الدراجة</string>
     <string name="activity_summary_yesterday">أمس</string>
     <string name="edittext_notification_filter_words_hint">أدخل الكلمات المطلوبة ، سطر جديد لكل منها</string>
-    <string name="qhybrid_prompt_million_steps">يرجى تعيين عدد الخطوات إلى مليون لتفعيل ذلك.</string>
     <string name="sports_activity_confirm_delete_description">هل أنت متأكد أنك تريد حذف أنشطة %d؟</string>
     <string name="qhybrid_pref_summary_external_intents">يسمح لتطبيقات Android الأخرى بتحميل / الكتابة فوق الملفات</string>
     <string name="prefs_game_mode_summary">فقط إذا كان هاتفك يدعم وضع اللعبة</string>
@@ -779,8 +766,7 @@
     <string name="dutch">الهولندية</string>
     <string name="turkish">التركية</string>
     <string name="activity_prefs_goal_fat_burn_time_minutes">الهدف اليومي: وقت حرق الدهون في دقائق</string>
-    <string name="activity_db_management_autoexport_label">التصدير التلقائي</string>
-    <string name="Delete">حذف</string>
+    <string name="delete">حذف</string>
     <string name="set">تعيين</string>
     <string name="off">ايقاف</string>
     <string name="activity_type_running">الجري</string>
@@ -855,7 +841,6 @@
     <string name="pref_summary_canned_replies">الرد من الساعة باستخدام الرسائل المعدة مسبقا</string>
     <string name="pref_title_pebble_sync_morpheuz">مزامنة Morpheuz</string>
     <string name="pref_pebble_privacy_mode_content">إزاحة نص الإشعار خارج الشاشة</string>
-    <string name="activity_db_management_clean_export_directory_text">يمكن الوصول إلى الملفات المصدرة في دليل التصدير / الاستيراد بواسطة أي تطبيق على جهازك. قد ترغب في إزالة هذه الملفات بعد المزامنة أو النسخ الاحتياطي. تأكد من أن لديك نسخة احتياطية قبل حذفها. لن يتم حذف ملفات GPX والأدلة الفرعية وملف قاعدة البيانات الذي تم تصديره تلقائيًا (إن وجد). المسار إلى دليل التصدير / الاستيراد هو:</string>
     <string name="pref_summary_pebble_forceprotocol">يفرض هذا الخيار استخدام أحدث بروتوكول اشعار بناءً على إصدار البرنامج الثابت. لابد ان تعرف ما تقوم به!</string>
     <string name="pref_summary_pebble_gatt_clientonly">هذا لـ Pebble 2 فقط و تجريبي ، جرب هذا إذا كانت لديك مشاكل في الاتصال</string>
     <string name="pref_summary_pebble_enable_bgjs">عند التمكين ، يسمح لواجهات الساعة بإظهار الطقس ومعلومات البطارية وما إلى ذلك.</string>
@@ -934,7 +919,6 @@
     <string name="zetime_analog_mode">الوضع التناظري</string>
     <string name="pref_world_clocks_summary">تكوين الساعات لمناطق زمنية أخرى</string>
     <string name="prefs_always_on_display_summary">حافظ على شاشة السوار قيد التشغيل دائما</string>
-    <string name="device_requires_key">المفتاح مطلوب، اضغط لفترة طويلة للدخول</string>
     <string name="pref_summary_relax_firmware_checks">الاسترخاء في عمليات فحص البرامج الثابتة</string>
     <string name="pairing_unable_to_pair_with">تعذر الإقران بـ %1$s (%2$s)</string>
     <string name="about_contributors">المساهمون</string>
@@ -993,7 +977,6 @@
     <string name="dbmanagementactivity_delete_old_activity_db">حذف قاعدة بيانات النشاط القديمة؟</string>
     <string name="dbmanagementactivity_old_activity_db_deletion_failed">فشل حذف قاعدة بيانات النشاط القديم.</string>
     <string name="dbmanagementactivity_old_activity_db_successfully_deleted">تم حذف بيانات النشاط القديمة.</string>
-    <string name="activity_db_management_clean_export_directory_label">حذف الملفات في دليل التصدير / الاستيراد</string>
     <string name="discovery_attempting_to_pair">محاولة الاقتران بـ %1$s</string>
     <string name="discovery_bonding_failed_immediately">فشل الارتباط بـ %1$s على الفور.</string>
     <string name="discovery_trying_to_connect_to">محاولة الاتصال بـ: %1$s</string>
@@ -1032,7 +1015,6 @@
     <string name="cannot_connect_bt_address_invalid_">لا يمكن الاتصال. عنوان بلوتوث غير صالح؟</string>
     <string name="pairing_creating_bond_with">إنشاء ارتباط مع %1$s (%2$s)</string>
     <string name="activity_prefs_about_you">معلومات عنك</string>
-    <string name="activity_DB_clean_export_directory_warning_title">حذف الملفات في دليل التصدير / الاستيراد؟</string>
     <string name="pref_title_use_custom_font">استخدام خط مخصص</string>
     <string name="preferences_hplus_settings">إعدادات HPlus/Makibes</string>
     <string name="pref_header_notifications_and_calls_callhandling">التعامل مع المكالمات</string>
@@ -1049,11 +1031,9 @@
     <string name="action_discover">توصيل جهاز جديد</string>
     <string name="pairing_already_bonded">مرتبط بالفعل بـ %1$s (%2$s) ، جارٍ الاتصال …</string>
     <string name="pref_title_charts_average">إظهار المتوسطات في الرسوم البيانية</string>
-    <string name="activity_prefs_sleep_duration">مدة النوم المفضلة بالساعات</string>
     <string name="DEVINFO_HR_VER">"HR: "</string>
     <string name="pref_title_pebble_health_store_raw">تخزين السجل الخام في قاعدة البيانات</string>
     <string name="action_db_management">إدارة البيانات</string>
-    <string name="activity_db_management_merge_old_title">حذف قاعدة البيانات القديمة</string>
     <string name="notification_gps_text">إرسال موقع GPS إلى أجهزة %1$d</string>
     <string name="toast_notification_filter_words_empty_hint">الرجاء إدخال كلمة واحدة على الأقل</string>
     <string name="filter_mode_blacklist">حظر عند احتواء الكلمات</string>
@@ -1148,7 +1128,6 @@
     <string name="gadgetbridge_running_main_nightly">اليلي GB يعمل</string>
     <string name="title_activity_controlcenter_main_nopebble">Gadgetbridge اليلي لا Pebble</string>
     <string name="gadgetbridge_running_main_nopebble">ليلاً NoPebble GB قيد التشغيل</string>
-    <string name="preferences_qhybrid_settings">إعدادات Q الهجينة</string>
     <string name="menuitem_hr">معدل نبضات القلب</string>
     <string name="menuitem_pomodoro">Pomodoro متتبع</string>
     <string name="menuitem_voice_memos">المذكرات الصوتية</string>
@@ -1231,7 +1210,6 @@
     <string name="seconds_7">7 ثوان</string>
     <string name="minutes_5">5 دقائق</string>
     <string name="user_feedback_all_alarms_disabled">تم تعطيل جميع التبيهات</string>
-    <string name="autoExport_lastTime_label">آخر تصدير تلقائي: %1$s</string>
     <string name="activity_DB_ExportButton">تصدير البيانات</string>
     <string name="activity_db_management_exportimport_label">التصدير والاستيراد</string>
     <string name="dismiss">رفض</string>
@@ -1297,7 +1275,6 @@
     <string name="watchface_dialog_widget_timezone">المنطقة الزمنية</string>
     <string name="watchface_dialog_widget_timezone_duration">مدة رؤية الساعة (بالثواني)</string>
     <string name="pref_device_action_phone_gps_location_listener_stop">ايقاف مستمع موقع GPS</string>
-    <string name="distance_format_meters">### م</string>
     <string name="steps_streaks_streak_days">خط
 \nأيام</string>
     <string name="steps_streaks_average_steps">متوسط
@@ -1329,7 +1306,6 @@
     <string name="devicestatus_disconnecting">الجهاز مفصول!</string>
     <string name="pref_title_charts_range">نطاق الرسوم البيانية</string>
     <string name="pref_title_chart_heartrate_color">لون معدل نبضات القلب</string>
-    <string name="activity_db_management_autoexport_enabled_yes">تم تمكين التصدير التلقائي.</string>
     <string name="activity_DB_import_button">استيراد البيانات</string>
     <string name="kind_gps">البرامج الثابتة لنظام تحديد المواقع العالمي (GPS)</string>
     <string name="note">ملاحظة</string>
@@ -1404,10 +1380,8 @@
     <string name="pref_media_pause">إيقاف الوسائط مؤقتا</string>
     <string name="pref_media_playpause">تبديل التشغيل</string>
     <string name="pref_media_previous">المسار السابق</string>
-    <string name="distance_format_kilometers">###.#km</string>
     <string name="pref_title_opentracks_packagename">اسم حزمة OpenTracks</string>
     <string name="supercars_lights_blinking_label">وامض</string>
-    <string name="qhybrid_goal_in_steps">الهدف في الخطوات</string>
     <string name="status">الحالة</string>
     <string name="stop">توقف</string>
     <string name="activity_DB_ShowContentButton">إظهار محتوى دليل التصدير/الاستيراد</string>
@@ -1421,7 +1395,6 @@
     <string name="prefs_button_single_press_action_selection_title">إجراء الحدث 1</string>
     <string name="pref_title_equalizer_dynamic">ديناميكي</string>
     <string name="pref_device_action_broadcast">إرسال البث</string>
-    <string name="distance_format_miles">###.#mi</string>
     <string name="sony_equalizer_preset_manual">يدوي</string>
     <string name="pref_header_sony_equalizer_preset_custom_2">إعداد مسبق مخصص 2</string>
     <string name="sony_speak_to_chat_sensitivity_auto">تلقائي</string>
@@ -1450,7 +1423,7 @@
     <string name="live_activity_current_steps_per_minute">الخطوات الحالية / دقيقة</string>
     <string name="device_not_connected">غير متصل.</string>
     <string name="prefs_find_phone_duration">مدة الرنين بالثواني</string>
-    <string name="dateformat_date_time"><![CDATA[Time & date]]></string>
+    <string name="dateformat_date_time"><![CDATA[الوقت والتاريخ]]></string>
     <string name="prefs_disconnect_notification">إشعار قطع الاتصال</string>
     <string name="mi2_prefs_button_press_count">عدد مرات الضغط على الزر</string>
     <string name="mi2_prefs_button_action">تمكين إجراء الزر</string>
@@ -1541,7 +1514,6 @@
     <string name="charts_legend_heartrate">معدل نبضات القلب</string>
     <string name="live_activity_heart_rate">معدل نبضات القلب</string>
     <string name="dbmanagementactivity_error_importing_db">خطأ في استيراد قاعدة البيانات: %1$s</string>
-    <string name="activity_db_management_autoexport_enabled_no">لم يتم تمكين التصدير التلقائي.</string>
     <string name="activity_DB_test_export_button">قم بتشغيل التصدير التلقائي الآن</string>
     <string name="dbmanagementactivity_export_finished">انتهى الحذف</string>
     <string name="title_activity_pebble_pairing">Pebble اقتران</string>
@@ -1647,7 +1619,6 @@
     <string name="controlcenter_folder_name">اسم المجلد:</string>
     <string name="step_streak_ongoing">جارية</string>
     <string name="pref_title_chart_sleep_rolling_24_hour">نطاق النوم</string>
-    <string name="pref_chart_sleep_rolling_24_on">ال 24 ساعة الماضية</string>
     <string name="kind_gps_almanac">تقويم GPS</string>
     <string name="preferences_led_color">لون LED</string>
     <string name="preferences_fm_frequency">تردد FM</string>
@@ -1741,12 +1712,12 @@
     <string name="error_setting_alias">خطأ في تعيين الاسم المستعار:</string>
     <string name="device_unsupported">غير مدعوم</string>
     <plurals name="widget_alarm_target_hours">
-        <item quantity="zero">%d ساعة</item>
-        <item quantity="one">%d ساعة</item>
-        <item quantity="two">%dساعتان</item>
-        <item quantity="few">%dساعات</item>
-        <item quantity="many">%dساعات</item>
-        <item quantity="other">%d ساعات</item>
+        <item quantity="zero">%1$d:%2$02d ساعة</item>
+        <item quantity="one">%1$d:%2$02d ساعة</item>
+        <item quantity="two">%1$d:%2$02d ساعتان</item>
+        <item quantity="few">%1$d:%2$02d ساعات</item>
+        <item quantity="many">%1$d:%2$02d ساعات</item>
+        <item quantity="other">%1$d:%2$02d ساعات</item>
     </plurals>
     <string name="watchface_setting_display_refresh_full">تحديث كامل (بالدقائق)</string>
     <string name="sony_ambient_sound_noise_cancelling">إلغاء الضوضاء</string>
@@ -1768,7 +1739,7 @@
     <string name="miband_fwinstaller_compatible_version">نسخة متوافقة</string>
     <string name="miband_fwinstaller_untested_version">نسخة غير مختبرة!</string>
     <string name="pbwinstallhandler_app_item">%1$s (%2$s)</string>
-    <string name="overstep">تجاوز: %1$d</string>
+    <string name="overstep">تجاوز: %1$s</string>
     <string name="weeksteps_today_steps_description">خطوات اليوم ، الهدف: %1$s</string>
     <string name="miband2_prefs_dateformat">تنسيق التاريخ</string>
     <string name="mi2_dnd_automatic">تلقائي (كشف النوم)</string>
@@ -1835,7 +1806,6 @@
     <string name="croatian">الكرواتية</string>
     <string name="scandinavian">الاسكندنافية</string>
     <string name="weekstepschart_steps_a_month">عدد الخطوات في الشهر</string>
-    <string name="pref_chart_sleep_rolling_24_off">من الظهر إلى الظهر</string>
     <string name="waiting_for_reconnect">في انتظار إعادة الاتصال</string>
     <string name="activity_prefs_chart_min_session_length">أقل مدة للنشاط (بالدقائق)</string>
     <string name="authentication_required">المصادقة مطلوبة</string>
@@ -1850,8 +1820,6 @@
     <string name="pref_invalid_frequency_title">تردد غير صالح</string>
     <string name="toast_notification_filter_saved_successfully">تم حفظ عامل تصفية الإشعارات</string>
     <string name="filter_mode">وضع التصفية</string>
-    <string name="qhybrid_vibration_strength">قوة الاهتزاز:</string>
-    <string name="qhybrid_overwrite_buttons">الكتابة فوق الزر</string>
     <string name="widget_set_alarm_after">ضبط المنبه بعد:</string>
     <string name="pref_title_middle_button_function_long">الزر الأوسط طويل</string>
     <string name="qhybrid_offset_timezone">إزاحة المنطقة الزمنية بمقدار</string>
@@ -2028,7 +1996,6 @@
     <string name="prefs_ambient_sound_during_call_title">الصوت المحيطي أثناء المكالمة</string>
     <string name="prefs_ambient_settings_title">خيارات الصوت المحيطي</string>
     <string name="prefs_active_noise_cancelling_level">مستوى إلغاء الضوضاء النشط</string>
-    <string name="distance_format_feet">###ft</string>
     <string name="controlcenter_toggle_details">تبديل التفاصيل</string>
     <string name="wifi_hotspot_status">حالة نقطة اتصال Wi-Fi</string>
     <string name="ftp_server">خادم بروتوكول نقل الملفات</string>
@@ -2061,7 +2028,7 @@
     <string name="activity_prefs_discovery_pairing">خيارات الاكتشاف والاقتران</string>
     <string name="minutes_10">10 دقائق</string>
     <string name="activity_type_jump_roping">القفز على الحبل</string>
-    <string name="lack_of_step">الافتقار إلى الخطوات: %1$d</string>
+    <string name="lack_of_step">الافتقار إلى الخطوات: %1$s</string>
     <string name="device_fw">إصدار البرنامج الثابت: %1$s</string>
     <string name="activity_type_outdoor_cycling">ركوب الدراجات في الهواء الطلق</string>
     <string name="activity_type_elliptical">بيضاوي الشكل</string>
@@ -2124,25 +2091,18 @@
     <string name="pai_chart_per_month">PAI في الشهر</string>
     <string name="pai_total">المجموع</string>
     <string name="pai_day">زيادة اليوم</string>
-    <string name="loyalty_cards_install">تثبيت كاتيما</string>
     <string name="loyalty_cards_sync_groups_only">مزامنة مجموعات محددة فقط</string>
-    <string name="loyalty_cards_install_catima_fail">فشل في فتح متجر التطبيقات لتثبيت كاتيما</string>
     <string name="loyalty_cards_sync_title">مزامنة بطاقات الولا</string>
     <string name="loyalty_cards_sync_options">خيارات المزامنة</string>
     <string name="loyalty_cards_sync">مزامنة</string>
     <string name="loyalty_cards_catima_permissions_title">أذونات مفقودة</string>
     <string name="loyalty_cards_syncing">مزامنة بطاقات الولاء %d مع الجهاز</string>
-    <string name="loyalty_cards_catima_package">اسم حزمة كاتيما</string>
-    <string name="loyalty_cards_open_catima">افتح كاتيما</string>
     <string name="loyalty_cards_sync_groups">المجموعات المراد مزامنتها</string>
     <string name="loyalty_cards_sync_archived">مزامنة البطاقات المؤرشفة</string>
-    <string name="loyalty_cards_catima_not_compatible">إصدار كاتيما المثبت غير متوافق مع Gadgetbridge. يرجى تحديث كاتيما و Gadgetbridge إلى أحدث اصدار.</string>
     <string name="loyalty_cards_sync_starred">مزامنة البطاقات المميزة بنجمة فقط</string>
     <string name="loyalty_cards_sync_summary">انقر لمزامنة البطاقات مع الساعة</string>
     <string name="loyalty_cards_catima">كاتيما</string>
     <string name="loyalty_cards">بطاقات الولاء</string>
-    <string name="loyalty_cards_catima_permissions_summary">يحتاج Gadgetbridge إلى أذونات قراءة لبطاقات كاتيما لمزامنتها. اضغط على هذا الزر لمنحها.</string>
-    <string name="loyalty_cards_catima_not_installed">هناك حاجة إلى كاتيما لإدارة بطاقات الولاء</string>
     <string name="pref_title_mb_intents">نوايا زر بث الوسائط مباشرة</string>
     <string name="pref_summary_mb_intents">تمكين إذا كان التحكم في وسائط الجهاز لا يعمل مع تطبيقات معينة</string>
     <string name="busy_task_fetch_sports_details">جلب التفاصيل الرياضية</string>
@@ -2468,9 +2428,7 @@
     <string name="dnd_all_day">كل اليوم</string>
     <string name="pref_enable_call_reject_summary">تمكين رفض المكالمات من الجهاز</string>
     <string name="pref_enable_call_reject">تمكين رفض المكالمات</string>
-    <string name="pref_force_options_summary">تدعي بعض الأجهزة كذباً أنها لا تدعم بعض الخيارات. يمكن استخدام هذه الإعدادات لتمكينها على أي حال.
-\nاستخدام على مسؤوليتك الخاصة
-\nاقرأ الويكي</string>
+    <string name="pref_force_options_summary">تدعي بعض الأجهزة كذباً أنها لا تدعم بعض الخيارات. يمكن استخدام هذه الإعدادات لتمكينها على أي حال. \nاستخدام على مسؤوليتك الخاصة \nاقرأ الويكي</string>
     <string name="huawei_reparse_workout_data">إعادة تحليل بيانات التمرين</string>
     <string name="huawei_ignore_wakeup_status_start_description">قد يساعد في اكتشاف النوم المناسب. مرئية على الفور في عرض الأنشطة اليومية.</string>
     <string name="pref_summary_debug">أرسل طلب تصحيح إلى جهاز هواوي</string>
@@ -2486,7 +2444,7 @@
     <string name="huawei_alarm_event_description">لا تحدد خانة اختيار التنبيه الذكي.</string>
     <string name="huawei_trusleep_title">هواوي ترو سليب™</string>
     <string name="huawei_trusleep_summary_light">تحسين مراقبة النوم</string>
-    <string name="huawei_trusleep_summary">مراقبة نوعية نومك ونمط التنفس في الوقت الحقيقي. \nقم بتحليل أنماط نومك وتشخيص 6 أنواع من مشاكل النوم بدقة.</string>
+    <string name="huawei_trusleep_summary">تتبع جودة نومك في الوقت الفعلي.</string>
     <string name="pref_force_wear_location_summary">فرض دعم موقع wear.
 \nاستخدام على مسؤوليتك الخاصة</string>
     <string name="huawei_reparse_workout_data_description">لن يقدم هذا شيئا إلا بعد تحديثات معينة</string>
@@ -2686,7 +2644,7 @@
     <string name="pref_dashboard_widget_show_legend_title">عرض الأسطورة</string>
     <string name="pref_dashboard_widget_goals_chart_title">خريطة الأهداف</string>
     <string name="pref_dashboard_all_devices_title">جميع الأجهزة</string>
-    <string name="pref_dashboard_select_devices_title">تحديد الأجهزة...</string>
+    <string name="pref_dashboard_select_devices_title">حدد الأجهزة…</string>
     <string name="pref_dashboard_widgets_order_summary">حدد الأدوات التي تم تمكينها وبأي ترتيب يتم عرضها على لوحة المعلومات</string>
     <string name="pref_dashboard_widget_today_24h_summary">اعرض النشاط في دائرة واحدة مدتها 24 ساعة بدلاً من دائرة مزدوجة مدتها 12 ساعة</string>
     <string name="pref_dashboard_widget_double_size_summary">اسمح للأداة بشغل عمودين على لوحة المعلومات</string>
@@ -2739,12 +2697,11 @@
     <string name="cyclingPowerMax">أقصى قوة ركوب الدراجة</string>
     <string name="cyclingPowerAverage">متوسط قوة ركوب الدراجة</string>
     <string name="cyclingPowerMin">الحد الأدنى من قوة ركوب الدراجة</string>
-    <string name="huawei_trusleep_warning">تحذير: سيؤدي تمكين هذا إلى جعل كل وقت النوم يظهر كنوم خفيف في Gadgetbridge! اضغط هنا إذا قبلت هذا.</string>
+    <string name="huawei_trusleep_warning">تحذير: لم يتم تفعيل ميزة TruSleep™ بالكامل. سيؤدي تفعيلها على بعض الأجهزة إلى ظهور جميع بيانات النوم على أنها ”نوم خفيف“ في Gadgetbridge!</string>
     <string name="pref_touch_tone">نغمة اللمس</string>
     <string name="pref_touch_tone_summary">يصدر نغمة عند لمس سماعة الأذن</string>
     <string name="pref_wearing_tone">نغمة الإرتداء</string>
     <string name="pref_wearing_tone_summary">يصدر نغمة عند تركيب سماعة الأذن</string>
-    <string name="preferences_qhybrid_settings_summary">الإعدادات القديمة لساعات Q الهجينة</string>
     <string name="pref_adaptive_noise_cancelling_title">عزل الصوت المتكيف</string>
     <string name="pref_adaptive_noise_cancelling_summary">اضبط قوة عزل الصوت تلقائيًا على مستوى الصوت المحيط</string>
     <string name="device_name_bicycle_sensor">حساس الدراجة</string>
@@ -2778,7 +2735,7 @@
     <string name="folder">مجلد</string>
     <string name="url">رابط</string>
     <string name="garmin_agps_local_file">الملف المحلي</string>
-    <string name="pref_garmin_agps_help">تحتوي القائمة أدناه على جميع عناوين URL التي طلبتها الساعة لتحديثات AGPS. يمكنك تحديد ملف من مساحة تخزين الهاتف ليتم إرساله إلى الساعة عندما تطلب التحديث.</string>
+    <string name="pref_garmin_agps_help">تحتوي القائمة أدناه على جميع عناوين الويب التي تطلبها الساعة للحصول على تحديثات AGPS. يمكنك اختيار ملف من ذاكرة الهاتف ليتم إرساله إلى الساعة عندما تطلب تحديثًا.\n\nيكفي تكوين ملف واحد فقط.</string>
     <string name="copied_to_clipboard">تم النسخ إلى الحافظة</string>
     <string name="pref_summary_garmin_default_reply_suffix">تم إلحاقه بالإضافة إلى اللاحقة المعينة في Gadgetbridge</string>
     <string name="intent_api_broadcast_activity_sync_title">البث عند انتهاء مزامنة النشاط</string>
@@ -3252,9 +3209,9 @@
     <string name="respiratoryrate">المعدل التنفسي</string>
     <string name="sleep_avg">متوسط النوم</string>
     <string name="activity_prefs_goal_standing_hours">الهدف اليومي: ساعات الوقوف</string>
-    <string name="fw_upgrade_notice_huawei">أنت على وشك رفع البرنامج الثابت %1$s على %2$s الخاص بك.\n\nالبرنامج الثابت الحالي هو %s\n\nسيتم إعادة تشغيل جهازك بعد الرفع.\n\nتابع على مسؤوليتك الخاصة!</string>
+    <string name="fw_upgrade_notice_huawei">أنت على وشك رفع البرنامج الثابت %1$s على %2$s الخاص بك.\n\nالبرنامج الثابت الحالي هو %3$s\n\nسيتم إعادة تشغيل جهازك بعد الرفع.\n\nتابع على مسؤوليتك الخاصة!</string>
     <string name="charts_show_balance_steps_summary">إظهار الزيادة / عدم وجود خطوات في الرسوم البيانية الأسبوعية والشهرية</string>
-    <string name="range_percentage_float">%1$.1f%% - %2$.1f%%</string>
+    <string name="range_percentage_float">%1$.1f%% – %2$.1f%%</string>
     <string name="audio_recordings">التسجيلات الصوتية</string>
     <string name="open_source_licenses">التراخيص</string>
     <string name="dialog_close">أغلق</string>
@@ -3263,8 +3220,8 @@
     <string name="pref_workout_send_gps_timeout_summary">أوقف GPS عندما لا يرسل الجهاز بيانات التمرين مفتوحة (بالمللي ثانية)</string>
     <string name="pref_title_stable_connection">اتصال مستقر</string>
     <string name="zepp_os_install_map_instructions">بعد بدء التثبيت على الهاتف، يجب عليك الموافقة على الساعة أيضًا.</string>
-    <string name="range_percentage">%1$d%% - %2$d%%</string>
-    <string name="range_degrees">%1$dº - %2$dº</string>
+    <string name="range_percentage">%1$d%% – %2$d%%</string>
+    <string name="range_degrees">%1$dº – %2$dº</string>
     <string name="pref_watch_face">واجهة الساعة</string>
     <string name="pref_device_version">إصدار الجهاز</string>
     <string name="pref_vibration_intensity">شدة الاهتزاز</string>
@@ -3272,4 +3229,10 @@
     <string name="map_theme_osmarender">أوسمارندر</string>
     <string name="map_theme_motorider">موتوريدر</string>
     <string name="connection_priority_low_power_title">اطلب طاقة منخفضة</string>
+    <string name="pref_header_sync">التزامن</string>
+    <string name="pref_header_dashboard">لوحة التحكم</string>
+    <string name="sound_and_vibration">الصوت + الاهتزاز</string>
+    <string name="map_theme_biker">دراج</string>
+    <string name="pref_title_block_screenshot">منع لقطات الشاشة</string>
+    <string name="pref_summary_block_screenshots">منع أخذ لقطات الشاشة وعرضها على شاشات غير آمنة. يتطلب إعادة تشغيل الجهاز حتى تصبح هذه الإعدادات سارية المفعول بالكامل.</string>
 </resources>

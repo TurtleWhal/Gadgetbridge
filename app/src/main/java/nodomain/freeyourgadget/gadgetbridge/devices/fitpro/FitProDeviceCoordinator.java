@@ -26,15 +26,19 @@ import androidx.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.CameraActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCardAction;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.FitProActivitySampleDao;
@@ -57,7 +61,7 @@ public class FitProDeviceCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     protected Pattern getSupportedDeviceName() {
-        return Pattern.compile("^(M6.*|M4.*|LH716|Sunset 6|Watch7|Fit1900|716)$");
+        return Pattern.compile("^(M6.*|M4.*|LH716|Sunset 6|Watch7|Fit1900|716|YBW-05)$");
     }
 
     @Override
@@ -74,7 +78,7 @@ public class FitProDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -174,5 +178,14 @@ public class FitProDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public DeviceKind getDeviceKind(@NonNull GBDevice device) {
         return DeviceKind.FITNESS_BAND;
+    }
+
+    @Override
+    public List<DeviceCardAction> getCustomActions() {
+        if (!CameraActivity.supportsCamera()) {
+            return Collections.emptyList();
+        }
+
+        return Collections.singletonList(new DeviceCardAction.CameraAction());
     }
 }

@@ -64,8 +64,8 @@ import nodomain.freeyourgadget.gadgetbridge.activities.ControlCenterv2;
 import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventScreenshot;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
+import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceCommunicationService;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
@@ -81,16 +81,17 @@ public class GB {
     public static final String NOTIFICATION_CHANNEL_ID_LOW_BATTERY = "low_battery";
     public static final String NOTIFICATION_CHANNEL_ID_FULL_BATTERY = "full_battery";
     public static final String NOTIFICATION_CHANNEL_ID_GPS = "gps";
+    public static final String NOTIFICATION_CHANNEL_ID_PEBBLE_JS = "pebble_js";
+    public static final String NOTIFICATION_CHANNEL_ID_HEALTH_CONNECT_SYNC = "gadgetbridge_health_connect_sync";
 
     public static final int NOTIFICATION_ID = 1;
     public static final int NOTIFICATION_ID_INSTALL = 2;
-    public static final int NOTIFICATION_ID_LOW_BATTERY = 3;
     public static final int NOTIFICATION_ID_TRANSFER = 4;
     public static final int NOTIFICATION_ID_EXPORT_FAILED = 5;
     public static final int NOTIFICATION_ID_PHONE_FIND = 6;
     public static final int NOTIFICATION_ID_GPS = 7;
     public static final int NOTIFICATION_ID_SCAN = 8;
-    public static final int NOTIFICATION_ID_FULL_BATTERY = 9;
+    public static final int NOTIFICATION_ID_PEBBLE_JS = 10;
     public static final int NOTIFICATION_ID_ERROR = 42;
 
     private static final Logger LOG = LoggerFactory.getLogger(GB.class);
@@ -125,11 +126,11 @@ public class GB {
                     NotificationManager.IMPORTANCE_LOW);
             notificationManager.createNotificationChannel(channelGeneral);
 
-            NotificationChannel channelConnwectionStatus = new NotificationChannel(
+            NotificationChannel channelConnectionStatus = new NotificationChannel(
                     NOTIFICATION_CHANNEL_ID_CONNECTION_STATUS,
                     context.getString(R.string.notification_channel_connection_status_name),
                     NotificationManager.IMPORTANCE_LOW);
-            notificationManager.createNotificationChannel(channelConnwectionStatus);
+            notificationManager.createNotificationChannel(channelConnectionStatus);
 
             NotificationChannel channelScanService = new NotificationChannel(
                     NOTIFICATION_CHANNEL_ID_SCAN_SERVICE,
@@ -172,6 +173,18 @@ public class GB {
                     context.getString(R.string.notification_channel_gps),
                     NotificationManager.IMPORTANCE_MIN);
             notificationManager.createNotificationChannel(channelGps);
+
+            NotificationChannel channelPebbleJs = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID_PEBBLE_JS,
+                    context.getString(R.string.notification_channel_pebble_js_runner),
+                    NotificationManager.IMPORTANCE_MIN);
+            notificationManager.createNotificationChannel(channelPebbleJs);
+
+            NotificationChannel channelHealthConnectSync = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID_HEALTH_CONNECT_SYNC,
+                    context.getString(R.string.notification_channel_health_connect_sync_name),
+                    NotificationManager.IMPORTANCE_LOW);
+            notificationManager.createNotificationChannel(channelHealthConnectSync);
         }
 
         notificationChannelsCreated = true;
@@ -229,9 +242,9 @@ public class GB {
                         PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE
                 );
                 builder.addAction(R.drawable.ic_notification_disconnected, context.getString(R.string.controlcenter_disconnect), disconnectPendingIntent);
-                if (device.getDeviceCoordinator().supportsActivityDataFetching(device)) {
+                if (device.getDeviceCoordinator().supportsDataFetching(device)) {
                     deviceCommunicationServiceIntent.setAction(DeviceService.ACTION_FETCH_RECORDED_DATA);
-                    deviceCommunicationServiceIntent.putExtra(EXTRA_RECORDED_DATA_TYPES, ActivityKind.ACTIVITY);
+                    deviceCommunicationServiceIntent.putExtra(EXTRA_RECORDED_DATA_TYPES, RecordedDataTypes.TYPE_SYNC);
                     PendingIntent fetchPendingIntent = PendingIntent.getService(
                             context,
                             1,
@@ -254,13 +267,13 @@ public class GB {
         }else{
             StringBuilder contentText = new StringBuilder();
             boolean isConnected = true;
-            boolean anyDeviceSupportesActivityDataFetching = false;
+            boolean anyDeviceSupportsActivityDataFetching = false;
             for(GBDevice device : devices){
                 if(!device.isInitialized()){
                     isConnected = false;
                 }
 
-                anyDeviceSupportesActivityDataFetching |= device.getDeviceCoordinator().supportsActivityDataFetching(device);
+                anyDeviceSupportsActivityDataFetching |= device.getDeviceCoordinator().supportsDataFetching(device);
 
                 String deviceName = device.getAliasOrName();
                 String text = device.getStateString(context);
@@ -286,11 +299,11 @@ public class GB {
                 builder.setColor(ContextCompat.getColor(context, R.color.accent));
             }
 
-            if (anyDeviceSupportesActivityDataFetching) {
+            if (anyDeviceSupportsActivityDataFetching) {
                 Intent deviceCommunicationServiceIntent = new Intent(context, DeviceCommunicationService.class);
                 deviceCommunicationServiceIntent.setPackage(BuildConfig.APPLICATION_ID);
                 deviceCommunicationServiceIntent.setAction(DeviceService.ACTION_FETCH_RECORDED_DATA);
-                deviceCommunicationServiceIntent.putExtra(EXTRA_RECORDED_DATA_TYPES, ActivityKind.ACTIVITY);
+                deviceCommunicationServiceIntent.putExtra(EXTRA_RECORDED_DATA_TYPES, RecordedDataTypes.TYPE_SYNC);
                 PendingIntent fetchPendingIntent = PendingIntent.getService(
                         context,
                         1,
@@ -450,57 +463,74 @@ public class GB {
     }
 
     /**
-     * Creates and display a Toast message using the application context.
-     * Additionally the toast is logged using the provided severity.
-     * Can be called from any thread.
+     * Creates and display a {@link Toast} message using the {@link GBApplication}'s {@link Context}.
+     * Additionally, the message is logged using the provided severity.
+     * Can be called from any {@link Thread}.
      *
-     * @param message     the message to display.
-     * @param displayTime something like Toast.LENGTH_SHORT
-     * @param severity    either INFO, WARNING, ERROR
+     * @param message     the message to display
+     * @param displayTime either {@link Toast#LENGTH_SHORT} or {@link Toast#LENGTH_LONG}
+     * @param severity    either {@link #DEBUG}, {@link #INFO}, {@link #WARN} or {@link #ERROR}
+     * @see #toast(Context, String, int, int, Throwable)
      */
     public static void toast(String message, int displayTime, int severity) {
         toast(GBApplication.getContext(), message, displayTime, severity, null);
     }
 
     /**
-     * Creates and display a Toast message using the application context.
-     * Additionally the toast is logged using the provided severity.
-     * Can be called from any thread.
+     * Creates and display a {@link Toast} message using the {@link GBApplication}'s {@link Context}.
+     * Additionally, the message is logged using the provided severity.
+     * Can be called from any {@link Thread}.
      *
      * @param message     the message to display.
-     * @param displayTime something like Toast.LENGTH_SHORT
-     * @param severity    either INFO, WARNING, ERROR
+     * @param displayTime either {@link Toast#LENGTH_SHORT} or {@link Toast#LENGTH_LONG}
+     * @param severity    either {@link #DEBUG}, {@link #INFO}, {@link #WARN} or {@link #ERROR}
+     * @param ex          optional {@link Throwable} to be logged
+     * @see #toast(Context, String, int, int, Throwable)
      */
     public static void toast(String message, int displayTime, int severity, Throwable ex) {
         toast(GBApplication.getContext(), message, displayTime, severity, ex);
     }
 
     /**
-     * Creates and display a Toast message using the application context
-     * Can be called from any thread.
+     * Creates and display a {@link Toast} message using the provided context.
+     * Additionally, the message is logged using the provided severity.
+     * Can be called from any {@link Thread}.
      *
      * @param context     the context to use
      * @param message     the message to display
-     * @param displayTime something like Toast.LENGTH_SHORT
-     * @param severity    either INFO, WARNING, ERROR
+     * @param displayTime either {@link Toast#LENGTH_SHORT} or {@link Toast#LENGTH_LONG}
+     * @param severity    either {@link #DEBUG}, {@link #INFO}, {@link #WARN} or {@link #ERROR}
+     * @see #toast(Context, String, int, int, Throwable)
      */
     public static void toast(final Context context, final String message, final int displayTime, final int severity) {
         toast(context, message, displayTime, severity, null);
     }
 
+    /**
+     * Creates and display a {@link Toast} message using the provided context.
+     * Additionally, the message is logged using the provided severity.
+     * Can be called from any {@link Thread}.
+     *
+     * @param context     the context to use
+     * @param message     the message to display
+     * @param displayTime either {@link Toast#LENGTH_SHORT} or {@link Toast#LENGTH_LONG}
+     * @param severity    either {@link #DEBUG}, {@link #INFO}, {@link #WARN} or {@link #ERROR}
+     * @see #toast(Context, String, int, int, Throwable)
+     */
     public static void toast(final Context context, @StringRes final int message, final int displayTime, final int severity) {
         toast(context, context.getString(message), displayTime, severity, null);
     }
 
     /**
-     * Creates and display a Toast message using the application context
-     * Can be called from any thread.
+     * Creates and display a {@link Toast} message using the provided context.
+     * Additionally, the message is logged using the provided severity.
+     * Can be called from any {@link Thread}.
      *
      * @param context     the context to use
      * @param message     the message to display
-     * @param displayTime something like Toast.LENGTH_SHORT
-     * @param severity    either INFO, WARNING, ERROR
-     * @param ex          optional exception to be logged
+     * @param displayTime something like {@link Toast#LENGTH_SHORT} or {@link Toast#LENGTH_LONG}
+     * @param severity    either {@link #DEBUG}, {@link #INFO}, {@link #WARN} or {@link #ERROR}
+     * @param ex          optional {@link Throwable} to be logged
      */
     public static void toast(final Context context, final String message, final int displayTime, final int severity, final Throwable ex) {
         log(message, severity, ex); // log immediately, not delayed
@@ -521,19 +551,25 @@ public class GB {
         }
     }
 
+    /// @param severity either {@link #DEBUG}, {@link #INFO}, {@link #WARN} or {@link #ERROR}
     public static void log(String message, int severity, Throwable ex) {
+        log(LOG, message, severity, ex);
+    }
+
+    /// @param severity either {@link #DEBUG}, {@link #INFO}, {@link #WARN} or {@link #ERROR}
+    public static void log(Logger logger, String message, int severity, Throwable ex) {
         switch (severity) {
             case INFO:
-                LOG.info(message, ex);
+                logger.info(message, ex);
                 break;
             case WARN:
-                LOG.warn(message, ex);
+                logger.warn(message, ex);
                 break;
             case ERROR:
-                LOG.error(message, ex);
+                logger.error(message, ex);
                 break;
             case DEBUG:
-                LOG.debug(message, ex);
+                logger.debug(message, ex);
         }
     }
 
@@ -608,74 +644,6 @@ public class GB {
     public static void updateInstallNotification(CharSequence text, boolean ongoing, int percentage, Context context) {
         Notification notification = createInstallNotification(text, ongoing, percentage, context);
         notify(NOTIFICATION_ID_INSTALL, notification, context);
-    }
-
-    private static Notification createBatteryLowNotification(CharSequence text, CharSequence bigText, Context context) {
-        Intent notificationIntent = new Intent(context, ControlCenterv2.class);
-        notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
-
-        NotificationCompat.Builder nb = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_LOW_BATTERY)
-                .setContentTitle(context.getString(R.string.notif_battery_low_title))
-                .setContentText(text)
-                .setContentIntent(pendingIntent)
-                .setSmallIcon(R.drawable.ic_notification_low_battery)
-                .setPriority(Notification.PRIORITY_HIGH)
-                .setOngoing(false);
-
-        if (bigText != null) {
-            nb.setStyle(new NotificationCompat.BigTextStyle().bigText(bigText));
-        }
-
-        return nb.build();
-    }
-
-    private static Notification createBatteryFullNotification(CharSequence text, CharSequence bigText, Context context) {
-        Intent notificationIntent = new Intent(context, ControlCenterv2.class);
-        notificationIntent.setPackage(BuildConfig.APPLICATION_ID);
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
-
-        NotificationCompat.Builder nb = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID_FULL_BATTERY)
-                .setContentTitle(context.getString(R.string.notif_battery_full_title))
-                .setContentText(text)
-                .setContentIntent(pendingIntent)
-                .setSmallIcon(R.drawable.ic_notification_full_battery)
-                .setPriority(Notification.PRIORITY_HIGH)
-                .setOngoing(false);
-
-        if (bigText != null) {
-            nb.setStyle(new NotificationCompat.BigTextStyle().bigText(bigText));
-        }
-
-        return nb.build();
-    }
-
-    public static void updateBatteryLowNotification(CharSequence text, CharSequence bigText, Context context) {
-        if (GBEnvironment.env().isLocalTest()) {
-            return;
-        }
-        Notification notification = createBatteryLowNotification(text, bigText, context);
-        notify(NOTIFICATION_ID_LOW_BATTERY, notification, context);
-    }
-
-    public static void removeBatteryLowNotification(Context context) {
-        removeNotification(NOTIFICATION_ID_LOW_BATTERY, context);
-    }
-
-    public static void updateBatteryFullNotification(CharSequence text, CharSequence bigText, Context context) {
-        if (GBEnvironment.env().isLocalTest()) {
-            return;
-        }
-        Notification notification = createBatteryFullNotification(text, bigText, context);
-        notify(NOTIFICATION_ID_FULL_BATTERY, notification, context);
-    }
-
-    public static void removeBatteryFullNotification(Context context) {
-        removeNotification(NOTIFICATION_ID_FULL_BATTERY, context);
     }
 
     public static Notification createExportFailedNotification(CharSequence text, Context context) {

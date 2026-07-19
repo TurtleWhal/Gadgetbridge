@@ -29,4 +29,24 @@ public class GarminVivosportCoordinator extends GarminWatchCoordinator {
     public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
         return DeviceCoordinator.DeviceKind.FITNESS_BAND;
     }
+
+    @Override
+    public boolean supportsSpo2(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsBodyEnergy(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsRespiratoryRate(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsVO2MultiSport(@NonNull final GBDevice device) {
+        return false;
+    }
 }

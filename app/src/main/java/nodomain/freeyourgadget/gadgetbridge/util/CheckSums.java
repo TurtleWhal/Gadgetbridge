@@ -1,5 +1,5 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, Damien
-    Gaignon, Daniele Gobbetti, José Rebelo, Petr Vaněk
+/*  Copyright (C) 2015-2025 Andreas Shimokawa, Carsten Pfeiffer, Damien
+    Gaignon, Daniele Gobbetti, José Rebelo, Petr Vaněk, vappster
 
     This file is part of Gadgetbridge.
 
@@ -73,7 +73,10 @@ public class CheckSums {
     }
 
     public static int getCRC16ansi(byte[] seq) {
-        int crc = 0xffff;
+        return getCRC16ansi(seq, 0xffff);
+    }
+
+    public static int getCRC16ansi(byte[] seq, int crc) {
         int polynomial = 0xA001;
 
         for (int i = 0; i < seq.length; i++) {
@@ -155,11 +158,14 @@ public class CheckSums {
                     27655, 23652, 19525, 15522, 11395, 7392, 3265, 61215, 65342, 53085, 57212, 44955,
                     49082, 36825, 40952, 28183, 32310, 20053, 24180, 11923, 16050, 3793, 7920};
 
-    // // https://github.com/ThePBone/GalaxyBudsClient/blob/master/GalaxyBudsClient/Utils/CRC16.cs
-    public static int crc16_ccitt(byte[] data) {
+    public static int crc16_ccitt(final byte[] data) {
+        return crc16_ccitt(data, 0, data.length, 0);
+    }
 
-        int i2 = 0;
-        for (int i3 = 0; i3 < data.length; i3++)
+    // // https://github.com/ThePBone/GalaxyBudsClient/blob/master/GalaxyBudsClient/Utils/CRC16.cs
+    public static int crc16_ccitt(final byte[] data, final int offset, final int length, final int initialValue) {
+        int i2 = initialValue;
+        for (int i3 = offset; i3 < length; i3++)
             i2 = Crc16Tab[((i2 >> 8) ^ data[i3]) & 255] ^ (i2 << 8);
 
         return 65535 & i2;

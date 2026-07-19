@@ -19,27 +19,25 @@ import nodomain.freeyourgadget.gadgetbridge.util.language.Transliterator;
 
 import org.ahocorasick.trie.Emit;
 import org.ahocorasick.trie.Trie;
-import org.apache.commons.lang3.text.WordUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 public class ArmenianTransliterator implements Transliterator {
     // Transliteration map ordered by priority
-    // Armenian has some rules regarding reading of 'ո' in the middle of the word it reads as english O
+    // Armenian has some rules regarding reading of 'ո' in the middle of the word it reads as English O
     // But if word starts with it's read as sound of 'vo'
     // Or if it has 'ւ' symbol after it, then we should read it as 'u' (as double o in booze)
     private static final Map<String, String> transliterateMap = new LinkedHashMap<String, String>() {
         {
             // Simple substitutions
-            Map<String, String> simpleSubstitions = new HashMap<String, String>() {
+            Map<String, String> simpleSubstitutions = new HashMap<String, String>() {
                 {
                     put("ա","a");
                     put("բ","b");
@@ -87,10 +85,10 @@ public class ArmenianTransliterator implements Transliterator {
             };
 
             // Capitalize existing simple substitutions here
-            for (final Entry<String, String> entry : new ArrayList<Entry<String, String>>(simpleSubstitions.entrySet())) {
+            for (final Entry<String, String> entry : new ArrayList<Entry<String, String>>(simpleSubstitutions.entrySet())) {
                 String capitalKey = entry.getKey().toUpperCase();
                 if (!capitalKey.equals(entry.getKey())) {
-                    simpleSubstitions.put(capitalKey, entry.getValue().toUpperCase());
+                    simpleSubstitutions.put(capitalKey, entry.getValue().toUpperCase());
                 }
             }
 
@@ -138,8 +136,8 @@ public class ArmenianTransliterator implements Transliterator {
 
             for (final String letter : letterMapU) {
                 final String capitalLetter = letter.toUpperCase();
-                final String transliteratedLetter = Objects.requireNonNull(simpleSubstitions.get(letter), letter);
-                final String transliteratedCapitalLetter = Objects.requireNonNull(simpleSubstitions.get(capitalLetter), capitalLetter);
+                final String transliteratedLetter = Objects.requireNonNull(simpleSubstitutions.get(letter), letter);
+                final String transliteratedCapitalLetter = Objects.requireNonNull(simpleSubstitutions.get(capitalLetter), capitalLetter);
 
                 put(letter + "ու", transliteratedLetter + "u");
                 put(capitalLetter + "ու", transliteratedCapitalLetter + "u");
@@ -196,8 +194,8 @@ public class ArmenianTransliterator implements Transliterator {
 
             for (String letter : letterMapVo) {
                 String capitalLetter = letter.toUpperCase();
-                final String transliteratedLetter = Objects.requireNonNull(simpleSubstitions.get(letter));
-                final String transliteratedCapitalLetter = Objects.requireNonNull(simpleSubstitions.get(capitalLetter));
+                final String transliteratedLetter = Objects.requireNonNull(simpleSubstitutions.get(letter));
+                final String transliteratedCapitalLetter = Objects.requireNonNull(simpleSubstitutions.get(capitalLetter));
 
                 put(letter + "ո", transliteratedLetter + "o");
                 put(capitalLetter + "ո", transliteratedCapitalLetter + "o");
@@ -222,7 +220,7 @@ public class ArmenianTransliterator implements Transliterator {
             put("Ւ","");
 
             // Simple substitutions have last priority
-            for (final Map.Entry<String,String> entry : simpleSubstitions.entrySet()) {
+            for (final Map.Entry<String,String> entry : simpleSubstitutions.entrySet()) {
                 put(entry.getKey(), entry.getValue());
                 put(entry.getKey().toUpperCase(), entry.getValue().toUpperCase());
             }

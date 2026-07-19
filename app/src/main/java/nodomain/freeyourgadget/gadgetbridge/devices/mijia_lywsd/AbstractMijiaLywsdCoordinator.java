@@ -42,7 +42,7 @@ public abstract class AbstractMijiaLywsdCoordinator extends AbstractBLEDeviceCoo
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return false;
     }
 
@@ -66,7 +66,6 @@ public abstract class AbstractMijiaLywsdCoordinator extends AbstractBLEDeviceCoo
     public int[] getSupportedDeviceSpecificSettings(GBDevice device) {
         return new int[]{
                 R.xml.devicesettings_mijia_lywsd,
-                R.xml.devicesettings_temperature_scale_cf,
         };
     }
 
@@ -86,28 +85,8 @@ public abstract class AbstractMijiaLywsdCoordinator extends AbstractBLEDeviceCoo
     }
 
     @Override
-    public boolean supportsActivityTracking(@NonNull GBDevice device) {
+    public boolean supportsCharts(@NonNull GBDevice device) {
         return false; // FIXME: Enable this once temperature fetching is enabled
-    }
-
-    @Override
-    public boolean supportsSleepMeasurement(@NonNull GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsStepCounter(@NonNull GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsSpeedzones(@NonNull GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsActivityTabs(@NonNull GBDevice device) {
-        return false;
     }
 
     public abstract boolean supportsSetTime();

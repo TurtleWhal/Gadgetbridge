@@ -18,6 +18,7 @@ package nodomain.freeyourgadget.gadgetbridge.devices.nothing;
 
 import android.os.Parcel;
 
+import androidx.annotation.NonNull;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 
@@ -29,10 +30,11 @@ import java.util.Set;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsHandler;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.nothing.NothingBudsPreferences;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class EarSettingsCustomizer implements DeviceSpecificSettingsCustomizer {
-    public static final Creator<EarSettingsCustomizer> CREATOR = new Creator<EarSettingsCustomizer>() {
+    public static final Creator<EarSettingsCustomizer> CREATOR = new Creator<>() {
         @Override
         public EarSettingsCustomizer createFromParcel(final Parcel in) {
             return new EarSettingsCustomizer();
@@ -52,28 +54,78 @@ public class EarSettingsCustomizer implements DeviceSpecificSettingsCustomizer {
     public void customizeSettings(final DeviceSpecificSettingsHandler handler, final Prefs prefs, final String rootKey) {
         final AbstractEarCoordinator earCoordinator = (AbstractEarCoordinator) handler.getDevice().getDeviceCoordinator();
 
-        if (!earCoordinator.supportsLightAncAndTransparency()) {
-            // If light anc and transparency is not supported, remove the values from the preference
-            final Preference audioModePref = handler.findPreference(DeviceSettingsPreferenceConst.PREF_NOTHING_EAR1_AUDIOMODE);
+        if (!earCoordinator.supportsInEarDetection()) {
+            final Preference inEarPreference = handler.findPreference(DeviceSettingsPreferenceConst.PREF_NOTHING_EAR1_INEAR);
+            if (inEarPreference != null) {
+                inEarPreference.setVisible(false);
+            }
+        }
 
-            if (audioModePref != null) {
-                final CharSequence[] originalEntries = ((ListPreference) audioModePref).getEntries();
-                final CharSequence[] originalEntryValues = ((ListPreference) audioModePref).getEntryValues();
+        // Remove unsupported anc modes from the preference
+        final Preference audioModePref = handler.findPreference(DeviceSettingsPreferenceConst.PREF_NOTHING_EAR1_AUDIOMODE);
+        if (audioModePref != null) {
+            final CharSequence[] originalEntries = ((ListPreference) audioModePref).getEntries();
+            final CharSequence[] originalEntryValues = ((ListPreference) audioModePref).getEntryValues();
+
+            final List<CharSequence> entries = new ArrayList<>();
+            final List<CharSequence> entryValues = new ArrayList<>();
+
+            for (int i = 0; i < originalEntries.length; i++) {
+                if ("anclight".equals(originalEntryValues[i].toString()) && !earCoordinator.supportsLightAnc()) {
+                    continue;
+                }
+                if ("ancmedium".equals(originalEntryValues[i].toString()) && !earCoordinator.supportsMediumAnc()) {
+                    continue;
+                }
+                if ("ancadaptive".equals(originalEntryValues[i].toString()) && !earCoordinator.supportsAdaptiveAnc()) {
+                    continue;
+                }
+                if ("transparency".equals(originalEntryValues[i].toString()) && !earCoordinator.supportsTransparency()) {
+                    continue;
+                }
+                entries.add(originalEntries[i]);
+                entryValues.add(originalEntryValues[i]);
+            }
+
+            ((ListPreference) audioModePref).setEntries(entries.toArray(new CharSequence[0]));
+            ((ListPreference) audioModePref).setEntryValues(entryValues.toArray(new CharSequence[0]));
+        }
+
+        final Preference equalizerPref = handler.findPreference(DeviceSettingsPreferenceConst.PREF_HEADPHONES_EQUALIZER);
+        if (equalizerPref instanceof ListPreference listPreference) {
+            final List<NothingEqualizer> supportedPresets = earCoordinator.getEqualizerPresets();
+            if (supportedPresets.isEmpty()) {
+                listPreference.setVisible(false);
+            } else {
+                final CharSequence[] originalEntries = listPreference.getEntries();
+                final CharSequence[] originalEntryValues = listPreference.getEntryValues();
 
                 final List<CharSequence> entries = new ArrayList<>();
                 final List<CharSequence> entryValues = new ArrayList<>();
 
-                for (int i = 0; i < originalEntries.length; i++) {
-                    if ("anc".equals(originalEntryValues[i].toString()) || "off".equals(originalEntryValues[i].toString())) {
-                        entries.add(originalEntries[i]);
-                        entryValues.add(originalEntryValues[i]);
+                for (int i = 0; i < originalEntryValues.length; i++) {
+                    final NothingEqualizer preset = NothingEqualizer.fromPreferenceValue(originalEntryValues[i].toString());
+                    if (preset == null || !supportedPresets.contains(preset)) {
+                        continue;
                     }
+
+                    entries.add(originalEntries[i]);
+                    entryValues.add(originalEntryValues[i]);
                 }
 
-                ((ListPreference) audioModePref).setEntries(entries.toArray(new CharSequence[0]));
-                ((ListPreference) audioModePref).setEntryValues(entryValues.toArray(new CharSequence[0]));
+                listPreference.setEntries(entries.toArray(new CharSequence[0]));
+                listPreference.setEntryValues(entryValues.toArray(new CharSequence[0]));
             }
         }
+
+        handler.addPreferenceHandlerFor(NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__LEFT__TAP_2);
+        handler.addPreferenceHandlerFor(NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__LEFT__TAP_3);
+        handler.addPreferenceHandlerFor(NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__LEFT__TAP_1_HOLD);
+        handler.addPreferenceHandlerFor(NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__LEFT__TAP_2_HOLD);
+        handler.addPreferenceHandlerFor(NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__RIGHT__TAP_2);
+        handler.addPreferenceHandlerFor(NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__RIGHT__TAP_3);
+        handler.addPreferenceHandlerFor(NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__RIGHT__TAP_1_HOLD);
+        handler.addPreferenceHandlerFor(NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__RIGHT__TAP_2_HOLD);
     }
 
     @Override
@@ -87,6 +139,6 @@ public class EarSettingsCustomizer implements DeviceSpecificSettingsCustomizer {
     }
 
     @Override
-    public void writeToParcel(final Parcel dest, final int flags) {
+    public void writeToParcel(@NonNull final Parcel dest, final int flags) {
     }
 }

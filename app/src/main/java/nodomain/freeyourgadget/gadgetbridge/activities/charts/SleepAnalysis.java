@@ -26,7 +26,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 public class SleepAnalysis {
 
     public static final long MIN_SESSION_LENGTH = 5 * 60;
-    public static final long MAX_WAKE_PHASE_LENGTH = 2 * 60 * 60;
+    public static final long MAX_WAKE_PHASE_LENGTH = 60 * 60;
 
     public List<SleepSession> calculateSleepSessions(Iterable<? extends ActivitySample> samples) {
         List<SleepSession> result = new ArrayList<>();
@@ -44,19 +44,26 @@ public class SleepAnalysis {
             if (isSleep(sample)) {
                 if (sleepStart == null)
                     sleepStart = getDateFromSample(sample);
+                else
+                    awakeSleepDuration += durationSinceLastSleep;
                 sleepEnd = getDateFromSample(sample);
 
                 durationSinceLastSleep = 0;
-            } else {
-                //exclude "not worn" times from sleep sessions as this makes a discrepancy with the charts
-                if (lightSleepDuration + deepSleepDuration + remSleepDuration + awakeSleepDuration > MIN_SESSION_LENGTH)
-                    result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration, awakeSleepDuration));
-                sleepStart = null;
-                sleepEnd = null;
-                lightSleepDuration = 0;
-                deepSleepDuration = 0;
-                remSleepDuration = 0;
-                awakeSleepDuration = 0;
+            } else if (sleepStart != null) {
+                final long gap = previousSample != null ? sample.getTimestamp() - previousSample.getTimestamp() : 0;
+                final int steps = sample.getSteps();
+                final boolean hasActivity = steps > 0 && steps != ActivitySample.NOT_MEASURED;
+                if (hasActivity || durationSinceLastSleep + gap > MAX_WAKE_PHASE_LENGTH) {
+                    final long durationLengths = lightSleepDuration + deepSleepDuration + remSleepDuration + awakeSleepDuration;
+                    if (sleepEnd.getTime() - sleepStart.getTime() > MIN_SESSION_LENGTH && durationLengths > MIN_SESSION_LENGTH)
+                        result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration, awakeSleepDuration));
+                    sleepStart = null;
+                    sleepEnd = null;
+                    lightSleepDuration = 0;
+                    deepSleepDuration = 0;
+                    remSleepDuration = 0;
+                    awakeSleepDuration = 0;
+                }
             }
 
             if (previousSample != null) {
@@ -71,15 +78,17 @@ public class SleepAnalysis {
                     awakeSleepDuration += durationSinceLastSample;
                 } else {
                     durationSinceLastSleep += durationSinceLastSample;
-                    if (sleepStart != null && durationSinceLastSleep > MAX_WAKE_PHASE_LENGTH) {
-                        if (lightSleepDuration + deepSleepDuration + remSleepDuration + awakeSleepDuration > MIN_SESSION_LENGTH)
-                            result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration, awakeSleepDuration));
-                        sleepStart = null;
-                        sleepEnd = null;
-                        lightSleepDuration = 0;
-                        deepSleepDuration = 0;
-                        remSleepDuration = 0;
-                        awakeSleepDuration = 0;
+                    if (sleepStart != null) {
+                        if (durationSinceLastSleep > MAX_WAKE_PHASE_LENGTH) {
+                            if (lightSleepDuration + deepSleepDuration + remSleepDuration + awakeSleepDuration > MIN_SESSION_LENGTH)
+                                result.add(new SleepSession(sleepStart, sleepEnd, lightSleepDuration, deepSleepDuration, remSleepDuration, awakeSleepDuration));
+                            sleepStart = null;
+                            sleepEnd = null;
+                            lightSleepDuration = 0;
+                            deepSleepDuration = 0;
+                            remSleepDuration = 0;
+                            awakeSleepDuration = 0;
+                        }
                     }
                 }
             }

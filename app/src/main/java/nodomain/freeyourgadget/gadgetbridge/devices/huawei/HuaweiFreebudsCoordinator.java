@@ -29,24 +29,11 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
-import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLClassicDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
-public abstract class HuaweiFreebudsCoordinator extends AbstractBLClassicDeviceCoordinator implements HuaweiCoordinatorSupplier {
-
-    private final HuaweiCoordinator huaweiCoordinator = new HuaweiCoordinator(this);
-    private GBDevice gbDevice;
-
-    public HuaweiFreebudsCoordinator() {
-        huaweiCoordinator.setTransactionCrypted(false);
-    }
-
-    @Override
-    public String getManufacturer() {
-        return "Huawei";
-    }
+public abstract class HuaweiFreebudsCoordinator extends HuaweiBRCoordinator {
 
     @Override
     public int getDefaultIconResource() {
@@ -54,23 +41,8 @@ public abstract class HuaweiFreebudsCoordinator extends AbstractBLClassicDeviceC
     }
 
     @Override
-    public HuaweiCoordinator getHuaweiCoordinator() {
-        return huaweiCoordinator;
-    }
-
-    @Override
-    public HuaweiDeviceType getHuaweiType() {
-        return HuaweiDeviceType.BR;
-    }
-
-    @Override
-    public void setDevice(GBDevice gbDevice) {
-        this.gbDevice = gbDevice;
-    }
-
-    @Override
-    public GBDevice getDevice() {
-        return this.gbDevice;
+    public boolean isTransactionCrypted() {
+        return false;
     }
 
     @Override
@@ -82,6 +54,26 @@ public abstract class HuaweiFreebudsCoordinator extends AbstractBLClassicDeviceC
     @Override
     public int getBatteryCount(final GBDevice device) {
         return 3;
+    }
+
+    @Override
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsActiveCalories(@NonNull GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsActivityTracking(@NonNull GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsRecordedActivities(@NonNull final GBDevice device) {
+        return false;
     }
 
     @Override
@@ -137,11 +129,6 @@ public abstract class HuaweiFreebudsCoordinator extends AbstractBLClassicDeviceC
     @Override
     public DeviceSpecificSettingsCustomizer getDeviceSpecificSettingsCustomizer(final GBDevice device) {
         return new HuaweiFreebudsSettingsCustomizer(device);
-    }
-
-    @Override
-    public boolean addBatteryPollingSettings() {
-        return true;
     }
 
     @Override

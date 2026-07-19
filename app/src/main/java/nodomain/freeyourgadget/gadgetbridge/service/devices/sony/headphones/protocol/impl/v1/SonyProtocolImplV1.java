@@ -42,9 +42,14 @@ import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.SonyHeadphon
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AdaptiveVolumeControl;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AmbientSoundControl;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AmbientSoundControlButtonMode;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AudioLDAC;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AudioUpsampling;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AutomaticPowerOff;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.ButtonFunctionNcAmbient;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.ButtonModes;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.CaptureVoiceDuringCall;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.ConnectTwoDevices;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.ServiceLink;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.EqualizerCustomBands;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.EqualizerPreset;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.PauseWhenTakenOff;
@@ -54,6 +59,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.SpeakT
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.SpeakToChatEnabled;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.SurroundMode;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.TouchSensor;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.VoiceAssistant;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.VoiceNotifications;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.WideAreaTap;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -260,6 +266,54 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
     }
 
     @Override
+    public Request getAudioLDAC() {
+        return new Request(
+                PayloadTypeV1.AUDIO_UPSAMPLING_GET.getMessageType(),
+                new byte[]{
+                        PayloadTypeV1.AUDIO_UPSAMPLING_GET.getCode(),
+                        (byte) 0x01
+                }
+        );
+    }
+
+    @Override
+    public Request setAudioLDAC(final AudioLDAC config) {
+        return new Request(
+                PayloadTypeV1.AUDIO_UPSAMPLING_SET.getMessageType(),
+                new byte[]{
+                        PayloadTypeV1.AUDIO_UPSAMPLING_SET.getCode(),
+                        (byte) 0x01,
+                        (byte) 0x00,
+                        (byte) (config.isEnabled() ? 0x00 : 0x01)
+                }
+        );
+    }
+
+    @Override
+    public Request getButtonFunctionNcAmbient() {
+        return new Request(
+            PayloadTypeV1.TOUCH_SENSOR_GET.getMessageType(),
+            new byte[]{
+                PayloadTypeV1.TOUCH_SENSOR_GET.getCode(),
+                (byte) 0xd1
+            }
+        );
+    }
+
+    @Override
+    public Request setButtonFunctionNcAmbient(final ButtonFunctionNcAmbient config) {
+        return new Request(
+            PayloadTypeV1.TOUCH_SENSOR_SET.getMessageType(),
+            new byte[]{
+                PayloadTypeV1.TOUCH_SENSOR_SET.getCode(),
+                (byte) 0xd1,
+                (byte) 0x02,
+                config.getMode().getCode()
+            }
+        );
+    }
+
+    @Override
     public Request setAudioUpsampling(final AudioUpsampling config) {
         return new Request(
                 PayloadTypeV1.AUDIO_UPSAMPLING_SET.getMessageType(),
@@ -306,6 +360,48 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
     @Override
     public Request getWideAreaTap() {
         LOG.warn("Adaptive volume control not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request getCaptureVoiceDuringCall() {
+        LOG.warn("Capture voice during call not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request setCaptureVoiceDuringCall(final CaptureVoiceDuringCall config) {
+        LOG.warn("Capture voice during call not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request getServiceLink() {
+        LOG.warn("Service link not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request setServiceLink(final ServiceLink config) {
+        LOG.warn("Service link not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request applyServiceLink(final ServiceLink config) {
+        LOG.warn("Service link not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request setConnectTwoDevices(final ConnectTwoDevices config) {
+        LOG.warn("Connect two devices not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request getConnectTwoDevices() {
+        LOG.warn("Connect two devices not implemented for V1");
         return null;
     }
 
@@ -522,6 +618,28 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
     }
 
     @Override
+    public Request getVoiceNotificationsVolume() {
+        LOG.warn("Voice notifications volume not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request setVoiceNotificationsVolume(final VoiceNotifications config) {
+        LOG.warn("Voice notifications volume not implemented for V1");
+        return null;
+    }
+
+    @Override
+    public Request getVoiceAssistant() {
+        return null;
+    }
+
+    @Override
+    public Request setVoiceAssistant(final VoiceAssistant config) {
+        return null;
+    }
+
+    @Override
     public Request startNoiseCancellingOptimizer(final boolean start) {
         return new Request(
                 PayloadTypeV1.NOISE_CANCELLING_OPTIMIZER_START.getMessageType(),
@@ -544,6 +662,25 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
                         (byte) 0x01
                 }
         );
+    }
+
+    @Override
+    public Request reboot() {
+        return new Request(
+            MessageType.COMMAND_1,
+            new byte[]{
+                (byte) 0x98,
+                (byte) 0x01,
+                (byte) 0x02,
+                (byte) 0x01
+            }
+        );
+    }
+
+    @Override
+    public Request factoryReset() {
+        LOG.warn("Factory reset not implemented for V1");
+        return null;
     }
 
     @Override
@@ -634,7 +771,7 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
         capabilityRequests.add(getFirmwareVersion());
         capabilityRequests.add(getAudioCodec());
 
-        final Map<SonyHeadphonesCapabilities, Request> capabilityRequestMap = new LinkedHashMap<SonyHeadphonesCapabilities, Request>() {{
+        final Map<SonyHeadphonesCapabilities, Request> capabilityRequestMap = new LinkedHashMap<>() {{
             put(SonyHeadphonesCapabilities.BatterySingle, getBattery(BatteryType.SINGLE));
             put(SonyHeadphonesCapabilities.BatteryDual, getBattery(BatteryType.DUAL));
             put(SonyHeadphonesCapabilities.BatteryDual2, getBattery(BatteryType.DUAL2));
@@ -643,8 +780,11 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
             put(SonyHeadphonesCapabilities.AmbientSoundControl2, getAmbientSoundControl());
             put(SonyHeadphonesCapabilities.AncOptimizer, getNoiseCancellingOptimizerState());
             put(SonyHeadphonesCapabilities.AudioUpsampling, getAudioUpsampling());
+            put(SonyHeadphonesCapabilities.AudioLDAC, getAudioLDAC());
+            put(SonyHeadphonesCapabilities.ButtonFunctionNcAmbient, getButtonFunctionNcAmbient());
             put(SonyHeadphonesCapabilities.ButtonModesLeftRight, getButtonModes());
             put(SonyHeadphonesCapabilities.VoiceNotifications, getVoiceNotifications());
+            put(SonyHeadphonesCapabilities.VoiceAssistantFunction, getVoiceAssistant());
             put(SonyHeadphonesCapabilities.AutomaticPowerOffWhenTakenOff, getAutomaticPowerOff());
             put(SonyHeadphonesCapabilities.AutomaticPowerOffByTime, getAutomaticPowerOff());
             put(SonyHeadphonesCapabilities.TouchSensorSingle, getTouchSensor());
@@ -660,6 +800,9 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
             put(SonyHeadphonesCapabilities.Volume, getVolume());
             put(SonyHeadphonesCapabilities.AdaptiveVolumeControl, getAdaptiveVolumeControl());
             put(SonyHeadphonesCapabilities.WideAreaTap, getWideAreaTap());
+            put(SonyHeadphonesCapabilities.ConnectTwoDevices, getConnectTwoDevices());
+            put(SonyHeadphonesCapabilities.CaptureVoiceDuringCall, getCaptureVoiceDuringCall());
+            put(SonyHeadphonesCapabilities.ServiceLink, getServiceLink());
         }};
 
         for (Map.Entry<SonyHeadphonesCapabilities, Request> capabilityEntry : capabilityRequestMap.entrySet()) {
@@ -815,14 +958,27 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
 
         final Boolean enabled = booleanFromByte(payload[3]);
         if (enabled == null) {
-            LOG.warn("Unknown audio upsampling code {}", String.format("%02x", payload[3]));
+            LOG.warn("Unknown audio upsampling value {}", String.format("%02x", payload[3]));
             return Collections.emptyList();
         }
 
-        LOG.debug("Audio Upsampling: {}", enabled);
+        final GBDeviceEventUpdatePreferences event = new GBDeviceEventUpdatePreferences();
 
-        final GBDeviceEventUpdatePreferences event = new GBDeviceEventUpdatePreferences()
-                .withPreferences(new AudioUpsampling(enabled).toPreferences());
+        switch (payload[1]) {
+            case 0x01:
+                // LDAC
+                LOG.debug("Audio Upsampling LDAC: {}", !enabled);
+                event.withPreferences(new AudioLDAC(!enabled).toPreferences());
+                break;
+            case 0x02:
+                // DSEE / Audio upsampling
+                LOG.debug("Audio Upsampling DSEE: {}", enabled);
+                event.withPreferences(new AudioUpsampling(enabled).toPreferences());
+                break;
+            default:
+                LOG.warn("Unknown audio upsampling code {}", String.format("%02x", payload[1]));
+                return Collections.emptyList();
+        }
 
         return Collections.singletonList(event);
     }
@@ -1174,24 +1330,34 @@ public class SonyProtocolImplV1 extends AbstractSonyProtocolImpl {
             return Collections.emptyList();
         }
 
-        boolean enabled;
+        final GBDeviceEventUpdatePreferences event = new GBDeviceEventUpdatePreferences();
 
-        switch (payload[3]) {
-            case 0x00:
-                enabled = false;
+        switch (payload[1]) {
+            case (byte) 0xd1:
+                final ButtonFunctionNcAmbient.Mode mode = ButtonFunctionNcAmbient.Mode.fromCode(payload[3]);
+                event.withPreferences(new ButtonFunctionNcAmbient(mode).toPreferences());
+                LOG.debug("Nc Ambient button mode: {}", mode);
                 break;
-            case 0x01:
-                enabled = true;
+            case (byte) 0xd2:
+                boolean enabled;
+                switch (payload[3]) {
+                    case 0x00:
+                        enabled = false;
+                        break;
+                    case 0x01:
+                        enabled = true;
+                        break;
+                    default:
+                        LOG.warn("Unknown touch sensor value {}", String.format("%02x", payload[3]));
+                        return Collections.emptyList();
+                }
+                LOG.debug("Touch Sensor: {}", enabled);
+                event.withPreferences(new TouchSensor(enabled).toPreferences());
                 break;
             default:
-                LOG.warn("Unknown touch sensor code {}", String.format("%02x", payload[3]));
+                LOG.warn("Unknown touch sensor code {}", String.format("%02x", payload[1]));
                 return Collections.emptyList();
         }
-
-        LOG.debug("Touch Sensor: {}", enabled);
-
-        final GBDeviceEventUpdatePreferences event = new GBDeviceEventUpdatePreferences()
-                .withPreferences(new TouchSensor(enabled).toPreferences());
 
         return Collections.singletonList(event);
     }

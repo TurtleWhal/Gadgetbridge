@@ -35,11 +35,9 @@
     <string name="appmanager_hrm_deactivate">Disattiva il monitor del battito cardiaco</string>
     <string name="appmanager_weather_activate">Attiva l\'applicazione meteo di sistema</string>
     <string name="appmanager_weather_deactivate">Disattiva l\'applicazione meteo di sistema</string>
-    <string name="appmanager_weather_install_provider">Installa l\'applicazione Weather Notification</string>
     <string name="app_configure">Configura</string>
     <string name="app_move_to_top">Sposta in cima</string>
     <!--Strings related to CalBlacklist-->
-    <string name="title_activity_calblacklist">Calendari ignorati</string>
     <!--Strings related to FwAppInstaller-->
     <string name="title_activity_fw_app_insaller">Installazione FW/App</string>
     <string name="fw_upgrade_notice">Stai per installare il firmware %s.</string>
@@ -48,7 +46,7 @@
     <string name="miband_firmware_unknown_warning">Questo firmware non è stato testato e potrebbe non essere compatibile con Gadgetbridge. 
 \n 
 \nNON è consigliato installarlo sulla tua Mi Band!</string>
-    <string name="miband_firmware_suggest_whitelist">Se si procede e tutto continua a funzionare ti invitiamo a contattare gli sviluppatori e dire loro di aggiungere il firmware %s all\'elenco di quelli compatibili.</string>
+    <string name="miband_firmware_suggest_whitelist">Se decidi di procede e tutto continua a funzionare, ti invitiamo a contattare gli sviluppatori di Gadgetbridge e dire loro di aggiungere la versione %s del firmware all\'elenco di quelli compatibili.</string>
     <!--Strings related to Settings-->
     <string name="title_activity_settings">Impostazioni</string>
     <string name="pref_header_general">Impostazioni generali</string>
@@ -129,7 +127,7 @@
     <string name="pref_title_pebble_forcele">Usa sempre BLE</string>
     <string name="pref_summary_pebble_forcele">Utilizza il supporto sperimentale Pebble LE per tutti i Pebble in alternativa al BT. Questo richiede un nuovo accoppiamento a LE prima e poi al Pebble LE</string>
     <string name="pref_title_pebble_mtu_limit">Limita la MTU del Pebble 2/LE</string>
-    <string name="pref_summary_pebble_mtu_limit">Se il tuo Pebble 2/LE non funziona come dovrebbe, prova a impostare un limite alla MTU (range valido 20–512)</string>
+    <string name="pref_summary_pebble_mtu_limit">Se il tuo Pebble 2/Pebble LE non funziona come dovrebbe, prova a impostare un limite alla MTU (range valido 20 – 512)</string>
     <string name="pref_title_pebble_enable_applogs">Abilita il log delle applicazioni eseguite su Pebble</string>
     <string name="pref_summary_pebble_enable_applogs">Il log delle applicazioni che girano su Pebble verrà aggiunto a quello di Gadgetbridge (richiede riconessione)</string>
     <string name="pref_title_pebble_always_ack_pebblekit">Invia l\'ACK dei messaggi PebbleKit prematuramente</string>
@@ -320,7 +318,7 @@
     <string name="mi2_prefs_inactivity_warnings">Allarmi inattività</string>
     <string name="mi2_prefs_inactivity_warnings_summary">La band vibrerà dopo un determinato periodo di inattività</string>
     <string name="mi2_prefs_inactivity_warnings_threshold">Limite inattività (in minuti)</string>
-    <string name="mi2_prefs_inactivity_warnings_dnd_summary">Disabilita allarmi inattività per un intervallo di tempo</string>
+    <string name="mi2_prefs_inactivity_warnings_dnd_summary">Disabilita gli avvisi di inattività per un intervallo di tempo</string>
     <string name="mi2_prefs_do_not_disturb_start">Ora inizio</string>
     <string name="mi2_prefs_do_not_disturb_end">Ora fine</string>
     <string name="FetchActivityOperation_about_to_transfer_since">Vengono trasferiti dati a partire dal %1$s</string>
@@ -334,7 +332,6 @@
     <string name="authentication_required">Autenticazione necessaria</string>
     <string name="appwidget_text">Zzz</string>
     <string name="add_widget">Aggiungi widget</string>
-    <string name="activity_prefs_sleep_duration">Ore di sonno preferite</string>
     <string name="appwidget_setting_alarm">Impostata sveglia per %1$02d:%2$02d</string>
     <string name="device_hw">Versione Hardware: %1$s</string>
     <string name="device_fw">Versione Firmware: %1$s</string>
@@ -356,7 +353,6 @@
 \n*.gpx - registrazioni del GPS
 \n*.log - file di log
 \nLa posizione dei file esportati (o quella da cui vuoi importare i file) è la seguente:</string>
-    <string name="activity_db_management_merge_old_title">Elimina database nel vecchio formato</string>
     <string name="dbmanagementactivvity_cannot_access_export_path">Impossibile accedere al path esterno. Per cortesia contatta gli sviluppatori del progetto.</string>
     <string name="dbmanagementactivity_exported_to">Esportato su: %1$s</string>
     <string name="dbmanagementactivity_error_exporting_db">Errore esportando il DB: %1$s</string>
@@ -375,14 +371,13 @@
     <string name="dbmanagementactivity_old_activity_db_successfully_deleted">Dati delle vechie attività eliminati con successo.</string>
     <string name="dbmanagementactivity_old_activity_db_deletion_failed">Cancellazione del database nel vecchio formato fallita.</string>
     <string name="dbmanagementactivity_overwrite">Sovrascrivi</string>
-    <string name="Cancel">Annulla</string>
-    <string name="Delete">Cancella</string>
+    <string name="cancel">Annulla</string>
+    <string name="delete">Cancella</string>
     <!--Strings related to Vibration Activity-->
     <string name="title_activity_vibration">Vibrazione</string>
     <!--Strings related to Pebble Pairing Activity-->
     <string name="title_activity_pebble_pairing">Pairing del Pebble</string>
     <string name="pebble_pairing_hint">Un avviso di accoppiamento dovrebbe comparire sul tuo dispositivo Android. Se non succedesse controlla l\'area delle notifiche ed accetta la richiesta. Dopo fai lo stesso sul tuo Pebble.</string>
-    <string name="weather_notification_label">Assicurati che questa skin sia abilitata nell\'applicazione \"Notifiche Meteo\" per ricevere informazioni meteo sul tuo Pebble.\n\nNon è necessaria nessuna ulteriore configurazione.\n\nPuoi abilitare l\'applicazione Meteo di sistema sul tuo Pebble dalla gestione applicazioni.\n\nLe watchfaces che lo supportano mostreranno il meteo automaticamente.</string>
     <string name="pref_title_setup_bt_pairing">Abilita il pairing bluetooth</string>
     <string name="pref_summary_setup_bt_pairing">Disattiva se hai problemi di connession</string>
     <string name="unit_metric">Metrico</string>
@@ -403,7 +398,7 @@
     <string name="discovery_bonding_failed_immediately">La connessione con %1$s è subito fallita.</string>
     <string name="discovery_trying_to_connect_to">Tentativo di connessione con: %1$s</string>
     <string name="discovery_enable_bluetooth">Abilitare Bluetooth per l\'individuazione dei dispositivi.</string>
-    <string name="discovery_dont_pair">Non connettersi</string>
+    <string name="discovery_dont_pair">Non accoppiare</string>
     <string name="controlcenter_connect">Connetti…</string>
     <string name="fw_upgrade_notice_amazfitbip">Stai per installare il firmware %s sul tuo Amazfit Bip.
 \n
@@ -429,7 +424,7 @@
     <string name="pref_summary_pebble_enable_bgjs">Quando abilitato permette a watchface di visualizzare meteo, batteria, etc.</string>
     <string name="pref_header_auto_export">Esporta automaticamente le preferenze</string>
     <string name="pref_title_auto_export_enabled">Esportazione automatica abilitata</string>
-    <string name="pref_title_auto_export_location">Esporta posizione</string>
+    <string name="pref_title_auto_export_location">Posizione di esportazione</string>
     <string name="pref_title_auto_export_interval">Intervallo di esportazione</string>
     <string name="pref_summary_auto_export_interval">Esporta ogni %d ora/e</string>
     <string name="unknown_state">Stato sconosciuto</string>
@@ -583,8 +578,8 @@
     <string name="pref_summary_contextual_arabic">Abilita questo per supportare l\'arabo contestuale</string>
     <string name="share_log_warning">Tieni presente che i file di log di Gadgetbridge possono contenere molte informazioni personali, inclusi, a titolo esemplificativo, dati sulla salute, identificatori univoci (come l\'indirizzo MAC del dispositivo), preferenze musicali, ecc. Modifica il file per rimuovere queste informazioni prima di inviare il file in una segnalazione di errore visibile pubblicamente.</string>
     <string name="overslept">Sonno extra: %1$s</string>
-    <string name="lack_of_step">Passi mancanti: %1$d</string>
-    <string name="overstep">Passi eccedenti: %1$d</string>
+    <string name="lack_of_step">Passi mancanti: %1$s</string>
+    <string name="overstep">Passi eccedenti: %1$s</string>
     <string name="debugactivity_really_factoryreset_title">Vuoi veramente ripristinare le impostazioni di fabbrica\?</string>
     <string name="debugactivity_really_factoryreset">Effettuare il ripristino delle impostazioni di fabbrica cancellerà tutti i dati presenti sul dispositivo connesso (se supportato). I dispositivi Xiaomi/Huami cambiano anche MAC Address Bluetooth, e in modo risultano dispositivi nuovi per Gadgetbrige.</string>
     <string name="title_activity_notification_filter">Filtro Notifiche</string>
@@ -686,8 +681,6 @@
     <string name="pref_title_expose_hr">Accesso ai dati cardiaci in tempo reale a terze parti</string>
     <string name="pref_title_use_custom_font">Utilizza un font personalizzato</string>
     <string name="pref_summary_use_custom_font">Attiva se il tuo dispositivo ha un firmware personalizzato che supporta gli emoji</string>
-    <string name="activity_db_management_autoexport_explanation">Il percorso di esportazione automatica del database è stato impostato su:</string>
-    <string name="activity_db_management_autoexport_label">Esportazione automatica</string>
     <string name="activity_DB_ExportButton">Esporta dati</string>
     <string name="activity_DB_import_button">Importa dati</string>
     <string name="activity_DB_test_export_button">Esegui esportazione automatica ora</string>
@@ -716,11 +709,7 @@
     <string name="pref_chart_heartrate_color_orange">Arancione</string>
     <string name="pref_title_chart_heartrate_color">Colore della frequenza cardiaca</string>
     <string name="pref_title_chart_sleep_rolling_24_hour">Intervallo di sonno</string>
-    <string name="pref_chart_sleep_rolling_24_on">Ultime 24 ore</string>
-    <string name="pref_chart_sleep_rolling_24_off">Da mezzogiorno a mezzogiorno</string>
     <string name="watch_not_connected">Orologio non connesso</string>
-    <string name="qhybrid_vibration_strength">forza della vibrazione:</string>
-    <string name="qhybrid_goal_in_steps">Obiettivo in passi</string>
     <string name="qhybrid_changes_delay_prompt">Il cambiamento potrebbe richiedere qualche secondo…</string>
     <string name="pref_disable_new_ble_scanning">Disattivare nuove scansioni BLE</string>
     <string name="pref_summary_disable_new_ble_scanning">Selezionare questa opzione se il dispositivo viene trovato durante il rilevamento</string>
@@ -758,8 +747,6 @@
 \nNota: non è necessario installare .res e .gps se questi file sono esattamente gli stessi installati in precedenza.
 \n
 \nPROCEDI A TUO RISCHIO!</string>
-    <string name="preferences_qhybrid_settings">Impostazioni Q Hybrid</string>
-    <string name="qhybrid_prompt_million_steps">Impostare il contatore dei passi a un milione per attivare.</string>
     <string name="qhybrid_buttons_overwrite_success">Pulsanti sovrascritti</string>
     <string name="qhybrid_buttons_overwrite_error">Errore durante la modifica dei pulsanti</string>
     <string name="prefs_button_variable_actions">Impostazioni dettagliate per la pressione del pulsante</string>
@@ -788,7 +775,6 @@
     <string name="hr_appname_workout">Allenamento</string>
     <string name="hr_appname_wellness">Benessere</string>
     <string name="qhybrid_use_activity_hand_as_notification_counter">utilizzare la mano di attività come contatore di notifica</string>
-    <string name="qhybrid_overwrite_buttons">sovrascrivere i pulsanti</string>
     <string name="notification_channel_high_priority_name">Alta priorità</string>
     <string name="find_my_phone_notification">Trova il mio telefono</string>
     <string name="pref_title_vibration_strength">Resistenza alle vibrazioni</string>
@@ -807,7 +793,7 @@
     <string name="power_mode_normal">Normale</string>
     <string name="pref_sensors_bp_calibration_high">Pressione sanguigna SISTOLICA (alta)</string>
     <string name="pref_sensors_bp_calibration_low">Pressione sanguigna DIASTOLICA (bassa)</string>
-    <string name="pref_header_device_spec_settings">Impostazioni dell\'apparecchio</string>
+    <string name="pref_header_device_spec_settings">Impostazioni del dispositivo</string>
     <string name="prefs_notifications_and_calls_reject">Pulsante ignora/rifiuta la chiamata</string>
     <string name="pref_header_notifications_and_calls_callhandling">Gestione delle chiamate</string>
     <string name="pref_notifications_and_calls_enable_misscall">Notifica per chiamata senza risposta</string>
@@ -823,7 +809,7 @@
     <string name="about_additional_device_support">Supporto a dispositivi aggiuntivi</string>
     <string name="about_contributors">Contributori</string>
     <string name="about_core_team_title">Team principale (ordinati in base al primo contributo di codice)</string>
-    <string name="about_description_generic">Un\'alternativa gratuita, libera e senza cloud alle applicazioni Android a sorgente chiusa del tuo dispositivo.</string>
+    <string name="about_description_generic">Un\'alternativa gratuita, libera e senza cloud alle applicazioni Android proprietarie del tuo dispositivo.</string>
     <string name="about_activity_title_generic">Riguardo a Gadgetbridge</string>
     <string name="about_title">Informazioni</string>
     <string name="hr_widget_last_notification">Ultima notifica</string>
@@ -854,7 +840,7 @@
     <string name="prefs_notifications_and_calls_continious_ring">Notifica durante la suoneria del cellulare</string>
     <string name="pref_title_notifications_and_calls_repeat_on_call">Ripeti la notifica di chiamata</string>
     <string name="title_activity_LenovoWatch_calibration">Calibrazione del Watch X Plus</string>
-    <string name="pref_title_weather_summary">Usato per il provider meteo di LineageOS, altre versioni di Android necessitano di usare un\'app come \"Weather Notifications\". Trova più informazioni nella wiki di Gadgetbridge.</string>
+    <string name="pref_title_weather_summary">Usato per il provider meteo di LineageOS, altre versioni di Android necessitano di usare un\'app come \"Breezy Weather\". Trova più informazioni sul sito di Gadgetbridge.</string>
     <string name="fw_upgrade_notice_amazfit_trex">Stai per installare il firmware %s sul tuo Amazfit T-Rex.
 \n
 \nAssicurati di installare prima il file .fw e dopo il file .res. L\'orologio si riavvierà al termine del caricamento del file .fw.
@@ -879,7 +865,6 @@
     <string name="error_setting_alias">Errore durante l\'impostazione dell\'alias:</string>
     <string name="pref_check_permission_status_summary">Controlla e chiedi le autorizzazioni mancanti anche quando potrebbero non essere immediatamente necessarie. Disabilita questo solo se i tuoi dispositivi in realtà non supportano nessuna di queste funzionalità. Non concedere un\'autorizzazione potrebbe causare problemi!</string>
     <string name="pref_check_permission_status">Verifica dello stato delle autorizzazioni</string>
-    <string name="device_requires_key">CHIAVE RICHIESTA, TIENI PREMUTO PER INSERIRE</string>
     <string name="device_is_currently_bonded">GIÀ ASSOCIATO</string>
     <string name="companiondevice_pairing">Associazione del CompanionDevice</string>
     <string name="require_location_provider">La posizione deve essere abilitata</string>
@@ -1092,10 +1077,6 @@
     <string name="menuitem_events">Eventi</string>
     <string name="activity_type_strength_training">Allenamento di forza</string>
     <string name="dbmanagementactivity_export_finished">Eliminazione completata</string>
-    <string name="activity_db_management_clean_export_directory_text">I file esportati nella cartella di importazione/esportazione sono accessibili da qualsiasi app sul tuo dispositivo. Se vuoi puoi eliminare questi file dopo la sincronizzazione o il backup. Assicurati di avere un backup dei file prima di eliminarli. I file GPX, le sottocartelle e i file del database esportati automaticamente (se presenti) non saranno eliminati. Il percorso della cartella di esportazione/importazione è la seguente:</string>
-    <string name="activity_DB_clean_export_directory_warning_message">Vuoi davvero eliminare i file dalla cartella di importazione/esportazione\?</string>
-    <string name="activity_DB_clean_export_directory_warning_title">Vuoi eliminare i file dalla cartella di importazione/esportazione\?</string>
-    <string name="activity_db_management_clean_export_directory_label">Elimina i file nella cartella di importazione/esportazione</string>
     <string name="activity_DB_ShowContentButton">Mostra i contenuti della cartella di importazione/esportazione</string>
     <string name="activity_data_management_directory_content_title">Esporta/Importa i contenuti della cartella</string>
     <string name="dbmanagementactivity_export_confirmation">Vuoi davvero esportare i dati\? I dati delle attività esportati precedentemente (se presenti) e le preferenza verranno sovrascritte.</string>
@@ -1223,7 +1204,6 @@
     <string name="menuitem_workout_history">Storico Allenamenti</string>
     <string name="menuitem_female_health">Salute femminile</string>
     <string name="menuitem_unknown_app">Sconosciuto (%s)</string>
-    <string name="share_log_not_enabled_message">Devi prima abilitare la registrazione in Impostazioni - Scrittura dei file di log</string>
     <string name="quick_alarm_description">Sveglia dal widget</string>
     <string name="toast_app_must_be_selected">L\'app deve essere selezionata per essere configurata</string>
     <string name="permission_notification_policy_access">%1$s deve accedere alle impostazioni Non Disturbare per poterle soddisfare sull\'orologio quando lo schermo del telefono è spento. \n \nTocca \"%2$s\" e poi \"%1$s\" e attiva \"Consenti Non Disturbare\", quindi tocca \"Indietro\" per tornare a %1$s.</string>
@@ -1247,9 +1227,9 @@
 \nPROCEDI A TUO RISCHIO E PERICOLO!</string>
     <string name="pref_header_calendar">Calendario</string>
     <string name="pref_header_connection">Collegamento</string>
-    <string name="pref_blacklist_calendars_summary">I calendari ignorati non saranno sincronizzati con il dispositivo</string>
+    <string name="pref_blacklist_calendars_summary">I calendari ignorati non verranno sincronizzati col dispositivo</string>
     <string name="pref_title_screen_on_on_notifications">Notifiche con schermo acceso</string>
-    <string name="pref_summary_screen_on_on_notifications">Accendi lo schermo della band quando arriva una notifica</string>
+    <string name="pref_summary_screen_on_on_notifications">Accendi lo schermo del dispositivo quando arriva una notifica</string>
     <string name="spo2_perc_80">80%</string>
     <string name="heartrate_bpm_40">40 bpm</string>
     <string name="heartrate_bpm_45">45 bpm</string>
@@ -1460,7 +1440,6 @@
     <string name="pref_title_touch_spotify">Spotify</string>
     <string name="pref_voice_detect_duration_5">5 secondi</string>
     <string name="start">Inizio</string>
-    <string name="activity_db_management_autoexport_enabled_yes">Esportazione automatica attiva.</string>
     <string name="discover_unsupported_devices_description">Abilitando questa opzione, durante la scansione verranno visualizzati tutti i dispositivi Bluetooth rilevati. Tocca per copiare il nome del dispositivo e l\'indirizzo mac negli appunti. Premi a lungo per avviare la finestra \"Aggiungi dispositivo di prova\". Può causare il blocco dell\'app.</string>
     <string name="prefs_active_noise_cancelling_summary">Blocca i rumori dell\'ambiente circostante</string>
     <string name="fw_upgrade_notice_amazfit_gts3">Stai per installare il firmware %s sul tuo Amazfit GTS 3.
@@ -1468,7 +1447,7 @@
 \nLa band si riavvierà dopo l\'installazione del file .zip.
 \n
 \nPROCEDI A TUO RISCHIO E PERICOLO!</string>
-    <string name="open_fw_installer_info_text">L\'installer di Firmware/Quadrante/App/File consente di caricare/installare i file supportati (firmware, quadranti, applicazioni, GPS, risorse, font...) sul dispositivo. Per ulteriori informazioni, consultare la wiki: https://codeberg.org/Freeyourgadget/Gadgetbridge/wiki/Firmware-Update</string>
+    <string name="open_fw_installer_info_text">L\'installatore di Firmware/Quadrante/App/File consente di caricare/installare i file supportati (firmware, quadranti, applicazioni, GPS, risorse, font...) sul dispositivo. Per ulteriori informazioni, consultare il sito: https://gadgetbridge.org/internals/features/installer/</string>
     <string name="pref_header_display">Schermo</string>
     <string name="pref_header_health">Salute</string>
     <string name="pref_header_time">Ora</string>
@@ -1514,7 +1493,6 @@
     <string name="czech">Ceco</string>
     <string name="extended_ascii">ASCII esteso</string>
     <string name="lithuanian">Lituano</string>
-    <string name="activity_db_management_autoexport_enabled_no">Esportazione automatica spenta.</string>
     <string name="activity_db_management_autoexport_scheduled_no">Esportazione automatica non programmata.</string>
     <string name="notification_channel_transfer_name">Trasferimento dati</string>
     <string name="prefs_fm_preset_instructions">Premi a lungo il pulsante per memorizzare la preimpostazione</string>
@@ -1567,7 +1545,6 @@
     <string name="heartrate_bpm_105">105 bpm</string>
     <string name="heartrate_bpm_110">110 bpm</string>
     <string name="heartrate_bpm_150">150 bpm</string>
-    <string name="autoExport_lastTime_label">Ultima esportazione automatica: %1$s</string>
     <string name="prefs_ambient_voice_summary">Fai risaltare la voce</string>
     <string name="prefs_ambient_sound">Suono Ambiente</string>
     <string name="prefs_active_noise_cancelling_level_low">Basso</string>
@@ -1651,11 +1628,8 @@
     <string name="sony_automatic_power_off_5_min">5 minuti</string>
     <string name="watchface_dialog_widget_timezone">Fuso orario</string>
     <string name="watchface_dialog_widget_timeout_hide_text">Nascondi testo al timeout</string>
-    <string name="distance_format_meters">###m</string>
-    <string name="distance_format_kilometers">###.#km</string>
     <string name="pref_device_action_phone_gps_location_listener_stop">Ferma Listener Posizione GPS</string>
     <string name="pref_activity_recognition_mode_ask">chiedi</string>
-    <string name="distance_format_feet">###ft</string>
     <string name="controlcenter_set_folder_title">Imposta o crea nuova cartella</string>
     <string name="auto_reconnect_ble_title">Connetti automaticamente al dispositivo</string>
     <string name="auto_reconnect_ble_summary">Cerca di connettersi periodicamente al dispositivo proattivamente</string>
@@ -1729,7 +1703,6 @@
     <string name="sony_automatic_power_off">Spegnimento Automatico</string>
     <string name="sony_automatic_power_off_3_hour">3 ore</string>
     <string name="pref_screen_brightness">Luminosità Schermo</string>
-    <string name="distance_format_miles">###.#mi</string>
     <string name="sony_equalizer_band_400">400</string>
     <string name="sony_equalizer_band_1000">1k</string>
     <string name="sony_equalizer_band_2500">2.5k</string>
@@ -1901,7 +1874,7 @@
     <string name="anaerobicTrainingEffect">Effetto Anaerobico</string>
     <string name="currentWorkoutLoad">Carico Allenamento</string>
     <string name="debugactivity_confirm_remove_device_preferences_title">Rimuovere le preferenze del dispositivo\?</string>
-    <string name="debugactivity_confirm_remove_device_preferences">Così si ripristineranno le preferenze per tutti i dispositivi collegati. Sei sicuro\?</string>
+    <string name="debugactivity_confirm_remove_device_preferences">Così si ripristineranno le preferenze per questo dispositivo. Sei sicuro?</string>
     <string name="pref_alert_tone">Tono di Avviso</string>
     <string name="pref_vibrate_for_alert">Vibra per gli Avvisi</string>
     <string name="pref_text_to_speech">Sintesi Vocale</string>
@@ -2023,14 +1996,14 @@
     <string name="bluetooth_calls">Chiamate bluetooth</string>
     <string name="pref_display_caller_title">Mostra informazioni contatto</string>
     <string name="pref_display_caller_summary">Visualizza numero di telefono o nome per chiamate in arrivo</string>
-    <string name="pref_pair_bluetooth_calls_title">Accoppia per chiamate bluetooth</string>
+    <string name="pref_pair_bluetooth_calls_title">Accoppia per chiamate Bluetooth</string>
     <string name="pref_pair_bluetooth_calls_summary">Tocca per avviare l\'accoppiamento</string>
-    <string name="pref_pair_bluetooth_calls_help_title">Come ricevere chiamate bluetooth</string>
-    <string name="pref_pair_bluetooth_calls_help_summary">Per ricevere chiamate bluetooth è necessario accoppiare il telefono a una seconda istanza dell\'orologio.</string>
+    <string name="pref_pair_bluetooth_calls_help_title">Come ricevere chiamate Bluetooth</string>
+    <string name="pref_pair_bluetooth_calls_help_summary">Per ricevere chiamate Bluetooth è necessario accoppiare il telefono a una seconda istanza dell\'orologio.</string>
     <string name="pref_pair_bluetooth_calls_help_1">1. Tocca il pulsante in basso per avviare l\'accoppiamento.</string>
-    <string name="pref_pair_bluetooth_calls_help_2">2. Vai nelle impostazioni bluetooth del telefono e associa il nuovo dispositivo visualizzato (nome simile a quello dell\'orologio corrente, ma con un suffisso, ad es. \"Amazfit GTR 4 - AFC8\".</string>
-    <string name="pref_pair_bluetooth_calls_help_3">3. Attiva l\'impostazione delle chiamate Bluetooth in basso.</string>
-    <string name="pref_pair_bluetooth_calls_help_warning">ATTENZIONE: se attivi le chiamate bluetooth senza effettuare l\'accoppiamento con la seconda istanza, le notifiche di chiamata potrebbero non funzionare correttamente.</string>
+    <string name="pref_pair_bluetooth_calls_help_2">2. Vai nelle impostazioni Bluetooth del telefono e associa il nuovo dispositivo visualizzato (nome simile a quello dell\'orologio corrente, ma con un suffisso, ad es. \"Amazfit GTR 4 - AFC8\").</string>
+    <string name="pref_pair_bluetooth_calls_help_3">3. Attiva l\'impostazione delle \"chiamate Bluetooth\" in basso.</string>
+    <string name="pref_pair_bluetooth_calls_help_warning">ATTENZIONE: se attivi le chiamate Bluetooth senza effettuare l\'accoppiamento con la seconda istanza, le notifiche di chiamata potrebbero non funzionare correttamente.</string>
     <string name="prefs_shortcut_cards_summary">Schede di scelta rapida visualizzate quando si scorre a destra dal quadrante. Quando un\'app è in esecuzione, le schede generate automaticamente non sono influenzate da questa impostazione.</string>
     <string name="prefs_shortcut_cards">Schede di Scelta Rapida</string>
     <string name="menuitem_forecast">Previsione</string>
@@ -2100,16 +2073,12 @@
     <string name="watchface_widget_type_uv_index">Indice UV</string>
     <string name="stress_relaxed">Rilassato</string>
     <string name="stress_high">Elevato</string>
-    <string name="loyalty_cards_catima_package">Nome pacchetto Catima</string>
-    <string name="loyalty_cards_install_catima_fail">Non siamo riusciti ad aprire l\'app store per installare Catima</string>
-    <string name="loyalty_cards_catima_not_installed">Catima è necessario per gestire le carte fedeltà</string>
     <string name="loyalty_cards_catima_permissions_title">Permessi mancanti</string>
-    <string name="loyalty_cards_open_catima">Apri Catima</string>
     <string name="loyalty_cards_syncing">Sincronizzando %d carte con il dispositivo</string>
     <string name="title">Titolo</string>
     <string name="pref_summary_banglejs_phone_gps_network_only">Usa solo il fornitore di rete per determinare la posizione. Questo riduce il consumo di energia al costo della precisione. È necessaria una riconnessione.</string>
     <string name="pref_title_banglejs_phone_gps_update_interval">Intervallo di aggiornamento dati GPS</string>
-    <string name="pref_summary_banglejs_phone_gps_update_interval">Intervallo per quanto frequentemente aggiornare la posizione, in ms</string>
+    <string name="pref_summary_banglejs_phone_gps_update_interval">Intervallo per quanto frequentemente aggiornare la posizione GPS, in ms</string>
     <string name="busy_task_fetch_sports_details">Recuperando i dettagli degli sport</string>
     <string name="busy_task_fetch_sports_summaries">Recuperando i riepiloghi degli sport</string>
     <string name="busy_task_fetch_debug_logs">Recuperando log di debug</string>
@@ -2120,8 +2089,6 @@
     <string name="fwapp_install_device_not_supported">Installazione file fallita, dispositivo non supportato.</string>
     <string name="status_icon">Icona stato</string>
     <string name="changelog_full_title">Registro modifiche</string>
-    <string name="loyalty_cards_install">Installa Catima</string>
-    <string name="loyalty_cards_catima_permissions_summary">Gadgetbridge ha bisogno del permesso per leggere le carte Catima per sincronizzarle. Toccare questo pulsante per concederlo.</string>
     <string name="loyalty_cards_catima">Catima</string>
     <string name="loyalty_cards">Carte Fedeltà</string>
     <string name="changelog_show_full">Altro…</string>
@@ -2138,7 +2105,6 @@
     <string name="loyalty_cards_sync_summary">Tocca per sincronizzare le carte con l\'orologio</string>
     <string name="loyalty_cards_sync_options">Opzioni Sincronizzazione</string>
     <string name="loyalty_cards_sync">Sincronizza</string>
-    <string name="loyalty_cards_catima_not_compatible">La versione di Catima installata non è compatibile con Gadgetbridge. Aggiorna Catima e Gadgetbridge alle ultime versioni.</string>
     <string name="activity_prefs_goals">Obiettivi</string>
     <string name="charts_legend_stress_average">Stress medio</string>
     <string name="error_no_bluetooth_scan">L\'accesso alla scansione Bluetooth deve essere consentito e abilitato perché la scansione funzioni correttamente</string>
@@ -2175,8 +2141,8 @@
     <string name="pref_app_logs_title">Registri app</string>
     <string name="loyalty_cards_sync_starred">Sincronizza solo carte preferite</string>
     <string name="pref_title_banglejs_phone_gps_network_only">Usa solo la rete per determinare la posizione</string>
-    <string name="pref_title_banglejs_phone_gps_enbale">Usa dati gps del telefono</string>
-    <string name="pref_summary_banglejs_phone_gps_enbale">Usa i dati gps del telefono per sovrascrivere i dati gps del dispositivo bangle</string>
+    <string name="pref_title_banglejs_phone_gps_enbale">Usa dati GPS del telefono</string>
+    <string name="pref_summary_banglejs_phone_gps_enbale">Usa i dati GPS del telefono per sovrascrivere i dati GPS del dispositivo bangle</string>
     <string name="stress_moderate">Moderato</string>
     <string name="stress_mild">Leggero</string>
     <string name="pref_theme_dynamic">Colori dinamici</string>
@@ -2300,8 +2266,8 @@
     <string name="pref_summary_casio_alert_email">Avviso (vibrazione/bip) per le notifiche via e-mail</string>
     <string name="pref_title_casio_alert_sms">Avviso per notifiche SMS</string>
     <string name="pref_summary_casio_alert_sms">Avviso (vibrazione/bip) per le notifiche SMS (messaggi di testo)</string>
-    <string name="pref_title_casio_alert_other">Avviso per altre notifiche</string>
-    <string name="pref_summary_casio_alert_other">Avviso (vibrazione/bip) per le notifiche con altre categorie</string>
+    <string name="pref_title_casio_alert_other">Avviso per \"altre\" notifiche</string>
+    <string name="pref_summary_casio_alert_other">Avviso (vibrazione/bip) per le notifiche con \"altre\" categorie</string>
     <string name="busy_task_fetch_pai_data">Recupero dati PAI</string>
     <string name="manual">Manuale</string>
     <string name="updatefirmwareoperation_updateproblem_low_battery">Il dispositivo è troppo scarico</string>
@@ -2485,13 +2451,10 @@
     <string name="pref_wearing_tone">Tono inserimento</string>
     <string name="pref_touch_tone_summary">Riproduci un tono quando l\'auricolare viene toccato</string>
     <string name="pref_wearing_tone_summary">Riproduci un tono quando l\'auricolare viene inserito</string>
-    <string name="preferences_qhybrid_settings_summary">Impostazioni obsolete per gli orologi Q Hybrid</string>
     <string name="impactMax">Impatto massimo</string>
     <string name="pref_force_options">Forza le opzioni</string>
     <string name="pref_spo_automatic_enable">Abilita la misurazione automatica della SpO2</string>
-    <string name="pref_force_options_summary">Alcuni dispositivi dichiarano falsamente di non supportare alcune opzioni. Questa impostazione può essere utilizzata per abilitarle comunque.
-\nUSA A TUO RISCHIO E PERICOLO
-\nLeggi il wiki</string>
+    <string name="pref_force_options_summary">Alcuni dispositivi dichiarano falsamente di non supportare alcune opzioni. Questa impostazione può essere utilizzata per abilitarle comunque. \nUSA A TUO RISCHIO E PERICOLO \nLeggi il wiki</string>
     <string name="pref_force_dnd_support_summary">Forza il supporto a Non Disturbare
 \nUSA A TUO RISCHIO E PERICOLO</string>
     <string name="pref_summary_debug">Inviare una richiesta di debug al dispositivo Huawei</string>
@@ -2739,7 +2702,7 @@
     <string name="pref_title_user_interface">Interfaccia utente</string>
     <string name="pref_summary_sync_birthdays">Sincronizza i compleanni dei contatti con gli eventi del calendario</string>
     <string name="pref_title_sync_birthdays">Sincronizza i compleanni</string>
-    <string name="find_my_phone_companion_warning">L\'accoppiamento con il companion è necessario per trovare il telefono. Per ulteriori informazioni, fare clic qui.</string>
+    <string name="find_my_phone_companion_warning">L\'accoppiamento con il companion è necessario per trovare il telefono. Per ulteriori informazioni, fai clic qui.</string>
     <string name="music_upload_info">Si sta per caricare il seguente file musicale:\n\n%1$s\nTitolo della canzone: %2$s\nAlbum: %3$s\n</string>
     <string name="authentication_failed_negotiation">Negoziazione della chiave di autenticazione fallita</string>
     <string name="activity_type_rem_sleep">Sonno REM</string>
@@ -3438,7 +3401,7 @@
     <string name="workout_revolutions">Rivoluzioni</string>
     <string name="workout_swings">Oscillazioni</string>
     <string name="max_power_sitting">Potenza massima (seduto)</string>
-    <string name="range_percentage_float">%.1f%% - %.1f%%</string>
+    <string name="range_percentage_float">%.1f%% – %.1f%%</string>
     <string name="weather_condition_thunderstorm_with_heavy_rain">temporale con pioggia intensa</string>
     <string name="weather_condition_windy">ventoso</string>
     <string name="weather_condition_gale">burrasca</string>
@@ -3527,8 +3490,8 @@
     <string name="weather_condition_volcanic_ash">cenere vulcanica</string>
     <string name="front_gear_shifts">Cambi anteriori</string>
     <string name="intensity_factor">Fattore di intensità (IF)</string>
-    <string name="range_percentage">%1$d%% - %2$d%%</string>
-    <string name="range_degrees">%1$dº - %2$dº</string>
+    <string name="range_percentage">%1$d%% – %2$d%%</string>
+    <string name="range_degrees">%1$dº – %2$dº</string>
     <string name="average_cadence_standing">Cadenza media (in piedi)</string>
     <string name="left_right_balance">Equilibrio</string>
     <string name="weather_condition_ragged_thunderstorm">temporale violento</string>
@@ -3673,7 +3636,7 @@
     <string name="earfun_anc_mode_wind_noise_cancelling">Cancellazione rumore del vento</string>
     <string name="ultrahuman_airplane_mode_activated">Modalità aereo attiva</string>
     <string name="ultrahuman_breathing_start">Inizia</string>
-    <string name="maps_download_summary">Clicca qui per scaricare i file delle mappe. Saranno salvati nella cartella selezionata nelle preferenze qui sotto.</string>
+    <string name="maps_download_summary">Clicca qui per scaricare i file delle mappe. Saranno salvati nella cartella selezionata nell\'impostazione qui sotto.</string>
     <string name="huawei_stress_test_enable">Stress test automatico</string>
     <string name="huawei_stress_test_enable_summary">Attiva o disattiva lo stress test automatico</string>
     <string name="zepp_os_watchface_rhythm">Rhythm</string>
@@ -3727,4 +3690,81 @@
     <string name="busy_task_fetch_training_data_finished">Dati dell\'allenamento ricevuti!</string>
     <string name="interval_twenty_minutes">ogni 20 minuti</string>
     <string name="pref_display_enabled_summary">Abilita il display dell\'anello</string>
+    <string name="pref_summary_block_screenshots">Previeni gli screenshots e la visualizzazione su display non sicuri. Richiede il riavvio di GB per diventare completamente operativa</string>
+    <string name="title_activity_file_installer">Installazione File</string>
+    <string name="title_activity_gps_track_installer">Installazione traccia GPS</string>
+    <string name="pref_header_sync">Sincronizzazione</string>
+    <string name="pref_header_dashboard">Cruscotto</string>
+    <string name="sound_and_vibration">Suono + Vibrazione</string>
+    <string name="map_theme_biker">Ciclista</string>
+    <string name="map_theme_indigo">Indaco</string>
+    <string name="pref_title_block_screenshot">Blocca screenshots</string>
+    <string name="phone_calls">Chiamate</string>
+    <string name="pref_title_notifications_when_screen_saver">...anche quando lo screen saver è attivo</string>
+    <string name="pref_summary_screen_on_on_notifications_timeout">Aspetta %s prima di spegnere nuovamente lo schermo dopo una notifica</string>
+    <string name="pref_title_calendar_sync_choose">Calendari da sincronizzare</string>
+    <string name="pref_summary_calendar_sync_choose">Scegli quali calendari e colori sincronizzare con il dispositivo</string>
+    <string name="pref_title_screen_on_on_notifications_timeout">Tempo di visualizzazione notifica</string>
+    <string name="permission_not_granted_contacts">Autorizzazione contatti non concessa</string>
+    <string name="permission_not_granted_calendar">Autorizzazione calendario non concessa</string>
+    <string name="pref_title_calendar_sync_colors">Colori evento da sincronizzare</string>
+    <string name="pref_summary_calendar_sync_canceled">Gli eventi del calendario che sono cancellati verranno sincronizzati col dispositivo</string>
+    <string name="pref_title_calendar_sync_canceled">Sincronizza eventi cancellati</string>
+    <string name="pref_summary_calendar_sync_declined">Gli eventi del calendario che hai rifiutato verranno sincronizzati col dispositivo</string>
+    <string name="pref_title_calendar_sync_declined">Sincronizza eventi rifiutati</string>
+    <string name="pref_summary_calendar_sync_focus_time">Gli eventi del calendario marcati come \"Concentrazione\" verranno sincronizzati col dispositivo</string>
+    <string name="pref_title_calendar_sync_focus_time">Sincronizza eventi di concentrazione</string>
+    <string name="pref_summary_calendar_sync_all_day">Gli eventi del calendario che sono contrassegnati come \"Tutto il giorno\" verranno sincronizzati col dispositivo</string>
+    <string name="pref_title_calendar_sync_all_day">Sincronizza tutti gli eventi del giorno</string>
+    <string name="pref_summary_calendar_sync_working_location">Gli eventi del calendario che sono \"posizioni lavorative\" speciali verranno sincronizzati col dispositivo</string>
+    <string name="pref_summary_calendar_sync_event_reminders">Le notifiche di promemoria degli eventi verranno sincronizzate col dispositivo</string>
+    <string name="pref_title_calendar_sync_working_location">Sincronizza gli eventi di posizioni lavorative</string>
+    <string name="pref_title_calendar_sync_event_reminders">Sincronizza i promemoria degli eventi</string>
+    <string name="connection_force_legacy_gatt_title">Forza GATT obsoleto</string>
+    <string name="connection_force_legacy_gatt_summary">Evita problemi sulle vecchie versioni di Android, ma può introdurre situazioni di corsa</string>
+    <string name="title_gpx_track_name">Nome della traccia</string>
+    <string name="pref_header_auto_export_db">Esportazione automatica del database</string>
+    <string name="pref_header_auto_export_zip">Esportazione automatica archivio zip</string>
+    <string name="prefs_device_support_settings">Supporto dispositivo</string>
+    <string name="device_support_can_reconnect_title">Riutilizza supporto dispositivo</string>
+    <string name="device_support_can_reconnect_summary">Riutilizza l\'istanza DeviceSupport alla riconnessione con il gadget.</string>
+    <string name="pref_restart_logging_title">Inizializzazione log</string>
+    <string name="pref_restart_logging_summary">Clicca qui per inizializzare il file dei log</string>
+    <string name="double_click">Doppio clic</string>
+    <string name="single_click">Un clic</string>
+    <string name="busy_task_setting_alarms">Impostazione allarmi</string>
+    <string name="busy_task_syncing">Sincronizzazione</string>
+    <string name="interval_1_hour">ogni ora</string>
+    <string name="interval_2_hour">ogni 2 ore</string>
+    <string name="interval_3_hour">ogni 3 ore</string>
+    <string name="interval_4_hour">ogni 4 ore</string>
+    <string name="interval_6_hour">ogni 6 ore</string>
+    <string name="glucose_level_threshold_high">Soglia massima del glucosio</string>
+    <string name="glucose_level_threshold_low">Soglia minima del glucosio</string>
+    <string name="notif_export_location_not_set">Posizione di esportazione non configurata</string>
+    <string name="notif_export_zip_failed_title">Esportazione archivio zip non riuscita! Controlla le impostazioni.</string>
+    <string name="unknown_error">Errore sconosciuto</string>
+    <string name="uploading_resources">Caricamento risorse…</string>
+    <string name="charts_two_items_only">Puoi confrontare solo due elementi alla volta.</string>
+    <string name="charts_at_least_one_item">Deve essere selezionato almeno un elemento.</string>
+    <string name="fwinstaller_file_not_compatible_to_device">Il file selezionato non è compatibile col dispositivo</string>
+    <string name="fwinstaller_no_compatible_device_found">Nessun dispositivo compatibile per installare %1s trovato</string>
+    <string name="mi2_prefs_inactivity_warnings_dnd_lunch_break_summary">Disattiva gli avvisi di inattività durante la pausa pranzo (12:00 – 14:00)</string>
+    <string name="prefs_device_alias">Alias dispositivo</string>
+    <string name="chinese">Cinese</string>
+    <string name="activity_prefs_sleep_duration_minutes">Durata del sonno preferita in minuti</string>
+    <string name="delete_device_and_retain_files">Mantieni i file</string>
+    <string name="save">Salva</string>
+    <string name="done">Fatto</string>
+    <string name="hr_measurement_continuous">Continuo</string>
+    <string name="discovery_bonding_error">Collegamento fallito: %1$s</string>
+    <string name="activity_type_free_diving">Immersione in apnea</string>
+    <string name="activity_type_apnea_training">Allenamento di apnea</string>
+    <string name="activity_type_apnea_test">Test di apnea</string>
+    <string name="activity_type_scuba_diving">Immersione SCUBA</string>
+    <string name="activity_type_backcountry_skiing">Sci fuori pista</string>
+    <string name="activity_type_backcountry_snowboarding">Snowboard fuori pista</string>
+    <string name="activity_type_bike_tour">Ciclismo</string>
+    <string name="activity_type_motocross">Motocross</string>
+    <string name="activity_type_mountain_bike">Mountain bike</string>
 </resources>

@@ -49,16 +49,16 @@ public class ConfigurationGetRequest extends FileEncryptedLookupAndGetRequest im
 
         for(ConfigurationPutRequest.ConfigItem item : items){
             if(item instanceof ConfigurationPutRequest.VibrationStrengthConfigItem){
-                device.addDeviceInfo(new GenericItem(QHybridSupport.ITEM_VIBRATION_STRENGTH, String.valueOf(((ConfigurationPutRequest.VibrationStrengthConfigItem) item).getValue())));
+//                device.addDeviceInfo(new GenericItem(QHybridSupport.ITEM_VIBRATION_STRENGTH, String.valueOf(((ConfigurationPutRequest.VibrationStrengthConfigItem) item).getValue())));
             }else if(item instanceof ConfigurationPutRequest.DailyStepGoalConfigItem){
-                device.addDeviceInfo(new GenericItem(QHybridSupport.ITEM_STEP_GOAL, String.valueOf(((ConfigurationPutRequest.DailyStepGoalConfigItem) item).getValue())));
+//                device.addDeviceInfo(new GenericItem(QHybridSupport.ITEM_STEP_GOAL, String.valueOf(((ConfigurationPutRequest.DailyStepGoalConfigItem) item).getValue())));
             }else if(item instanceof ConfigurationPutRequest.CurrentStepCountConfigItem){
                 device.addDeviceInfo(new GenericItem(QHybridSupport.ITEM_STEP_COUNT, String.valueOf(((ConfigurationPutRequest.CurrentStepCountConfigItem) item).getValue())));
             }else if(item instanceof ConfigurationPutRequest.TimezoneOffsetConfigItem) {
                 device.addDeviceInfo(new GenericItem(QHybridSupport.ITEM_TIMEZONE_OFFSET, String.valueOf(((ConfigurationPutRequest.TimezoneOffsetConfigItem) item).getValue())));
             }else if(item instanceof ConfigurationPutRequest.BatteryConfigItem){
-                device.setBatteryLevel((short) ((ConfigurationPutRequest.BatteryConfigItem) item).getBatteryPercentage());
-                device.setBatteryVoltage(((ConfigurationPutRequest.BatteryConfigItem) item).getBatteryVoltage() / 1000f);
+                device.setBatteryLevel((short) ((ConfigurationPutRequest.BatteryConfigItem) item).getBatteryPercentage(), 0);
+                device.setBatteryVoltage(((ConfigurationPutRequest.BatteryConfigItem) item).getBatteryVoltage() / 1000f, 0);
 
                 GBDeviceEventBatteryInfo batteryInfo = new GBDeviceEventBatteryInfo();
                 batteryInfo.level = (short) ((ConfigurationPutRequest.BatteryConfigItem) item).getBatteryPercentage();

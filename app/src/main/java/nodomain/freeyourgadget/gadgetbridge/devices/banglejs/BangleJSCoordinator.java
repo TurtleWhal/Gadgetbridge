@@ -40,9 +40,10 @@ import java.util.regex.Pattern;
 
 import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
-import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
+import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.BarcodeFormat;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.SleepAsAndroidFeature;
@@ -52,6 +53,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.banglejs.BangleJSDeviceSupport;
@@ -107,7 +109,13 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     @Nullable
     @Override
     public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
-        return new BangleJSWorkoutParser(context);
+        return new BangleJSWorkoutParser();
+    }
+
+    @Nullable
+    @Override
+    public ActivityTrackProvider getActivityTrackProvider(@NonNull final GBDevice device, @NonNull final Context context) {
+        return new BangleJSWorkoutParser();
     }
 
     @Override
@@ -126,7 +134,7 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -136,7 +144,7 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTracks(final GBDevice device) {
+    public boolean supportsRecordedActivities(final GBDevice device) {
         return true;
     }
 
@@ -168,12 +176,12 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public boolean supportsAppsManagement(final GBDevice device) {
-        return BuildConfig.INTERNET_ACCESS;
+        return GBApplication.hasInternetAccess();
     }
 
     @Override
     public Class<? extends Activity> getAppsManagementActivity(final GBDevice device) {
-        return BuildConfig.INTERNET_ACCESS ? AppsManagementActivity.class : null;
+        return supportsAppsManagement(device) ? AppsManagementActivity.class : null;
     }
 
     @Override
@@ -232,7 +240,7 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
 
         settings.add(R.xml.devicesettings_header_connection);
         settings.add(R.xml.devicesettings_high_mtu);
-        if (BuildConfig.INTERNET_ACCESS)
+        if (GBApplication.hasInternetAccess())
             settings.add(R.xml.devicesettings_device_internet_access);
 
         settings.add(R.xml.devicesettings_banglejs_activity);
@@ -289,5 +297,18 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public DeviceKind getDeviceKind(@NonNull GBDevice device) {
         return DeviceKind.WATCH;
+    }
+
+    @Override
+    public Set<BarcodeFormat> getSupportedBarcodeFormats(@NonNull final GBDevice device) {
+        return Set.of(
+            BarcodeFormat.CODE_39,
+            BarcodeFormat.CODABAR,
+            BarcodeFormat.EAN_8,
+            BarcodeFormat.EAN_13,
+            BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E,
+            BarcodeFormat.QR_CODE
+        );
     }
 }

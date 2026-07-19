@@ -1,5 +1,7 @@
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_BPM;
+
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -37,6 +39,7 @@ import java.util.Locale;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.HeartRateUtils;
+import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummarySimpleEntry;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.AbstractActivitySample;
@@ -45,6 +48,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
 import nodomain.freeyourgadget.gadgetbridge.util.Accumulator;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.GridTableBuilder;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.TimeWeightedAverageAccumulator;
 
@@ -66,10 +70,7 @@ public class HeartRatePeriodFragment extends AbstractChartFragment<HeartRatePeri
     protected int TEXT_COLOR;
 
     private TextView mDateView;
-    private TextView hrResting;
-    private TextView hrAverage;
-    private TextView hrMinimum;
-    private TextView hrMaximum;
+    private LinearLayout hrStatsContainer;
     private LineChart hrLineChart;
     private int TOTAL_DAYS;
 
@@ -100,19 +101,11 @@ public class HeartRatePeriodFragment extends AbstractChartFragment<HeartRatePeri
 
         mDateView = rootView.findViewById(R.id.hr_date_view);
         hrLineChart = rootView.findViewById(R.id.heart_rate_line_chart);
-        hrResting = rootView.findViewById(R.id.hr_resting);
-        hrAverage = rootView.findViewById(R.id.hr_average);
-        hrMinimum = rootView.findViewById(R.id.hr_minimum);
-        hrMaximum = rootView.findViewById(R.id.hr_maximum);
-        final LinearLayout heartRateRestingWrapper = rootView.findViewById(R.id.hr_resting_wrapper);
+        hrStatsContainer = rootView.findViewById(R.id.hr_stats_container);
 
         setupChart();
         refresh();
         setupLegend(hrLineChart);
-
-        if (!supportsHeartRateRestingMeasurement()) {
-            heartRateRestingWrapper.setVisibility(View.GONE);
-        }
 
         return rootView;
     }
@@ -135,19 +128,19 @@ public class HeartRatePeriodFragment extends AbstractChartFragment<HeartRatePeri
     @Override
     protected void init() {
         Prefs prefs = GBApplication.getPrefs();
-        CHART_TEXT_COLOR = GBApplication.getSecondaryTextColor(getContext());
-        DESCRIPTION_COLOR = LEGEND_TEXT_COLOR = TEXT_COLOR = GBApplication.getTextColor(getContext());
+        CHART_TEXT_COLOR = GBApplication.getSecondaryTextColor(requireContext());
+        DESCRIPTION_COLOR = LEGEND_TEXT_COLOR = TEXT_COLOR = GBApplication.getTextColor(requireContext());
         if (prefs.getBoolean("chart_heartrate_color", false)) {
-            HEARTRATE_COLOR = ContextCompat.getColor(getContext(), R.color.chart_heartrate_alternative);
+            HEARTRATE_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate_alternative);
         } else {
-            HEARTRATE_COLOR = ContextCompat.getColor(getContext(), R.color.chart_heartrate);
+            HEARTRATE_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate);
         }
-        HEARTRATE_MIN_COLOR = ContextCompat.getColor(getContext(), R.color.chart_heartrate_minimum);
-        HEARTRATE_MAX_COLOR = ContextCompat.getColor(getContext(), R.color.chart_heartrate_maximum);
-        HEARTRATE_RESTING_COLOR = ContextCompat.getColor(getContext(), R.color.chart_heartrate_resting);
+        HEARTRATE_MIN_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate_minimum);
+        HEARTRATE_MAX_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate_maximum);
+        HEARTRATE_RESTING_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate_resting);
     }
 
-    private HeartRateData fetchHeartRateDataForDay(ChartsHost chartsHost, DBHandler db, GBDevice device, int startTs) {
+    private HeartRateData fetchHeartRateDataForDay(DBHandler db, GBDevice device, int startTs) {
         int endTs = startTs + SEC_PER_DAY - 1;
         List<? extends ActivitySample> samples = getActivitySamples(db, device, startTs, endTs);
         final HeartRateUtils heartRateUtilsInstance = HeartRateUtils.getInstance();
@@ -185,7 +178,7 @@ public class HeartRatePeriodFragment extends AbstractChartFragment<HeartRatePeri
 
         List<HeartRateData> result = new ArrayList<>();
         for (int i = 0; i < TOTAL_DAYS; i++) {
-            HeartRateData dayData = fetchHeartRateDataForDay(chartsHost, db, device, startTs + i * SEC_PER_DAY);
+            HeartRateData dayData = fetchHeartRateDataForDay(db, device, startTs + i * SEC_PER_DAY);
             result.add(dayData);
         }
         return new HeartRatePeriodData(result);
@@ -296,10 +289,33 @@ public class HeartRatePeriodFragment extends AbstractChartFragment<HeartRatePeri
     }
 
     private void setStatistics(int average, int minimum, int maximum, int resting) {
-        hrAverage.setText(average > 0 ? getString(R.string.bpm_value_unit, average) : "-");
-        hrMinimum.setText(minimum > 0 ? getString(R.string.bpm_value_unit, minimum) : "-");
-        hrMaximum.setText(maximum > 0 ? getString(R.string.bpm_value_unit, maximum) : "-");
-        hrResting.setText(resting > 0 ? getString(R.string.bpm_value_unit, resting) : "-");
+        hrStatsContainer.removeAllViews();
+
+        final GridTableBuilder builder = new GridTableBuilder(requireContext());
+
+        builder.addEntry(
+                getString(R.string.hr_minimum),
+                minimum > 0 ? new ActivitySummarySimpleEntry(minimum, UNIT_BPM) : null
+        );
+
+        builder.addEntry(
+                getString(R.string.hr_maximum),
+                maximum > 0 ? new ActivitySummarySimpleEntry(maximum, UNIT_BPM) : null
+        );
+
+        builder.addEntry(
+                getString(R.string.hr_average),
+                average > 0 ? new ActivitySummarySimpleEntry(average, UNIT_BPM) : null
+        );
+
+        if (supportsHeartRateRestingMeasurement()) {
+            builder.addEntry(
+                    getString(R.string.hr_resting),
+                    resting > 0 ? new ActivitySummarySimpleEntry(resting, UNIT_BPM) : null
+            );
+        }
+
+        hrStatsContainer.addView(builder.build());
 
         if (minimum > 0) {
             hrLineChart.getAxisLeft().setAxisMinimum(Math.max(minimum - 30, 0));

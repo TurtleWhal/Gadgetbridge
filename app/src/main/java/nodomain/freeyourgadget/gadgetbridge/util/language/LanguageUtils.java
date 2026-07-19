@@ -50,6 +50,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.language.impl.GreekTransliterat
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.HebrewTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.HungarianTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.IcelandicTransliterator;
+import nodomain.freeyourgadget.gadgetbridge.util.language.impl.ItalianTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.KoreanTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.LatvianTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.LithuanianTransliterator;
@@ -59,7 +60,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.language.impl.RussianTransliter
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.ScandinavianTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.SerbianTransliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.language.impl.TurkishTransliterator;
-import nodomain.freeyourgadget.gadgetbridge.util.language.impl.UkranianTransliterator;
+import nodomain.freeyourgadget.gadgetbridge.util.language.impl.UkrainianTransliterator;
 
 public class LanguageUtils {
     private static final Logger LOG = LoggerFactory.getLogger(LanguageUtils.class);
@@ -79,6 +80,7 @@ public class LanguageUtils {
         put("hebrew", new HebrewTransliterator());
         put("hungarian", new HungarianTransliterator());
         put("icelandic", new IcelandicTransliterator());
+        put("italian", new ItalianTransliterator());
         put("korean", new KoreanTransliterator());
         put("latvian", new LatvianTransliterator());
         put("lithuanian", new LithuanianTransliterator());
@@ -88,7 +90,7 @@ public class LanguageUtils {
         put("scandinavian", new ScandinavianTransliterator());
         put("serbian", new SerbianTransliterator());
         put("turkish", new TurkishTransliterator());
-        put("ukranian", new UkranianTransliterator());
+        put("ukranian", new UkrainianTransliterator());
         put("armenian", new ArmenianTransliterator());
     }};
 
@@ -136,8 +138,8 @@ public class LanguageUtils {
         }
 
         if (!coordinator.supportsUnicodeEmojis(device)) {
-            // For now, assume that if the device does not support unicode emoji, it also doesn't
-            // support utf, so flatten to ASCII. This allows for devices that support unicode
+            // For now, assume that if the device does not support Unicode emoji, it also doesn't
+            // support utf, so flatten to ASCII. This allows for devices that support Unicode
             // characters to still use transliterators for languages not supported by the device,
             // and still get emoji
             // TODO: Maybe this should be configurable, or at least separate from the emoji setting

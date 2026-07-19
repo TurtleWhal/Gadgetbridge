@@ -3,6 +3,10 @@
   "extends": [
     "config:recommended"
   ],
+  "semanticCommits": "disabled",
+  "commitMessagePrefix": "Update",
+  "commitMessageAction": "",
+  "commitMessageTopic": "{{depName}}",
   "labels": [
     "dependency"
   ],
@@ -15,6 +19,13 @@
       "groupName": "protobuf",
       "matchPackageNames": [
         "com.google.protobuf:*"
+      ]
+    },
+    {
+      "groupName": "kotlin",
+      "matchPackageNames": [
+        "org.jetbrains.kotlin.*",
+        "org.jetbrains.kotlin:*"
       ]
     },
     {
@@ -50,14 +61,10 @@
       ]
     },
     {
-      "description": "Version pinned to the one used by upstream greenDao to avoid regressions. Only used for code generation.",
-      "matchFileNames": [
-        "GBDaoGenerator/**"
-      ],
-      "allowedVersions": "2.3.23",
       "matchPackageNames": [
-        "org.freemarker:freemarker"
-      ]
+        "com.google.guava:guava"
+      ],
+      "versionCompatibility": "^(?<version>[^-]+)(?<compatibility>-.*)?$"
     }
   ]
 }

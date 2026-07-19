@@ -100,16 +100,18 @@ class GBProgressNotification(
     }
 
     fun incrementTotalProgress(inc: Long) {
-        LOG.debug("incrementTotalProgress id={}: {}", notificationId, inc)
+        LOG.debug("incrementTotalProgress id={}: {} += {}", notificationId, totalProgress, inc)
         this.chunkProgress = 0
         this.totalProgress += inc
         refresh(false)
     }
 
     fun incrementTotalSize(inc: Long) {
-        LOG.debug("incrementTotalSize id={}: {}", notificationId, inc)
+        LOG.debug("incrementTotalSize id={}: {}+={}", notificationId, totalSize, inc)
         this.totalSize += inc
-        refresh(false)
+        if (visible) {
+            refresh(false)
+        }
     }
 
     fun setProgress(chunkProgress: Long, totalProgress: Long) {

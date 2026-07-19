@@ -63,12 +63,14 @@ import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.WorkoutFilterUtils;
 
 
 public class ActivitySummariesFilter extends AbstractGBActivity {
     private static final Logger LOG = LoggerFactory.getLogger(ActivitySummariesFilter.class);
     private static final String DATE_FILTER_FROM = "dateFromFilter";
     private static final String DATE_FILTER_TO = "dateToFilter";
+    private static final String PREF_QUICK_FILTER = "workout_list_quick_filter";
     public static long ALL_DEVICES = 999;
     int activityFilter = 0;
     long dateFromFilter = 0;
@@ -150,6 +152,14 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
         quick_filter_period_select.setAdapter(filterDateAdapter);
         addListenerOnQuickFilterSelection();
 
+        // Restore saved quick filter selection
+        String savedFilter = GBApplication.getPrefs().getPreferences().getString(PREF_QUICK_FILTER, "noselection");
+        ArrayList<String> filterValues = new ArrayList<>(Arrays.asList(getResources().getStringArray(R.array.activity_filter_quick_filter_period_values)));
+        int savedPosition = filterValues.indexOf(savedFilter);
+        if (savedPosition >= 0) {
+            quick_filter_period_select.setSelection(savedPosition);
+        }
+
         //set current values coming from parent
         update_filter_fields();
 
@@ -162,14 +172,17 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
 
         nameContainsFilterdata.addTextChangedListener(new TextWatcher() {
 
+            @Override
             public void afterTextChanged(Editable s) {
 
             }
 
+            @Override
             public void beforeTextChanged(CharSequence s, int start,
                                           int count, int after) {
             }
 
+            @Override
             public void onTextChanged(CharSequence s, int start,
                                       int before, int count) {
                 nameContainsFilter = s.toString();
@@ -189,6 +202,10 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
                 itemsFilter = null;
                 deviceFilterSpinner.setSelection(filterDevicesAdapter.getItemPositionForSelection(getDeviceById(initial_deviceFilter)));
                 quick_filter_period_select.setSelection(0);
+                // Clear saved filter preference
+                GBApplication.getPrefs().getPreferences().edit()
+                        .putString(PREF_QUICK_FILTER, "noselection")
+                        .apply();
                 update_filter_fields();
             }
         });
@@ -331,53 +348,12 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
     }
 
     private void setTimePeriodFilter(String selection) {
-        Calendar date = Calendar.getInstance();
-        date.set(Calendar.HOUR_OF_DAY, 0);
-        date.set(Calendar.MINUTE, 0);
-        date.set(Calendar.SECOND, 0);
-        long firstdate;
-        long lastdate;
-
-        switch (selection) {
-            case "thisweek":
-                date.set(Calendar.DAY_OF_WEEK, date.getFirstDayOfWeek());
-                firstdate = date.getTimeInMillis();
-                lastdate = Calendar.getInstance().getTimeInMillis();
-                break;
-            case "thismonth":
-                date.set(Calendar.DAY_OF_MONTH, 1);
-                firstdate = date.getTimeInMillis();
-                lastdate = Calendar.getInstance().getTimeInMillis();
-                break;
-            case "lastweek":
-                int i = date.get(Calendar.DAY_OF_WEEK) - date.getFirstDayOfWeek();
-                date.add(Calendar.DATE, -i - 7);
-                firstdate = date.getTimeInMillis();
-                date.add(Calendar.DATE, 6);
-                lastdate = date.getTimeInMillis();
-                break;
-            case "lastmonth":
-                date.set(Calendar.DATE, 1);
-                date.add(Calendar.DAY_OF_MONTH, -1);
-                lastdate = date.getTimeInMillis();
-                date.set(Calendar.DATE, 1);
-                firstdate = date.getTimeInMillis();
-                break;
-            case "7days":
-                date.add(Calendar.DATE, -7);
-                firstdate = date.getTimeInMillis();
-                lastdate = Calendar.getInstance().getTimeInMillis();
-                break;
-            case "30days":
-                date.add(Calendar.DATE, -30);
-                firstdate = date.getTimeInMillis();
-                lastdate = Calendar.getInstance().getTimeInMillis();
-                break;
-            default:
-                return;
+        android.util.Pair<Long, Long> dateRange = WorkoutFilterUtils.getDateRangeForFilter(selection);
+        if (dateRange == null) {
+            return;
         }
-        dateFromFilter = firstdate;
-        dateToFilter = lastdate;
+        dateFromFilter = dateRange.first;
+        dateToFilter = dateRange.second;
         update_filter_fields();
     }
 
@@ -395,7 +371,7 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
                 Device dbDevice = DBHelper.findDevice(device, daoSession);
                 int icon = device.getDeviceCoordinator().getDefaultIconResource();
                 if (dbDevice != null && coordinator != null
-                        && coordinator.supportsActivityTracks(device)
+                        && coordinator.supportsRecordedActivities(device)
                         && !newMap.containsKey(device.getAliasOrName())) {
                     newMap.put(device.getAliasOrName(), new Pair<>(dbDevice.getId(), icon));
                 }
@@ -433,6 +409,7 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
 
     public class CustomOnKindSelectedListener implements AdapterView.OnItemSelectedListener {
 
+        @Override
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
             SpinnerWithIconItem selectedItem = (SpinnerWithIconItem) parent.getItemAtPosition(pos);
             String activity = selectedItem.getText();
@@ -449,6 +426,7 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
 
     public class CustomOnDeviceSelectedListener implements AdapterView.OnItemSelectedListener {
 
+        @Override
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
             SpinnerWithIconItem selectedItem = (SpinnerWithIconItem) parent.getItemAtPosition(pos);
             deviceFilter = selectedItem.getId();
@@ -466,9 +444,14 @@ public class ActivitySummariesFilter extends AbstractGBActivity {
         ArrayList<String> activity_filter_quick_filter_period_values = new ArrayList<>(Arrays.asList(getResources().getStringArray(R.array.activity_filter_quick_filter_period_values)));
         String selection;
 
+        @Override
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
             selection = activity_filter_quick_filter_period_values.get(pos);
             setTimePeriodFilter(selection);
+            // Save the selection to preferences
+            GBApplication.getPrefs().getPreferences().edit()
+                    .putString(PREF_QUICK_FILTER, selection)
+                    .apply();
         }
 
         @Override

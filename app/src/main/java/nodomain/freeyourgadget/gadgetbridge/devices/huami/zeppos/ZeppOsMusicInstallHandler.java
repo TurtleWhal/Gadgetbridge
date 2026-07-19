@@ -69,7 +69,7 @@ public class ZeppOsMusicInstallHandler implements InstallHandler {
     }
 
     @Override
-    public void validateInstallation(final InstallActivity installActivity, final GBDevice device) {
+    public void validateInstallation(@NonNull final InstallActivity installActivity, @NonNull final GBDevice device) {
         if (device.isBusy()) {
             installActivity.setInfoText(device.getBusyTask());
             installActivity.setInstallEnabled(false);
@@ -77,13 +77,12 @@ public class ZeppOsMusicInstallHandler implements InstallHandler {
         }
 
         final DeviceCoordinator coordinator = device.getDeviceCoordinator();
-        if (!(coordinator instanceof ZeppOsCoordinator)) {
+        if (!(coordinator instanceof ZeppOsCoordinator zeppOsCoordinator)) {
             LOG.warn("Coordinator is not a ZeppOsCoordinator: {}", coordinator.getClass());
             installActivity.setInfoText(mContext.getString(R.string.fwapp_install_device_not_supported));
             installActivity.setInstallEnabled(false);
             return;
         }
-        final ZeppOsCoordinator zeppOsCoordinator = (ZeppOsCoordinator) coordinator;
         if (!zeppOsCoordinator.supportsMusicUpload(device)) {
             installActivity.setInfoText(mContext.getString(R.string.fwapp_install_device_not_supported));
             installActivity.setInstallEnabled(false);
@@ -105,7 +104,7 @@ public class ZeppOsMusicInstallHandler implements InstallHandler {
     }
 
     @Override
-    public void onStartInstall(final GBDevice device) {
+    public void onStartInstall(@NonNull final GBDevice device) {
     }
 
     public AudioInfo getAudioInfo() {

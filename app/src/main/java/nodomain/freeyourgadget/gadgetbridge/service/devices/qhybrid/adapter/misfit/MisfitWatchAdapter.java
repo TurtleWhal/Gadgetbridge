@@ -18,8 +18,6 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.mis
 
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.ITEM_ACTIVITY_POINT;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.ITEM_STEP_COUNT;
-import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.ITEM_STEP_GOAL;
-import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.ITEM_VIBRATION_STRENGTH;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.QHYBRID_EVENT_BUTTON_PRESS;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.QHYBRID_EVENT_FILE_UPLOADED;
 
@@ -27,9 +25,11 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import android.util.SparseArray;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
@@ -166,10 +166,10 @@ public class MisfitWatchAdapter extends WatchAdapter {
             }
             case "00002a19-0000-1000-8000-00805f9b34fb": {
                 short level = value[0];
-                gbDevice.setBatteryLevel(level);
+                gbDevice.setBatteryLevel(level, 0);
 
                 GBDeviceEventBatteryInfo batteryInfo = new GBDeviceEventBatteryInfo();
-                batteryInfo.level = gbDevice.getBatteryLevel();
+                batteryInfo.level = gbDevice.getBatteryLevel(0);
                 batteryInfo.state = BatteryState.BATTERY_NORMAL;
                 getDeviceSupport().handleGBDeviceEvent(batteryInfo);
                 break;
@@ -232,10 +232,10 @@ public class MisfitWatchAdapter extends WatchAdapter {
         request.handleResponse(characteristic, values);
 
         if (request instanceof GetStepGoalRequest) {
-            gbDevice.addDeviceInfo(new GenericItem(ITEM_STEP_GOAL, String.valueOf(((GetStepGoalRequest) request).stepGoal)));
+//            gbDevice.addDeviceInfo(new GenericItem(ITEM_STEP_GOAL, String.valueOf(((GetStepGoalRequest) request).stepGoal)));
         } else if (request instanceof GetVibrationStrengthRequest) {
             int strength = ((GetVibrationStrengthRequest) request).strength;
-            gbDevice.addDeviceInfo(new GenericItem(ITEM_VIBRATION_STRENGTH, String.valueOf(strength)));
+//            gbDevice.addDeviceInfo(new GenericItem(ITEM_VIBRATION_STRENGTH, String.valueOf(strength)));
         } else if (request instanceof GetCurrentStepCountRequest) {
             int steps = ((GetCurrentStepCountRequest) request).steps;
             logger.debug("get current steps: " + steps);
@@ -370,7 +370,6 @@ public class MisfitWatchAdapter extends WatchAdapter {
         queueWrite(new PlayNotificationRequest(vibration, -1, -1));
     }
 
-    @Override
     public void vibrateFindMyDevicePattern() {
         queueWrite(new VibrateRequest(false, (short) 4, (short) 1));
     }
@@ -387,7 +386,7 @@ public class MisfitWatchAdapter extends WatchAdapter {
 
     @Override
     public void setHands(MoveHandsRequest.MovementConfiguration movement) {
-        queueWrite(new MoveHandsRequest(movement));
+        queueWrite(new MoveHandsRequest(movement, false));
     }
 
     @Override
@@ -411,7 +410,7 @@ public class MisfitWatchAdapter extends WatchAdapter {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
 
     }
 
@@ -423,11 +422,6 @@ public class MisfitWatchAdapter extends WatchAdapter {
     @Override
     public void onInstallApp(Uri uri) {
 
-    }
-
-    @Override
-    public boolean supportsFindDevice() {
-        return supportsExtendedVibration();
     }
 
     @Override

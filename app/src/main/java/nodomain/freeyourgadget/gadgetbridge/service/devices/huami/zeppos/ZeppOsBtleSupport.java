@@ -1,4 +1,4 @@
-/*  Copyright (C) 2025 José Rebelo
+/*  Copyright (C) 2025-2026 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -25,6 +25,7 @@ import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiService;
 import nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandService;
@@ -54,6 +56,8 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfoProfile;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiUtils;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.ZeppOsDeviceInfoService;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class ZeppOsBtleSupport extends AbstractBTLESingleDeviceSupport implements ZeppOsCommunicator {
     private static final Logger LOG = LoggerFactory.getLogger(ZeppOsBtleSupport.class);
@@ -90,6 +94,13 @@ public class ZeppOsBtleSupport extends AbstractBTLESingleDeviceSupport implement
                     versionCmd.fwVersion = versionCmd.fwVersion.substring(1);
                 }
                 handleGBDeviceEvent(versionCmd);
+
+                if (info.getPnpId() != null) {
+                    new GBDeviceEventUpdatePreferences(
+                            ZeppOsDeviceInfoService.PREF_KEY_DEVICE_PNP_ID,
+                            GB.hexdump(info.getPnpId())
+                    );
+                }
             }
         });
         addSupportedProfile(deviceInfoProfile);
@@ -193,8 +204,8 @@ public class ZeppOsBtleSupport extends AbstractBTLESingleDeviceSupport implement
     }
 
     @Override
-    public void onTestNewFunction() {
-        zeppOsSupport.onTestNewFunction();
+    public void onTestNewFunction(@Nullable Bundle options) {
+        zeppOsSupport.onTestNewFunction(options);
     }
 
     @Override

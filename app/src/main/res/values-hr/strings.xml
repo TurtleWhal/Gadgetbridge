@@ -8,12 +8,10 @@
     <string name="mi2_prefs_button_press_broadcast_default_value" translatable="false">nodomain.freeyourgadget.gadgetbridge.ButtonPressed</string>
     <string name="fw_upgrade_notice">Spremate se instalirati %s.</string>
     <string name="title_activity_fw_app_insaller">Program za instalaciju FW-a/aplikacija</string>
-    <string name="title_activity_calblacklist">Kalendari na popisu nedopuštenih</string>
     <string name="whitelist_all_for_notifications">Sve obavijesti stavi na popis dopuštenih</string>
     <string name="blacklist_all_for_notifications">Sve obavijesti stavi na popis nedopuštenih</string>
     <string name="app_move_to_top">Premjesti na vrh</string>
     <string name="app_configure">Konfiguriraj</string>
-    <string name="appmanager_weather_install_provider">Instalirajte aplikaciju Weather Notification</string>
     <string name="appmanager_weather_deactivate">Deaktivirajte sistemsku aplikaciju Vrijeme</string>
     <string name="appmanager_weather_activate">Aktivirajte sistemsku aplikaciju Vrijeme</string>
     <string name="appmanager_hrm_deactivate">Deaktiviraj HRM</string>
@@ -33,13 +31,12 @@
     <string name="dbmanagementactivity_database_successfully_deleted">Podaci izbrisani.</string>
     <string name="dbmanagementactivity_really_delete_entire_db">Stvarno izbrisati cijelu bazu podataka\? Svi vaši podaci o aktivnostima i podaci o vašim uređajima bit će izgubljeni.</string>
     <string name="dbmanagementactivity_delete_activity_data_title">Izbrisati podatke aktivnosti\?</string>
-    <string name="activity_db_management_merge_old_title">Brisanje naslijeđene baze podataka</string>
     <string name="appmananger_app_delete_cache">Izbriši i ukloni iz predmemorije</string>
     <string name="debugactivity_really_factoryreset">Vraćanjem na tvorničke postavke izbrisat će se svi podaci s povezanog uređaja (ako je podržano). Xiaomi/Huami uređaji također mijenjaju Bluetooth MAC adresu, tako da se pojavljuju kao novi uređaji za Gadgetbridge.</string>
     <string name="appmananger_app_delete">Izbriši</string>
     <string name="dbmanagementactivity_old_activity_db_successfully_deleted">Stari podaci o aktivnostima su izbrisani.</string>
     <string name="activity_DB_delete_legacy_button">Izbriši stari DB</string>
-    <string name="Delete">Izbriši</string>
+    <string name="delete">Izbriši</string>
     <string name="debugactivity_really_factoryreset_title">Jeste li sigurni da želite vratiti na tvorničke postavke\?</string>
     <string name="controlcenter_calibrate_device">Kalibriraj uređaj</string>
     <string name="controlcenter_snackbar_requested_screenshot">Izrada snimke zaslona uređaja</string>
@@ -87,9 +84,6 @@
     <string name="pref_media_volumeup">Pojačavanje glasnoće</string>
     <string name="pref_media_forward">Preskoči naprijed</string>
     <string name="pref_media_rewind">Preskoči natrag</string>
-    <string name="distance_format_kilometers">###.#km</string>
-    <string name="distance_format_miles">###.#mi</string>
-    <string name="distance_format_feet">###ft</string>
     <string name="title_activity_debug">Debug</string>
     <string name="pref_media_volumedown">Stišavanje glasnoće</string>
     <string name="battery_detail_activity_title">Informacije o bateriji</string>
@@ -98,7 +92,6 @@
     <string name="prefs_activity_in_device_card_steps_title_summary">Prikaži ukupan broj koraka</string>
     <string name="controlcenter_power_off_confirm_description">Stvarno želiš isključiti uređaj?</string>
     <string name="pref_media_previous">Prethodna pjesma</string>
-    <string name="distance_format_meters">###m</string>
     <string name="pref_device_action_broadcast">Pošalji emitiranje</string>
     <string name="calendar_two_weeks">Dva tjedna</string>
     <string name="title_activity_appmanager">Upravitelj aplikacija</string>
@@ -224,17 +217,15 @@
     <string name="share_log_warning">Imajte na umu da datoteke zapisnika Gadgetbridgea koje mogu sadržavati mnogo osobnih podataka, uključujući, ali ne ograničavajući se na zdravstvene podatke, jedinstvene identifikatore (kao što je MAC adresa uređaja), glazbene postavke itd. Razmislite o uređivanju datoteke i uklanjanju ovih informacija prije slanja datoteke javnom izvješću o problemu.</string>
     <string name="toast_app_must_be_selected">Aplikacija mora biti odabrana da bi se konfigurirala</string>
     <string name="edittext_notification_filter_words_hint">Unesite željene riječi, novi redak za svaku</string>
-    <string name="qhybrid_prompt_million_steps">Postavite broj koraka na milijun da biste to aktivirali.</string>
     <string name="hr_widget_battery">Baterija</string>
     <string name="hr_widget_weather">Vrijeme</string>
     <string name="hr_widget_nothing">Ništa</string>
     <string name="about_additional_contributions">Veliko hvala svim nenavedenim suradnicima na doprinosu kodu, prijevodima, podršci, idejama, motivaciji, izvješćima o greškama, novcu… ✊</string>
-    <string name="error_version_check_extreme_caution">OPREZ: Pogreška prilikom provjere informacija o verziji! Ne biste trebali nastaviti! Pronađen naziv verzije %s</string>
+    <string name="error_version_check_extreme_caution">OPREZ: Pogreška prilikom provjere informacija o verziji! Ne biste trebali nastaviti! Pronađen naziv verzije „%s”</string>
     <string name="require_location_provider">Lokacija mora biti omogućena</string>
     <string name="error_background_service">Pokretanje pozadinske usluge nije uspjelo</string>
     <string name="error_background_service_reason_truncated">Pokretanje pozadinske usluge nije uspjelo jer…</string>
     <string name="device_is_currently_bonded">VEĆ POVEZANO</string>
-    <string name="device_requires_key">POTREBAN JE KLJUČ, PRITISNI ZA UNOS</string>
     <string name="error_background_service_reason">Pokretanje pozadinske usluge nije uspjelo zbog iznimke – Pritisni ovdje za više informacija.\n\nGreška:</string>
     <string name="error_retrieving_devices_database">Pogreška prilikom dohvaćanja uređaja iz baze podataka</string>
     <string name="distanceMeters">Udaljenost</string>
@@ -322,7 +313,7 @@
     <string name="pref_summary_physical_buttons">Konfigurirajte funkcionalnost fizičkih gumba na satu</string>
     <string name="qhybrid_summary_calibration">Kalibrirajte kazaljke na satu</string>
     <string name="pref_summary_canned_messages_set">Pošaljite dolje konfigurirane poruke na svoj uređaj</string>
-    <string name="fossil_hr_commute_actions_explanation">Ovdje konfigurirane radnje pojavit će se u aplikaciji Putovanje na posao na vašem satu. Pročitajte wiki za informacije o tome kako postupati s namjerama koje proizvedu ove radnje.</string>
+    <string name="fossil_hr_commute_actions_explanation">Ovdje konfigurirane radnje pojavit će se u aplikaciji Putovanje na posao na vašem satu. Pročitajte web-stranicu za informacije o tome kako postupati s namjerama koje proizvedu ove radnje.</string>
     <string name="fossil_hr_edit_action_delete">izbriši</string>
     <string name="fossil_hr_new_action_cancel">otkaži</string>
     <string name="fossil_hr_new_action">Nova radnja</string>
@@ -558,8 +549,6 @@
     <string name="widget_listing_label">Status i alarmi</string>
     <string name="widget_set_alarm_after">Postavi alarm nakon:</string>
     <string name="widget_20_minutes">20 minuta</string>
-    <string name="qhybrid_vibration_strength">Jačina vibracije:</string>
-    <string name="qhybrid_goal_in_steps">Cilj u koracima</string>
     <string name="qhybrid_use_activity_hand_as_notification_counter">koristite ruku aktivnosti kao brojač obavijesti</string>
     <string name="qhybrid_buttons_overwrite_success">Gumbi su prepisani</string>
     <string name="qhybrid_buttons_overwrite_error">Pogreška pri prepisivanju gumba</string>
@@ -707,7 +696,7 @@
     <string name="preferences_category_device_specific_settings">Postavke specifične za uređaj</string>
     <string name="horizontal">Horizontalno</string>
     <string name="vertical">Okomito</string>
-    <string name="discovery_connected_devices_hint">Učinite svoj uređaj vidljivim. Trenutno povezani uređaji vjerojatno neće biti otkriveni. Aktivirajte lokaciju (npr. GPS) na Androidu 6+. Onemogućite Privacy Guard za Gadgetbridge jer se može srušiti i ponovno pokrenuti vaš telefon. Ako se uređaj ne pronađe nakon nekoliko minuta, pokušajte ponovno nakon ponovnog pokretanja mobilnog uređaja.</string>
+    <string name="discovery_connected_devices_hint">Učinite svoj uređaj vidljivim. Trenutno povezani uređaji vjerojatno neće biti otkriveni. Aktivirajte lokaciju (npr. GPS). Onemogućite Privacy Guard za Gadgetbridge jer se može srušiti i ponovno pokrenuti vaš telefon. Ako se uređaj ne pronađe nakon nekoliko minuta, pokušajte ponovno nakon ponovnog pokretanja mobilnog uređaja.</string>
     <string name="watch9_pairing_tap_hint">Kada vaš sat vibrira, protresite uređaj ili pritisnite njegov gumb.</string>
     <string name="title_activity_sleepmonitor">Nadzor spavanja</string>
     <string name="pref_write_logfiles">Pisanje datoteka dnevnika</string>
@@ -754,7 +743,7 @@
     <string name="alarm_smart_wakeup">Pametno buđenje</string>
     <string name="alarm_snooze">Odgodi</string>
     <string name="user_feedback_miband_set_alarms_failed">Došlo je do pogreške prilikom postavljanja alarma, pokušajte ponovno.</string>
-    <string name="dbaccess_error_executing">Pogreška pri izvršavanju %1$s</string>
+    <string name="dbaccess_error_executing">Pogreška pri izvršavanju „%1$s”</string>
     <string name="controlcenter_start_activitymonitor">Vaša aktivnost</string>
     <string name="cannot_connect">Ne mogu se povezati: %1$s</string>
     <string name="installer_activity_unable_to_find_handler">Nije moguće pronaći rukovatelja za instalaciju ove datoteke.</string>
@@ -803,7 +792,7 @@
     <string name="minutes_10">10 minuta</string>
     <string name="liveactivity_live_activity">Aktivnost uživo</string>
     <string name="weeksteps_today_steps_description">Koraci danas, cilj: %1$s</string>
-    <string name="lack_of_step">Nedostatak koraka: %1$d</string>
+    <string name="lack_of_step">Nedostatak koraka: %1$s</string>
     <string name="average">Prosjek: %1$s</string>
     <string name="pref_title_dont_ack_transfer">Ne dozvoli ACK prijenos podataka aktivnosti</string>
     <string name="pref_summary_dont_ack_transfers">Ako nije ACK na bend, podaci o aktivnostima se ne brišu. Korisno ako se GB koristi zajedno s drugim aplikacijama.</string>
@@ -823,18 +812,18 @@
     <string name="miband_prefs_device_time_offset_hours">Pomak vremena uređaja u satima (za otkrivanje spavanja radnika u smjenama)</string>
     <string name="prefs_enable_find_phone">Uključite „Pronađi telefon”</string>
     <string name="mi2_prefs_button_press_count">Broj pritisaka gumba</string>
-    <string name="mi2_prefs_button_press_broadcast_summary">Poruka emitiranja poslana uz događaj. Parametar `button_id` se automatski dodaje svakoj poruci.</string>
+    <string name="mi2_prefs_button_press_broadcast_summary">Poruka emitiranja poslana uz događaj. Parametar „button_id” se automatski dodaje svakoj poruci.</string>
     <string name="mi2_prefs_button_action_vibrate">Omogući vibraciju trake</string>
     <string name="mi2_prefs_goal_notification_summary">Band će vibrirati kada se postigne cilj dnevnih koraka</string>
     <string name="mi2_prefs_display_items">Prikaži stavke</string>
     <string name="mi2_prefs_display_items_summary">Odaberite stavke prikazane na zaslonu banda</string>
     <string name="mi2_prefs_activate_display_on_lift">Aktiviraj prikaz nakon podizanja</string>
     <string name="mi2_prefs_rotate_wrist_to_switch_info">Zakrenite zapešće za promjenu informacija</string>
-    <string name="mi2_prefs_do_not_disturb">Ne ometaj</string>
+    <string name="mi2_prefs_do_not_disturb">Ne smetaj</string>
     <string name="mi2_prefs_do_not_disturb_summary">Band neće primati obavijesti dok je aktivan</string>
     <string name="mi2_prefs_inactivity_warnings">Upozorenja o neaktivnosti</string>
     <string name="mi2_prefs_do_not_disturb_start">Vrijeme početka</string>
-    <string name="mi2_prefs_do_not_disturb_lift_wrist">Aktivirajte prikaz nakon podizanja tijekom DND-a</string>
+    <string name="mi2_prefs_do_not_disturb_lift_wrist">Aktiviraj prikaz nakon podizanja tijekom „Ne smetaj”</string>
     <string name="mi3_prefs_band_screen_unlock">Otključavanje zaslona banda</string>
     <string name="mi3_prefs_band_screen_unlock_summary">Prevucite prstom prema gore za otključavanje zaslona banda</string>
     <string name="mi3_prefs_night_mode">Noćni način rada</string>
@@ -878,13 +867,11 @@
     <string name="pref_charts_range_off">Raspon grafikona postavljen je na tjedan</string>
     <string name="pref_chart_heartrate_color_orange">Narančasta</string>
     <string name="pref_title_chart_heartrate_color">Boja otkucaja srca</string>
-    <string name="pref_chart_sleep_rolling_24_off">Od podne do podne</string>
     <string name="activity_prefs_chart_min_steps_per_minute">Minimalni broj koraka u minuti za otkrivanje aktivnosti</string>
     <string name="activity_prefs_chart_max_idle_phase_length">Duljina pauze za odvajanje aktivnosti (minute)</string>
     <string name="activity_prefs_chart_min_session_length">Minimalna duljina aktivnosti (minute)</string>
     <string name="authenticating">Provjera autentičnosti</string>
     <string name="authentication_required">Potrebna je provjera autentičnosti</string>
-    <string name="activity_prefs_sleep_duration">Željeno trajanje spavanja u satima</string>
     <string name="device_fw">Firmware verzija: %1$s</string>
     <string name="error_creating_directory_for_logfiles">Pogreška pri izradi direktorija za datoteke zapisa: %1$s</string>
     <string name="updatefirmwareoperation_update_in_progress">Flashanje firmware</string>
@@ -896,8 +883,6 @@
     <string name="dbmanagementactivity_overwrite_database_confirmation">Stvarno prepisati trenutne podatke? Svi vaši podaci trenutačne aktivnosti (ako ih ima), uređaji i postavke će se prepisati.</string>
     <string name="dbmanagementactivity_import_successful">Uvezeno.</string>
     <string name="dbmanagementactivity_db_deletion_failed">Brisanje baze podataka nije uspjelo.</string>
-    <string name="activity_db_management_autoexport_explanation">Lokacija automatskog izvoza baze podataka postavljena je na:</string>
-    <string name="activity_db_management_autoexport_label">Automatski izvoz</string>
     <string name="activity_DB_ExportButton">Izvoz podataka</string>
     <string name="activity_DB_import_button">Uvoz podataka</string>
     <string name="activity_DB_test_export_button">Pokreni automatski izvoz sada</string>
@@ -905,19 +890,10 @@
     <string name="activity_DB_empty_button">Prazna baza podataka</string>
     <string name="activity_db_management_empty_DB">Prazna baza podataka</string>
     <string name="activity_db_management_empty_db_warning">Upozorenje! Pritiskom na ovaj gumb izbrisat ćete svoju bazu podataka i početi ispočetka.</string>
-    <string name="Cancel">Odustani</string>
+    <string name="cancel">Odustani</string>
     <string name="ok">U redu</string>
-    <string name="activity_DB_clean_export_directory_warning_message">Stvarno izbrisati datoteke u direktoriju za izvoz/uvoz\?</string>
-    <string name="activity_db_management_clean_export_directory_text">Izvezenim datotekama u direktoriju za izvoz/uvoz dostupna je svaka aplikacija na vašem uređaju. Možda biste željeli ukloniti ove datoteke nakon sinkronizacije ili sigurnosne kopije. Obavezno napravite sigurnosnu kopiju prije nego što ih izbrišete. GPX datoteke, poddirektoriji i automatski izvezena datoteka baze podataka (ako postoje) neće se izbrisati. Put do direktorija za izvoz/uvoz je:</string>
     <string name="title_activity_pebble_pairing">Pebble uparivanje</string>
     <string name="pebble_pairing_hint">Na vašem Android uređaju pojavit će se dijaloški okvir za uparivanje. Ako ne, pogledajte u ladicu s obavijestima i prihvatite zahtjev za uparivanje. Prihvatite to i na svom Pebbleu nakon toga.</string>
-    <string name="weather_notification_label">Provjerite je li ovaj izgled omogućen u aplikaciji Weather Notification da biste dobili informacije o vremenu na vašem Pebbleu.
-\n
-\nOvdje nije potrebna konfiguracija.
-\n
-\nMožete omogućiti sistemsku aplikaciju za vremensku prognozu vašeg Pebblea iz upravljanja aplikacijom.
-\n
-\nPodržani brojčanici će automatski prikazati vrijeme.</string>
     <string name="activity_web_view">Aktivnost web-prikaza</string>
     <string name="StringUtils_sender">(%1$s)</string>
     <string name="find_device_you_found_it">Pronašli ste!</string>
@@ -953,7 +929,7 @@
     <string name="pref_applications_settings">Popis aplikacija</string>
     <string name="pref_title_development_miaddr">Mi Band adresa</string>
     <string name="pref_title_pebble_settings">Postavke oblutaka</string>
-    <string name="discovery_need_to_enter_authkey">Ovom uređaju je potreban tajni ključ za autentifikaciju, dugo pritisnite uređaj da biste ga unijeli. Pročitajte wiki.</string>
+    <string name="discovery_need_to_enter_authkey">Ovom uređaju je potreban tajni ključ za autentifikaciju, dugo pritisnite uređaj da biste ga unijeli. Više informacija potražite na web-stranici.</string>
     <string name="discovery_note">Napomena:</string>
     <string name="busy_task_fetch_activity_data">Dohvaćanje podataka o aktivnostima</string>
     <string name="sleep_activity_date_range">Od %1$s do %2$s</string>
@@ -989,7 +965,6 @@
     <string name="watchface_dialog_widget_timeout_hide_text">Sakrij tekst nakon isteka vremena</string>
     <string name="menuitem_mutephone">Bešumno</string>
     <string name="qhybrid_time_shift">vremenski pomak</string>
-    <string name="qhybrid_overwrite_buttons">gumbi za prepisivanje</string>
     <string name="gpx_receiver_activity_title">Gadgetbridge GPX prijemnika</string>
     <string name="gpx_receiver_files_received">Primljene GPX datoteke:</string>
     <string name="gpx_receiver_overwrite_some_files">Neke datoteke već postoje. Prepisati\?</string>
@@ -1165,17 +1140,14 @@
     <string name="italian">Talijanski</string>
     <string name="weeksleepchart_sleep_a_month">Spavanje mjesečno</string>
     <string name="pref_title_chart_sleep_rolling_24_hour">Raspon spavanja</string>
-    <string name="pref_chart_sleep_rolling_24_on">Posljednja 24 sata</string>
     <string name="activity_prefs_activetime_minutes">Dnevni cilj: aktivno vrijeme u minutama</string>
     <string name="pref_title_pebble_health_store_raw">Spremi neobrađeni zapis u bazu podataka</string>
-    <string name="pref_summary_pebble_health_store_raw">Pohranjuje podatke nepromijenjeno, povećavajući korištenje baze podataka kako bi se omogućila kasnija interpretacija.</string>
+    <string name="pref_summary_pebble_health_store_raw">Sprema podatke „nepromijenjeno”, povećavajući korištenje baze podataka kako bi se omogućila kasnija interpretacija.</string>
     <string name="dbmanagementactivity_import_data_title">Uvesti podatke\?</string>
     <string name="dbmanagementactivity_old_activity_db_deletion_failed">Brisanje baze podataka stare aktivnosti nije uspjelo.</string>
     <string name="dbmanagementactivity_overwrite">Prepiši</string>
     <string name="set">Postavi</string>
     <string name="activity_DB_ShowContentButton">Prikaži sadržaj direktorija za izvoz/uvoz</string>
-    <string name="activity_db_management_clean_export_directory_label">Izbrišite datoteke u direktoriju za izvoz/uvoz</string>
-    <string name="activity_DB_clean_export_directory_warning_title">Želite li izbrisati datoteke u direktoriju za izvoz/uvoz\?</string>
     <string name="unit_metric">Metrički</string>
     <string name="unit_imperial">Imperial</string>
     <string name="timeformat_24h">24H</string>
@@ -1204,11 +1176,11 @@
     <string name="menuitem_barometer">Barometar</string>
     <string name="watch9_time_minutes">Minute:</string>
     <string name="qhybrid_second_timezone_offset_relative_to_utc">drugi pomak vremenske zone u odnosu na UTC</string>
-    <string name="mi2_enable_text_notifications_summary"><![CDATA[Firmware >= 1.0.1.28 i Mili_pro.ft* moraju biti instalirani.]]></string>
+    <string name="mi2_enable_text_notifications_summary"><![CDATA[Firmware &gt;= 1.0.1.28 i Mili_pro.ft* moraju biti instalirani.]]></string>
     <string name="fossil_hr_synced_activity_data">Sinkronizirani podaci o aktivnostima</string>
     <string name="fossil_hr_auth_failed">Provjera autentičnosti nije uspjela, ograničena funkcionalnost</string>
     <string name="prefs_touch_lock">Zaključavanje dodirom</string>
-    <string name="discover_unsupported_devices_description">Omogućavanjem ove opcije prikazat će se svi otkriveni bluetooth uređaji prilikom skeniranja. Kratki dodir kopirat će naziv uređaja i mac adresu u međuspremnik. Dugi pritisak pokrenut će dijaloški okvir `Dodaj testni uređaj`. Može prouzročiti moguće probleme zamrzavanja aplikacije.</string>
+    <string name="discover_unsupported_devices_description">Omogućavanjem ove opcije prikazat će se svi otkriveni Bluetooth uređaji prilikom skeniranja. Kratki dodir kopirat će naziv uređaja i mac adresu u međuspremnik. Dugi pritisak pokrenut će dijaloški okvir „Dodaj testni uređaj”. Može prouzročiti moguće probleme zamrzavanja aplikacije.</string>
     <string name="pref_media_play">Reprodukcija</string>
     <string name="pref_media_pause">Pauza</string>
     <string name="about_hash">Uredi %s</string>
@@ -1243,7 +1215,7 @@
     <string name="activity_type_swimming_openwater">Plivanje (otvorena voda)</string>
     <string name="abstract_chart_fragment_kind_not_worn">Nije nošeno</string>
     <string name="abstract_chart_fragment_kind_activity">Aktivnost</string>
-    <string name="overstep">Prekorak: %1$d</string>
+    <string name="overstep">Prekorak: %1$s</string>
     <string name="minutes_30">30 minuta</string>
     <string name="seconds_20">20 sekundi</string>
     <string name="seconds_30">30 sekundi</string>
@@ -1254,7 +1226,7 @@
     <string name="pbwinstallhandler_incorrect_hw_revision">Nepodudaranje revizije hardvera!</string>
     <string name="notif_export_failed_title">Izvoz baze podataka nije uspio! Provjerite svoje postavke.</string>
     <string name="pbw_install_handler_hw_revision_mismatch">Nije moguće instalirati dati firmware: ne odgovara reviziji hardvera vašeg Pebblea.</string>
-    <string name="pref_title_notification_filter">DND</string>
+    <string name="pref_title_notification_filter">Ne smetaj</string>
     <string name="pref_summary_minimize_priority_off">Ikona u statusnoj traci i obavijest na zaključanom zaslonu se prikazuju</string>
     <string name="pref_title_language">Jezik</string>
     <string name="pref_theme_system">Sustav</string>
@@ -1362,7 +1334,7 @@
     <string name="pref_title_canned_reply_suffix">Uobičajeni sufiks</string>
     <string name="pref_blacklist_calendars">Kalendari na crnoj listi</string>
     <string name="pref_header_cannned_messages">Sadržajne poruke</string>
-    <string name="pref_title_weather_summary">Koristi se za davatelja vremenske prognoze LineageOS, druge verzije Androida moraju koristiti aplikaciju kao što je „Obavijest o vremenu”. Više informacija potražite na wikiju Gadgetbridge.</string>
+    <string name="pref_title_weather_summary">Koristi se za pružatelja usluge vremenske prognoze LineageOS, druge verzije Androida moraju koristiti aplikaciju kao što je „Breezy Weather”. Više informacija potražite na Gadgetbridge web-stranici.</string>
     <string name="pref_title_weather">Vrijeme</string>
     <string name="pref_title_weather_location">Vremenska lokacija (za davatelja vremena LineageOS)</string>
     <string name="pref_call_privacy_mode_name">Sakrij ime, ali prikaži broj</string>
@@ -1403,7 +1375,6 @@
     <string name="menuitem_compass">Kompas</string>
     <string name="menuitem_settings">Postavke</string>
     <string name="menuitem_alipay">Alipay</string>
-    <string name="preferences_qhybrid_settings">Q Hybrid postavke</string>
     <string name="menuitem_music">Glazba</string>
     <string name="menuitem_more">Više</string>
     <string name="menuitem_nfc">NFC</string>
@@ -1429,11 +1400,11 @@
     <string name="pref_header_sony_equalizer_bands">Bandovi</string>
     <string name="sony_audio_upsampling">Povećanje zvuka</string>
     <string name="thai">tajlandski</string>
-    <string name="pref_summary_notification_filter">Blokiraj sve obavijesti kada je DND način omogućen na telefonu</string>
+    <string name="pref_summary_notification_filter">Blokiraj sve obavijesti kada je modus „Ne smetaj” aktiviran na telefonu</string>
     <plurals name="widget_alarm_target_hours">
-        <item quantity="one">%d sat</item>
-        <item quantity="few">%d sata</item>
-        <item quantity="other">%d sati</item>
+        <item quantity="one">%1$d:%2$02d sat</item>
+        <item quantity="few">%1$d:%2$02d sata</item>
+        <item quantity="other">%1$d:%2$02d sati</item>
     </plurals>
     <string name="battery_case">Kućište za baterije</string>
     <string name="left_earbud">Lijeva slušalica</string>
@@ -1462,9 +1433,6 @@
     <string name="pref_anc_optimizer_state_pressure">Atmosferski tlak</string>
     <string name="sony_anc_optimizer_status_analyzing">Analiziranje …</string>
     <string name="pref_title_notifications_generic_settings">Postavke obavijesti za Android</string>
-    <string name="autoExport_lastTime_label">Zadnji automatski izvoz: %1$s</string>
-    <string name="activity_db_management_autoexport_enabled_yes">Automatski izvoz je deaktiviran.</string>
-    <string name="activity_db_management_autoexport_enabled_no">Automatski izvoz nije aktiviran.</string>
     <string name="activity_db_management_autoexport_scheduled_yes">Automatski izvoz je (izvorno) planiran za %1$s</string>
     <string name="activity_db_management_autoexport_scheduled_no">Automatski izvoz nije planiran.</string>
     <string name="sony_anc_optimize_title">Optimiraj</string>
@@ -1519,8 +1487,6 @@
     <string name="changelog_ok_button">U redu</string>
     <string name="changelog_full_title">Dnevnik promjena</string>
     <string name="changelog_show_full">Više …</string>
-    <string name="loyalty_cards_catima_package">Ime Catima paketa</string>
-    <string name="loyalty_cards_install">Instaliraj Catima</string>
     <string name="action_changelog">Dnevnik promjena</string>
     <string name="search">Traži</string>
     <string name="controlcenter_get_heartrate_measurement">Mjerenje otkucaja srca</string>
@@ -1637,4 +1603,9 @@
     <string name="cycling">Biciklizam</string>
     <string name="title_cycling">Biciklizam</string>
     <string name="aerobicTrainingEffect">Efekt aerobika</string>
+    <plurals name="amount_of_days">
+        <item quantity="one">%d dan</item>
+        <item quantity="few">%d dana</item>
+        <item quantity="other">%d dana</item>
+    </plurals>
 </resources>

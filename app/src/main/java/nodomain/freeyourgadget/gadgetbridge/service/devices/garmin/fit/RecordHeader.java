@@ -3,12 +3,18 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.Objects;
+
 
 public class RecordHeader {
     private final boolean definition;
     private final boolean developerData;
     private final int localMessageType;
     private final Integer timeOffset;
+
+    public RecordHeader(boolean definition, int localMessageType) {
+        this(definition, false, localMessageType, null);
+    }
 
     public RecordHeader(boolean definition, boolean developerData, int localMessageType, Integer timeOffset) {
         this.definition = definition;
@@ -83,5 +89,22 @@ public class RecordHeader {
     @Override
     public String toString() {
         return "Local Message: " + localMessageType;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+
+        RecordHeader that = (RecordHeader) o;
+        return definition == that.definition && developerData == that.developerData && localMessageType == that.localMessageType && Objects.equals(timeOffset, that.timeOffset);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Boolean.hashCode(definition);
+        result = 31 * result + Boolean.hashCode(developerData);
+        result = 31 * result + localMessageType;
+        result = 31 * result + Objects.hashCode(timeOffset);
+        return result;
     }
 }

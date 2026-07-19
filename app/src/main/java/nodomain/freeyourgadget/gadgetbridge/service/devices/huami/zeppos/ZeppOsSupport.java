@@ -1,4 +1,4 @@
-/*  Copyright (C) 2022-2024 Daniel Dakhno, José Rebelo, Oleg Vasilev
+/*  Copyright (C) 2022-2026 Daniel Dakhno, José Rebelo, Oleg Vasilev
 
     This file is part of Gadgetbridge.
 
@@ -319,8 +319,21 @@ public class ZeppOsSupport extends AbstractDeviceSupport
     }
 
     @Override
-    public void onTestNewFunction() {
-
+    public void onTestNewFunction(@Nullable Bundle options) {
+        //final ZeppOsTransactionBuilder builder = createZeppOsTransactionBuilder("test new function");
+        //configService.requestConfig(
+        //        builder,
+        //        ZeppOsConfigService.ConfigGroup.AGPS,
+        //        true,
+        //        Collections.singletonList(ZeppOsConfigService.ConfigArg.AGPS_UNK_0x08)
+        //);
+        //configService.requestConfig(
+        //        builder,
+        //        ZeppOsConfigService.ConfigGroup.WORKOUT,
+        //        true,
+        //        Collections.singletonList(ZeppOsConfigService.ConfigArg.WORKOUT_HEART_RATE_ZONES)
+        //);
+        //builder.queue();
     }
 
     @Override

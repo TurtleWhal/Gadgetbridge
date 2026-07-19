@@ -33,7 +33,6 @@ public enum NotificationType {
     MAILBOX,
     OUTLOOK,
     BUSINESS_CALENDAR,
-    RIOT,
     SIGNAL,
     WIRE,
     SKYPE,
@@ -53,7 +52,6 @@ public enum NotificationType {
     COL_REMINDER,
     DELTACHAT,
     ELEMENT,
-    ELEMENTX,
     MOLLY,
     VK,
     QQ,
@@ -61,6 +59,8 @@ public enum NotificationType {
     PINTEREST,
     YOUTUBE,
     GADGETBRIDGE_TEXT_RECEIVER,
+    GAMES,
+    WEATHER,
     ;
 
 
@@ -87,10 +87,10 @@ public enum NotificationType {
             case SNAPCHAT:
             case INSTAGRAM:
             case LINKEDIN:
+            case VK:
                 return "generic_social";
             case CONVERSATIONS:
             case FACEBOOK_MESSENGER:
-            case RIOT:
             case SIGNAL:
             case WIRE:
             case TELEGRAM:
@@ -111,7 +111,6 @@ public enum NotificationType {
             case DISCORD:
             case DELTACHAT:
             case ELEMENT:
-            case ELEMENTX:
             case MOLLY:
                 return "generic_chat";
             case GMAIL:
@@ -122,6 +121,8 @@ public enum NotificationType {
                 return "generic_email";
             case COL_REMINDER:
             case GADGETBRIDGE_TEXT_RECEIVER:
+            case GAMES:
+            case WEATHER:
             case UNKNOWN:
             default:
                 return "generic";

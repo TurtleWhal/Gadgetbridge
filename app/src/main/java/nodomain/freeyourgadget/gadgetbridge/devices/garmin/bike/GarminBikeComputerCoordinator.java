@@ -13,37 +13,22 @@ public abstract class GarminBikeComputerCoordinator extends GarminCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracking(@NonNull GBDevice device) {
+    public boolean supportsCharts(@NonNull GBDevice device) {
         return true;
-    }
-
-    @Override
-    public boolean supportsActivityTabs(@NonNull GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsSleepMeasurement(@NonNull GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsStepCounter(@NonNull GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsSpeedzones(@NonNull GBDevice device) {
-        return false;
     }
 
     @Override
     public boolean supportsActiveCalories(@NonNull GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsActivityDistance(@NonNull GBDevice device) {
         return true;
     }
 
@@ -53,12 +38,7 @@ public abstract class GarminBikeComputerCoordinator extends GarminCoordinator {
     }
 
     @Override
-    public boolean supportsVO2MaxCycling(@NonNull GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
+    public boolean supportsRecordedActivities(@NonNull final GBDevice device) {
         return true;
     }
 

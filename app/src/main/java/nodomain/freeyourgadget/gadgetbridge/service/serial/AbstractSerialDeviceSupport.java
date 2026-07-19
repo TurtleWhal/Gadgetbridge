@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, José Rebelo,
+/*  Copyright (C) 2015-2026 Andreas Shimokawa, Carsten Pfeiffer, José Rebelo,
     Julien Pivotto, Steffen Liebergeld
 
     This file is part of Gadgetbridge.
@@ -18,6 +18,9 @@
 package nodomain.freeyourgadget.gadgetbridge.service.serial;
 
 import android.location.Location;
+import android.os.Bundle;
+
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +44,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
 
 /**
  * An abstract base class for devices speaking a serial protocol, like via
- * an rfcomm bluetooth socket or a TCP socket.
+ * a rfcomm bluetooth socket or a TCP socket.
  * <p/>
  * This class uses two helper classes to deal with that:
  * - GBDeviceIoThread, which creates and maintains the actual socket connection and implements the transport layer
@@ -51,7 +54,9 @@ import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
  * <p/>
  * This implementation implements all methods of {@link EventHandler}, calls the {@link GBDeviceProtocol device protocol}
  * to create the device specific message for the respective events and sends them to the device via {@link #sendToDevice(byte[])}.
+ * @deprecated Use {@link nodomain.freeyourgadget.gadgetbridge.service.btbr.AbstractBTBRDeviceSupport}
  */
+@Deprecated
 public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractSerialDeviceSupport.class);
 
@@ -109,8 +114,9 @@ public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport 
      */
     public synchronized GBDeviceIoThread getDeviceIOThread() {
         if (gbDeviceIOThread == null || !gbDeviceIOThread.isAlive()) {
-            LOG.debug("Creating new IO thread");
-            gbDeviceIOThread = createDeviceIOThread();
+            LOG.debug("Creating new IO thread for {}", gbDevice.getAddress());
+            final Thread thread = (gbDeviceIOThread = createDeviceIOThread());
+            LOG.debug("New IO thread: {}", thread.getName());
         }
         return gbDeviceIOThread;
     }
@@ -279,8 +285,8 @@ public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport 
     }
 
     @Override
-    public void onTestNewFunction() {
-        byte[] bytes = gbDeviceProtocol.encodeTestNewFunction();
+    public void onTestNewFunction(@Nullable Bundle options) {
+        byte[] bytes = gbDeviceProtocol.encodeTestNewFunction(options);
         sendToDevice(bytes);
     }
 

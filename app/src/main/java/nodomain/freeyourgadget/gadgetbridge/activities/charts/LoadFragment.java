@@ -1,4 +1,4 @@
-/*  Copyright (C) 2025 a0z, Thomas Kuehne
+/*  Copyright (C) 2025-2026 a0z, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -15,6 +15,11 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
+
+import static nodomain.freeyourgadget.gadgetbridge.devices.GenericMetricSampleProvider.getLatestMetricSampleBefore;
+import static nodomain.freeyourgadget.gadgetbridge.devices.GenericMetricSampleProvider.getMetricSamples;
+import static nodomain.freeyourgadget.gadgetbridge.model.MetricSample.Metric.GENERIC_TRAINING_LOAD_ACUTE;
+import static nodomain.freeyourgadget.gadgetbridge.model.MetricSample.Metric.GENERIC_TRAINING_LOAD_CHRONIC;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -67,6 +72,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericTrainingLoadAcuteSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericTrainingLoadChronicSample;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.MetricSample;
 import nodomain.freeyourgadget.gadgetbridge.model.WorkoutLoadSample;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 
@@ -92,6 +98,8 @@ public class LoadFragment extends AbstractChartFragment<LoadFragment.LoadsData> 
     protected int TEXT_COLOR;
     protected int LOAD_COLOR;
 
+    private boolean metricTrainingLoad;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_load, container, false);
@@ -104,6 +112,13 @@ public class LoadFragment extends AbstractChartFragment<LoadFragment.LoadsData> 
         dailyLoadChart = rootView.findViewById(R.id.daily_load_chart);
         thisWeekTotal = rootView.findViewById(R.id.this_week_total);
         lastWeekTotal = rootView.findViewById(R.id.last_week_total);
+
+        metricTrainingLoad = GBApplication.getPrefs().experimentalMetrics()
+                && supportsMetrics(GENERIC_TRAINING_LOAD_ACUTE);
+        if (metricTrainingLoad) {
+            LOG.info("using experimental MetricSample for training load");
+        }
+
         if (supportsTrainingLoad()) {
             acuteLoadChart = rootView.findViewById(R.id.acute_load_chart);
             acuteLoad = rootView.findViewById(R.id.acute_load);
@@ -123,6 +138,9 @@ public class LoadFragment extends AbstractChartFragment<LoadFragment.LoadsData> 
     }
 
     public boolean supportsTrainingLoad() {
+        if (metricTrainingLoad) {
+            return true;
+        }
         final GBDevice device = getChartsHost().getDevice();
         return device.getDeviceCoordinator().supportsTrainingLoad(device);
     }
@@ -199,7 +217,7 @@ public class LoadFragment extends AbstractChartFragment<LoadFragment.LoadsData> 
             }
         });
 
-        // Daily load chart chart.
+        // Daily load chart.
         BarDataSet set = new BarDataSet(dailyLoadEntries, "Load");
         set.setDrawValues(true);
         set.setColors(LOAD_COLOR);
@@ -295,13 +313,24 @@ public class LoadFragment extends AbstractChartFragment<LoadFragment.LoadsData> 
                 load = workoutLoadSamples.stream().mapToInt(WorkoutLoadSample::getValue).sum();
             }
             if (supportsTrainingLoad()) {
-                List<? extends GenericTrainingLoadAcuteSample> workoutTrainingAcuteLoadSamples = getTrainingLoadAcuteSamples(db, device, startTs, endTs);
-                if (!workoutTrainingAcuteLoadSamples.isEmpty()) {
-                    acuteLoad = workoutTrainingAcuteLoadSamples.get(workoutTrainingAcuteLoadSamples.size() - 1).getValue();
-                }
-                List<? extends GenericTrainingLoadChronicSample> workoutTrainingChronicLoadSamples = getTrainingLoadChronicSamples(db, device, startTs, endTs);
-                if (!workoutTrainingChronicLoadSamples.isEmpty()) {
-                    chronicLoad = workoutTrainingChronicLoadSamples.get(workoutTrainingChronicLoadSamples.size() - 1).getValue();
+                if (metricTrainingLoad) {
+                    List<? extends MetricSample> workoutTrainingAcuteLoadSamples = getMetricSamples(db, device, GENERIC_TRAINING_LOAD_ACUTE, startTs * 1000L, endTs * 1000L);
+                    if (!workoutTrainingAcuteLoadSamples.isEmpty()) {
+                        acuteLoad = (int) workoutTrainingAcuteLoadSamples.get(workoutTrainingAcuteLoadSamples.size() - 1).getMetricScore();
+                    }
+                    List<? extends MetricSample> workoutTrainingChronicLoadSamples = getMetricSamples(db, device, GENERIC_TRAINING_LOAD_CHRONIC, startTs * 1000L, endTs * 1000L);
+                    if (!workoutTrainingChronicLoadSamples.isEmpty()) {
+                        chronicLoad = (int) workoutTrainingChronicLoadSamples.get(workoutTrainingChronicLoadSamples.size() - 1).getMetricScore();
+                    }
+                } else {
+                    List<? extends GenericTrainingLoadAcuteSample> workoutTrainingAcuteLoadSamples = getTrainingLoadAcuteSamples(db, device, startTs, endTs);
+                    if (!workoutTrainingAcuteLoadSamples.isEmpty()) {
+                        acuteLoad = workoutTrainingAcuteLoadSamples.get(workoutTrainingAcuteLoadSamples.size() - 1).getValue();
+                    }
+                    List<? extends GenericTrainingLoadChronicSample> workoutTrainingChronicLoadSamples = getTrainingLoadChronicSamples(db, device, startTs, endTs);
+                    if (!workoutTrainingChronicLoadSamples.isEmpty()) {
+                        chronicLoad = workoutTrainingChronicLoadSamples.get(workoutTrainingChronicLoadSamples.size() - 1).getValue();
+                    }
                 }
             }
             data.add(new LoadData((Calendar) day.clone(), load, acuteLoad, chronicLoad, i));
@@ -319,13 +348,28 @@ public class LoadFragment extends AbstractChartFragment<LoadFragment.LoadsData> 
         int latestAcuteLoad = 0;
         int latestChronicLoad = 0;
         if (supportsTrainingLoad()) {
-            GenericTrainingLoadAcuteSample latestAcuteLoadSample = getLatestTrainingLoadAcuteSample(db, device, getTSEnd());
-            if (latestAcuteLoadSample != null) {
-                latestAcuteLoad = latestAcuteLoadSample.getValue();
-            }
-            GenericTrainingLoadChronicSample latestChronicLoadSample = getLatestTrainingLoadChronicSample(db, device, getTSEnd());
-            if (latestChronicLoadSample != null) {
-                latestChronicLoad = latestChronicLoadSample.getValue();
+            final Date dayEnd = DateTimeUtils.dayEnd(getEndDate());
+
+            if (metricTrainingLoad) {
+                MetricSample latestAcuteLoadSample = getLatestMetricSampleBefore(db, device, GENERIC_TRAINING_LOAD_ACUTE, dayEnd.getTime());
+                if (latestAcuteLoadSample != null) {
+                    latestAcuteLoad = (int) latestAcuteLoadSample.getMetricScore();
+                }
+
+                MetricSample latestChronicLoadSample = getLatestMetricSampleBefore(db, device, GENERIC_TRAINING_LOAD_CHRONIC, dayEnd.getTime());
+                if (latestChronicLoadSample != null) {
+                    latestChronicLoad = (int) latestChronicLoadSample.getMetricScore();
+                }
+            } else {
+                GenericTrainingLoadAcuteSample latestAcuteLoadSample = getLatestTrainingLoadAcuteSample(db, device, dayEnd.getTime());
+                if (latestAcuteLoadSample != null) {
+                    latestAcuteLoad = latestAcuteLoadSample.getValue();
+                }
+
+                GenericTrainingLoadChronicSample latestChronicLoadSample = getLatestTrainingLoadChronicSample(db, device, dayEnd.getTime());
+                if (latestChronicLoadSample != null) {
+                    latestChronicLoad = latestChronicLoadSample.getValue();
+                }
             }
         }
         return new LoadsData(data, latestAcuteLoad, latestChronicLoad, thisWeekLoad, lastWeekLoad);
@@ -361,24 +405,24 @@ public class LoadFragment extends AbstractChartFragment<LoadFragment.LoadsData> 
         return sampleProvider.getAllSamples(tsFrom * 1000L, tsTo * 1000L);
     }
 
-    private GenericTrainingLoadAcuteSample getLatestTrainingLoadAcuteSample(final DBHandler db, final GBDevice device, int tsTo) {
+    private GenericTrainingLoadAcuteSample getLatestTrainingLoadAcuteSample(final DBHandler db, final GBDevice device, long tsToMillis) {
         final DeviceCoordinator coordinator = device.getDeviceCoordinator();
         final TimeSampleProvider<? extends GenericTrainingLoadAcuteSample> sampleProvider = coordinator.getTrainingAcuteLoadSampleProvider(device, db.getDaoSession());
         if (sampleProvider == null) {
             LOG.warn("Device {} does not implement GenericTrainingLoadAcuteSample", device);
             return null;
         }
-        return sampleProvider.getLatestSample(tsTo * 1000L);
+        return sampleProvider.getLatestSample(tsToMillis);
     }
 
-    private GenericTrainingLoadChronicSample getLatestTrainingLoadChronicSample(final DBHandler db, final GBDevice device, int tsTo) {
+    private GenericTrainingLoadChronicSample getLatestTrainingLoadChronicSample(final DBHandler db, final GBDevice device, long tsToMillis) {
         final DeviceCoordinator coordinator = device.getDeviceCoordinator();
         final TimeSampleProvider<? extends GenericTrainingLoadChronicSample> sampleProvider = coordinator.getTrainingChronicLoadSampleProvider(device, db.getDaoSession());
         if (sampleProvider == null) {
             LOG.warn("Device {} does not implement GenericTrainingLoadChronicSample", device);
             return null;
         }
-        return sampleProvider.getLatestSample(tsTo * 1000L);
+        return sampleProvider.getLatestSample(tsToMillis);
     }
 
     private void setupAcuteLoadChart() {
@@ -462,6 +506,7 @@ public class LoadFragment extends AbstractChartFragment<LoadFragment.LoadsData> 
         return typedValue.data;
     }
 
+    @Override
     protected void setupLegend(Chart<?> chart) {}
 
     protected static class LoadsData extends ChartsData {

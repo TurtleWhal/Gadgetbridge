@@ -19,6 +19,7 @@
 package nodomain.freeyourgadget.gadgetbridge.devices.casio.gbx100;
 
 import android.app.Activity;
+import android.bluetooth.BluetoothDevice;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,8 +48,6 @@ public class CasioGBX100DeviceCoordinator extends Casio2C2DDeviceCoordinator {
 
     /** Sub-model string for GBX-100 in GB Device name */
     public static final String GBX_100_SUB_MODEL = "GBX-100";
-    /** Sub-model string for GBD-200 in GB Device name */
-    public static final String GBD_200_SUB_MODEL = "GBD-200";
     /** Sub-model string for GBD-100 in GB Device name */
     public static final String GBD_100_SUB_MODEL = "GBD-100";
     /** Sub-model string for GBD-H1000 in GB Device name */
@@ -56,7 +55,6 @@ public class CasioGBX100DeviceCoordinator extends Casio2C2DDeviceCoordinator {
 
     public static final String[] VARIANTS = {
             GBX_100_SUB_MODEL,
-            GBD_200_SUB_MODEL,
             GBD_100_SUB_MODEL,
             GBD_H1000_SUB_MODEL};
 
@@ -76,6 +74,11 @@ public class CasioGBX100DeviceCoordinator extends Casio2C2DDeviceCoordinator {
     }
 
     @Override
+    public int getBlePhyMask() {
+        return BluetoothDevice.PHY_LE_1M_MASK;
+    }
+
+    @Override
     public int getBondingStyle(){
         return BONDING_STYLE_LAZY;
     }
@@ -91,7 +94,7 @@ public class CasioGBX100DeviceCoordinator extends Casio2C2DDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 

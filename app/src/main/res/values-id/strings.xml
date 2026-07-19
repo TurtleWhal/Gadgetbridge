@@ -44,12 +44,10 @@
     <string name="title_activity_fw_app_insaller">Penginstal FW / Aplikasi</string>
     <string name="prefs_autoremove_message">Hapus notifikasi SMS secara otomatis</string>
     <string name="fw_upgrade_notice">Anda akan memasang %s.</string>
-    <string name="title_activity_calblacklist">Kalender yang diblacklist</string>
     <string name="whitelist_all_for_notifications">Whitelist untuk semua notifikasi</string>
     <string name="blacklist_all_for_notifications">Blacklist untuk semua notifikasi</string>
     <string name="app_move_to_top">Pindah ke atas</string>
     <string name="app_configure">Konfigurasi</string>
-    <string name="appmanager_weather_install_provider">Pasang aplikasi notifikasi Cuaca</string>
     <string name="appmanager_weather_deactivate">Nonaktifkan aplikasi Sistem Cuaca</string>
     <string name="appmanager_weather_activate">Aktifkan aplikasi Sistem Cuaca</string>
     <string name="appmanager_hrm_deactivate">Nonaktifkan HRM</string>
@@ -310,22 +308,18 @@
     <string name="sony_automatic_power_off_30_min">30 menit</string>
     <string name="sony_automatic_power_off_3_hour">3 jam</string>
     <string name="sony_button_mode_off">Mati</string>
-    <string name="distance_format_meters">###m</string>
     <string name="controlcenter_power_off_confirm_title">Matikan</string>
     <string name="watchface_dialog_widget_color_white">Putih</string>
     <string name="pref_title_equalizer_normal">Normal</string>
-    <string name="distance_format_miles">###.#mi</string>
     <string name="turkish">Turki</string>
     <string name="controlcenter_power_off_confirm_description">Apakah Anda yakin ingin mematikan perangkat\?</string>
     <string name="sony_sound_position_front_right">Kanan Depan</string>
-    <string name="distance_format_kilometers">###.#km</string>
     <string name="prefs_activity_in_device_card_title">Tampilkan info Aktivitas di kartu perangkat</string>
     <string name="prefs_activity_in_device_card_steps_title_summary">Tampilkan jumlah langkah</string>
     <string name="pref_title_equalizer_soft">Lembut</string>
     <string name="prefs_dolby_mode">Mode Dolby</string>
     <string name="controlcenter_power_off">Matikan</string>
     <string name="prefs_activity_in_device_card_distance_title_summary">Jarak dihitung dari langkah dan panjang langkah (dapat disesuaikan di Pengaturan - Tentang Anda)</string>
-    <string name="distance_format_feet">###ft</string>
     <string name="watchface_dialog_title_settings">Pengaturan tampilan jam</string>
     <string name="pref_title_equalizer_bass_boost">Penguat bass</string>
     <string name="pref_title_equalizer_dynamic">Dinamis</string>
@@ -381,12 +375,10 @@
     <string name="menuitem_goal">Sasaran Aktivitas</string>
     <string name="weeksleepchart_sleep_a_month">Tidur per bulan</string>
     <string name="pref_title_chart_sleep_rolling_24_hour">Jangka tidur</string>
-    <string name="pref_chart_sleep_rolling_24_off">Siang sampai siang</string>
     <string name="activity_prefs_chart_max_idle_phase_length">Panjang waktu untuk memisahkan aktivitas (menit)</string>
     <string name="activity_prefs_chart_min_steps_per_minute_for_run">Langkah per menit minimal untuk mendeteksi lari</string>
     <string name="activity_prefs_chart_min_session_length">Panjang aktivitas minimal (menit)</string>
     <string name="activity_prefs_chart_min_steps_per_minute">Langkah per detik minimal untuk mendeteksi aktivitas</string>
-    <string name="activity_prefs_sleep_duration">Durasi tidur yang diinginkan dalam jam</string>
     <string name="DEVINFO_HR_VER">"HR: "</string>
     <string name="updatefirmwareoperation_update_in_progress">Sedang flash perangkat tegar</string>
     <string name="error_creating_directory_for_logfiles">Kesalahan membuat direktori untuk berkas catatan: %1$s</string>
@@ -394,16 +386,14 @@
     <string name="device_fw">Versi perangkat tegar: %1$s</string>
     <string name="updatefirmwareoperation_firmware_not_sent">Firmware belum dikirim</string>
     <string name="activity_db_management_autoexport_scheduled_yes">Ekspor otomatis telah dijadwalkan (sebelumnya) untuk %1$s</string>
-    <string name="Delete">Hapus</string>
-    <string name="activity_db_management_autoexport_enabled_no">Ekspor otomatis tidak diaktifkan.</string>
-    <string name="activity_db_management_autoexport_explanation">Lokasi ekspor otomatis basis data telah ditetapkan ke:</string>
+    <string name="delete">Hapus</string>
     <string name="pref_title_setup_bt_pairing">Aktifkan penyandingan Bluetooth</string>
     <string name="pref_summary_setup_bt_pairing">Nonaktifkan ini jika Anda mengalami masalah menghubung</string>
     <string name="miband2_prefs_timeformat">Mi2: Format waktu</string>
     <string name="find_lost_device_you_found_it">Ketemu!</string>
     <string name="find_device_you_found_it">Anda menemukannya!</string>
     <string name="mi2_fw_installhandler_fw53_hint">Anda harus memasang versi %1$s sebelum memasang perangkat tegar ini!</string>
-    <string name="mi2_enable_text_notifications_summary">Membutuhkan perangkat tegar &gt;= 1.0.1.28 dan Mili_pro.ft terpasang.</string>
+    <string name="mi2_enable_text_notifications_summary"><![CDATA[Membutuhkan perangkat tegar &gt;= 1.0.1.28 dan Mili_pro.ft terpasang.]]></string>
     <string name="discovery_dont_pair">Jangan Sandingkan</string>
     <string name="discovery_successfully_bonded">Dijalin ke %1$s.</string>
     <string name="discovery_pair_title">Sandingkan dengan %1$s\?</string>
@@ -442,7 +432,6 @@
     <string name="activity_filter_from_placeholder">masa lalu yang jauh</string>
     <string name="averageSpeed">Kecepatan Rata-Rata</string>
     <string name="set">Tetapkan</string>
-    <string name="device_requires_key">KUNCI DIBUTUHKAN, TEKAN LAMA UNTUK MEMASUKKAN</string>
     <string name="fossil_hr_new_action">Tindakan baru</string>
     <string name="pref_summary_canned_messages_set">Kirim pesan yang diatur di bawah ke perangkat Anda</string>
     <string name="watchface_dialog_title_set_name">Tetapkan nama wajah jam</string>
@@ -525,7 +514,6 @@
     <string name="toast_app_must_not_be_selected">Aplikasi harus tidak dipilih untuk diatur</string>
     <string name="watchface_setting_power_saving_display">Nonaktifkan pembaruan tampilan saat gelang mati</string>
     <string name="pref_title_touch_volume">Volume</string>
-    <string name="activity_db_management_autoexport_label">Ekspor Otomatis</string>
     <string name="error_background_service">Gagal memulai layanan latar belakang</string>
     <string name="activity_filter_apply_filter">Terapkan Saringan</string>
     <string name="addto_filter">Tambahkan ke saringan</string>
@@ -559,7 +547,6 @@
     <string name="pref_media_volumedown">Volume Bawah</string>
     <string name="steps_streaks_total_steps_hint_totals">Jumlah langkah yang telah direkam</string>
     <string name="step_streak_average_steps_hint">Langkah per hari runtunan rata-rata</string>
-    <string name="share_log_not_enabled_message">Anda harus mengaktifkan pencatatan dahulu di Pengaturan - Tulis berkas catatan</string>
     <string name="totalStride">Jumlah langkah</string>
     <string name="bpm">bpm</string>
     <string name="Strokes">Gaya</string>
@@ -684,7 +671,7 @@
     <string name="pref_title_charts_range">Jangka Bagan</string>
     <string name="pref_chart_sleep_lines_limit">Berapa garis sesi tidur untuk ditampilkan sebelum menggulirnya</string>
     <string name="pref_summary_pebble_health_store_raw">Menyimpan data dengan adanya, meningkatkan penggunaan basis data untuk memperbolehkan interpretasi nanti.</string>
-    <string name="Cancel">Batalkan</string>
+    <string name="cancel">Batalkan</string>
     <string name="ok">Oke</string>
     <string name="activity_data_management_directory_content_title">Ekspor/Impor konten direktori</string>
     <string name="activity_type_walking">Berjalan</string>
@@ -698,7 +685,6 @@
     <string name="menuitem_compass">Kompas</string>
     <string name="menuitem_music">Musik</string>
     <string name="menuitem_more">Lain</string>
-    <string name="preferences_qhybrid_settings">Pengaturan Q Hybrid</string>
     <string name="menuitem_sun_moon">Matahari &amp; Bulan</string>
     <string name="menuitem_voice_memos">Memo Suara</string>
     <string name="menuitem_brightness">Kecerahan</string>
@@ -808,8 +794,6 @@
     <string name="filter_submode_all">Semua kata</string>
     <string name="filter_mode_whitelist">Tampilkan ketika berisi kata</string>
     <string name="qhybrid_buttons_overwrite_error">Kesalahan menimpa tombol</string>
-    <string name="qhybrid_vibration_strength">kekuatan getaran:</string>
-    <string name="qhybrid_prompt_million_steps">Mohon tetapkan hitungan langkah ke jutaan untuk mengaktifkan itu.</string>
     <string name="qhybrid_time_shift">pergeseran waktu</string>
     <string name="watch_not_connected">Jam tangan tidak terhubung</string>
     <string name="about_additional_device_support">Dukungan perangkat tambahan</string>
@@ -847,9 +831,6 @@
 \n 
 \nPeringatan: menekan lama pada tombol atas ketika sebuah wajah jam dari aplikasi Fossil resmi terpasang akan juga mengubah antara menampilkan/menyembunyikan widget.</string>
     <string name="activity_DB_test_export_button">Jalankan Ekspor Otomatis Sekarang</string>
-    <string name="activity_db_management_clean_export_directory_label">Hapus file dalam direktori Ekspor/Impor</string>
-    <string name="activity_DB_clean_export_directory_warning_title">Hapus berkas dalam direktori Ekspor/Impor\?</string>
-    <string name="activity_DB_clean_export_directory_warning_message">Benar-benar ingin hapus berkas dalam direktori Ekspor/Impor\?</string>
     <string name="pebble_pairing_hint">Sebuah dialog penyandingan akan muncul di perangkat Android Anda. Jika tidak, lihat dalam laci notifikasi dan terima permintaan penyandingan. Juga terima di Pebble Anda setelah itu.</string>
     <string name="mi2_dnd_automatic">Otomatis (deteksi tidur)</string>
     <string name="activity_type_activity">Aktivitas</string>
@@ -900,17 +881,9 @@
     <string name="reminder_message">Pesan</string>
     <string name="reminder_time_every_year">%1$s, setiap tahun</string>
     <string name="chart_no_data_synchronize">Tidak ada data. Sinkron perangkat\?</string>
-    <string name="activity_db_management_clean_export_directory_text">Berkas yang diekspor dalam direktori Ekspor/Impor dapat diakses oleh aplikasi apa pun di perangkat. Anda mungkin ingin menghapus berkasi ini setelah penyinkronan atau pencadangan. Pastikan untuk memiliki cadangan sebelum menghapusnya. Berkas GPX, subdirektori dan berkas basis data yang diekspor secara otomatis (jika ada) tidak akan dihapus. Jalur ke direktori Ekspor/Impor adalah:</string>
     <string name="dismiss">Abaikan</string>
     <string name="unit_metric">Metrik</string>
     <string name="dbmanagementactivity_export_finished">Penghapusan selesai</string>
-    <string name="weather_notification_label">Pastikan kulit ini diaktifkan dalam aplikasi Notifikasi Cuaca untuk mendapatkan informasi cuaca di Pebble Anda. 
-\n 
-\nTidak ada pengaturan yang dibutuhkan di sini. 
-\n 
-\nAnda dapat mengaktifkan aplikasi cuaca sistem dari Pebble Anda dari pengelola aplikasi. 
-\n 
-\nWajah jam yang didukung akan menampilkan cuaca secara otomatis.</string>
     <string name="title_activity_vibration">Getaran</string>
     <string name="kind_resources">Sumber daya</string>
     <string name="kind_app">Aplikasi</string>
@@ -997,14 +970,13 @@
     <string name="world_clock_no_free_slots_description">Perangkat ini tidak memiliki tempat kosong untuk jam dunia (jumlah tempat: %1$s)</string>
     <string name="world_clock_label">Label</string>
     <string name="prefs_stress_monitoring_title">Pemantauan stres</string>
-    <string name="dateformat_date_time">Waktu &amp; tanggal</string>
+    <string name="dateformat_date_time"><![CDATA[Waktu & tanggal]]></string>
     <string name="mi2_prefs_button_press_broadcast">Siarkan pesan untuk dikirim</string>
     <string name="prefs_disconnect_notification">Putuskan notifikasi</string>
     <string name="prefs_reserve_reminder_calendar_summary">Jumlah acara kalender yang akan disinkron</string>
     <string name="spanish">Spanyol</string>
     <string name="norwegian_bokmal">Bokmål Norwegia</string>
     <string name="pref_title_pebble_health_store_raw">Simpan rekaman mentah dalam basis data</string>
-    <string name="activity_db_management_merge_old_title">Penghapusan basis data lawas</string>
     <string name="activity_type_elliptical">Elips</string>
     <string name="share">Bagikan</string>
     <string name="device_is_currently_bonded">SUDAH DIJALIN</string>
@@ -1067,7 +1039,6 @@
     <string name="seconds_12">12 detik</string>
     <string name="seconds_13">13 detik</string>
     <string name="seconds_14">14 detik</string>
-    <string name="autoExport_lastTime_label">Ekspor otomatis terakhir: %1$s</string>
     <string name="activity_type_soccer">Sepak bola</string>
     <string name="activity_type_climbing">Memanjat</string>
     <string name="kind_watchface">Muka jam</string>
@@ -1138,7 +1109,6 @@
     <string name="prefs_always_on_display">Layar Selalu Nyala</string>
     <string name="prefs_password_summary">Kunci gelang dengan sebuah kata sandi ketika dilepaskan dari pergelangan</string>
     <string name="on">Nyala</string>
-    <string name="activity_db_management_autoexport_enabled_yes">Ekspor otomatis diaktifkan.</string>
     <string name="activity_db_management_autoexport_scheduled_no">Ekspor otomatis belum dijadwalkan.</string>
     <string name="activity_db_management_autoexport_location">Lokasi tidak dapat dimengerti. Kemungkinan sistem perizinan Anda yang lebih baru. Kemungkinan ekspor otomatis tidak bekerja sekarang.</string>
     <string name="controlcenter_get_heartrate_measurement">Dapatkan pengukuran detak jantung</string>
@@ -1254,7 +1224,6 @@
     <string name="menuitem_workout_status">Status Olahraga</string>
     <string name="watch9_calibration_button">Kalibrasi</string>
     <string name="watch9_time_seconds">Detik:</string>
-    <string name="qhybrid_goal_in_steps">Sasaran dalam langkah</string>
     <string name="averageAltitude">Rata-rata</string>
     <string name="pressure_relief_summary">Cegah perasaan tekanan dalam telinga ketika tidak menggunakan Pembatalan Suara Aktif</string>
     <string name="prefs_touch_lock">Kunci Sentuh</string>
@@ -1292,7 +1261,6 @@
     <string name="FetchActivityOperation_about_to_transfer_since">Akan mentransfer data sejak %1$s</string>
     <string name="pref_charts_range_off">Jangka bagan ditetapkan ke Minggu</string>
     <string name="weekstepschart_steps_a_month">Langkah per bulan</string>
-    <string name="pref_chart_sleep_rolling_24_on">24 jam lalu</string>
     <string name="activity_prefs_goal_fat_burn_time_minutes">Sasaran setiap hari: waktu bakar lemak dalam menit</string>
     <string name="title_activity_pebble_pairing">Penyandingan Pebble</string>
     <string name="activity_type_basketball">Bola basket</string>
@@ -1399,7 +1367,7 @@
 \nLANJUTKAN DENGAN RISIKO ANDA SENDIRI!</string>
     <string name="power_mode_normal">Normal</string>
     <string name="debugactivity_confirm_remove_device_preferences_title">Hapus preferensi perangkat\?</string>
-    <string name="debugactivity_confirm_remove_device_preferences">Ini akan mengatur ulang preferensi perangkat untuk semua perangkat yang terhubung. Apakah Anda yakin\?</string>
+    <string name="debugactivity_confirm_remove_device_preferences">Ini akan mengatur ulang preferensi perangkat untuk semua perangkat yang terhubung. Apakah Anda yakin?</string>
     <string name="appmanager_item_outdated">(lawas)</string>
     <string name="fw_upgrade_notice_amazfitcor">Anda akan memasang perangkat tegar %s pada Amazfit Cor Anda. 
 \n 
@@ -1638,7 +1606,7 @@
     <string name="seconds_25">25 detik</string>
     <string name="seconds_30">30 detik</string>
     <string name="minutes_1">1 menit</string>
-    <string name="lack_of_step">Kekuarangan langkah: %1$d</string>
+    <string name="lack_of_step">Kekuarangan langkah: %1$s</string>
     <string name="pref_title_low_latency_fw_update">Gunakan mode latensi rendah untuk flash perangkat tegar</string>
     <string name="pref_summary_low_latency_fw_update">Ini mungkin membantu pada perangkat di mana flash perangkat tegar gagal.</string>
     <string name="live_activity_steps_history">Riwayat langkah</string>
@@ -1706,7 +1674,6 @@
     <string name="hr_appname_wellness">Kesehatan</string>
     <string name="hr_appname_workout">Olahraga</string>
     <string name="widget_10_minutes">10 menit</string>
-    <string name="qhybrid_overwrite_buttons">timpa tombol</string>
     <string name="hr_widget_active_minutes">Menit aktif</string>
     <string name="quick_alarm_description">Alarm dari widget</string>
     <string name="pref_title_upper_button_long_press_action">Tindakan tekanan pendek Tombol Atas</string>
@@ -1861,7 +1828,7 @@
     <string name="user_feedback_miband_activity_data_transfer">Akan mentransfer data %1$s dimulai dari %2$s</string>
     <string name="reminder_no_free_slots_description">Perangkat ini tidak memiliki tempat kosong untuk pengingat (jumlah tempat: %1$s)</string>
     <string name="prefs_heartrate_alert_experimental_description">Getar gelang ketika detak jantung melebihi ambang, tanpa aktivitas fisik apa pun yang ada dalam 10 menit terakhir. Fitur ini eksperimental, dan tidak dicoba secara lebih dalam.</string>
-    <string name="overstep">Terlalu banyak langkah: %1$d</string>
+    <string name="overstep">Terlalu banyak langkah: %1$s</string>
     <string name="average">Rata-rata: %1$s</string>
     <string name="error_background_service_reason_truncated">Pemulaian layanan latar belakang gagal karena…</string>
     <string name="pref_check_permission_status_summary">Periksa dan tanya untuk izin yang belum ada bahkan ketika mereka belum dibutuhkan secara langsung. Hanya nonaktifkan ini jika perangkat Anda sebenarnya mendukung fitur apa pun. Tidak memberikan izin mungkin akan mengalami masalah!</string>
@@ -2128,20 +2095,13 @@
     <string name="pai_total">Jumlah</string>
     <string name="pai_chart_per_week">PAI per minggu</string>
     <string name="num_min">%d mnt</string>
-    <string name="loyalty_cards_catima_package">Nama paket Catima</string>
     <string name="loyalty_cards_sync_groups_only">Hanya sinkronkan grup spesifik</string>
     <string name="loyalty_cards_sync_groups">Grup untuk Disinkronkan</string>
     <string name="loyalty_cards_sync_archived">Sinkronkan kartu yang terarsip</string>
-    <string name="loyalty_cards_install_catima_fail">Gagal membuka toko aplikasi untuk memasang Catima</string>
     <string name="loyalty_cards_sync_title">Sinkronkan Kartu Loyalitas</string>
     <string name="loyalty_cards_sync_summary">Ketuk untuk menyinkronkan kartu ke jam tangan</string>
-    <string name="loyalty_cards_catima_not_installed">Catima dibutuhkan untuk mengelola kartu loyalitas</string>
-    <string name="loyalty_cards_catima_not_compatible">Versi Catima yang terpasang tidak kompatibel dengan Gadgetbridge. Silakan perbarui Catima dan Gadgetbridge ke versi yang terbaru.</string>
     <string name="loyalty_cards_catima">Catima</string>
-    <string name="loyalty_cards_catima_permissions_summary">Gadgetbridge perlu izin membaca pada kartu Catima untuk disinkronkan. Ketuk tombol ini untuk mengizinkan.</string>
     <string name="loyalty_cards">Kartu Loyalitas</string>
-    <string name="loyalty_cards_install">Pasang Catima</string>
-    <string name="loyalty_cards_open_catima">Buka Catima</string>
     <string name="loyalty_cards_sync_starred">Hanya sinkronkan kartu yang dibintangi</string>
     <string name="loyalty_cards_syncing">Menyinkronkan %d kartu loyalitas ke perangkat</string>
     <string name="loyalty_cards_sync">Sinkronkan</string>
@@ -2485,9 +2445,7 @@
     <string name="maxStrokeRate">Tingkat Membelai Maks</string>
     <string name="pref_spo_automatic_enable">Aktifkan pengukuran SpO2 otomatis</string>
     <string name="pref_force_options">Paksa opsi</string>
-    <string name="pref_force_options_summary">Beberapa perangkat mengklaim secara palsu bahwa tidak ada dukungan untuk beberapa opsi. Pengaturan berikut dapat digunakan untuk mengaktifkannya saja.
-\nGUNAKAN DENGAN RISIKO ANDA SENDIRI
-\nBaca wikinya</string>
+    <string name="pref_force_options_summary">Beberapa perangkat mengklaim secara palsu bahwa tidak ada dukungan untuk beberapa opsi. Pengaturan berikut dapat digunakan untuk mengaktifkannya saja. \nGUNAKAN DENGAN RISIKO ANDA SENDIRI \nBaca wikinya</string>
     <string name="huawei_ignore_wakeup_status_start_description">Dapat membantu dengan deteksi tidur yang sesuai. Terlihat secara langsung dalam tampilan aktivitas harian.</string>
     <string name="huawei_ignore_wakeup_status_end">Abaikan status akhir bangun</string>
     <string name="fossil_hr_nav_app_not_installed_notify_text">Navigasi dimulai tetapi aplikasi navigasi tidak terpasang di jam tangan. Silakan pasang dari App Manager.</string>
@@ -2815,7 +2773,6 @@
     <string name="intent_api_broadcast_activity_sync_summary">Siarkan intent ketika sinkronisasi aktivitas selesai untuk perangkat apa pun</string>
     <string name="battery_low_threshold">Ambang baterai lemah</string>
     <string name="battery_full_notify_enabled">Beri tahu pada baterai penuh</string>
-    <string name="preferences_qhybrid_settings_summary">Pengaturan lawas untuk jam tangan Q Hybrid</string>
     <string name="moondrop_touch_trigger_long_press_1s">Tekanan Panjang (1 dtk)</string>
     <string name="intent_api_broadcast_activity_sync_title">Siarkan pada penyelesaian sinkronisasi aktivitas</string>
     <string name="agps_status_missing">Hilang</string>

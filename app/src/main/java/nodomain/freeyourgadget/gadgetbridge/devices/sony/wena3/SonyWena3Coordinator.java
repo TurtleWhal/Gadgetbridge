@@ -33,6 +33,8 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.Wena3EnergySampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.Wena3HeartRateSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Wena3ActivitySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.Wena3BehaviorSampleDao;
@@ -113,7 +115,7 @@ public class SonyWena3Coordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -154,12 +156,12 @@ public class SonyWena3Coordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public TimeSampleProvider<? extends HeartRateSample> getHeartRateRestingSampleProvider(GBDevice device, DaoSession session) {
-        return new SonyWena3HeartRateSampleProvider(device, session);
+        return new Wena3HeartRateSampleProvider(device, session);
     }
 
     @Override
     public TimeSampleProvider<? extends BodyEnergySample> getBodyEnergySampleProvider(GBDevice device, DaoSession session) {
-        return new SonyWena3EnergySampleProvider(device, session);
+        return new Wena3EnergySampleProvider(device, session);
     }
 
     @Override

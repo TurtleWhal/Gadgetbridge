@@ -18,8 +18,11 @@ package nodomain.freeyourgadget.gadgetbridge.activities.dashboard;
 
 import android.os.Bundle;
 
+import java.text.NumberFormat;
+
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.DashboardFragment;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 /**
  * A simple {@link AbstractDashboardWidget} subclass.
@@ -47,6 +50,11 @@ public class DashboardStepsWidget extends AbstractGaugeWidget {
     }
 
     @Override
+    protected boolean isSupportedBy(final GBDevice device) {
+        return device.getDeviceCoordinator().supportsStepCounter(device);
+    }
+
+    @Override
     protected void populateData(final DashboardFragment.DashboardData dashboardData) {
         dashboardData.getStepsTotal();
         dashboardData.getStepsGoalFactor();
@@ -54,7 +62,7 @@ public class DashboardStepsWidget extends AbstractGaugeWidget {
 
     @Override
     protected void draw(final DashboardFragment.DashboardData dashboardData) {
-        setText(String.valueOf(dashboardData.getStepsTotal()));
+        setText(NumberFormat.getInstance().format(dashboardData.getStepsTotal()));
         drawSimpleGauge(
                 color_activity,
                 dashboardData.getStepsGoalFactor()

@@ -35,10 +35,8 @@
     <string name="appmanager_hrm_deactivate">Desactiva el seguiment de ritme cardíac</string>
     <string name="appmanager_weather_activate">Activa l\'aplicació del temps del sistema</string>
     <string name="appmanager_weather_deactivate">Desactiva l\'aplicació del temps del sistema</string>
-    <string name="appmanager_weather_install_provider">Instal·la l\'aplicació del temps del sistema</string>
     <string name="app_configure">Configura</string>
     <string name="app_move_to_top">Mou a la part superior</string>
-    <string name="title_activity_calblacklist">Calendaris bloquejats</string>
     <string name="title_activity_fw_app_insaller">Instal·lador de microprogramari i aplicacions</string>
     <string name="fw_upgrade_notice">Sou a punt d\'instal·lar el %s.</string>
     <string name="fw_upgrade_notice_amazfitbip">Esteu a punt d\'instal·lar el microprogramari %s en el vostre Amazfit Bip.
@@ -63,7 +61,7 @@
     <string name="miband_firmware_suggest_whitelist">Si tot i així voleu continuar i les coses continuen funcionant correctament, si us plau informeu els desenvolupadors del Gadgetbridge que la versió %s del microprogramari funciona bé.</string>
     <string name="title_activity_settings">Paràmetres</string>
     <string name="pref_header_general">Paràmetres generals</string>
-    <string name="pref_title_general_autoconnectonbluetooth">Connecta\'t a l\'aparell Gadgetbridge quan el Bluetooth estigui activat</string>
+    <string name="pref_title_general_autoconnectonbluetooth">Connecta\'t a l\'aparell(s) Gadgetbridge quan el Bluetooth estigui activat</string>
     <string name="pref_title_general_autostartonboot">Inicia automàticament</string>
     <string name="pref_title_general_autoreconnect">Reconnecta automàticament</string>
     <string name="pref_title_audio_player">Reproductor d\'àudio preferit</string>
@@ -71,7 +69,7 @@
     <string name="pref_title_charts_swipe">Permet lliscar cap a l\'esquerra i la dreta en els gràfics d\'activitat</string>
     <string name="pref_header_datetime">Data i Hora</string>
     <string name="pref_title_datetime_syctimeonconnect">Sincronitza l\'hora</string>
-    <string name="pref_summary_datetime_syctimeonconnect">Sincronitza l\'hora en l\'aparell Gadgetbridge quan es connecti o quan es canviï l\'hora o zona horària en l\'aparell Android</string>
+    <string name="pref_summary_datetime_syctimeonconnect">Sincronitza l\'hora en l\'aparell(s) Gadgetbridge quan es connecti o quan es canviï l\'hora o zona horària en l\'aparell Android i periòdicament</string>
     <string name="pref_title_theme">Aparença</string>
     <string name="pref_theme_light">Clar</string>
     <string name="pref_theme_dark">Fosc</string>
@@ -330,7 +328,7 @@
     <string name="miband_prefs_device_time_offset_hours">Desplaçament de temps de l\'aparell, en hores (per detectar el son de treballadors/es de torns)</string>
     <string name="miband2_prefs_dateformat">Format de data</string>
     <string name="dateformat_time">Temps</string>
-    <string name="dateformat_date_time">Hora i data</string>
+    <string name="dateformat_date_time"><![CDATA[Hora i data]]></string>
     <string name="mi2_prefs_button_actions">Accions del botó</string>
     <string name="mi2_prefs_button_actions_summary">Especifiqueu les accions en prémer el botó</string>
     <string name="mi2_prefs_button_press_count">Nombre de pulsacions del botó</string>
@@ -372,7 +370,6 @@
     <string name="authentication_required">Es requereix autenticació</string>
     <string name="appwidget_text">Zzz</string>
     <string name="add_widget">Afegeix un giny</string>
-    <string name="activity_prefs_sleep_duration">Durada preferida del son en hores</string>
     <string name="appwidget_setting_alarm">S\'ha fixat una alarma a les %1$02d:%2$02d</string>
     <string name="device_hw">Revisió del maquinari: %1$s</string>
     <string name="device_fw">Versió del microprogramari: %1$s</string>
@@ -438,7 +435,6 @@
 \n *.gpx - gravacions GPS
 \n *.log - fitxers de registre
 \nTrobeu els vostres fitxers exportats (o deseu els fitxers que volgueu importar) aquí:</string>
-    <string name="activity_db_management_merge_old_title">Esborra la base de dades antiga</string>
     <string name="dbmanagementactivvity_cannot_access_export_path">No es pot accedir al camí d\'exportació. Si us plau, contacteu els desenvolupadors.</string>
     <string name="dbmanagementactivity_exported_to">S\'ha exportat a: %1$s</string>
     <string name="dbmanagementactivity_error_exporting_db">Hi ha hagut un error en esborrar la base de dades: %1$s</string>
@@ -457,18 +453,11 @@
     <string name="dbmanagementactivity_old_activity_db_successfully_deleted">Les dades antigues d\'activitats s\'han esborrat.</string>
     <string name="dbmanagementactivity_old_activity_db_deletion_failed">Ha fallat la supressió de la base de dades antiga d\'activitats.</string>
     <string name="dbmanagementactivity_overwrite">Sobreescriu</string>
-    <string name="Cancel">Cancel·la</string>
-    <string name="Delete">Suprimeix</string>
+    <string name="cancel">Cancel·la</string>
+    <string name="delete">Suprimeix</string>
     <string name="title_activity_vibration">Vibració</string>
     <string name="title_activity_pebble_pairing">Aparellament amb Pebble</string>
     <string name="pebble_pairing_hint">Apareixerà un diàleg d\'aparellament al vostre aparell Android. Si no, cerqueu-lo entre les notificacions i accepteu la petició d\'aparellament. Després accepteu l\'aparellament també al Pebble.</string>
-    <string name="weather_notification_label">Assegureu-vos que aquesta aparença està activada en l\'aplicació de notificació del temps per obtenir informació del temps al vostre Pebble.
-\n
-\nAquí no cal configurar res.
-\n
-\nPodeu activar l\'aplicació del temps del sistema del vostre Pebble des de la gestió d\'aplicacions.
-\n
-\nLes caràtules compatibles mostraran el temps automàticament.</string>
     <string name="pref_title_setup_bt_pairing">Activa l\'aparellament per Bluetooth</string>
     <string name="pref_summary_setup_bt_pairing">Desactiveu això si teniu problemes de connexió</string>
     <string name="unit_metric">Sistema mètric</string>
@@ -482,7 +471,7 @@
     <string name="miband2_prefs_timeformat">Mi2: format d\'hora</string>
     <string name="mi2_fw_installhandler_fw53_hint">Heu d\'instal·lar la versió %1$s abans d\'instal·lar aquest microprogramari!</string>
     <string name="mi2_enable_text_notifications">Notifications de text</string>
-    <string name="mi2_enable_text_notifications_summary">Necessita tenir instal·lats el microrprogramari &gt;= 1.10.1.28 i Mili_pro.ft*.</string>
+    <string name="mi2_enable_text_notifications_summary"><![CDATA[Necessita tenir instal·lats el microrprogramari &gt;= 1.10.1.28 i Mili_pro.ft*.]]></string>
     <string name="off">Desactivat</string>
     <string name="mi2_dnd_off">Desactivat</string>
     <string name="mi2_dnd_automatic">Automàtic (detecció de son)</string>
@@ -593,8 +582,8 @@
     <string name="language_and_region_prefs">Configuració de llengua i regió</string>
     <string name="lack_of_sleep">Manca de son: %1$s</string>
     <string name="overslept">Son de més: %1$s</string>
-    <string name="lack_of_step">Manca de passes: %1$d</string>
-    <string name="overstep">Passes de més: %1$d</string>
+    <string name="lack_of_step">Manca de passes: %1$s</string>
+    <string name="overstep">Passes de més: %1$s</string>
     <string name="no_data">No hi ha dades</string>
     <string name="live_activity_max_heart_rate">Ritme cardíac actual / màxim: %1$d / %2$d</string>
     <string name="title_activity_notification_filter">Filtre de notificacions</string>
@@ -683,7 +672,6 @@
     <string name="pref_title_expose_hr">Accés a tercers a freqüència cardíaca en temps real</string>
     <string name="pref_title_use_custom_font">Utilitza un tipus de lletra personalitzat</string>
     <string name="pref_summary_use_custom_font">Activa-ho si el vostre dispositiu inclou microprogramari de tipus de lletra personalitzat amb suport per a emojis</string>
-    <string name="activity_db_management_autoexport_label">Exportació automàtica</string>
     <string name="activity_DB_ExportButton">Exporta les dades</string>
     <string name="activity_DB_import_button">Importa les dades</string>
     <string name="activity_DB_test_export_button">Executa l\'exportació automàtica ara</string>
@@ -698,7 +686,7 @@
     <string name="widget_1_hour">1 hora</string>
     <plurals name="widget_alarm_target_hours">
         <item quantity="one">%d hora</item>
-        <item quantity="many"></item>
+        <item quantity="many"/>
         <item quantity="other">%d hores</item>
     </plurals>
     <string name="pref_display_add_device_fab">Botó d\'afegir nou dispositiu</string>
@@ -727,8 +715,6 @@
     <string name="pref_chart_heartrate_color_orange">Taronja</string>
     <string name="pref_title_chart_heartrate_color">Color de freqüència cardíaca</string>
     <string name="pref_title_chart_sleep_rolling_24_hour">Interval de son</string>
-    <string name="pref_chart_sleep_rolling_24_on">Últimes 24 hores</string>
-    <string name="pref_chart_sleep_rolling_24_off">De migdia a migdia</string>
     <string name="fw_upgrade_notice_amazfitgts">Esteu a punt d\'instal·lar el microprogramari %s en el vostre Amazfit GTS.
 \n
 \nSi us plau, assegureu-vos d\'instal·lar el fitxer .fw, el fitxer .res i, finalment, el fitxer .gps. El vostre rellotge es reiniciarà després d\'instal·lar l\'arxiu .fw.
@@ -739,7 +725,6 @@
     <string name="prefs_hr_alarm_activity">Alarma de freqüència cardíaca durant activitat esportiva</string>
     <string name="pref_charts_range_on">El rang dels gràfics està configurat a un mes</string>
     <string name="pref_charts_range_off">El rang dels gràfics està configurat a una setmana</string>
-    <string name="activity_db_management_autoexport_explanation">La ubicació de l\'exportació automàtica s\'ha definit a:</string>
     <string name="activity_db_management_empty_DB">Buida la base de dades</string>
     <string name="activity_db_management_exportimport_label">Exportar i importar</string>
     <string name="activity_db_management_empty_db_warning">Atenció! En prémer aquest botó esborrareu tota la base de dades i començareu de zero.</string>
@@ -748,15 +733,10 @@
     <string name="prefs_find_phone_summary">Fes servir la teva banda per a reproduir el to del telèfon.</string>
     <string name="discovery_need_to_enter_authkey">Aquest aparell requereix una clau d\'autenticació secreta, mantingueu premut sobre l\'aparell per a introduir-la. Consulteu la wiki.</string>
     <string name="pref_summary_allow_high_mtu">Augmenta la velocitat de transferència, però pot ser que no funcioni en alguns aparells Android.</string>
-    <string name="preferences_qhybrid_settings">Configuració de Q Hybrid</string>
     <string name="watch_not_connected">Rellotge no connectat</string>
-    <string name="qhybrid_vibration_strength">intensitat de vibració:</string>
-    <string name="qhybrid_goal_in_steps">Objectiu en passes</string>
     <string name="qhybrid_time_shift">decalat horari</string>
     <string name="qhybrid_second_timezone_offset_relative_to_utc">decalat del segon fus horari relatiu a UTC</string>
-    <string name="qhybrid_overwrite_buttons">sobreescriu els botons</string>
     <string name="qhybrid_use_activity_hand_as_notification_counter">utilitza la maneta d\'activitat com a comptador de notificacions</string>
-    <string name="qhybrid_prompt_million_steps">Si us plau, estableix el comptador de passes a un milió per a activar-ho.</string>
     <string name="qhybrid_buttons_overwrite_success">Botons sobreescrits</string>
     <string name="qhybrid_buttons_overwrite_error">Error al sobreescriure botons</string>
     <string name="qhybrid_offset_timezone">decala el fus horari en</string>
@@ -868,7 +848,7 @@
     <string name="pref_sensors_bp_calibration_low">Pressió arterial diastòlica (baixa)</string>
     <string name="pref_summary_device_spec_settings_title_force_time">Força la sincronització automàtica de l\'hora al reconnectar. Les manetes analògiques poden mostrar una hora incorrecta!</string>
     <string name="pref_title_device_spec_settings_force_time">Força la sincronització de l\'hora</string>
-    <string name="pref_title_weather_summary">Usat per el proveïdor de temps de LineageOS, altres versions d\'Android requereixen fer servir una app com \"Weather notification\". Troba\'n més informació a la wiki de Gadgetbridge.</string>
+    <string name="pref_title_weather_summary">Usat per el proveïdor de temps de LineageOS, altres versions d\'Android requereixen fer servir una app com \"Breezy Weather\". Troba\'n més informació a la pàgina web de Gadgetbridge.</string>
     <string name="controlcenter_set_alias">Establir pseudònim</string>
     <string name="find_lost_device_message">Cercar %1$s\?</string>
     <string name="activity_filter_to_placeholder">avui</string>
@@ -936,7 +916,6 @@
     <string name="descentMeters">En baixada</string>
     <string name="ascentMeters">En pujada</string>
     <string name="distanceMeters">Distància</string>
-    <string name="device_requires_key">ES REQUEREIX CLAU</string>
     <string name="require_location_provider">La ubicació ha d\'estar activada</string>
     <string name="about_links">Enllaços</string>
     <string name="about_activity_title_generic">Quant a Gadgetbridge</string>
@@ -1048,9 +1027,6 @@
     <string name="menuitem_goal">Objectiu d\'activitat</string>
     <string name="activity_type_strength_training">Entrenament de força</string>
     <string name="dbmanagementactivity_export_finished">Supressió finalitzada</string>
-    <string name="activity_DB_clean_export_directory_warning_message">De debò voleu esborrar els fitxers del directori d\'exportació/importació\?</string>
-    <string name="activity_DB_clean_export_directory_warning_title">Voleu esborrar els fitxers del directori d\'exportació/importació\?</string>
-    <string name="activity_db_management_clean_export_directory_label">Esborra els fitxers del directori d\'exportació/importació</string>
     <string name="activity_DB_ShowContentButton">Mostra el contingut del directori d\'exportació/importació</string>
     <string name="activity_data_management_directory_content_title">Exporta/Importa el contingut del directori</string>
     <string name="dbmanagementactivity_export_data_title">Voleu exportar les dades\?</string>
@@ -1269,16 +1245,12 @@
     <string name="nothing_prefs_inear_title">Detecció intraorella</string>
     <string name="prefs_ambient_sound">So ambiental</string>
     <string name="pref_anc_optimizer_state_pressure">Pressió atmosfèrica</string>
-    <string name="distance_format_feet">### ft</string>
-    <string name="distance_format_miles">###.# mi</string>
-    <string name="distance_format_kilometers">###.# km</string>
     <string name="discover_unsupported_devices">Detecta aparells no admesos</string>
     <string name="prefs_vibration_enable">Activa la vibració</string>
     <string name="prefs_autoheartrate_interval">Freqüència de mesures</string>
     <string name="left_earbud">Auricular esquerre</string>
     <string name="right_earbud">Auricular dret</string>
     <string name="sony_sound_position_front_left">Frontal esquerra</string>
-    <string name="distance_format_meters">### m</string>
     <string name="watchface_dialog_widget_width">Ample:</string>
     <string name="menuitem_menu">Menú</string>
     <string name="pref_activity_recognition_mode_auto">automàtic</string>
@@ -1304,9 +1276,6 @@
     <string name="prefs_galaxy_touch_options">Opcions tàctils</string>
     <string name="pref_activity_recognition_mode_none">cap</string>
     <string name="prefs_ambient_volume">Volum ambiental</string>
-    <string name="activity_db_management_autoexport_enabled_yes">L\'exportació automàtica està activada.</string>
-    <string name="autoExport_lastTime_label">Última exportació automàtica: %1$s</string>
-    <string name="activity_db_management_autoexport_enabled_no">L\'exportació automàtica no està activada.</string>
     <string name="activity_db_management_autoexport_scheduled_yes">L\'exportació automàtica està programada (originalment) per a %1$s</string>
     <string name="activity_db_management_autoexport_scheduled_no">L\'exportació automàtica no ha sigut programada.</string>
     <string name="menuitem_nothing">Res</string>
@@ -1350,7 +1319,6 @@
     <string name="kind_agps_bundle">Paquet AGPS</string>
     <string name="pref_title_lower_button_function_long">Botó inferior llarg</string>
     <string name="activity_db_management_autoexport_location">No s\'ha entés la ubicació. És possible que sigui un problema de permissos del nou sistema Android. El més probable és que l\'autoexportació de dades no funcioni ara.</string>
-    <string name="activity_db_management_clean_export_directory_text">Els fitxers exportats a la carpeta d\'Exportar/Importar poden ser llegits per qualsevol aplicació al teu dispositiu. És possible que vulguis suprimir aquests fixters després de sincronitzar o fer una copia de seguretat. Assegura\'t de fer una copia abans d\'esborrar-los. Els fitxers GPX, les subcarpetes i la base de dades auto-exportada (si existeix) no s\'esborrarà. La carpeta d\'Exportar/Importar es troba a:</string>
     <string name="companiondevice_pairing">Emparellament de dispositius de companyia</string>
     <string name="qhybrid_pref_summary_external_intents">Permetre que altres aplicacions d\'Android puguin sobre/escriure fitxers</string>
     <string name="averageStride">Mitjana d\'avançada</string>
@@ -1419,21 +1387,21 @@
 \n
 \nPROCEDEIXI SOTA LA SEVA RESPONSABILITAT.</string>
     <string name="appmanager_app_download">Descarregar a cache</string>
-    <string name="debugactivity_confirm_remove_device_preferences">Això reestablirà les preferències del dispositiu per a tots els dispositius, n\'està segur\?</string>
+    <string name="debugactivity_confirm_remove_device_preferences">Açò restablirà les preferències del dispositiu per a aquest dispositiu. Estàs segur?</string>
     <string name="debugactivity_confirm_remove_device_preferences_title">Eliminar preferències del dispositiu\?</string>
     <string name="appmanager_downloaded_to_cache">Descarregat %s a cache</string>
     <string name="appmanager_download_app_error">Error descarregant la app</string>
     <string name="speed_first">Velocitat primer</string>
     <string name="open_fw_installer_warning_title">Avís</string>
     <string name="about_description_main_nopebble">Substitut lliure copyleft sense núvols per a aplicacions de dispositiu Android privatives dels proveïdors. Llançaments nocturns de Gadgetbridge. No es pot instal·lar si ja tens l\'aplicació Gadgetbridge o la de Pebble, degut a un conflicte en el proveïdor de Pebble.</string>
-    <string name="range_percentage_float">%.1f%% - %.1f%%</string>
+    <string name="range_percentage_float">%1$.1f%% – %2$.1f%%</string>
     <string name="single_band">Banda única</string>
     <string name="dual_band">Banda doble</string>
     <string name="fw_upgrade_notice_amazfit_gtr4">Estàs a punt d\'instal·lar el firmware %s al teu Amazfit GTR 4.\n\nEl teu rellotge es reiniciarà després d\'instal·lar el fitxer .zip.\n\n¡CONTINUA SOTA EL TEU PROPI RISC!</string>
-    <string name="fw_upgrade_notice_zepp_os">Estàs a punt d\'instal·lar el firmware %s al teu %s.\n\nEl teu rellotge es reiniciarà després d\'instal·lar el fitxer .zip.\n\n¡CONTINUA SOTA EL TEU RISC!</string>
+    <string name="fw_upgrade_notice_zepp_os">Estàs a punt d\'instal·lar el firmware %1$s al teu %2$s.\n\nEl teu rellotge es reiniciarà després d\'instal·lar el fitxer .zip.\n\nCONTINUA SOTA EL TEU RISC!</string>
     <string name="controlcenter_get_heartrate_measurement">Mesura el ritme cardíac</string>
-    <string name="range_percentage">%1$d%% - %2$d%%</string>
-    <string name="range_degrees">%1$dº - %2$dº</string>
+    <string name="range_percentage">%1$d%% – %2$d%%</string>
+    <string name="range_degrees">%1$dº – %2$dº</string>
     <string name="about_description_main_nightly">Substitut lliure, copyleft i sense núvols per a les aplicacions privatives de dispositius Android dels fabricants. Llançaments nocturns de Gadgetbridge. No es pot instal·lar si ja tens Gadgetbridge o l\'aplicació de Pebble instal·lades, degut a un conflicte en el proveïdor de Pebble.</string>
     <string name="audio_recordings">Enregistraments d\'àudio</string>
     <string name="low_power_gps">GPS de baix consum</string>
@@ -1442,8 +1410,8 @@
     <string name="fw_upgrade_notice_amazfit_trex2">Estàs a punt d\'instal·lar el firmware %s al teu Amazfit T-Rex 2.\n\nEl teu rellotge es reiniciarà després d\'instal·lar el fitxer .zip.\n\n¡CONTINUA SOTA EL TEU RISC!</string>
     <string name="fw_upgrade_notice_amazfit_cheetah_pro">Estàs a punt d\'instal·lar el firmware %s al teu Amazfit Cheetah Pro.\n\nEl teu braçalet es reiniciarà després d\'instal·lar el fitxer .zip.\n\n¡CONTINUA SOTA EL TEU RISC!</string>
     <string name="fw_upgrade_notice_amazfit_band7">Estàs a punt d\'instal·lar el firmware %s al teu Amazfit Band 7.\n\nEl teu braçalet es reiniciarà després d\'instal·lar el fitxer .zip.\n\n¡CONTINUA SOTA EL TEU RISC!</string>
-    <string name="fw_upgrade_notice_huawei">Estàs a punt de pujar el firmware %s al teu %s.\n\nEl teu firmware actual és %s.\n\nEl teu dispositiu es reiniciarà després de la pujada.\n\n¡CONTINUA SOTA EL TEU RISC!</string>
-    <string name="open_fw_installer_info_text">L’instal·lador de firmware/caràtules/aplicacions/fitxers us permet pujar/instal·lar fitxers compatibles (firmware, caràtules, aplicacions, GPS, recursos, tipografies...) al dispositiu. Més informació al wiki: https://codeberg.org/Freeyourgadget/Gadgetbridge/wiki/Firmware-Update</string>
+    <string name="fw_upgrade_notice_huawei">Estàs a punt de pujar el firmware %1$s al teu %2$s.\n\nEl teu firmware actual és %3$s.\n\nEl teu dispositiu es reiniciarà després de la pujada.\n\n¡CONTINUA SOTA EL TEU RISC!</string>
+    <string name="open_fw_installer_info_text">L’instal·lador de firmware/caràtules/aplicacions/fitxers us permet pujar/instal·lar fitxers compatibles (firmware, caràtules, aplicacions, GPS, recursos, tipografies...) al dispositiu. Més informació a la pàgina web: https://gadgetbridge.org/internals/features/installer/</string>
     <string name="open_fw_installer_warning_text">Aquesta funcionalitat pot inutilitzar (\"brick\") el teu dispositiu.. Dit açò, als desenvolupadors mai els ha passat en fer \"flashing\", però recorda que ho fas sota el teu propi risc.</string>
     <string name="search">Cerca</string>
     <string name="fw_upgrade_notice_amazfit_gtr3_pro">Estàs a punt d\'instal·lar el firmware %s al teu Amazfit GTR 3 Pro.\n\nEl teu rellotge es reiniciarà després d\'instal·lar el fitxer .zip.\n\n¡CONTINUA SOTA EL TEU PROPI RISC!</string>
@@ -1597,4 +1565,93 @@
     <string name="developer_mode">Mode de desenvolupament</string>
     <string name="wifi_frequency_2_4_ghz">2,4 GHz</string>
     <string name="wifi_frequency_5_ghz">5 GHz</string>
+    <string name="title_activity_file_installer">Instal·lador d\'arxius</string>
+    <string name="title_activity_gps_track_installer">Instal·lador de pista de GPS</string>
+    <string name="open_fw_installer_getting_files_title">Obtenint el firmware/arxiu de l\'aplicació</string>
+    <string name="open_fw_installer_getting_files_text">Com que és possible que no distribuïm els fitxers de firmware, els haureu d\'obtenir vosaltres mateixos. Això vol dir que haureu de cercar els fitxers als fitxers apk, en línia, als fòrums, a Amazfitwatchfaces (per a dispositius Miband/Amazfit), etc.</string>
+    <string name="open_fw_installer_pick_file">Seleccionar fitxer</string>
+    <string name="open_fw_installer_connect_minimum_one_device">Si us plau, connecta un aparell COM A MÍNIM al qual li vols enviar el fitxer.</string>
+    <string name="open_fw_installer_connect_maximum_one_device">Si us plau, conecta NOMÉS UN dispositiu al qual li vols enviar el fitxer.</string>
+    <string name="open_fw_installer_ensure_device_connected">Assegura\'t que el dispositiu %s està connectat</string>
+    <string name="zepp_os_install_map_instructions">Després que l\'instal·lació comenci en el telèfon, també has d\'acceptar en el rellotge.</string>
+    <string name="pref_header_generic">Genèric</string>
+    <string name="sound_and_vibration">So + Vibració</string>
+    <string name="pref_header_offline_voice">Veu sense connexió a internet</string>
+    <string name="pref_header_time">Temps</string>
+    <string name="pref_header_workout">Entrenament</string>
+    <string name="pref_title_general_reconnectonlytoconnected">Reconnecta només a dispositius connectats</string>
+    <string name="pref_description_about_you">Data de naixement, gènere, altura, pes, objectius</string>
+    <string name="pref_description_notifications">Notificacions de l\'app, llista blanca/llista negra</string>
+    <string name="pref_description_user_interface">Tema, pantalla principal</string>
+    <string name="pref_description_automations">Auto exportació, auto cerca</string>
+    <string name="pref_header_main_screen">Pantalla principal</string>
+    <string name="pref_title_block_screenshot">Bloqueja captures de pantalla</string>
+    <string name="pref_title_notification_delay_calls">Retard notificació de trucada</string>
+    <string name="pref_summary_receive_calls_watch">Realitza i rep trucades directament en el rellotge</string>
+    <string name="phone_calls">Trucades de telèfon</string>
+    <string name="pref_summary_general_reconnectonlytoconnected">Reconnecta\'t només als dispositius connectats, en lloc de reconnectar-te a tots els dispositius</string>
+    <string name="pref_title_mb_intents">Botons de transmissió d\'audio directa (Broadcast Media Button Intents Directly)</string>
+    <string name="pref_summary_mb_intents">Activa-ho si el control multimèdia del dispositiu no funciona per a determinades aplicacions</string>
+    <string name="pref_description_dashboard">Widgets, dispositius a incloure</string>
+    <string name="pref_description_developer_options">Registres, API d\'Intent</string>
+    <string name="pref_description_deprecated_functionalities">Configuracions que s\'eliminaran en una versió futura</string>
+    <string name="map_theme_osmarender">Osmarender</string>
+    <string name="map_theme_motorider">Conductor de moto</string>
+    <string name="map_theme_biker">Ciclista</string>
+    <string name="map_theme_indigo">Blau indigo</string>
+    <string name="pref_summary_block_screenshots">Evitar captures de pantalla i visualització en pantalles no segures. Requereix un reinici de GB per esdevenir completament efectiu.</string>
+    <string name="pref_summary_notification_delay_calls">Retard abans d\'enviar les notificacions de trucades entrants al dispositiu, en segons.</string>
+    <string name="pref_title_notification_wake_on_open">Despertar automàtic i desbloquejart</string>
+    <string name="pref_summary_notification_wake_on_open">Desperta i desbloqueja el dispositiu Android quan el gadget retorna una resposta OPEN. Necessita estar en un estat de confiança.</string>
+    <string name="bluetooth_calls_pairing">Emparellament de trucades Bluetooth</string>
+    <string name="bluetooth_calls_settings">Configuració de trucades Bluetooth</string>
+    <string name="pref_display_caller_summary">Mostrar número de telèfon o nom per a les trucades entrants</string>
+    <string name="pref_pair_bluetooth_calls_title">Emparellar per trucades Bluetooth</string>
+    <string name="pref_pair_bluetooth_calls_summary">Feu clic aquí per començar el procés d\'aparellament</string>
+    <string name="pref_pair_bluetooth_calls_help_title">Com rebre trucades Bluetooth</string>
+    <string name="pref_pair_bluetooth_calls_help_summary">Per rebre trucades Bluetooth, has d\'emparellar el teu telèfon amb una segona instància del rellotge.</string>
+    <string name="pref_pair_bluetooth_calls_help_1">1. Toqueu el botó de sota per iniciar el procés d\'emparellament.</string>
+    <string name="pref_pair_bluetooth_calls_help_2">2. Ves a la configuració Bluetooth del teu telèfon, i emparella el dispositiu nou que apareixerà (nom similar al teu rellotge actual, però amb un sufix, per exemple \"Amazfit GTR 4 - AFC8\".</string>
+    <string name="pref_pair_bluetooth_calls_help_3">3. Habilita la configuració \"Trucades Bluetooth\" a continuació.</string>
+    <string name="pref_pair_bluetooth_calls_help_warning">AVÍS: Si activeu les trucades Bluetooth sense emparellar amb la segona instància, les notificacions de trucada podrien no funcionar com s\'esperava.</string>
+    <string name="pref_title_notifications_when_screen_saver">...també quan el salvapantalles està activat</string>
+    <string name="pref_title_notifications_ignore_low_priority">Ignorar notificacions de baixa prioritat</string>
+    <string name="pref_summary_notifications_ignore_low_priority">No enviar notificacions de baixa i mínima prioritat al rellotge</string>
+    <string name="pref_title_notifications_ignore_work_profile">Ignorar les notificacions del perfil de treball</string>
+    <string name="pref_summary_notifications_ignore_work_profile">No enviar notificacions d\'aplicacions del perfil de treball al rellotge</string>
+    <string name="pref_title_notification_prefer_long_text">Preferir text de notificació llarg</string>
+    <string name="pref_summary_notification_prefer_long_text">Si està disponible, envia el text complet de la notificació al dispositiu</string>
+    <string name="pref_title_notification_cache_while_disconnected">Guarda al caché mentre està fora de rang</string>
+    <string name="pref_summary_notification_cache_while_disconnected">Enviar les notificacions perdudes quan un dispositiu es reconnecta després d\'estar fora de l\'abast</string>
+    <string name="pref_title_notification_times_enabled">Temps de notificacions</string>
+    <string name="pref_summary_notification_times_enabled">Només enviar notificacions entre horaris específics</string>
+    <string name="pref_title_notification_media_ignores_application_list">Les notificacions de mitjans d\'audio ignoren la llista d\'aplicacions</string>
+    <string name="pref_summary_notification_media_ignores_application_list">Processar les notificacions multimèdia abans de la llista d\'aplicacions. Si aquesta preferència no està activada, les aplicacions multimèdia han d\'estar permeses a la llista d\'aplicacions perquè els controls multimèdia funcionin al dispositiu.</string>
+    <string name="pref_summary_banglejs_text_bitmap">Si una paraula no es pot renderitzar amb la font del rellotge, renderitza-la com a mapa de bits a Gadgetbridge i mostra el mapa de bits al rellotge</string>
+    <string name="pref_title_banglejs_txt_bitmap_size">Mida dels mapes de bits de text</string>
+    <string name="pref_summary_banglejs_txt_bitmap_size">Mida per al renderitzat de text bitmap</string>
+    <string name="pref_summary_banglejs_phone_gps_enbale">Utilitza les dades GPS del telèfon per sobreescriure les dades GPS del dispositiu bangle</string>
+    <string name="pref_title_banglejs_phone_gps_network_only">Només usar la xarxa de telèfon per determinar la ubicació</string>
+    <string name="pref_summary_banglejs_phone_gps_network_only">Utilitzeu només el proveïdor de la xarxa de telèfon per determinar la ubicació. Això redueix el consum d\'energia a costa de la precisió. És necessària una reconnexió.</string>
+    <string name="pref_title_banglejs_phone_gps_update_interval">interval d\'actualització de dades GPS</string>
+    <string name="pref_summary_banglejs_phone_gps_update_interval">L\'interval de la frequència d\'actualització de la posició GPS, en ms</string>
+    <string name="pref_title_banglejs_webview_url">URL del carregador d’aplicació</string>
+    <string name="pref_summary_banglejs_webview_url">Si vols un carregador d\'aplicacions personalitzat, posa la teva URL https://…/android.html aquí. En cas contrari, deixa-ho en blanc per a https://banglejs.com/apps</string>
+    <string name="pref_blacklist_calendars_summary">Els calendari de la llista negra no es sincronitzaran al dispositiu</string>
+    <string name="pref_summary_canned_replies">Resposta del rellotge amb missatges predefinits</string>
+    <string name="pref_header_intent_api">API d\'Intenció</string>
+    <string name="pref_header_sync">Sincronització</string>
+    <string name="pref_header_dashboard">Panell de Control</string>
+    <string name="pref_title_preview_message_in_title">Mostra una previsualització del missatge al títol</string>
+    <string name="pref_summary_preview_message_in_title">Mostra una previsualització del missatge en el títol de la notificació sempre que estiga permès pel dispositiu</string>
+    <string name="pref_title_casio_alert_calendar">Alertes de notificacions de calendari</string>
+    <string name="pref_summary_casio_alert_calendar">Alerta (vibra/sona) per a les notificacions de calendari</string>
+    <string name="pref_title_casio_alert_call">Alerta de cridades entrants</string>
+    <string name="pref_summary_casio_alert_call">Alerta (vibra/sona) quan hi hagin trucades entrants</string>
+    <string name="pref_title_casio_alert_email">Alerta de notificacions de correu</string>
+    <string name="pref_summary_casio_alert_email">Alerta (vibra/sona) quan hi hagin notificacions de correu electrònic</string>
+    <string name="pref_title_casio_alert_sms">Alerta de notificacions SMS</string>
+    <string name="pref_summary_casio_alert_sms">Alerta (vibra/sona) quan hi hagin notificacions per SMS (missatges de text)</string>
+    <string name="pref_title_casio_alert_other">Alerta per a \"altres\" notificacions</string>
+    <string name="pref_summary_casio_alert_other">Alerta (vibra/sona) per a notificacions en la categoria d\'\"altres\"</string>
 </resources>

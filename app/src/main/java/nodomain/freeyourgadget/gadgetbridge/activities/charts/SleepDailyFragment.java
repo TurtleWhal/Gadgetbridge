@@ -17,6 +17,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_BPM;
+
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
@@ -51,11 +53,13 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.HeartRateUtils;
+import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummarySimpleEntry;
 import nodomain.freeyourgadget.gadgetbridge.activities.charts.SleepAnalysis.SleepSession;
 import nodomain.freeyourgadget.gadgetbridge.activities.charts.sleep.AbstractOverlayData;
 import nodomain.freeyourgadget.gadgetbridge.activities.charts.sleep.OverlayDataFloat;
@@ -78,6 +82,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TimeSample;
 import nodomain.freeyourgadget.gadgetbridge.util.Accumulator;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.GridTableBuilder;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 
@@ -86,12 +91,8 @@ public class SleepDailyFragment extends SleepFragment<SleepDailyFragment.MyChart
 
     private FragmentSleepchartBinding binding;
 
-    private int mSmartAlarmFrom = -1;
-    private int mSmartAlarmTo = -1;
-    private int mTimestampFrom = -1;
-    private int mSmartAlarmGoneOff = -1;
     Prefs prefs = GBApplication.getPrefs();
-    private final boolean CHARTS_SLEEP_RANGE_24H = prefs.getBoolean("chart_sleep_range_24h", false);
+    private final boolean CHARTS_SLEEP_RANGE_24H = prefs.getString("chart_sleep_range_mode", "18:00").equals("24h");
     private final boolean SHOW_CHARTS_AVERAGE = prefs.getBoolean("charts_show_average", true);
     private final int sleepLinesLimit = prefs.getInt("chart_sleep_lines_limit", 6);
 
@@ -157,7 +158,23 @@ public class SleepDailyFragment extends SleepFragment<SleepDailyFragment.MyChart
                     Color.RED
             );
         }
-        return new MyChartsData(mySleepChartsData, chartsData, hrData.getLeft(), hrData.getMiddle(), hrData.getRight(), intensityData.getLeft(), intensityData.getMiddle(), intensityData.getRight(), stages, overlay);
+
+        final DeviceChartsProvider chartsProvider = device.getDeviceCoordinator().getChartsProvider();
+        final Map<String, ActivitySummarySimpleEntry> customStats = chartsProvider.getDailySleepStats(requireContext(), db, device, getTSStart(), getTSEnd());
+
+        return new MyChartsData(
+                mySleepChartsData,
+                chartsData,
+                hrData.getLeft(),
+                hrData.getMiddle(),
+                hrData.getRight(),
+                intensityData.getLeft(),
+                intensityData.getMiddle(),
+                intensityData.getRight(),
+                stages,
+                overlay,
+                customStats
+        );
     }
 
     private long getSamplesInterval(List<? extends TimeSample> samples) {
@@ -420,10 +437,38 @@ public class SleepDailyFragment extends SleepFragment<SleepDailyFragment.MyChart
         int heartRateMax = mcd.getHeartRateAxisMax();
         int heartRateAvg = Math.round(mcd.getHeartRateAverage());
         float intensityTotal = mcd.getIntensityTotal();
-        binding.sleepHrLowest.setText(String.valueOf(heartRateMin > 0 ? heartRateMin : "-"));
-        binding.sleepHrHighest.setText(String.valueOf(heartRateMax > 0 ? heartRateMax : "-"));
-        binding.sleepHrAverage.setText(String.valueOf(heartRateAvg > 0 ? heartRateAvg : "-"));
-        binding.sleepMovementIntensity.setText(intensityTotal > 0 ? new DecimalFormat("###.#").format(intensityTotal) : "-");
+
+        // Build stats grid programmatically
+        binding.sleepStatsContainer.removeAllViews();
+        final GridTableBuilder statsBuilder = new GridTableBuilder(requireContext());
+
+        statsBuilder.addEntry(
+                getString(R.string.minHR),
+                heartRateMin > 0 ? new ActivitySummarySimpleEntry(heartRateMin, UNIT_BPM) : null
+        );
+
+        statsBuilder.addEntry(
+                getString(R.string.maxHR),
+                heartRateMax > 0 ? new ActivitySummarySimpleEntry(heartRateMax, UNIT_BPM) : null
+        );
+
+        statsBuilder.addEntry(
+                getString(R.string.averageHR),
+                heartRateAvg > 0 ? new ActivitySummarySimpleEntry(heartRateAvg, UNIT_BPM) : null
+        );
+
+        if (intensityTotal > 0) {
+            statsBuilder.addEntry(
+                    getString(R.string.movement_intensity),
+                    new ActivitySummarySimpleEntry(new DecimalFormat("###.#").format(intensityTotal), "string")
+            );
+        }
+
+        for (Map.Entry<String, ActivitySummarySimpleEntry> e : mcd.getCustomStats().entrySet()) {
+            statsBuilder.addEntry(e.getKey(), e.getValue());
+        }
+
+        binding.sleepStatsContainer.addView(statsBuilder.build());
 
         if (supportsHeartrate(getChartsHost().getDevice()) && SHOW_CHARTS_AVERAGE) {
             if (mcd.getHeartRateAxisMax() != 0 || mcd.getHeartRateAxisMin() != 0) {
@@ -594,11 +639,6 @@ public class SleepDailyFragment extends SleepFragment<SleepDailyFragment.MyChart
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
         if (action != null && action.equals(ChartsHost.REFRESH)) {
-            // TODO: use LimitLines to visualize smart alarms?
-            mSmartAlarmFrom = intent.getIntExtra("smartalarm_from", -1);
-            mSmartAlarmTo = intent.getIntExtra("smartalarm_to", -1);
-            mTimestampFrom = intent.getIntExtra("recording_base_timestamp", -1);
-            mSmartAlarmGoneOff = intent.getIntExtra("alarm_gone_off", -1);
             refresh();
         } else {
             super.onReceive(context, intent);
@@ -720,9 +760,21 @@ public class SleepDailyFragment extends SleepFragment<SleepDailyFragment.MyChart
 
         private final List<SleepDetailsView.SleepDetail> stages;
 
+        private final Map<String, ActivitySummarySimpleEntry> customStats;
+
         private final AbstractOverlayData overlayData;
 
-        public MyChartsData(MySleepChartsData pieData, DefaultChartsData<LineData> chartsData, float heartRateAverage, int heartRateAxisMin, int heartRateAxisMax, float intensityTotal, float intensityAxisMin, float intensityAxisMax, List<SleepDetailsView.SleepDetail> stages, AbstractOverlayData overlayData) {
+        public MyChartsData(MySleepChartsData pieData,
+                            DefaultChartsData<LineData> chartsData,
+                            float heartRateAverage,
+                            int heartRateAxisMin,
+                            int heartRateAxisMax,
+                            float intensityTotal,
+                            float intensityAxisMin,
+                            float intensityAxisMax,
+                            List<SleepDetailsView.SleepDetail> stages,
+                            AbstractOverlayData overlayData,
+                            Map<String, ActivitySummarySimpleEntry> customStats) {
             this.pieData = pieData;
             this.chartsData = chartsData;
             this.heartRateAverage = heartRateAverage;
@@ -733,6 +785,7 @@ public class SleepDailyFragment extends SleepFragment<SleepDailyFragment.MyChart
             this.intensityAxisMax = intensityAxisMax;
             this.stages = stages;
             this.overlayData = overlayData;
+            this.customStats = customStats;
         }
 
         public MySleepChartsData getPieData() {
@@ -773,6 +826,10 @@ public class SleepDailyFragment extends SleepFragment<SleepDailyFragment.MyChart
 
         public AbstractOverlayData getOverlayData() {
             return overlayData;
+        }
+
+        public Map<String, ActivitySummarySimpleEntry> getCustomStats() {
+            return customStats;
         }
     }
 }

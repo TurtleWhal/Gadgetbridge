@@ -22,18 +22,21 @@ class FileSyncServiceHandler(val deviceSupport: GarminSupport) {
 
     private fun handleNewFileNotification(newFileNotification: GdiFileSyncService.NewFileNotification): GdiFileSyncService.FileSyncService? {
         LOG.debug("Got new file notification: {}", newFileNotification)
-        if (!newFileNotification.file.hasType() || !newFileNotification.file.type.hasName()) {
-            LOG.warn("New file has no type name")
-            return null
-        }
-        val fetchUnknownFiles = deviceSupport.devicePrefs.fetchUnknownFiles
-        val typeName = newFileNotification.file.type.name
-        if (!FILE_TYPES_TO_PROCESS.contains(typeName) && !fetchUnknownFiles) {
-            LOG.warn("Ignoring file type: {}", typeName)
-            return null
-        }
+        for(file in newFileNotification.fileList){
+            if (!file.hasType() || !file.type.hasName()) {
+                LOG.warn("New file has no type name: {}", file)
+                continue
+            }
+            val fetchUnknownFiles = deviceSupport.devicePrefs.fetchUnknownFiles
+            val typeName = file.type.name
+            val type = FileType.FILETYPE.findByTypeName(typeName)
+            if (type == null || !(type.pull || fetchUnknownFiles)) {
+                LOG.warn("Ignoring file type: {}", file)
+                continue
+            }
 
-        deviceSupport.addFileToDownloadList(newFileNotification.file)
+            deviceSupport.addFileToDownloadList(file)
+        }
         return null
     }
 
@@ -80,8 +83,9 @@ class FileSyncServiceHandler(val deviceSupport: GarminSupport) {
                 continue
             }
 
-            if (!FILE_TYPES_TO_PROCESS.contains(typeName) && !fetchUnknownFiles) {
-                LOG.warn("Ignoring file type: {}", typeName)
+            val fileType = FileType.FILETYPE.findByTypeName(typeName)
+            if (fileType == null || !(fileType.pull || fetchUnknownFiles)) {
+                LOG.warn("Ignoring file type: {} {}", typeName, fileType)
                 continue
             }
 
@@ -91,7 +95,7 @@ class FileSyncServiceHandler(val deviceSupport: GarminSupport) {
 
         // #5461 - some watches to not send the next page ID
         // however, from previous logs, it always seems to match the max seen across all sent items, so attempt
-        // to fallback to that as a workaround so we can fetch the subsequent files
+        // to fall back to that as a workaround so we can fetch the subsequent files
         if (fileListResponse.nextPageId == 0) {
             nextPageId = fileListResponse.fileList
                 .mapNotNull { it.pageId }
@@ -143,7 +147,8 @@ class FileSyncServiceHandler(val deviceSupport: GarminSupport) {
                 LOG.warn("Will not mark {}/{} as synced - unknown type", syncFile.id.id1, syncFile.id.id2)
                 return null
             }
-            if (!FILE_TYPES_TO_PROCESS.contains(syncFile.type.name)) {
+            val fileType = FileType.FILETYPE.findByTypeName(syncFile.type.name);
+            if (fileType == null || !fileType.pull) {
                 LOG.warn(
                     "Will not mark {}/{} ({}) as synced - not a file to process",
                     syncFile.id.id1,
@@ -164,16 +169,5 @@ class FileSyncServiceHandler(val deviceSupport: GarminSupport) {
 
     companion object {
         private val LOG = LoggerFactory.getLogger(FileSyncServiceHandler::class.java)
-
-        private val FILE_TYPES_TO_PROCESS: Set<String?> = setOf(
-            "FIT_TYPE_4", // ACTIVITY
-            "FIT_TYPE_32", // MONITOR
-            "FIT_TYPE_44", // METRICS
-            "FIT_TYPE_41", // CHANGELOG
-            "FIT_TYPE_68", // HRV_STATUS
-            "FIT_TYPE_49", // SLEEP
-            "FIT_TYPE_61", // ECG
-            "FIT_TYPE_73", // SKIN_TEMP
-        )
     }
 }

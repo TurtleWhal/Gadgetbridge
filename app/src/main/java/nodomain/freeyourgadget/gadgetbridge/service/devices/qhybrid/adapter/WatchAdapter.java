@@ -21,6 +21,9 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
+
+import androidx.annotation.Nullable;
 
 import org.json.JSONObject;
 
@@ -62,17 +65,15 @@ public abstract class WatchAdapter {
     public abstract void setHands(MoveHandsRequest.MovementConfiguration movement);
     public abstract void saveCalibration();
     public abstract void vibrate(PlayNotificationRequest.VibrationType vibration);
-    public abstract void vibrateFindMyDevicePattern();
     public abstract void requestHandsControl();
     public abstract void releaseHandsControl();
     public abstract void setStepGoal(int stepGoal);
     public abstract void setVibrationStrength(short strength);
     public abstract void syncNotificationSettings();
-    public abstract void onTestNewFunction();
+    public abstract void onTestNewFunction(@Nullable Bundle options);
     public abstract void setTimezoneOffsetMinutes(short offset);
     public abstract void onInstallApp(Uri uri);
 
-    public abstract boolean supportsFindDevice();
     public abstract boolean supportsExtendedVibration();
     public abstract boolean supportsActivityHand();
 

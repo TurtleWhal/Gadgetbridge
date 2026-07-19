@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2025 José Rebelo, Thomas Kuehne
+/*  Copyright (C) 2023-2026 José Rebelo, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -163,6 +163,9 @@ public class GPXParserTest extends TestBase {
         Assert.assertEquals(28.3f, trkpt0.getTemperature(), 0.0001f);
         Assert.assertEquals(26.3f, trkpt0.getDepth(), 0.0001f);
 
+        GpxTrackPoint trkpt1 = trkseg0.getTrackPoints().get(1);
+        Assert.assertEquals(Date.from(Instant.parse("2025-10-03T21:06:07+05:45")), trkpt1.getTime());
+
         byte[] raw = readBinaryResource("/TestGpxImport.gpx");
         GpxFile file2 = GpxParser.parseGpx(raw);
         Assert.assertNotNull(file2);
@@ -196,5 +199,48 @@ public class GPXParserTest extends TestBase {
         Assert.assertEquals(trackpoint.getTemperature(), activityPoint.getTemperature(), 0.0);
         Assert.assertEquals(trackpoint.getTime(), activityPoint.getTime());
         Assert.assertEquals(trackpoint.getVdop(), activityPoint.getLocation().getVdop(), 0.0);
+    }
+
+    @Test
+    public void shouldParseDatetimeVariants() throws IOException, GpxParseException {
+        // Validates parsing of timestamps with no timezone (treated as UTC), explicit UTC (Z),
+        // positive offset, and negative offset.
+        try (final InputStream inputStream = getClass().getResourceAsStream("/gpx-parser-test-datetime.gpx")) {
+            final GpxParser gpxParser = new GpxParser(inputStream);
+            final GpxFile gpxFile = gpxParser.getGpxFile();
+
+            // Metadata time: No timezone indicator: should be treated as UTC
+            Assert.assertEquals(Date.from(Instant.parse("2026-05-23T19:31:00Z")), gpxFile.getTime());
+
+            final List<GpxTrackPoint> points = gpxFile.getPoints();
+            Assert.assertEquals(4, points.size());
+
+            // No timezone: treated as UTC
+            Assert.assertEquals(Date.from(Instant.parse("2026-05-23T19:31:24Z")), points.get(0).getTime());
+            // Explicit UTC (Z)
+            Assert.assertEquals(Date.from(Instant.parse("2026-05-23T19:32:00Z")), points.get(1).getTime());
+            // Positive offset (+02:00): 21:33 local = 19:33 UTC
+            Assert.assertEquals(Date.from(Instant.parse("2026-05-23T19:33:00Z")), points.get(2).getTime());
+            // Negative offset (-07:00): 12:34 local = 19:34 UTC
+            Assert.assertEquals(Date.from(Instant.parse("2026-05-23T19:34:00Z")), points.get(3).getTime());
+        }
+    }
+
+    // test import of old GPX v1.0
+    @Test
+    public void TestGpxImportOld() throws Exception {
+        final byte[] actual;
+        try (final InputStream gpx = getClass().getResourceAsStream("/TestGpxImportOld.gpx")) {
+            actual = GpxParser.transformGpx(gpx);
+        }
+
+        byte[] expected = readBinaryResource("/TestGpxImportOld.xml");
+        Assert.assertArrayEquals(expected, actual);
+
+        final GpxFile file1;
+        try (final InputStream gpx = getClass().getResourceAsStream("/TestGpxImportOld.gpx")) {
+            file1 = new GpxParser(gpx).getGpxFile();
+        }
+        Assert.assertNotNull(file1);
     }
 }

@@ -41,13 +41,13 @@ public class GarminInReachMini2 extends GarminCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         // for gps tracks
         return true;
     }
 
     @Override
-    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
+    public boolean supportsRecordedActivities(@NonNull final GBDevice device) {
         return true;
     }
 

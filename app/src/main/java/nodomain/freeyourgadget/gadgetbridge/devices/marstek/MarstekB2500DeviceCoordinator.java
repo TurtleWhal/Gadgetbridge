@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.SolarEquipmentStatusActivity;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.marstek.MarstekB2500DeviceSupport;
@@ -76,6 +77,8 @@ public class MarstekB2500DeviceCoordinator extends AbstractBLEDeviceCoordinator 
     @Override
     public int[] getSupportedDeviceSpecificSettings(GBDevice device) {
         return new int[]{
+                R.xml.devicesettings_solar_panel1_peak_w,
+                R.xml.devicesettings_solar_panel2_peak_w,
                 R.xml.devicesettings_battery_allow_pass_through,
                 R.xml.devicesettings_battery_minimum_charge,
                 R.xml.devicesettings_battery_discharge_5
@@ -89,6 +92,6 @@ public class MarstekB2500DeviceCoordinator extends AbstractBLEDeviceCoordinator 
 
     @Override
     public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
-        return DeviceCoordinator.DeviceKind.UNKNOWN;
+        return DeviceKind.PV_EQUIPMENT;
     }
 }

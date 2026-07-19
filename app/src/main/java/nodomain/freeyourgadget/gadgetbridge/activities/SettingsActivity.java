@@ -29,6 +29,7 @@ import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.View;
@@ -44,6 +45,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.SwitchPreferenceCompat;
 
 import com.bytehamster.lib.preferencesearch.SearchPreferenceResult;
 import com.google.android.material.color.DynamicColors;
@@ -60,20 +62,25 @@ import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.automations.AutomationsSettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.charts.ChartsPreferencesActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.discovery.DiscoveryPairingPreferenceActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.endurain.OnlineFitnessTrackersPreferencesActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.maps.MapsSettingsActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.preferences.HealthConnectPreferencesActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.quicksettings.QuickSettingsPreferencesActivity;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.TimeChangeReceiver;
-import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
-import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherCacheManager;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class SettingsActivity extends AbstractSettingsActivityV2 {
-    public static final String PREF_MEASUREMENT_SYSTEM = "measurement_system";
+    public static final String PREF_LANGUAGE = "language";
+    public static final String PREF_UNIT_WEIGHT = "unit_weight";
+    public static final String PREF_UNIT_TEMPERATURE = "unit_temperature";
+    public static final String PREF_UNIT_DISTANCE = "unit_distance";
 
     @Override
     protected PreferenceFragmentCompat newFragment() {
@@ -98,6 +105,8 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
             open(MapsSettingsActivity.class, result);
         } else if (result.getResourceFile() == R.xml.automations_settings) {
             open(AutomationsSettingsActivity.class, result);
+        } else if (result.getResourceFile() == R.xml.internethelper_preferences) {
+            open(InternetHelperPreferencesActivity.class, result);
         } else {
             super.onSearchResultClicked(result);
         }
@@ -121,6 +130,8 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
             index(R.xml.notifications_preferences, R.string.pref_header_notifications);
             index(R.xml.map_settings, R.string.maps_settings);
             index(R.xml.automations_settings, R.string.pref_header_automations);
+            if (!GBApplication.hasDirectInternetAccess())
+                index(R.xml.internethelper_preferences, R.string.prefs_internet_helper_title);
 
             setInputTypeFor("rtl_max_line_length", InputType.TYPE_CLASS_NUMBER);
             setInputTypeFor("location_latitude", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED | InputType.TYPE_NUMBER_FLAG_DECIMAL);
@@ -156,15 +167,15 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                 });
             }
 
-            pref = findPreference("log_to_file");
-            if (pref != null) {
-                pref.setOnPreferenceChangeListener((preference, newVal) -> {
+            final SwitchPreferenceCompat logToFilePreference = findPreference("log_to_file");
+            if (logToFilePreference != null) {
+                logToFilePreference.setOnPreferenceChangeListener((preference, newVal) -> {
                     boolean doEnable = Boolean.TRUE.equals(newVal);
                     try {
                         if (doEnable) {
                             FileUtils.getExternalFilesDir(); // ensures that it is created
                         }
-                        GBApplication.setupLogging(doEnable);
+                        Logging.getInstance().setFileLoggingEnabled(doEnable);
                     } catch (IOException ex) {
                         GB.toast(requireContext().getApplicationContext(),
                                 getString(R.string.error_creating_directory_for_logfiles, ex.getLocalizedMessage()),
@@ -175,31 +186,42 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                     return true;
                 });
 
-                // If we didn't manage to initialize file logging, disable the preference
-                if (!GBApplication.getLogging().isFileLoggerInitialized()) {
-                    pref.setEnabled(false);
-                    pref.setSummary(R.string.pref_write_logfiles_not_available);
+                // If we didn't manage to initialize file logging, disable the preference and show the button to initialize again
+                if (!Logging.getInstance().isFileLoggerInitialized()) {
+                    logToFilePreference.setEnabled(false);
+                    logToFilePreference.setSummary(R.string.pref_write_logfiles_not_available);
+                    final Preference logRestart = findPreference("log_restart");
+                    if (logRestart != null) {
+                        logRestart.setVisible(true);
+                        logRestart.setOnPreferenceClickListener(preference -> {
+                            Logging.getInstance().setFileLoggingEnabled(logToFilePreference.isChecked());
+                            if (Logging.getInstance().isFileLoggerInitialized()) {
+                                logToFilePreference.setEnabled(true);
+                                logToFilePreference.setSummary(null);
+                                logRestart.setVisible(false);
+
+                            }
+                            return true;
+                        });
+                    }
                 }
-            }
 
-            pref = findPreference("cache_weather");
-            if (pref != null) {
-                pref.setOnPreferenceChangeListener((preference, newVal) -> {
-                    boolean doEnable = Boolean.TRUE.equals(newVal);
-
-                    Weather.initializeCache(new WeatherCacheManager(requireContext().getCacheDir(), doEnable));
-
+                final SwitchPreferenceCompat logLevelTrace = findPreference("log_level_trace");
+                logLevelTrace.setOnPreferenceChangeListener((preference, newVal) -> {
+                    final boolean traceEnabled = Boolean.TRUE.equals(newVal);
+                    Logging.getInstance().setTraceLogging(traceEnabled);
                     return true;
                 });
             }
 
-            pref = findPreference("language");
+            pref = findPreference(PREF_LANGUAGE);
             if (pref != null) {
                 pref.setOnPreferenceChangeListener((preference, newVal) -> {
                     String newLang = newVal.toString();
                     try {
                         GBApplication.setLanguage(newLang);
                         requireActivity().recreate();
+                        invokeLater(() -> GBApplication.deviceService().onSendConfiguration(PREF_LANGUAGE));
                     } catch (Exception ex) {
                         GB.toast(requireContext().getApplicationContext(),
                                 "Error setting language: " + ex.getLocalizedMessage(),
@@ -226,10 +248,24 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                 });
             }
 
-            final Preference unit = findPreference(PREF_MEASUREMENT_SYSTEM);
-            if (unit != null) {
-                unit.setOnPreferenceChangeListener((preference, newVal) -> {
-                    invokeLater(() -> GBApplication.deviceService().onSendConfiguration(PREF_MEASUREMENT_SYSTEM));
+            final Preference unitDistance = findPreference(PREF_UNIT_DISTANCE);
+            if (unitDistance != null) {
+                unitDistance.setOnPreferenceChangeListener((preference, newVal) -> {
+                    invokeLater(() -> GBApplication.deviceService().onSendConfiguration(PREF_UNIT_DISTANCE));
+                    return true;
+                });
+            }
+            final Preference unitTemperature = findPreference(PREF_UNIT_TEMPERATURE);
+            if (unitTemperature != null) {
+                unitTemperature.setOnPreferenceChangeListener((preference, newVal) -> {
+                    invokeLater(() -> GBApplication.deviceService().onSendConfiguration(PREF_UNIT_TEMPERATURE));
+                    return true;
+                });
+            }
+            final Preference unitWeight = findPreference(PREF_UNIT_WEIGHT);
+            if (unitWeight != null) {
+                unitWeight.setOnPreferenceChangeListener((preference, newVal) -> {
+                    invokeLater(() -> GBApplication.deviceService().onSendConfiguration(PREF_UNIT_WEIGHT));
                     return true;
                 });
             }
@@ -350,10 +386,54 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                 });
             }
 
+            pref = findPreference("pref_screen_quick_settings");
+            if (pref != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    pref.setOnPreferenceClickListener(preference -> {
+                        Intent enableIntent = new Intent(requireContext(), QuickSettingsPreferencesActivity.class);
+                        startActivity(enableIntent);
+                        return true;
+                    });
+                } else {
+                    pref.setVisible(false);
+                }
+            }
+
             pref = findPreference("pref_category_sleepasandroid");
             if (pref != null) {
                 pref.setOnPreferenceClickListener(preference -> {
                     Intent enableIntent = new Intent(requireContext(), SleepAsAndroidPreferencesActivity.class);
+                    startActivity(enableIntent);
+                    return true;
+                });
+            }
+
+            pref = findPreference("pref_category_internethelper");
+            if (pref != null) {
+                if (GBApplication.hasDirectInternetAccess()) {
+                    pref.setVisible(false);
+                } else {
+                    pref.setOnPreferenceClickListener(preference -> {
+                        Intent enableIntent = new Intent(requireContext(), InternetHelperPreferencesActivity.class);
+                        startActivity(enableIntent);
+                        return true;
+                    });
+                }
+            }
+
+            pref = findPreference("pref_category_healthconnect");
+            if (pref != null) {
+                pref.setOnPreferenceClickListener(preference -> {
+                    Intent enableIntent = new Intent(requireContext(), HealthConnectPreferencesActivity.class);
+                    startActivity(enableIntent);
+                    return true;
+                });
+            }
+
+            pref = findPreference("pref_category_online_fitness_trackers");
+            if (pref != null) {
+                pref.setOnPreferenceClickListener(preference -> {
+                    Intent enableIntent = new Intent(requireContext(), OnlineFitnessTrackersPreferencesActivity.class);
                     startActivity(enableIntent);
                     return true;
                 });
@@ -464,7 +544,7 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
                                 editor.putString("opentracks_packagename", fitnessAppEditText.getText().toString());
                                 editor.apply();
                             })
-                            .setNegativeButton(R.string.Cancel, (dialog, which) -> {})
+                            .setNegativeButton(R.string.cancel, (dialog, which) -> {})
                             .show();
                     return false;
                 });
@@ -476,6 +556,7 @@ public class SettingsActivity extends AbstractSettingsActivityV2 {
         }
 
         public class CustomOnDeviceSelectedListener implements AdapterView.OnItemSelectedListener {
+            @Override
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 if (++fitnessAppSelectionListSpinnerFirstRun > 1) { //this prevents the setText to be set when spinner just is being initialized
                     fitnessAppEditText.setText(parent.getItemAtPosition(pos).toString());

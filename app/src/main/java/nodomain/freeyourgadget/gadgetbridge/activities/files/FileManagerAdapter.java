@@ -21,6 +21,7 @@ import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.MimeTypeMap;
 import android.widget.Filter;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
@@ -31,6 +32,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.fit.FitViewerActivity;
@@ -52,11 +55,13 @@ public class FileManagerAdapter extends RecyclerView.Adapter<FileManagerAdapter.
 
     private final List<File> fileList;
     private final Context mContext;
+    private final Map<String, String> mDeviceNames;
 
     private final FileFilter fileFilter;
 
-    public FileManagerAdapter(final Context context, final File directory) {
+    public FileManagerAdapter(final Context context, final File directory, final Map<String, String> deviceNames) {
         mContext = context;
+        mDeviceNames = deviceNames;
 
         // FIXME: This can be slow, make it async
         fileList = new ArrayList<>(Arrays.asList(directory.listFiles()));
@@ -86,7 +91,13 @@ public class FileManagerAdapter extends RecyclerView.Adapter<FileManagerAdapter.
         holder.name.setText(file.getName());
         if (file.isDirectory()) {
             holder.icon.setImageDrawable(AppCompatResources.getDrawable(mContext, R.drawable.ic_folder));
-            holder.description.setVisibility(View.GONE);
+            final String deviceName = mDeviceNames.get(file.getName());
+            if (StringUtils.isNotBlank(deviceName)) {
+                holder.description.setVisibility(View.VISIBLE);
+                holder.description.setText(deviceName);
+            } else {
+                holder.description.setVisibility(View.GONE);
+            }
             holder.menu.setVisibility(View.GONE);
         } else {
             holder.icon.setImageDrawable(AppCompatResources.getDrawable(mContext, R.drawable.ic_file_open));
@@ -101,8 +112,16 @@ public class FileManagerAdapter extends RecyclerView.Adapter<FileManagerAdapter.
                     final int itemId = item.getItemId();
                     if (itemId == R.id.file_manager_file_menu_share) {
                         try {
-                            AndroidUtils.shareFile(mContext, file, "*/*");
-                        } catch (final IOException e) {
+                            String mimeType = null;
+                            final String extension = MimeTypeMap.getFileExtensionFromUrl(file.getPath());
+                            if (extension != null) {
+                                mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+                            }
+                            if (mimeType == null) {
+                                mimeType = "*/*";
+                            }
+                            AndroidUtils.shareFile(mContext, file, mimeType);
+                        } catch (final Exception e) {
                             GB.toast("Failed to share file", Toast.LENGTH_LONG, GB.ERROR, e);
                         }
                         return true;

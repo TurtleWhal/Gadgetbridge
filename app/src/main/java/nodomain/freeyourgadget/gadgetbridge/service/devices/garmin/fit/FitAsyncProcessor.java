@@ -33,11 +33,12 @@ public class FitAsyncProcessor {
     /**
      * Process a list of files asynchronously. Callback is executed on the UI thread.
      */
-    public void process(final List<File> files, final Callback callback) {
+    public void process(final List<File> files, boolean isReprocessing, final Callback callback) {
         LOG.debug("Starting processor for {} files", files.size());
 
         new Thread(() -> {
             try {
+                FitImporter fitImporter = null;
                 int i = 0;
                 for (final File file : files) {
                     i++;
@@ -47,10 +48,13 @@ public class FitAsyncProcessor {
                     FitAsyncProcessor.this.handler.post(() -> callback.onProgress(finalI));
 
                     try {
-                        final FitImporter fitImporter = new FitImporter(context, gbDevice);
-                        fitImporter.importFile(file);
+                        if (fitImporter == null) {
+                            fitImporter = new FitImporter(context, gbDevice);
+                        }
+                        fitImporter.importFile(file, isReprocessing);
                     } catch (final Exception ex) {
                         LOG.error("Exception while importing {}", file, ex);
+                        fitImporter = null;
                         continue; // do not remove from pending files
                     }
 

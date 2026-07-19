@@ -2,6 +2,7 @@ package nodomain.freeyourgadget.gadgetbridge.database;
 
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
@@ -18,6 +19,7 @@ import nodomain.freeyourgadget.gadgetbridge.test.TestBase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -81,7 +83,7 @@ public class SampleProviderTest extends TestBase {
         samples = sampleProvider.getActivitySamples(1, -1);
         assertEquals(0, samples.size());
 
-        // Now high res data
+        // Now high-res data
         samples = sampleProvider.getAllActivitySamplesHighRes(0, 0);
         assertTrue(samples.isEmpty());
 
@@ -124,7 +126,7 @@ public class SampleProviderTest extends TestBase {
 
         MiBandActivitySample s3 = createSample(sampleProvider, MiBandSampleProvider.TYPE_DEEP_SLEEP, 1200, 10, 62, 4030, user, device);
         MiBandActivitySample s4 = createSample(sampleProvider, MiBandSampleProvider.TYPE_LIGHT_SLEEP, 2000, 10, 60, 4030, user, device);
-        sampleProvider.addGBActivitySamples(new MiBandActivitySample[] { s3, s4 });
+        sampleProvider.addGBActivitySamples(Arrays.asList(s3, s4));
 
         // first checks for irrelevant timestamps => no samples
         List<MiBandActivitySample> samples = sampleProvider.getAllActivitySamples(0, 0);
@@ -146,7 +148,7 @@ public class SampleProviderTest extends TestBase {
         samples = sampleProvider.getActivitySamples(1, -1);
         assertEquals(0, samples.size());
 
-        // Now high res data
+        // Now high-res data
         samples = sampleProvider.getAllActivitySamplesHighRes(0, 0);
         assertTrue(samples.isEmpty());
 
@@ -167,6 +169,31 @@ public class SampleProviderTest extends TestBase {
         assertEquals(3, allSamples.size());
         // FIXME activitySamples = sampleProvider.getActivitySamples(10, 150);
         // FIXME assertEquals(1, activitySamples.size());
+    }
+
+    @Test
+    public void testGetFirstActivitySampleSkipsNonPositiveTimestamp() {
+        MiBandSampleProvider sampleProvider = new MiBandSampleProvider(dummyGBDevice, daoSession);
+        User user = DBHelper.getUser(daoSession);
+        Device device = DBHelper.getDevice(dummyGBDevice, daoSession);
+
+        MiBandActivitySample zero = createSample(sampleProvider, MiBandSampleProvider.TYPE_ACTIVITY, 0, 10, 70, 1000, user, device);
+        MiBandActivitySample valid = createSample(sampleProvider, MiBandSampleProvider.TYPE_ACTIVITY, 100, 20, 80, 1030, user, device);
+        sampleProvider.addGBActivitySamples(List.of(zero, valid));
+
+        // oldest row overall is the timestamp 0 row
+        assertEquals(0, sampleProvider.getFirstActivitySample().getTimestamp());
+
+        // but the overload skips it and returns the first row with timestamp > 0
+        MiBandActivitySample first = sampleProvider.getFirstActivitySample(0);
+        assertNotNull(first);
+        assertEquals(100, first.getTimestamp());
+    }
+
+    @Test
+    public void testGetFirstActivitySampleNoSamples() {
+        MiBandSampleProvider sampleProvider = new MiBandSampleProvider(dummyGBDevice, daoSession);
+        assertNull(sampleProvider.getFirstActivitySample(0));
     }
 
     @Test
@@ -192,7 +219,7 @@ public class SampleProviderTest extends TestBase {
         s3.setOtherTimestamp(200);
         HuaweiActivitySample s4 = createSample(sampleProvider, MiBandSampleProvider.TYPE_LIGHT_SLEEP, 200, 10, 60, 4030, user, device);
         s4.setOtherTimestamp(220);
-        sampleProvider.addGBActivitySamples(new HuaweiActivitySample[] { s3, s4 });
+        sampleProvider.addGBActivitySamples(Arrays.asList(s3, s4));
 
         List<HuaweiActivitySample> samples = sampleProvider.getAllActivitySamples(0, 1);
         assertEquals(1, samples.size()); // It generates a sample for every 60 seconds that is requested
@@ -214,6 +241,6 @@ public class SampleProviderTest extends TestBase {
         assertEquals(2, samples.size()); // First three are combined
 
         samples = sampleProvider.getAllActivitySamplesHighRes(100, 200);
-        assertEquals(4, samples.size()); // No combining takes place for the high res
+        assertEquals(4, samples.size()); // No combining takes place for the high-res
     }
 }

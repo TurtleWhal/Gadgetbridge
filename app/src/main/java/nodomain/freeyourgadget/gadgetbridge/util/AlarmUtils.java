@@ -20,6 +20,9 @@ package nodomain.freeyourgadget.gadgetbridge.util;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -43,6 +46,8 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
  * Some utility methods for dealing with Alarms.
  */
 public class AlarmUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(AlarmUtils.class);
+
     /**
      * Creates an auto-generated (not user-configurable), non-recurring alarm. This alarm
      * may not be stored in the database. Some features are not available (e.g. device id, user id).
@@ -58,8 +63,6 @@ public class AlarmUtils {
 
     /**
      * Creates a default Alarm
-     * @param device
-     * @param position
      */
     @Nullable
     public static Alarm createDefaultAlarm(GBDevice gbDevice, int position) {
@@ -67,7 +70,7 @@ public class AlarmUtils {
             DaoSession daoSession = db.getDaoSession();
             return createDefaultAlarm(daoSession, gbDevice, position);
         } catch (Exception e) {
-            GB.log("Error accessing database", GB.ERROR, e);
+            LOG.error("Error accessing database", e);
             return null;
         }
     }
@@ -85,7 +88,7 @@ public class AlarmUtils {
 
     /**
      * Creates  a Calendar object representing the time of the given alarm (not taking the
-     * day/date into account.
+     * day/date into account).
      * @param alarm
      * @return
      */
@@ -146,7 +149,7 @@ public class AlarmUtils {
             Collections.sort(alarms, AlarmUtils.createComparator());
             return alarms;
         } catch (Exception e) {
-            GB.log("Error accessing database", GB.ERROR, e);
+            LOG.error("Error accessing database", e);
             return Collections.emptyList();
         }
     }
@@ -178,8 +181,7 @@ public class AlarmUtils {
 
     public static List<Alarm> mergeOneshotToDeviceAlarms(GBDevice gbDevice, Alarm oneshot, int position) {
         List<Alarm> all_alarms = new ArrayList<>();
-        try {
-            DBHandler db = GBApplication.acquireDB();
+        try (DBHandler db = GBApplication.acquireDB()) {
             DaoSession daoSession = db.getDaoSession();
             Device device = DBHelper.getDevice(gbDevice, daoSession);
             User user = DBHelper.getUser(daoSession);
@@ -188,9 +190,8 @@ public class AlarmUtils {
             oneshot.setUserId(user.getId());
             daoSession.insertOrReplace(oneshot);
             all_alarms = DBHelper.getAlarms(gbDevice);
-            GBApplication.releaseDB();
         } catch (Exception e) {
-            GB.log("error storing one shot quick alarm", GB.ERROR, e);
+            LOG.error("error storing one shot quick alarm", e);
         }
         return all_alarms;
     }

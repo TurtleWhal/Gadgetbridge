@@ -22,7 +22,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.RemoteException;
@@ -46,6 +45,7 @@ import java.util.List;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
+import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class OsmandEventReceiver {
@@ -92,9 +92,9 @@ public class OsmandEventReceiver {
         @Override
         public void onVoiceRouterNotify(OnVoiceNavigationParams params) {
             List<String> played = params.getPlayed();
-            for (String instuction : played) {
-                navigationInfoSpec.instruction = instuction;
-                LOG.debug("instruction: {}", instuction);
+            for (String instruction : played) {
+                navigationInfoSpec.instruction = instruction;
+                LOG.debug("instruction: {}", instruction);
                 // only first one for now
                 break;
             }
@@ -107,6 +107,7 @@ public class OsmandEventReceiver {
     };
 
     private final ServiceConnection mConnection = new ServiceConnection() {
+        @Override
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
             mIOsmAndAidlInterface = IOsmAndAidlInterface.Stub.asInterface(service);
@@ -117,6 +118,7 @@ public class OsmandEventReceiver {
 //            OsmandEventReceiver.this.startActivityForResult(intent,666);
         }
 
+        @Override
         public void onServiceDisconnected(ComponentName className) {
             mIOsmAndAidlInterface = null;
             LOG.info("OsmAnd service disconnected");
@@ -220,18 +222,10 @@ public class OsmandEventReceiver {
     public List<CharSequence> findInstalledOsmandPackages() {
         List<CharSequence> installedPackages = new ArrayList<>();
         for (String knownPackage : app.getBaseContext().getResources().getStringArray(R.array.osmand_package_names)) {
-            if (isPackageInstalled(knownPackage)) {
+            if (AndroidUtils.isPackageInstalled(knownPackage)) {
                 installedPackages.add(knownPackage);
             }
         }
         return installedPackages;
-    }
-
-    private boolean isPackageInstalled(final String packageName) {
-        try {
-            return app.getBaseContext().getPackageManager().getApplicationInfo(packageName, 0).enabled;
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
-        }
     }
 }

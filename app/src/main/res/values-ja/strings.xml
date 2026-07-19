@@ -35,11 +35,9 @@
     <string name="appmanager_hrm_deactivate">HRM を無効にする</string>
     <string name="appmanager_weather_activate">システムの天気アプリを有効にする</string>
     <string name="appmanager_weather_deactivate">システムの天気アプリを無効にする</string>
-    <string name="appmanager_weather_install_provider">天気通知アプリをインストール</string>
     <string name="app_configure">設定</string>
     <string name="app_move_to_top">先頭に移動</string>
     <!--Strings related to CalBlacklist-->
-    <string name="title_activity_calblacklist">ブラックリストにしたカレンダー</string>
     <!--Strings related to FwAppInstaller-->
     <string name="title_activity_fw_app_insaller">ファームウェア/アプリのインストール</string>
     <string name="fw_upgrade_notice">%s をインストールしようとしています。</string>
@@ -312,7 +310,7 @@
     <string name="miband_prefs_device_time_offset_hours">デバイス時刻のオフセット (交代勤務者の睡眠検知用)</string>
     <string name="miband2_prefs_dateformat">日付形式</string>
     <string name="dateformat_time">時刻</string>
-    <string name="dateformat_date_time">時刻と日付</string>
+    <string name="dateformat_date_time"><![CDATA[時刻と日付]]></string>
     <string name="mi2_prefs_goal_notification">目標達成通知</string>
     <string name="mi2_prefs_goal_notification_summary">1日の歩数が目標に達するとバンドが振動します</string>
     <string name="mi2_prefs_display_items">表示アイテム</string>
@@ -338,7 +336,6 @@
     <string name="authentication_required">認証が必要です</string>
     <string name="appwidget_text">Zzz</string>
     <string name="add_widget">ウィジェットを追加</string>
-    <string name="activity_prefs_sleep_duration">目標睡眠時間 (時間)</string>
     <string name="appwidget_setting_alarm">アラームを %1$02d:%2$02d に設定しました</string>
     <string name="device_hw">ハードウェアリビジョン: %1$s</string>
     <string name="device_fw">ファームウェアバージョン: %1$s</string>
@@ -355,7 +352,6 @@
     <string name="activity_db_management_import_export_explanation">データベース操作は、デバイスの次のパスを使用します。
 \nこのパスは、他の Android アプリケーションやお使いのコンピュータがアクセス可能です。
 \nエクスポートされたデータベースが見つかります (またはインポートしたいデータベースを配置します):</string>
-    <string name="activity_db_management_merge_old_title">レガシー データベースの削除</string>
     <string name="dbmanagementactivvity_cannot_access_export_path">エクスポート パスにアクセスできません。開発者に連絡してください。</string>
     <string name="dbmanagementactivity_exported_to">エクスポートしました: %1$s</string>
     <string name="dbmanagementactivity_error_exporting_db">データベースのエクスポートエラー : %1$s</string>
@@ -374,20 +370,13 @@
     <string name="dbmanagementactivity_old_activity_db_successfully_deleted">古いアクティビティ データを削除しました。</string>
     <string name="dbmanagementactivity_old_activity_db_deletion_failed">古いアクティビティ データベースの削除に失敗しました。</string>
     <string name="dbmanagementactivity_overwrite">上書き</string>
-    <string name="Cancel">キャンセル</string>
-    <string name="Delete">削除</string>
+    <string name="cancel">キャンセル</string>
+    <string name="delete">削除</string>
     <!--Strings related to Vibration Activity-->
     <string name="title_activity_vibration">振動</string>
     <!--Strings related to Pebble Pairing Activity-->
     <string name="title_activity_pebble_pairing">Pebble ペアリング</string>
     <string name="pebble_pairing_hint">Android デバイスでペアリングのダイアログがポップアップします。 表示されなかった場合は、通知ドロワーを調べてペアリング要求を了承してください。 その後、Pebble でも同様に了承してください。</string>
-    <string name="weather_notification_label">Pebble で天気情報を取得するには、天気通知アプリでこのスキンが有効になっていることを確認してください。
-\n
-\nここで必要な設定はありません。
-\n
-\nアプリの管理からPebbleのシステム天気アプリを有効にすることができます。
-\n
-\nサポートされているウォッチフェイスが自動的に天気を表示します。</string>
     <string name="pref_title_setup_bt_pairing">Bluetooth ペアリングを有効にする</string>
     <string name="pref_summary_setup_bt_pairing">接続に問題がある場合は、この機能を無効にしてください</string>
     <string name="unit_metric">メートル</string>
@@ -400,7 +389,7 @@
     <string name="miband2_prefs_timeformat">Mi2: 時刻の形式</string>
     <string name="mi2_fw_installhandler_fw53_hint">このファームウェアをインストールする前に、バージョン %1$s をインストールする必要があります！</string>
     <string name="mi2_enable_text_notifications">テキスト通知</string>
-    <string name="mi2_enable_text_notifications_summary">ファームウェア 1.0.1.28 以上 と Mili_pro.ft* をインストールしていることが必要です。</string>
+    <string name="mi2_enable_text_notifications_summary"><![CDATA[ファームウェア 1.0.1.28 以上 と Mili_pro.ft* をインストールしていることが必要です。]]></string>
     <string name="off">オフ</string>
     <string name="mi2_dnd_off">オフ</string>
     <string name="mi2_dnd_automatic">自動（睡眠検出）</string>
@@ -545,8 +534,8 @@
     <string name="minutes_5">5 分</string>
     <string name="minutes_10">10 分</string>
     <string name="minutes_30">30 分</string>
-    <string name="lack_of_step">歩数不足: %1$d</string>
-    <string name="overstep">歩数過剰: %1$d</string>
+    <string name="lack_of_step">歩数不足: %1$s</string>
+    <string name="overstep">歩数過剰: %1$s</string>
     <string name="live_activity_max_heart_rate">現在 / 最大心拍数: %1$d / %2$d</string>
     <string name="you_slept">%1$s から %2$s の間、眠っていました</string>
     <string name="you_did_not_sleep">睡眠しませんでした</string>
@@ -681,7 +670,6 @@
     <string name="minAltitude">最小</string>
     <string name="maxAltitude">最大</string>
     <string name="distanceMeters">距離</string>
-    <string name="device_requires_key">キーが必要です。長押しして入力してください</string>
     <string name="about_contributors">貢献者</string>
     <string name="about_activity_title_generic">Gadgetbridge について</string>
     <string name="about_title">このアプリについて</string>
@@ -694,7 +682,6 @@
     <string name="hr_widget_date">日付</string>
     <string name="hr_widget_steps">歩数</string>
     <string name="hr_widget_heart_rate">心拍数</string>
-    <string name="qhybrid_vibration_strength">振動の強さ：</string>
     <string name="widget_1_hour">1 時間</string>
     <string name="widget_20_minutes">20 分</string>
     <string name="widget_10_minutes">10 分</string>
@@ -715,8 +702,6 @@
     <string name="maximum_duration">期間</string>
     <string name="find_lost_device_you_found_it">見つけた！</string>
     <string name="activity_DB_delete_legacy_button">古いデータベースを削除</string>
-    <string name="activity_db_management_autoexport_label">自動エクスポート</string>
-    <string name="pref_chart_sleep_rolling_24_on">過去24時間</string>
     <string name="pref_title_chart_heartrate_color">心拍数の色</string>
     <string name="pref_chart_heartrate_color_orange">橙</string>
     <string name="pref_chart_heartrate_color_red">赤</string>
@@ -1435,17 +1420,13 @@
     <string name="dbmanagementactivity_export_data_title">データをエクスポートしますか？</string>
     <string name="activity_db_management_empty_db_warning">注意！このボタンを押すとデータベースがリセットされます。</string>
     <string name="dbmanagementactivity_export_finished">削除が完了しました</string>
-    <string name="activity_db_management_autoexport_explanation">データベースの自動エクスポート先を次の場所に設定しました：</string>
     <string name="qhybrid_title_apps_management">アプリの管理</string>
-    <string name="activity_db_management_autoexport_enabled_no">自動エクスポートは有効ではありません。</string>
-    <string name="activity_db_management_autoexport_enabled_yes">自動エクスポートが有効になっています。</string>
     <string name="activity_db_management_autoexport_scheduled_no">自動エクスポートは予定されていません。</string>
     <string name="activity_db_management_autoexport_scheduled_yes">自動エクスポートは %1$s に予定されていました</string>
     <string name="activity_DB_test_export_message">データベースのエクスポート中…</string>
     <string name="activity_DB_empty_button">データベースを空にする</string>
     <string name="activity_db_management_empty_DB">データベースを空にする</string>
     <string name="activity_DB_import_button">データのインポート</string>
-    <string name="autoExport_lastTime_label">最後の自動エクスポート：%1$s</string>
     <string name="activity_DB_ExportButton">データのエクスポート</string>
     <string name="activity_DB_test_export_button">今すぐ自動エクスポートを実行する</string>
     <string name="activity_db_management_autoexport_location">保存先を認識できませんでした。新しい Androidのパーミッション システムの問題であるかもしれません。自動エクスポートはおそらく機能していません。</string>
@@ -1618,14 +1599,12 @@
     <string name="menuitem_cycles">サイクル トラッキング</string>
     <string name="menuitem_wechat_pay">WeChat Pay</string>
     <string name="menuitem_mi_ai">MI AI</string>
-    <string name="preferences_qhybrid_settings">Q Hybrid の設定</string>
     <string name="menuitem_findphone">スマートフォンを探す</string>
     <string name="menuitem_mutephone">スマートフォンをミュートにする</string>
     <string name="menuitem_alexa">Alexa</string>
     <string name="menuitem_goal">アクティビティの目標</string>
     <string name="menuitem_lockscreen">ロック画面</string>
     <string name="zepp_os_watchface_lightning_flash">Lightning flash</string>
-    <string name="share_log_not_enabled_message">設定から「ログファイルを出力」 を有効にする必要があります</string>
     <string name="menuitem_membership_cards">会員証</string>
     <string name="menuitem_screen_always_lit">画面を常に点灯</string>
     <string name="menuitem_brightness">明るさ</string>
@@ -1710,10 +1689,8 @@
     <string name="about_additional_contributions">アプリ開発に貢献していただいたすべての貢献者に感謝します…✊</string>
     <string name="gpx_receiver_overwrite_some_files">ファイルは既に存在します。上書きしますか？</string>
     <string name="about_version">バージョン %s</string>
-    <string name="qhybrid_overwrite_buttons">ボタンを上書き</string>
     <string name="qhybrid_buttons_overwrite_error">ボタンを上書きできませんでした</string>
     <string name="text_receiver_activity_title">テキストをデバイスに送る</string>
-    <string name="qhybrid_goal_in_steps">目標歩数</string>
     <string name="qhybrid_time_shift">タイムシフト</string>
     <string name="pref_title_upper_button_long_press_action">上ボタンを長く押したときの動作</string>
     <string name="pref_title_upper_button_function_short">上ボタン（短）</string>
@@ -2105,13 +2082,10 @@
     <string name="pref_media_pause">停止</string>
     <string name="watchface_dialog_widget_timezone_duration">時計を表示する時間 (秒)</string>
     <string name="pref_media_next">次の曲</string>
-    <string name="distance_format_meters">###m</string>
-    <string name="distance_format_miles">###.#mi</string>
     <string name="sony_button_mode_left">ボタンの機能 (左)</string>
     <string name="pref_screen_brightness">画面の明るさ</string>
     <string name="pref_media_play">再生</string>
     <string name="pref_device_action_dnd_off">サイレント モード - オフ</string>
-    <string name="distance_format_kilometers">###.#km</string>
     <string name="pref_title_opentracks_packagename">OpenTracks のパッケージ名</string>
     <string name="pref_screen_auto_brightness_title">明るさの自動調節</string>
     <string name="sony_quick_access_triple_tap">Quick Access (トリプルタップ)</string>
@@ -2127,7 +2101,6 @@
     <string name="pref_device_action_dnd_priority">サイレント モード - 重要度の高い通知のみ</string>
     <string name="pref_device_action_dnd_alarms">サイレント モード - アラームのみ</string>
     <string name="pref_device_action_dnd_on">サイレント モード - オン</string>
-    <string name="distance_format_feet">###ft</string>
     <string name="pref_activity_recognize_running">ランニングの検出</string>
     <string name="pref_activity_recognition_mode_ask">確認する</string>
     <string name="menuitem_menu">メニュー</string>
@@ -2149,9 +2122,7 @@
     <string name="fossil_hr_button_config_info">一部のボタンの動作はウォッチのファームウェアで固定されているため設定できません。
 \n
 \n注意：Fossil公式アプリで設定したウォッチフェイスを使っているときに上ボタンを長押しすると、ウィジェットの表示/非表示も切り替わります。</string>
-    <string name="pref_force_options_summary">一部のデバイスは、いくつかのオプションに対応していないと偽っている場合があります。この設定はそれらのオプションを強制的に有効化します。
-\n自己責任で使用してください。
-\n詳細は Wiki を確認してください</string>
+    <string name="pref_force_options_summary">一部のデバイスは、いくつかのオプションに対応していないと偽っている場合があります。この設定はそれらのオプションを強制的に有効化します。 \n自己責任で使用してください。 \n詳細は Wiki を確認してください</string>
     <string name="error_deleting_device">デバイスの削除中にエラーが発生しました: %s</string>
     <string name="controlcenter_connected_fraction">接続済み: %d/%d</string>
     <string name="error_setting_parent_folder">親フォルダの設定中にエラーが発生しました: %s</string>
@@ -2234,7 +2205,6 @@
     <string name="notification_channel_connection_status_name">接続状態</string>
     <string name="error_showing_changelog">Changelog の表示中にエラーが発生しました</string>
     <string name="activity_list_summary_active_time">活動時間</string>
-    <string name="pref_chart_sleep_rolling_24_off">前日12:00から当日12:00</string>
     <string name="active_time">活動時間</string>
     <string name="activity_prefs_activetime_minutes">1日の目標: 活動時間 (分)</string>
     <string name="steps_streaks_total_steps">合計
@@ -2334,7 +2304,6 @@
     <string name="changelog_ok_button">OK</string>
     <string name="loyalty_cards_catima">Catima</string>
     <string name="pref_theme_dynamic_colors_explanation">注意: ダイナミックカラーのテーマを使用するには、Android 12 以上の外観設定で壁紙の色またはカラーパレットを有効にする必要があります。有効にしない場合、Gadgetbridge はデフォルトの Material 3 カラーを使用します。</string>
-    <string name="loyalty_cards_catima_not_installed">ポイントカードの管理には Catima が必要です</string>
     <string name="withings_calibration_text_hours">下のダイヤルを使って時針を 12 に合わせてください。</string>
     <string name="activity_info">アクティビティ情報</string>
     <string name="loyalty_cards_sync_archived">アーカイブしたカードを同期する</string>
@@ -2345,12 +2314,8 @@
     <string name="pref_speak_notifications_focus_exclusive_title">他のアプリの音声を一時停止する</string>
     <string name="pref_speak_notifications_aloud_summary">ヘッドホンで通知を読み上げます</string>
     <string name="uploadwatchfaceoperation_complete">ウォッチフェイスのインストールが完了しました</string>
-    <string name="loyalty_cards_install">Catima をインストールする</string>
-    <string name="loyalty_cards_catima_not_compatible">インストールされている Catima のバージョンは Gadgetbridge に対応していません。Catima と Gadgetbridge を最新版に更新してください。</string>
-    <string name="loyalty_cards_catima_permissions_summary">Gadgetbridge が Catima のカードを同期するにはカードを読み取る権限が必要です。このボタンをタップして権限を許可してください。</string>
     <string name="loyalty_cards_sync_options">同期設定</string>
     <string name="loyalty_cards_sync">同期</string>
-    <string name="loyalty_cards_open_catima">Catima を開く</string>
     <string name="withings_bt_calibration_previous">戻る</string>
     <string name="withings_calibration_text_minutes">次に、ダイヤルを使って分針を 12 に合わせてください。</string>
     <string name="pref_test_features_summary">このテストデバイスで有効な機能</string>
@@ -2359,10 +2324,8 @@
     <string name="pref_force_connection_type_title">接続形式を指定する</string>
     <string name="loyalty_cards_catima_permissions_title">不足している権限</string>
     <string name="withings_calibration_text_activity_target">最後に、アクティビティの針を 100% に合わせてください。この針は時計回りにしか動きません。</string>
-    <string name="loyalty_cards_catima_package">Catioma のパッケージ名</string>
     <string name="loyalty_cards_sync_groups_only">特定のグループのみ同期する</string>
     <string name="loyalty_cards_sync_groups">同期するグループ</string>
-    <string name="loyalty_cards_install_catima_fail">アプリストアを開けませんでした</string>
     <string name="pref_theme_dynamic_colors_not_available_warning">ダイナミックカラーは Android 12 未満のデバイスでは利用できません。Gadgetbridge はデフォルトの Material 3 カラーを使用します。</string>
     <string name="prompt_restart_gadgetbridge">反映するには Gadgetbridge を再起動してください。</string>
     <string name="uploadwatchfaceoperation_in_progress">ウォッチフェイスをアップロードしています</string>

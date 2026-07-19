@@ -1,4 +1,4 @@
-/*  Copyright (C) 2021-2024 Daniel Dakhno
+/*  Copyright (C) 2021-2026 Daniel Dakhno
 
     This file is part of Gadgetbridge.
 
@@ -24,7 +24,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Bundle;
 
+import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
@@ -194,8 +196,8 @@ public class VescDeviceSupport extends VescBaseDeviceSupport {
         fullnessPercent = Math.max(fullnessPercent, 0);
         fullnessPercent = Math.min(fullnessPercent, 100);
 
-        getDevice().setBatteryLevel(fullnessPercent);
-        getDevice().setBatteryVoltage(voltage);
+        getDevice().setBatteryLevel(fullnessPercent, 0);
+        getDevice().setBatteryVoltage(voltage, 0);
         getDevice().sendDeviceUpdateIntent(getContext());
     }
 
@@ -212,7 +214,7 @@ public class VescDeviceSupport extends VescBaseDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         getValues();
         // getDecodedADC();
     }

@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2025 José Rebelo, Thomas Kuehne
+/*  Copyright (C) 2023-2026 José Rebelo, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -160,6 +160,10 @@ public class GpxParser {
         if (text == null || text.length() < 1) {
             return defaultDate;
         }
+        // If no timezone indicator is present, assume UTC
+        if (!text.endsWith("Z") && !text.contains("+") && !(text.length() > 19 && text.charAt(19) == '-')) {
+            return ISO8601Utils.parse(text + "Z", new ParsePosition(0));
+        }
         return ISO8601Utils.parse(text, new ParsePosition(0));
     }
 
@@ -168,7 +172,9 @@ public class GpxParser {
         if (text == null || text.length() < 1) {
             return defaultDouble;
         }
-        return Double.parseDouble(text);
+        // some GPX generators write NaN instead of an empty value
+        final double value = Double.parseDouble(text);
+        return Double.isNaN(value) ? defaultDouble : value;
     }
 
     private float getFloat(String attribute, float defaultFloat) {
@@ -176,7 +182,9 @@ public class GpxParser {
         if (text == null || text.length() < 1) {
             return defaultFloat;
         }
-        return Float.parseFloat(text);
+        // some GPX generators write NaN instead of an empty value
+        final float value = Float.parseFloat(text);
+        return Float.isNaN(value) ? defaultFloat : value;
     }
 
     private int getInt(String attribute, int defaultInt) {
@@ -184,7 +192,13 @@ public class GpxParser {
         if (text == null || text.length() < 1) {
             return defaultInt;
         }
-        return Integer.parseInt(text);
+
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            // some GPX generators write malformed cadence and HR values: "6.0" instead of "6"
+            return Math.round(getFloat(attribute, defaultInt));
+        }
     }
 
     private void parseGpx() throws Exception {

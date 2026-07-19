@@ -12,6 +12,8 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.WorkoutValueFormatter;
 
 public class ActivitySummarySimpleEntry extends ActivitySummaryEntry {
+    public static final ActivitySummarySimpleEntry EMPTY = new ActivitySummarySimpleEntry("-", "string");
+
     private final Object value;
     private final String unit;
 
@@ -53,7 +55,7 @@ public class ActivitySummarySimpleEntry extends ActivitySummaryEntry {
         final TextView labelTextView = new TextView(context);
         labelTextView.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         labelTextView.setTextSize(12);
-        labelTextView.setText(workoutValueFormatter.getStringResourceByName(key));
+        labelTextView.setText(key);
 
         if (getColumnSpan() == 1) {
             linearLayout.addView(valueTextView);

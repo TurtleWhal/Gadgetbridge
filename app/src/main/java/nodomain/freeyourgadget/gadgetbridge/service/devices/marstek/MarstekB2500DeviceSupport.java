@@ -1,4 +1,4 @@
-/*  Copyright (C) 2024 Andreas Shimokawa
+/*  Copyright (C) 2024-2026 Andreas Shimokawa
 
     This file is part of Gadgetbridge.
 
@@ -25,7 +25,9 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Bundle;
 
+import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
@@ -39,7 +41,7 @@ import java.util.SimpleTimeZone;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.devices.marstek.SolarEquipmentStatusActivity;
+import nodomain.freeyourgadget.gadgetbridge.devices.SolarEquipmentStatusActivity;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
@@ -99,7 +101,7 @@ public class MarstekB2500DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         sendCommand("get infos 1", COMMAND_GET_INFOS1);
         sendCommand("get infos 2", COMMAND_GET_INFOS2);
     }
@@ -118,7 +120,7 @@ public class MarstekB2500DeviceSupport extends AbstractBTLESingleDeviceSupport {
         getDevice().setFirmwareVersion2("N/A");
         builder.requestMtu(512);
         builder.notify(UUID_CHARACTERISTIC_MAIN, true);
-        builder.wait(3500);
+        builder.sleep(3500);
         builder.write(UUID_CHARACTERISTIC_MAIN, COMMAND_GET_INFOS1);
         return builder;
     }
@@ -133,7 +135,7 @@ public class MarstekB2500DeviceSupport extends AbstractBTLESingleDeviceSupport {
         BluetoothGattCharacteristic characteristic = getCharacteristic(UUID_CHARACTERISTIC_MAIN);
         if (characteristic != null && contents != null) {
             builder.write(characteristic, contents);
-            builder.wait(750);
+            builder.sleep(750);
             builder.queue();
         }
     }
@@ -240,19 +242,21 @@ public class MarstekB2500DeviceSupport extends AbstractBTLESingleDeviceSupport {
         devicePrefsEdit.apply();
         devicePrefsEdit.commit();
 
-        getDevice().setBatteryLevel(battery_pct);
+        getDevice().setBatteryLevel(battery_pct, 0);
         getDevice().sendDeviceUpdateIntent(getContext());
 
-        Intent intent = new Intent(SolarEquipmentStatusActivity.ACTION_SEND_SOLAR_EQUIPMENT_STATUS);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_BATTERY_WH, battery_wh);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_BATTERY_PCT, battery_pct);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_PANEL1_WATT, p1_watt);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_PANEL2_WATT, p2_watt);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_TEMP1, temperature_sensor_1);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_TEMP2, temperature_sensor_2);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_OUTPUT1_WATT, output_to_inverter_1_watt);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_OUTPUT2_WATT, output_to_inverter_2_watt);
-        intent.putExtra(SolarEquipmentStatusActivity.EXTRA_DEBUG, debug);
+        Intent intent = new Intent(SolarEquipmentStatusActivity.ACTION_SEND_SOLAR_EQUIPMENT_STATUS)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_BATTERY_WH, battery_wh)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_BATTERY_PCT, battery_pct)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_PANEL1_WATT, p1_watt)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_PANEL2_WATT, p2_watt)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_PANEL3_WATT, -1)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_PANEL4_WATT, -1)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_TEMP1, temperature_sensor_1)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_TEMP2, temperature_sensor_2)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_OUTPUT1_WATT, output_to_inverter_1_watt)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_OUTPUT2_WATT, output_to_inverter_2_watt)
+                .putExtra(SolarEquipmentStatusActivity.EXTRA_DEBUG, debug);
         LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
         getContext().sendBroadcast(intent);
     }

@@ -60,7 +60,7 @@ public enum ActivityKind {
 
     // Non-legacy activity kinds after 0x04000000
     NAVIGATE(0x04000000, R.string.activity_type_navigate, R.drawable.ic_navigation),
-    INDOOR_TRACK(0x04000001, R.string.activity_type_indoor_track),
+    INDOOR_TRACK_RUNNING(0x04000001, R.string.activity_type_indoor_track, R.drawable.ic_run_circle),
     HANDCYCLING(0x04000002, R.string.activity_type_handcycling),
     E_BIKE(0x04000003, R.string.activity_type_e_bike, R.drawable.ic_activity_electric_bike),
     BIKE_COMMUTE(0x04000004, R.string.activity_type_bike_commute, R.drawable.ic_activity_bike_lane),
@@ -95,8 +95,8 @@ public enum ActivityKind {
     FISHING(0x04000024, R.string.activity_type_fishing, R.drawable.ic_activity_fishing),
     INLINE_SKATING(0x04000025, R.string.activity_type_inline_skating, R.drawable.ic_activity_roller_skating),
     ROCK_CLIMBING(0x04000026, R.string.activity_type_rock_climbing, R.drawable.ic_activity_rock_climbing),
-    CLIMB_INDOOR(0x04000027, R.string.activity_type_climb_indoor),
-    BOULDERING(0x04000028, R.string.activity_type_bouldering),
+    CLIMB_INDOOR(0x04000027, R.string.activity_type_climb_indoor, R.drawable.ic_activity_climbing_indoor),
+    BOULDERING(0x04000028, R.string.activity_type_bouldering, R.drawable.ic_activity_climbing_indoor),
     SAIL_RACE(0x0400002a, R.string.activity_type_sail_race, R.drawable.ic_activity_sailing),
     SAIL_EXPEDITION(0x0400002b, R.string.activity_type_sail_expedition, R.drawable.ic_activity_sailing),
     ICE_SKATING(0x0400002c, R.string.activity_type_ice_skating, R.drawable.ic_activity_ice_skating),
@@ -296,6 +296,8 @@ public enum ActivityKind {
     TREKKING(0x040000f1, R.string.activity_type_trekking, R.drawable.ic_activity_hiking),
     TRAIL_RUN(0x040000f2, R.string.activity_type_trail_run, R.drawable.ic_activity_trail_run),
     UPPER_BODY(0x040000f3, R.string.activity_type_upper_body),
+    TRAIL_HIKE(0x040000f4, R.string.activity_type_trail_hike, R.drawable.ic_activity_hiking),
+    MMA_HIIT(0x040000f5, R.string.activity_type_mma_hiit, R.drawable.ic_activity_mma),
     LOWER_BODY(0x040000ff, R.string.activity_type_lower_body),
     BARBELL(0x04000100, R.string.activity_type_barbell, R.drawable.ic_activity_barbell),
     TRIATHLON(0x04000101, R.string.activity_type_triathlon),
@@ -337,6 +339,15 @@ public enum ActivityKind {
     ULTRA_RUN(0x04000132, R.string.activity_type_ultra_run, R.drawable.ic_activity_trail_run),
     VIRTUAL_RUN(0x04000133, R.string.activity_type_virtual_run, R.drawable.ic_activity_indoor_running),
     XC_SKATE_SKI(0x04000134, R.string.activity_type_xc_skate_ski, R.drawable.ic_activity_skiing),
+    STREET_RUNNING(0x04000135, R.string.activity_type_street_running, R.drawable.ic_activity_road),
+    STOP_WATCH(0x04000136, R.string.activity_type_stop_watch, R.drawable.ic_timer),
+    CCR_DIVING(0x04000137, R.string.activity_type_ccr_diving, R.drawable.ic_activity_diving),
+    FLOORBALL(0x04000138, R.string.activity_type_floorball, R.drawable.ic_activity_hockey),
+    GEOCACHING(0x04000139, R.string.activity_type_geocaching, R.drawable.ic_travel_explore),
+    MOBILITY(0x0400013A, R.string.activity_type_mobility),
+    MOTOR_SPORT(0x0400013B, R.string.activity_type_motor_sport, R.drawable.ic_sports_motorsports),
+    CYCLING_DOWNHILL(0x0400013C, R.string.activity_type_cycling_downhill, R.drawable.ic_landscape),
+    INDOOR_SKIING(0x0400013D, R.string.activity_type_indoor_skiing, R.drawable.ic_activity_skiing),
     ;
 
     private final int code;
@@ -399,6 +410,18 @@ public enum ActivityKind {
                 activityKind.name().contains("TREADMILL") || activityKind.name().contains("WALK");
     }
 
+    public static boolean isNauticalActivity(final ActivityKind activityKind) {
+        return activityKind == SAILING
+                || activityKind == SAIL_RACE
+                || activityKind == SAIL_EXPEDITION
+                || activityKind == BOATING
+                || activityKind == POWERBOATING
+                || activityKind == MARINE
+                || activityKind == ANCHOR
+                || activityKind == TROLLING_MOTOR
+                || activityKind == WINDSURFING;
+    }
+
     public static boolean isSwimActivity(final ActivityKind activityKind) {
         return activityKind.name().contains("SWIM");
     }
@@ -422,6 +445,15 @@ public enum ActivityKind {
             case INDOOR_CYCLING:
             case OUTDOOR_CYCLING:
             case SPINNING:
+            case DYNAMIC_CYCLE:
+            case BMX:
+            case BIKE_TOUR:
+            case CYCLO_CROSS:
+            case E_MOUNTAIN_BIKE:
+            case GRAVEL_BIKE:
+            case MOUNTAIN_BIKE:
+            case ROAD_BIKE:
+            case CYCLING_DOWNHILL:
                 return CycleUnit.REVOLUTIONS;
             case FLEXIBILITY:
             case BARBELL:

@@ -1,3 +1,19 @@
+/*  Copyright (C) 2025-2026 José Rebelo, a0z, Me7c7, punchdeerflyscorpion, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.workouts.charts;
 
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_BPM;
@@ -6,8 +22,11 @@ import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KMPH;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_METERS_PER_SECOND;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MILLISECONDS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_100_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_KM;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MM;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_PERCENTAGE;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_100_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_KM;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SPM;
@@ -48,64 +67,190 @@ public class DefaultWorkoutCharts {
         final ActivityKind.CycleUnit cycleUnit = ActivityKind.getCycleUnit(activityKind);
         final List<WorkoutChart> charts = new LinkedList<>();
         final TimestampTranslation tsTranslation = new TimestampTranslation();
-        final List<Entry> heartRateDataPoints = new ArrayList<>();
-        final List<Entry> speedDataPoints = new ArrayList<>();
-        final List<Entry> cadenceDataPoints = new ArrayList<>();
-        final List<Entry> elevationDataPoints = new ArrayList<>();
-        final List<Entry> powerDataPoints = new ArrayList<>();
-        final List<Entry> respiratoryRatePoints = new ArrayList<>();
-        final List<Entry> temperatureDataPoints = new ArrayList<>();
-        final List<Entry> depthDataPoints = new ArrayList<>();
+        final int initialCapacity = activityPoints.size();
+        final List<Entry> heartRateDataPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> speedDataPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> cadenceDataPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> elevationDataPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> powerDataPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> respiratoryRatePoints = new ArrayList<>(initialCapacity);
+        final List<Entry> temperatureDataPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> depthDataPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> distancePoints = new ArrayList<>(initialCapacity);
+        final List<Entry> staminaPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> bodyEnergyPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> stepLengthPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> n2LoadPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> cnsToxicityPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> verticalOscillationPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> stanceTimePercentPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> stanceTimePoints = new ArrayList<>(initialCapacity);
+        final List<Entry> verticalRatioPoints = new ArrayList<>(initialCapacity);
+        final List<Entry> stanceTimeBalancePoints = new ArrayList<>(initialCapacity);
+        final List<Entry> performanceConditionPoints = new ArrayList<>(initialCapacity);
+
+        // some activities / devices provide all points with zero values
         boolean hasSpeedValues = false;
         boolean hasCadenceValues = false;
         boolean hasElevationValues = false;
+        boolean hasPowerValues = false;
+        boolean hasRespiratoryRateValues = false;
+        boolean hasTemperatureValues = false;
+        boolean hasDepthValues = false;
+        boolean hasDistanceValues = false;
+        boolean hasBodyEnergyValues = false;
+        boolean hasStaminaValues = false;
+        boolean hasStepLengthValues = false;
+        boolean hasN2LoadValues = false;
+        boolean hasCnsToxicityValues = false;
+        boolean hasVerticalOscillationValues = false;
+        boolean hasStanceTimePercentValues = false;
+        boolean hasStanceTimeValues = false;
+        boolean hasVerticalRatioValues = false;
+        boolean hasStanceTimeBalanceValues = false;
+        boolean hasPerformanceConditionValues = false;
+
         final Accumulator cadenceAccumulator = new Accumulator();
+        final Accumulator temperatureAccumulator = new Accumulator();
 
         for (int i = 0; i <= activityPoints.size() - 1; i++) {
             final ActivityPoint point = activityPoints.get(i);
             final long tsShorten = tsTranslation.shorten((int) point.getTime().getTime());
 
             // HR
-            if (point.getHeartRate() > 0) {
-                heartRateDataPoints.add(new Entry(tsShorten, point.getHeartRate()));
+            final int heartRate = point.getHeartRate();
+            if (heartRate > 0) {
+                heartRateDataPoints.add(new Entry(tsShorten, heartRate));
             }
 
             // Elevation
-            if (point.getLocation() != null && point.getLocation().getAltitude() != GPSCoordinate.UNKNOWN_ALTITUDE) {
-                elevationDataPoints.add(new Entry(tsShorten, (float) point.getLocation().getAltitude()));
-                if (point.getLocation().getAltitude() != 0) {
-                    // Some devices provide all points at zero
-                    hasElevationValues = true;
-                }
+            final double elevation = point.getAltitude();
+            if (elevation > GPSCoordinate.UNKNOWN_ALTITUDE) {
+                elevationDataPoints.add(new Entry(tsShorten, (float) elevation));
+                hasElevationValues = hasElevationValues || (elevation != 0.0);
             }
 
             // Speed
-            speedDataPoints.add(new Entry(tsShorten, point.getSpeed()));
-            if (!hasSpeedValues && point.getSpeed() > 0) {
-                hasSpeedValues = true;
+            final float speed = point.getSpeed();
+            if(speed >= 0.0f) {
+                speedDataPoints.add(new Entry(tsShorten, speed));
+                hasSpeedValues = hasSpeedValues || (speed > 0.0f);
             }
 
             // Cadence
-            cadenceDataPoints.add(new Entry(tsShorten, point.getCadence()));
-            cadenceAccumulator.add(point.getCadence());
-            if (!hasCadenceValues && point.getCadence() > 0) {
-                hasCadenceValues = true;
+            final float cadence = point.getCadence();
+            if(cadence >= 0.0f){
+                cadenceDataPoints.add(new Entry(tsShorten, cadence));
+                cadenceAccumulator.add(cadence);
+                hasCadenceValues = hasCadenceValues || (cadence > 0.0f);
             }
-            if (point.getPower() >= 0) {
-                powerDataPoints.add(new Entry(tsShorten, (float) point.getPower()));
+
+            final float power = point.getPower();
+            if (power >= 0.0f) {
+                powerDataPoints.add(new Entry(tsShorten, power));
+                hasPowerValues = hasPowerValues || (power > 0.0f);
             }
-            if (point.getRespiratoryRate() >= 0) {
-                respiratoryRatePoints.add(new Entry(tsShorten, point.getRespiratoryRate()));
+
+            final float respiratoryRate = point.getRespiratoryRate();
+            if (respiratoryRate >= 0.0f) {
+                respiratoryRatePoints.add(new Entry(tsShorten, respiratoryRate));
+                hasRespiratoryRateValues = hasRespiratoryRateValues || (respiratoryRate > 0.0f);
             }
 
             // Depth (diving activity)
-            if (point.getDepth() > 0) {
-                depthDataPoints.add(new Entry(tsShorten, (float) point.getDepth() * -1));
+            final double depth = point.getDepth();
+            if (depth >= 0.0) {
+                depthDataPoints.add(new Entry(tsShorten, (float) -depth));
+                hasDepthValues = hasDepthValues || (depth > 0.0);
             }
 
             // Temperature
-            if (point.getTemperature() > -273) {
-                temperatureDataPoints.add(new Entry(tsShorten, (float) point.getTemperature()));
+            final double temperature = point.getTemperature();
+            if (temperature > -273) {
+                temperatureDataPoints.add(new Entry(tsShorten, (float) temperature));
+                temperatureAccumulator.add(temperature);
+                hasTemperatureValues = hasTemperatureValues || (temperature != 0.0);
+            }
+
+            // Distance
+            final double distance = point.getDistance();
+            if (distance >= 0.0) {
+                distancePoints.add(new Entry(tsShorten, (float) distance));
+                hasDistanceValues = hasDistanceValues || (distance > 0);
+            }
+
+            // Body Energy
+            final float bodyEnergy = point.getBodyEnergy();
+            if (bodyEnergy >= 0.0f) {
+                bodyEnergyPoints.add(new Entry(tsShorten, bodyEnergy));
+                hasBodyEnergyValues = hasBodyEnergyValues || (bodyEnergy > 0.0f);
+            }
+
+            // Stamina
+            final float stamina = point.getStamina();
+            if (stamina >= 0.0f) {
+                staminaPoints.add(new Entry(tsShorten, stamina));
+                hasStaminaValues = hasStaminaValues || (stamina > 0.0f);
+            }
+
+            // Step Length
+            final int stepLength = point.getStepLength();
+            if (stepLength >= 0) {
+                stepLengthPoints.add(new Entry(tsShorten, stepLength));
+                hasStepLengthValues = hasStepLengthValues || (stepLength > 0);
+            }
+
+            // CNS Toxicity
+            final float cnsToxicity = point.getCnsToxicity();
+            if (cnsToxicity >= 0.0f) {
+                cnsToxicityPoints.add(new Entry(tsShorten, cnsToxicity));
+                hasCnsToxicityValues = hasCnsToxicityValues || (cnsToxicity > 0.0f);
+            }
+
+            // N2 Load
+            final float n2Load = point.getN2Load();
+            if (n2Load >= 0.0f) {
+                n2LoadPoints.add(new Entry(tsShorten, n2Load));
+                hasN2LoadValues = hasN2LoadValues || (n2Load > 0.0f);
+            }
+
+            // Running dynamics
+            final float verticalOscillation = point.getVerticalOscillation();
+            if (!Float.isNaN(verticalOscillation)) {
+                verticalOscillationPoints.add(new Entry(tsShorten, verticalOscillation));
+                hasVerticalOscillationValues = hasVerticalOscillationValues || (verticalOscillation > 0.0f);
+            }
+
+            final float stanceTimePercent = point.getStanceTimePercent();
+            if (!Float.isNaN(stanceTimePercent)) {
+                stanceTimePercentPoints.add(new Entry(tsShorten, stanceTimePercent));
+                hasStanceTimePercentValues = hasStanceTimePercentValues || (stanceTimePercent > 0.0f);
+            }
+
+            final float stanceTime = point.getStanceTime();
+            if (!Float.isNaN(stanceTime)) {
+                stanceTimePoints.add(new Entry(tsShorten, stanceTime));
+                hasStanceTimeValues = hasStanceTimeValues || (stanceTime > 0.0f);
+            }
+
+            final float verticalRatio = point.getVerticalRatio();
+            if (!Float.isNaN(verticalRatio)) {
+                verticalRatioPoints.add(new Entry(tsShorten, verticalRatio));
+                hasVerticalRatioValues = hasVerticalRatioValues || (verticalRatio > 0.0f);
+            }
+
+            final float stanceTimeBalance = point.getStanceTimeBalance();
+            if (!Float.isNaN(stanceTimeBalance)) {
+                stanceTimeBalancePoints.add(new Entry(tsShorten, stanceTimeBalance));
+                hasStanceTimeBalanceValues = hasStanceTimeBalanceValues || (stanceTimeBalance > 0.0f);
+            }
+
+            final int performanceCondition = point.getPerformanceCondition();
+            if (performanceCondition > Integer.MIN_VALUE) {
+                // Integer.MIN_VALUE is the no-data sentinel; any other value is a valid
+                // reading, including negative ones (performance condition can be < 0).
+                performanceConditionPoints.add(new Entry(tsShorten, performanceCondition));
+                hasPerformanceConditionValues = true;
             }
         }
 
@@ -125,20 +270,68 @@ public class DefaultWorkoutCharts {
             charts.add(createElevationChart(context, elevationDataPoints));
         }
 
-        if (!powerDataPoints.isEmpty()) {
+        if (hasPowerValues && !powerDataPoints.isEmpty()) {
             charts.add(createPowerChart(context, powerDataPoints));
         }
 
-        if (!respiratoryRatePoints.isEmpty()) {
+        if (hasRespiratoryRateValues && !respiratoryRatePoints.isEmpty()) {
             charts.add(createRespiratoryRateChart(context, respiratoryRatePoints));
         }
 
-        if (!depthDataPoints.isEmpty()) {
+        if (hasDepthValues && !depthDataPoints.isEmpty()) {
             charts.add(createDepthChart(context, depthDataPoints));
         }
 
-        if (!temperatureDataPoints.isEmpty()) {
-            charts.add(createTemperatureChart(context, temperatureDataPoints));
+        if (hasTemperatureValues && !temperatureDataPoints.isEmpty()) {
+            charts.add(createTemperatureChart(context, temperatureDataPoints, temperatureAccumulator));
+        }
+
+        if (hasDistanceValues && !distancePoints.isEmpty()) {
+            charts.add(createDistanceChart(context, distancePoints));
+        }
+
+        if (hasBodyEnergyValues && !bodyEnergyPoints.isEmpty()) {
+            charts.add(createBodyEnergyChart(context, bodyEnergyPoints));
+        }
+
+        if (hasStaminaValues && !staminaPoints.isEmpty()) {
+            charts.add(createStaminaChart(context, staminaPoints));
+        }
+
+        if (hasStepLengthValues && !stepLengthPoints.isEmpty()) {
+            charts.add(createStepLengthChart(context, stepLengthPoints));
+        }
+
+        if (hasCnsToxicityValues && !cnsToxicityPoints.isEmpty()) {
+            charts.add(createCnsToxicityChart(context, cnsToxicityPoints));
+        }
+
+        if (hasN2LoadValues && !n2LoadPoints.isEmpty()) {
+            charts.add(createN2LoadChart(context, n2LoadPoints));
+        }
+
+        if (hasVerticalOscillationValues && !verticalOscillationPoints.isEmpty()) {
+            charts.add(createVerticalOscillationChart(context, verticalOscillationPoints));
+        }
+
+        if (hasStanceTimePercentValues && !stanceTimePercentPoints.isEmpty()) {
+            charts.add(createStanceTimePercentChart(context, stanceTimePercentPoints));
+        }
+
+        if (hasStanceTimeValues && !stanceTimePoints.isEmpty()) {
+            charts.add(createStanceTimeChart(context, stanceTimePoints));
+        }
+
+        if (hasVerticalRatioValues && !verticalRatioPoints.isEmpty()) {
+            charts.add(createVerticalRatioChart(context, verticalRatioPoints));
+        }
+
+        if (hasStanceTimeBalanceValues && !stanceTimeBalancePoints.isEmpty()) {
+            charts.add(createStanceTimeBalanceChart(context, stanceTimeBalancePoints));
+        }
+
+        if (hasPerformanceConditionValues && !performanceConditionPoints.isEmpty()) {
+            charts.add(createPerformanceConditionChart(context, performanceConditionPoints));
         }
 
         return charts;
@@ -307,7 +500,8 @@ public class DefaultWorkoutCharts {
     }
 
     private static WorkoutChart createTemperatureChart(final Context context,
-                                                     final List<Entry> temperatureDataPoints) {
+                                                       final List<Entry> temperatureDataPoints,
+                                                       final Accumulator temperatureAccumulator) {
         final String label = String.format("%s(%s)", context.getString(R.string.menuitem_temperature), getUnitString(context, UNIT_CELSIUS));
         final LineDataSet dataset = createLineDataSet(context, temperatureDataPoints, label, ContextCompat.getColor(context, R.color.chart_line_heart_rate));
         final ValueFormatter integerFormatter = new ValueFormatter() {
@@ -319,19 +513,259 @@ public class DefaultWorkoutCharts {
         return new WorkoutChart(
                 "temperature",
                 context.getString(R.string.menuitem_temperature),
-                ActivitySummaryEntries.GROUP_OTHER,
+                ActivitySummaryEntries.GROUP_TEMPERATURE,
                 new LineData(dataset),
                 integerFormatter,
                 getUnitString(context, UNIT_CELSIUS),
                 lineChart -> {
                     YAxis yAxisLeft = lineChart.getAxisLeft();
                     yAxisLeft.setAxisMinimum(0);
-                    yAxisLeft.setAxisMaximum(35);
+                    yAxisLeft.setAxisMaximum((float) Math.max(35, temperatureAccumulator.getMax() + 5));
                     YAxis yAxisRight = lineChart.getAxisRight();
                     yAxisRight.setAxisMinimum(0);
-                    yAxisRight.setAxisMaximum(35);
+                    yAxisRight.setAxisMaximum((float) Math.max(35, temperatureAccumulator.getMax() + 5));
                     return kotlin.Unit.INSTANCE;
                 }
+        );
+    }
+
+    private static WorkoutChart createDistanceChart(final Context context,
+                                                    final List<Entry> distancePoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.distance), getUnitString(context, UNIT_METERS));
+        final LineDataSet dataset = createLineDataSet(context, distancePoints, label, ContextCompat.getColor(context, R.color.chart_line_distance));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_distance",
+                context.getString(R.string.distance),
+                ActivitySummaryEntries.GROUP_DISTANCE,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_METERS)
+        );
+    }
+
+    private static WorkoutChart createBodyEnergyChart(final Context context,
+                                                  final List<Entry> bodyEnergyPoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.body_energy), getUnitString(context, UNIT_PERCENTAGE));
+        final LineDataSet dataset = createLineDataSet(context, bodyEnergyPoints, label, ContextCompat.getColor(context, R.color.chart_line_body_energy));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_body_energy",
+                context.getString(R.string.body_energy),
+                ActivitySummaryEntries.GROUP_TRAINING_EFFECT,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_PERCENTAGE)
+        );
+    }
+
+    private static WorkoutChart createStaminaChart(final Context context,
+                                                      final List<Entry> staminaPoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.stamina), getUnitString(context, UNIT_PERCENTAGE));
+        final LineDataSet dataset = createLineDataSet(context, staminaPoints, label, ContextCompat.getColor(context, R.color.chart_line_stamina));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_stamina",
+                context.getString(R.string.stamina),
+                ActivitySummaryEntries.GROUP_TRAINING_EFFECT,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_PERCENTAGE)
+        );
+    }
+
+    private static WorkoutChart createStepLengthChart(final Context context,
+                                                  final List<Entry> stepLengthPoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.step_length), getUnitString(context, UNIT_MM));
+        final LineDataSet dataset = createLineDataSet(context, stepLengthPoints, label, ContextCompat.getColor(context, R.color.chart_line_step_length));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_step_length",
+                context.getString(R.string.step_length),
+                ActivitySummaryEntries.GROUP_STEPS,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_MM)
+        );
+    }
+
+    private static WorkoutChart createCnsToxicityChart(final Context context,
+                                                       final List<Entry> cnsToxicityPoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.diving_cns_toxicity), getUnitString(context, UNIT_PERCENTAGE));
+        final LineDataSet dataset = createLineDataSet(context, cnsToxicityPoints, label, ContextCompat.getColor(context, R.color.chart_cns_toxicity));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_cns_toxicity",
+                context.getString(R.string.diving_cns_toxicity),
+                ActivitySummaryEntries.GROUP_DIVING,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_PERCENTAGE)
+        );
+    }
+
+    private static WorkoutChart createN2LoadChart(final Context context,
+                                                       final List<Entry> n2LoadPoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.diving_nitrogen_load), getUnitString(context, UNIT_PERCENTAGE));
+        final LineDataSet dataset = createLineDataSet(context, n2LoadPoints, label, ContextCompat.getColor(context, R.color.chart_n2_load));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_n2_load",
+                context.getString(R.string.diving_nitrogen_load),
+                ActivitySummaryEntries.GROUP_DIVING,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_PERCENTAGE)
+        );
+    }
+
+    private static WorkoutChart createVerticalOscillationChart(final Context context,
+                                                               final List<Entry> verticalOscillationPoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.vertical_oscillation), getUnitString(context, UNIT_MM));
+        final LineDataSet dataset = createLineDataSet(context, verticalOscillationPoints, label, ContextCompat.getColor(context, R.color.chart_line_stride));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_vertical_oscillation",
+                context.getString(R.string.vertical_oscillation),
+                ActivitySummaryEntries.GROUP_RUNNING_FORM,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_MM)
+        );
+    }
+
+    private static WorkoutChart createStanceTimePercentChart(final Context context,
+                                                             final List<Entry> stanceTimePercentPoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.stance_time_percent), getUnitString(context, UNIT_PERCENTAGE));
+        final LineDataSet dataset = createLineDataSet(context, stanceTimePercentPoints, label, ContextCompat.getColor(context, R.color.chart_line_swolf));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.format(java.util.Locale.ROOT, "%.1f", value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_stance_time_percent",
+                context.getString(R.string.stance_time_percent),
+                ActivitySummaryEntries.GROUP_RUNNING_FORM,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_PERCENTAGE)
+        );
+    }
+
+    private static WorkoutChart createStanceTimeChart(final Context context,
+                                                      final List<Entry> stanceTimePoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.ground_contact_time), getUnitString(context, UNIT_MILLISECONDS));
+        final LineDataSet dataset = createLineDataSet(context, stanceTimePoints, label, ContextCompat.getColor(context, R.color.chart_line_step_length));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_stance_time",
+                context.getString(R.string.ground_contact_time),
+                ActivitySummaryEntries.GROUP_RUNNING_FORM,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_MILLISECONDS)
+        );
+    }
+
+    private static WorkoutChart createVerticalRatioChart(final Context context,
+                                                         final List<Entry> verticalRatioPoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.vertical_ratio), getUnitString(context, UNIT_PERCENTAGE));
+        final LineDataSet dataset = createLineDataSet(context, verticalRatioPoints, label, ContextCompat.getColor(context, R.color.chart_line_stamina));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.format(java.util.Locale.ROOT, "%.1f", value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_vertical_ratio",
+                context.getString(R.string.vertical_ratio),
+                ActivitySummaryEntries.GROUP_RUNNING_FORM,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_PERCENTAGE)
+        );
+    }
+
+    private static WorkoutChart createStanceTimeBalanceChart(final Context context,
+                                                             final List<Entry> stanceTimeBalancePoints) {
+        final String label = String.format("%s(%s)", context.getString(R.string.ground_contact_time_balance), getUnitString(context, UNIT_PERCENTAGE));
+        final LineDataSet dataset = createLineDataSet(context, stanceTimeBalancePoints, label, ContextCompat.getColor(context, R.color.chart_line_body_energy));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.format(java.util.Locale.ROOT, "%.1f", value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_stance_time_balance",
+                context.getString(R.string.ground_contact_time_balance),
+                ActivitySummaryEntries.GROUP_RUNNING_FORM,
+                new LineData(dataset),
+                valueFormatter,
+                getUnitString(context, UNIT_PERCENTAGE)
+        );
+    }
+
+    private static WorkoutChart createPerformanceConditionChart(final Context context,
+                                                                final List<Entry> performanceConditionPoints) {
+        final String label = context.getString(R.string.performance_condition);
+        final LineDataSet dataset = createLineDataSet(context, performanceConditionPoints, label, ContextCompat.getColor(context, R.color.chart_line_elevation));
+        final ValueFormatter valueFormatter = new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int) value);
+            }
+        };
+        return new WorkoutChart(
+                "chart_performance_condition",
+                context.getString(R.string.performance_condition),
+                ActivitySummaryEntries.GROUP_RUNNING_FORM,
+                new LineData(dataset),
+                valueFormatter,
+                ""
         );
     }
 
@@ -340,7 +774,7 @@ public class DefaultWorkoutCharts {
         if (resId != 0) {
             return context.getString(resId);
         }
-        return "";
+        return unit;
     }
 
     public static LineDataSet createLineDataSet(final Context context,

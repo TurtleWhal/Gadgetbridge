@@ -26,10 +26,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Parcelable;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -48,6 +52,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,15 +66,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.ExternalPebbleJSActivity;
 import nodomain.freeyourgadget.gadgetbridge.adapter.GBDeviceAppAdapter;
+import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.FossilFileReader;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.FossilHRInstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.QHybridConstants;
+import nodomain.freeyourgadget.gadgetbridge.entities.PebbleAppstoreIdEntry;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
@@ -78,13 +87,17 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.PebbleProtoco
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GridAutoFitLayoutManager;
+import nodomain.freeyourgadget.gadgetbridge.util.InternetHelperSingleton;
+import nodomain.freeyourgadget.gadgetbridge.util.InternetUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.PebbleUtils;
+import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleHardware;
 import nodomain.freeyourgadget.gadgetbridge.util.Version;
 
 
 public abstract class AbstractAppManagerFragment extends Fragment {
     public static final String ACTION_REFRESH_APPLIST
             = "nodomain.freeyourgadget.gadgetbridge.appmanager.action.refresh_applist";
+    public static final String EXTRA_APP_LIST = "app_list";
     private static final Logger LOG = LoggerFactory.getLogger(AbstractAppManagerFragment.class);
     private static final int CHILD_ACTIVITY_WATCHFACE_EDITOR = 0;
 
@@ -95,6 +108,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
     protected GBDevice mGBDevice = null;
     protected DeviceCoordinator mCoordinator = null;
     private Class<? extends Activity> watchfaceDesignerActivity;
+    private Class<? extends Activity> appStoreActivity;
 
     protected abstract List<GBDeviceApp> getSystemAppsInCategory();
 
@@ -131,19 +145,74 @@ public abstract class AbstractAppManagerFragment extends Fragment {
             AppManagerActivity.rewriteAppOrderFile(getSortFilename(), uuids);
         }
         appList.addAll(getCachedApps(uuids));
+
+        // Check for Pebble app updates outside the main thread
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            final boolean internetAvailable = GBApplication.hasInternetAccess();
+            final SharedPreferences devicePrefs = GBApplication.getDevicePrefs(mGBDevice).getPreferences();
+            final boolean pebbleSearchUpdates = devicePrefs.getBoolean("pebble_enable_finding_app_updates", false);
+            if (mGBDevice.getType() == DeviceType.PEBBLE && internetAvailable && pebbleSearchUpdates) {
+                for (GBDeviceApp app : appList) {
+                    PebbleAppstoreIdEntry appstoreIdEntry = DBHelper.getPebbleAppstoreIdByUUID(app.getUUID().toString());
+                    if (appstoreIdEntry != null) {
+                        if (appstoreIdEntry.getUpdateAvailable() || (System.currentTimeMillis() - 60 * 60 * 1000) < appstoreIdEntry.getLastUpdateCheck()) {
+                            // Skip online check if we already know an update is available or when the last check was
+                            // less than an hour ago
+                            continue;
+                        }
+                        LOG.debug("Searching update for Pebble app {} in appstore", app.getName());
+                        try {
+                            JSONObject appstoreEntry = InternetUtils.Companion.doJsonRequest(
+                                    Uri.parse("https://appstore-api.rebble.io/api/v1/apps/id/" + appstoreIdEntry.getAppstoreId()),
+                                    "GET",
+                                    Collections.emptyMap(),
+                                    null,
+                                    false
+                            );
+                            JSONObject appEntry = (JSONObject) appstoreEntry.getJSONArray("data").get(0);
+                            String latestVersion = appEntry.getJSONObject("latest_release").getString("version");
+                            if (latestVersion.equals(app.getVersion())) {
+                                LOG.info("No update found for Pebble app {} {} in appstore", app.getName(), app.getVersion());
+                                appstoreIdEntry.setUpdateAvailable(false);
+                            } else {
+                                LOG.info("Found update for Pebble app {} ({} -> {}) in appstore", app.getName(), app.getVersion(), latestVersion);
+                                app.setUpToDate(false);
+                                appstoreIdEntry.setUpdateAvailable(true);
+                            }
+                            appstoreIdEntry.setLastUpdateCheck(System.currentTimeMillis());
+                            DBHelper.store(appstoreIdEntry);
+                        } catch (JSONException | NullPointerException e) {
+                            LOG.warn("JSON error while searching for Pebble app update", e);
+                        }
+                    }
+                }
+                new Handler(Looper.getMainLooper()).post(() -> mGBDeviceAppAdapter.notifyDataSetChanged());
+            }
+        });
     }
 
     private void refreshListFromDevice(Intent intent) {
         final Map<UUID, GBDeviceApp> cachedAppsMap = getCachedAppsMap(null);
 
         appList.clear();
-        int appCount = intent.getIntExtra("app_count", 0);
-        for (int i = 0; i < appCount; i++) {
-            String appName = intent.getStringExtra("app_name" + i);
-            String appCreator = intent.getStringExtra("app_creator" + i);
-            String appVersion = intent.getStringExtra("app_version" + i);
-            UUID uuid = UUID.fromString(intent.getStringExtra("app_uuid" + i));
-            GBDeviceApp.Type appType = GBDeviceApp.Type.values()[intent.getIntExtra("app_type" + i, 0)];
+        final Parcelable[] parcelables = intent.getParcelableArrayExtra(EXTRA_APP_LIST);
+        if (parcelables == null) {
+            LOG.error("App list is null - this should never happen");
+            return;
+        }
+        final GBDeviceApp[] apps = new GBDeviceApp[parcelables.length];
+
+        for (int i = 0; i < parcelables.length; i++) {
+            apps[i] = (GBDeviceApp) parcelables[i];
+        }
+
+        for (final GBDeviceApp appFromIntent : apps) {
+            String appName = appFromIntent.getName();
+            String appCreator = appFromIntent.getCreator();
+            String appVersion = appFromIntent.getVersion();
+            UUID uuid = appFromIntent.getUUID();
+            GBDeviceApp.Type appType = appFromIntent.getType();
             Bitmap previewImage = getAppPreviewImage(uuid.toString());
 
             // Fill out information from the cached app if missing
@@ -163,29 +232,13 @@ public abstract class AbstractAppManagerFragment extends Fragment {
             }
 
             GBDeviceApp app = new GBDeviceApp(uuid, appName, appCreator, appVersion, appType, previewImage);
+            app.setConfigurable(appFromIntent.isConfigurable());
+            app.setCanBeStarted(appFromIntent.isCanBeStarted());
+            app.setUpToDate(appFromIntent.isUpToDate());
             app.setOnDevice(true);
-            if (mGBDevice.getType() == DeviceType.FOSSILQHYBRID) {
-                if ((app.getType() == GBDeviceApp.Type.WATCHFACE) && (!QHybridConstants.HYBRIDHR_WATCHFACE_VERSION.equals(appVersion))) {
-                    app.setUpToDate(false);
-                }
-                try {
-                    if ((app.getType() == GBDeviceApp.Type.APP_GENERIC) && ((new Version(app.getVersion())).smallerThan(new Version(QHybridConstants.KNOWN_WAPP_VERSIONS.get(app.getName()))))) {
-                        app.setUpToDate(false);
-                    }
-                } catch (IllegalArgumentException e) {
-                    LOG.warn("App JSON: " + app.getJSON().toString());
-                    LOG.warn("Couldn't read app version", e);
-                }
-            }
 
             if (filterApp(app)) {
                 appList.add(app);
-            }
-        }
-        if (mGBDevice.getType() == DeviceType.FOSSILQHYBRID) {
-            List<GBDeviceApp> systemApps = getSystemAppsInCategory();
-            for (GBDeviceApp systemApp : systemApps) {
-                appList.add(systemApp);
             }
         }
     }
@@ -213,7 +266,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
             }
             switch (action) {
                 case ACTION_REFRESH_APPLIST: {
-                    if (intent.hasExtra("app_count")) {
+                    if (intent.hasExtra(EXTRA_APP_LIST)) {
                         LOG.info("got app info from device");
                         if (!isCacheManager()) {
                             LOG.info("will refresh list based on data from device");
@@ -322,6 +375,12 @@ public abstract class AbstractAppManagerFragment extends Fragment {
                                 LOG.warn("Couldn't read app version", e);
                             }
                         }
+                        if (mGBDevice.getType() == DeviceType.PEBBLE) {
+                            PebbleAppstoreIdEntry appstoreIdEntry = DBHelper.getPebbleAppstoreIdByUUID(app.getUUID().toString());
+                            if (appstoreIdEntry != null && appstoreIdEntry.getUpdateAvailable()) {
+                                app.setUpToDate(false);
+                            }
+                        }
                         cachedAppList.add(app);
                     } catch (Exception e) {
                         LOG.info("could not read json file for " + baseName);
@@ -355,16 +414,19 @@ public abstract class AbstractAppManagerFragment extends Fragment {
                             }
                             */
                             if (mGBDevice != null) {
-                                if (PebbleUtils.hasHealth(mGBDevice.getModel())) {
-                                    if (baseName.equals(PebbleProtocol.UUID_PEBBLE_HEALTH.toString())) {
-                                        cachedAppList.add(new GBDeviceApp(PebbleProtocol.UUID_PEBBLE_HEALTH, "Health (System)", "Pebble Inc.", "", GBDeviceApp.Type.APP_SYSTEM));
-                                        continue;
+                                PebbleHardware.HardwareRevision hw = PebbleHardware.getByModelString(mGBDevice.getModel());
+                                if (hw != null) {
+                                    if (hw.hasHealth()) {
+                                        if (baseName.equals(PebbleProtocol.UUID_PEBBLE_HEALTH.toString())) {
+                                            cachedAppList.add(new GBDeviceApp(PebbleProtocol.UUID_PEBBLE_HEALTH, "Health (System)", "Pebble Inc.", "", GBDeviceApp.Type.APP_SYSTEM));
+                                            continue;
+                                        }
                                     }
-                                }
-                                if (PebbleUtils.hasHRM(mGBDevice.getModel())) {
-                                    if (baseName.equals(PebbleProtocol.UUID_WORKOUT.toString())) {
-                                        cachedAppList.add(new GBDeviceApp(PebbleProtocol.UUID_WORKOUT, "Workout (System)", "Pebble Inc.", "", GBDeviceApp.Type.APP_SYSTEM));
-                                        continue;
+                                    if (hw.hasHRM()) {
+                                        if (baseName.equals(PebbleProtocol.UUID_WORKOUT.toString())) {
+                                            cachedAppList.add(new GBDeviceApp(PebbleProtocol.UUID_WORKOUT, "Workout (System)", "Pebble Inc.", "", GBDeviceApp.Type.APP_SYSTEM));
+                                            continue;
+                                        }
                                     }
                                 }
                                 if (PebbleUtils.getFwMajor(mGBDevice.getFirmwareVersion()) >= 4) {
@@ -424,12 +486,14 @@ public abstract class AbstractAppManagerFragment extends Fragment {
         mGBDevice = ((AppManagerActivity) getActivity()).getGBDevice();
         mCoordinator = mGBDevice.getDeviceCoordinator();
 
-        final FloatingActionButton appListFab = ((FloatingActionButton) getActivity().findViewById(R.id.fab));
-        final FloatingActionButton appListFabNew = ((FloatingActionButton) getActivity().findViewById(R.id.fab_new));
+        final FloatingActionButton appListFab = getActivity().findViewById(R.id.fab);
+        final FloatingActionButton appListFabNew = getActivity().findViewById(R.id.fab_new);
+        final FloatingActionButton appListFabStore = getActivity().findViewById(R.id.fab_store);
         watchfaceDesignerActivity = mCoordinator.getWatchfaceDesignerActivity(mGBDevice);
+        appStoreActivity = mCoordinator.getAppStoreActivity(mGBDevice);
         View rootView = inflater.inflate(R.layout.activity_appmanager, container, false);
 
-        RecyclerView appListView = (RecyclerView) (rootView.findViewById(R.id.appListView));
+        RecyclerView appListView = rootView.findViewById(R.id.appListView);
 
         appListView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -437,12 +501,16 @@ public abstract class AbstractAppManagerFragment extends Fragment {
                 if (dy > 0) {
                     appListFab.hide();
                     appListFabNew.hide();
+                    appListFabStore.hide();
                 } else if (dy < 0) {
                     if (mCoordinator.supportsFlashing(mGBDevice)) {
                         appListFab.show();
                     }
                     if (watchfaceDesignerActivity != null) {
                         appListFabNew.show();
+                    }
+                    if (appStoreActivity != null && GBApplication.hasInternetAccess()) {
+                        appListFabStore.show();
                     }
                 }
             }
@@ -462,15 +530,29 @@ public abstract class AbstractAppManagerFragment extends Fragment {
         appManagementTouchHelper.attachToRecyclerView(appListView);
 
         if ((watchfaceDesignerActivity != null) && (appListFabNew != null)) {
-            appListFabNew.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent startIntent = new Intent(getContext(), watchfaceDesignerActivity);
-                    startIntent.putExtra(GBDevice.EXTRA_DEVICE, mGBDevice);
-                    getContext().startActivity(startIntent);
-                }
+            appListFabNew.setOnClickListener(v -> {
+                Intent startIntent = new Intent(getContext(), watchfaceDesignerActivity);
+                startIntent.putExtra(GBDevice.EXTRA_DEVICE, mGBDevice);
+                getContext().startActivity(startIntent);
             });
             appListFabNew.show();
+        }
+
+        if (appStoreActivity != null) {
+            appListFabStore.setOnClickListener(v -> {
+                Intent startIntent = new Intent(getContext(), appStoreActivity);
+                startIntent.putExtra(GBDevice.EXTRA_DEVICE, mGBDevice);
+                getContext().startActivity(startIntent);
+            });
+            if (mGBDevice.getDeviceCoordinator() instanceof PebbleCoordinator) {
+                boolean pebbleAppStoreAllowed = GBApplication.getPrefs().getBoolean("pref_key_internethelper_allow_pebble_appstore", false);
+                if (GBApplication.hasDirectInternetAccess() || (pebbleAppStoreAllowed && InternetHelperSingleton.INSTANCE.ensureInternetHelperBound())) {
+                    appListFabStore.show();
+                }
+            } else {
+                // If other devices use a webview for their app store too, add the same logic here as for Pebble above
+                appListFabStore.show();
+            }
         }
 
         return rootView;
@@ -509,6 +591,10 @@ public abstract class AbstractAppManagerFragment extends Fragment {
             menu.removeItem(R.id.appmanager_watchface_activate);
         }
         if (!selectedApp.isOnDevice() || selectedApp.getType() != GBDeviceApp.Type.APP_GENERIC) {
+            menu.removeItem(R.id.appmanager_app_start);
+        }
+        if (!selectedApp.isCanBeStarted()) {
+            menu.removeItem(R.id.appmanager_watchface_activate);
             menu.removeItem(R.id.appmanager_app_start);
         }
         if (!selectedApp.isInCache()) {
@@ -560,6 +646,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
         }
         //menu.setHeaderTitle(selectedApp.getName());
         popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                                                 @Override
                                                  public boolean onMenuItemClick(MenuItem item) {
                                                      return onContextItemSelected(item, selectedApp);
                                                  }
@@ -629,19 +716,27 @@ public abstract class AbstractAppManagerFragment extends Fragment {
             GBApplication.deviceService(mGBDevice).onAppDelete(selectedApp.getUUID());
             return true;
         } else if (itemId == R.id.appmanager_app_configure) {
-            GBApplication.deviceService(mGBDevice).onAppStart(selectedApp.getUUID(), true);
+            final Class<? extends Activity> appConfigurationActivity = mGBDevice.getDeviceCoordinator().getAppConfigurationActivity(mGBDevice);
 
-            final Intent startIntent = new Intent(getContext().getApplicationContext(), ExternalPebbleJSActivity.class);
+            final Intent startIntent = new Intent(requireContext().getApplicationContext(), appConfigurationActivity);
             startIntent.putExtra(DeviceService.EXTRA_APP_UUID, selectedApp.getUUID());
             startIntent.putExtra(GBDevice.EXTRA_DEVICE, mGBDevice);
-            startIntent.putExtra(ExternalPebbleJSActivity.SHOW_CONFIG, true);
+            startIntent.putExtra("app_name", selectedApp.getName()); // FIXME: use constant
             startActivity(startIntent);
             return true;
         } else if (itemId == R.id.appmanager_app_openinstore) {
-            final String url = "https://apps.rebble.io/en_US/search/" + ((selectedApp.getType() == GBDeviceApp.Type.WATCHFACE) ? "watchfaces" : "watchapps") + "/1/?native=true&?query=" +  Uri.encode(selectedApp.getName());
-            final Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setData(Uri.parse(url));
-            startActivity(intent);
+            boolean appStoreAllowed = GBApplication.getPrefs().getBoolean("pref_key_internethelper_allow_pebble_appstore", false);
+            final String url = "https://apps.rebble.io/en_US/search/" + ((selectedApp.getType() == GBDeviceApp.Type.WATCHFACE) ? "watchfaces" : "watchapps") + "/1/?native=true&dev_settings=true&query=" +  Uri.encode(selectedApp.getUUID().toString());
+            if (GBApplication.hasDirectInternetAccess() || (appStoreAllowed && InternetHelperSingleton.INSTANCE.ensureInternetHelperBound())) {
+                final Intent startIntent = new Intent(getContext().getApplicationContext(), RebbleAppStoreActivity.class);
+                startIntent.putExtra(DeviceService.EXTRA_URI, url);
+                startIntent.putExtra(GBDevice.EXTRA_DEVICE, mGBDevice);
+                startActivity(startIntent);
+            } else {
+                final Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setData(Uri.parse(url));
+                startActivity(intent);
+            }
             return true;
         } else if (itemId == R.id.appmanager_app_edit) {
             final Intent editWatchfaceIntent = new Intent(getContext(), watchfaceDesignerActivity);
@@ -656,7 +751,7 @@ public abstract class AbstractAppManagerFragment extends Fragment {
 
     private void deleteAppConfirm(final GBDeviceApp selectedApp, final boolean deleteFromCache) {
         new MaterialAlertDialogBuilder(getContext())
-                .setTitle(R.string.Delete)
+                .setTitle(R.string.delete)
                 .setMessage(requireContext().getString(R.string.contact_delete_confirm_description, selectedApp.getName()))
                 .setIcon(R.drawable.ic_warning)
                 .setPositiveButton(android.R.string.yes, (dialog, whichButton) -> {

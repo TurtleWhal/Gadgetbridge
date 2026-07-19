@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -89,6 +90,8 @@ class DatalogSessionHealthSteps extends DatalogSessionPebbleHealth {
 
             store(stepsRecords);
         }
+
+        GB.signalActivityDataFinish(getDevice());
         return new GBDeviceEvent[]{null};//ACK by default
     }
 
@@ -113,7 +116,7 @@ class DatalogSessionHealthSteps extends DatalogSessionPebbleHealth {
                 samples[j].setProvider(sampleProvider);
             }
 
-            sampleProvider.addGBActivitySamples(samples);
+            sampleProvider.addGBActivitySamples(Arrays.asList(samples));
         } catch (Exception ex) {
             LOG.debug(ex.getMessage());
         }

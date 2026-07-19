@@ -24,6 +24,7 @@ import android.content.BroadcastReceiver;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.TypedArray;
 import android.database.Cursor;
@@ -285,7 +286,10 @@ public class AndroidUtils {
         }
     }
 
-    public static void shareBytesAsFile(final Context context, final String name, final byte[] bytes) throws IOException {
+    public static void shareBytesAsFile(final Context context,
+                                        final String name,
+                                        final byte[] bytes,
+                                        final String type) throws IOException {
         final File cacheDir = context.getCacheDir();
         final File rawCacheDir = new File(cacheDir, "raw");
         rawCacheDir.mkdir();
@@ -298,19 +302,15 @@ public class AndroidUtils {
             return;
         }
 
-        shareFile(context, file);
+        shareFile(context, file, type);
     }
 
-    public static void shareFile(final Context context, final File file) throws IOException {
+    public static void shareFile(final Context context, final File file, final String type) throws IOException {
         if (!file.exists()) {
             LOG.warn("File {} does not exist", file.getPath());
             return;
         }
 
-        shareFile(context, file, "*/*");
-    }
-
-    public static void shareFile(final Context context, final File file, final String type) throws IOException {
         final Uri contentUri = FileProvider.getUriForFile(
                 context,
                 context.getApplicationContext().getPackageName() + ".screenshot_provider",
@@ -354,6 +354,14 @@ public class AndroidUtils {
         } catch (final Exception e) {
             LOG.error("Failed to take partial wake lock {}: ", tag, e);
             return null;
+        }
+    }
+
+    public static boolean isPackageInstalled(final String packageName) {
+        try {
+            return GBApplication.getContext().getPackageManager().getApplicationInfo(packageName, 0).enabled;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
         }
     }
 }

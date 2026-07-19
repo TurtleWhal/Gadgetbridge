@@ -1,4 +1,4 @@
-/*  Copyright (C) 2019-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+/*  Copyright (C) 2019-2026 Andreas Shimokawa, Arjan Schrijver, Carsten
     Pfeiffer, Daniel Dakhno, Dmitriy Bogdanov, Taavi Eomäe
 
     This file is part of Gadgetbridge.
@@ -29,6 +29,7 @@ import android.os.Bundle;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
@@ -61,7 +62,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem;
-import nodomain.freeyourgadget.gadgetbridge.model.ItemWithDetails;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
@@ -74,7 +74,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.WatchAdapter;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.WatchAdapterFactory;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil.FossilWatchAdapter;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil_hr.FossilHRWatchAdapter;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.file.FileHandle;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.DownloadFileRequest;
@@ -94,7 +93,6 @@ public class QHybridSupport extends QHybridBaseSupport {
     public static final String QHYBRID_COMMAND_UPDATE = "qhybrid_command_update";
     public static final String QHYBRID_COMMAND_UPDATE_TIMEZONE = "qhybrid_command_update_timezone";
     public static final String QHYBRID_COMMAND_NOTIFICATION = "qhybrid_command_notification";
-    public static final String QHYBRID_COMMAND_UPDATE_SETTINGS = "nodomain.freeyourgadget.gadgetbridge.Q_UPDATE_SETTINGS";
     public static final String QHYBRID_COMMAND_OVERWRITE_BUTTONS = "nodomain.freeyourgadget.gadgetbridge.Q_OVERWRITE_BUTTONS";
     public static final String QHYBRID_COMMAND_UPDATE_WIDGETS = "nodomain.freeyourgadget.gadgetbridge.Q_UPDATE_WIDGETS";
     public static final String QHYBRID_COMMAND_SET_MENU_MESSAGE = "nodomain.freeyourgadget.gadgetbridge.Q_SET_MENU_MESSAGE";
@@ -115,7 +113,6 @@ public class QHybridSupport extends QHybridBaseSupport {
 
     private static final String QHYBRID_ACTION_SET_ACTIVITY_HAND = "nodomain.freeyourgadget.gadgetbridge.Q_SET_ACTIVITY_HAND";
 
-    public static final String QHYBRID_EVENT_SETTINGS_UPDATED = "nodomain.freeyourgadget.gadgetbridge.Q_SETTINGS_UPDATED";
     public static final String QHYBRID_EVENT_FILE_UPLOADED = "nodomain.freeyourgadget.gadgetbridge.Q_FILE_UPLOADED";
     public static final String QHYBRID_COMMAND_NOTIFICATION_CONFIG_CHANGED = "nodomain.freeyourgadget.gadgetbridge.Q_NOTIFICATION_CONFIG_CHANGED";
 
@@ -123,24 +120,19 @@ public class QHybridSupport extends QHybridBaseSupport {
     public static final String QHYBRID_EVENT_MULTI_BUTTON_PRESS = "nodomain.freeyourgadget.gadgetbridge.Q_MULTI_BUTTON_PRESSED";
     public static final String QHYBRID_EVENT_COMMUTE_MENU = "nodomain.freeyourgadget.gadgetbridge.Q_COMMUTE_MENU";
 
-    public static final String ITEM_STEP_GOAL = "STEP_GOAL";
-    public static final String ITEM_STEP_COUNT = "STEP_COUNT";
-    public static final String ITEM_VIBRATION_STRENGTH = "VIBRATION_STRENGTH";
-    public static final String ITEM_ACTIVITY_POINT = "ACTIVITY_POINT";
-    public static final String ITEM_EXTENDED_VIBRATION_SUPPORT = "EXTENDED_VIBRATION";
-    public static final String ITEM_HAS_ACTIVITY_HAND = "HAS_ACTIVITY_HAND";
-    public static final String ITEM_USE_ACTIVITY_HAND = "USE_ACTIVITY_HAND";
-    public static final String ITEM_LAST_HEARTBEAT = "LAST_HEARTBEAT";
-    public static final String ITEM_TIMEZONE_OFFSET = "TIMEZONE_OFFSET_COUNT";
-    public static final String ITEM_HEART_RATE_MEASUREMENT_MODE = "HEART_RATE_MEASUREMENT_MODE";
+    public static final String ITEM_STEP_COUNT = "STEP_COUNT: ";
+    public static final String ITEM_ACTIVITY_POINT = "ACTIVITY_POINT: ";
+    public static final String ITEM_EXTENDED_VIBRATION_SUPPORT = "EXTENDED_VIBRATION: ";
+    public static final String ITEM_HAS_ACTIVITY_HAND = "HAS_ACTIVITY_HAND: ";
+    public static final String ITEM_LAST_HEARTBEAT = "LAST_HEARTBEAT: ";
+    public static final String ITEM_TIMEZONE_OFFSET = "TIMEZONE_OFFSET_COUNT: ";
+    public static final String ITEM_HEART_RATE_MEASUREMENT_MODE = "HEART_RATE_MEASUREMENT_MODE: ";
 
     private static final Logger logger = LoggerFactory.getLogger(QHybridSupport.class);
     private final BroadcastReceiver commandReceiver;
     private final BroadcastReceiver globalCommandReceiver;
 
     private final PackageConfigHelper helper;
-
-    public volatile boolean searchDevice = false;
 
     private long timeOffset;
 
@@ -165,7 +157,6 @@ public class QHybridSupport extends QHybridBaseSupport {
         commandFilter.addAction(QHYBRID_COMMAND_UPDATE);
         commandFilter.addAction(QHYBRID_COMMAND_UPDATE_TIMEZONE);
         commandFilter.addAction(QHYBRID_COMMAND_NOTIFICATION);
-        commandFilter.addAction(QHYBRID_COMMAND_UPDATE_SETTINGS);
         commandFilter.addAction(QHYBRID_COMMAND_OVERWRITE_BUTTONS);
         commandFilter.addAction(QHYBRID_COMMAND_NOTIFICATION_CONFIG_CHANGED);
         commandFilter.addAction(QHYBRID_COMMAND_UPDATE_WIDGETS);
@@ -181,6 +172,16 @@ public class QHybridSupport extends QHybridBaseSupport {
                 Bundle extras = intent.getExtras();
                 NotificationConfiguration config = extras == null ? null : (NotificationConfiguration) intent.getExtras().get("CONFIG");
                 if (intent.getAction() == null) {
+                    return;
+                }
+
+                final GBDevice intentDevice = intent.getParcelableExtra(GBDevice.EXTRA_DEVICE);
+                if (intentDevice == null) {
+                    logger.warn("Received command Intent without device extra. Command will not be sent to any device.");
+                    return;
+                }
+                if (!intentDevice.getAddress().equals(gbDevice.getAddress())) {
+                    // Abort, the command is targeted at another device
                     return;
                 }
 
@@ -252,49 +253,8 @@ public class QHybridSupport extends QHybridBaseSupport {
                         loadTimezoneOffset();
                         break;
                     }
-                    case QHYBRID_COMMAND_UPDATE_SETTINGS: {
-                        String newSetting = intent.getStringExtra("EXTRA_SETTING");
-                        if (newSetting == null) {
-                            logger.error("newSetting is null");
-                            break;
-                        }
-                        switch (newSetting) {
-                            case ITEM_VIBRATION_STRENGTH: {
-                                final ItemWithDetails itemVibrationStrength = gbDevice.getDeviceInfo(ITEM_VIBRATION_STRENGTH);
-                                if (itemVibrationStrength == null) {
-                                    logger.error("itemVibrationStrength is null");
-                                    break;
-                                }
-                                watchAdapter.setVibrationStrength(Short.parseShort(itemVibrationStrength.getDetails()));
-                                break;
-                            }
-                            case ITEM_STEP_GOAL: {
-                                final ItemWithDetails itemStepGoal = gbDevice.getDeviceInfo(ITEM_STEP_GOAL);
-                                if (itemStepGoal == null) {
-                                    logger.error("itemStepGoal is null");
-                                    break;
-                                }
-                                watchAdapter.setStepGoal(Integer.parseInt(itemStepGoal.getDetails()));
-                                break;
-                            }
-                            case ITEM_USE_ACTIVITY_HAND: {
-                                final ItemWithDetails itemUseActivityHand = gbDevice.getDeviceInfo(ITEM_USE_ACTIVITY_HAND);
-                                if (itemUseActivityHand == null) {
-                                    logger.error("itemUseActivityHand is null");
-                                    break;
-                                }
-                                QHybridSupport.this.useActivityHand = itemUseActivityHand.getDetails().equals("true");
-                                GBApplication.getPrefs().getPreferences().edit().putBoolean("QHYBRID_USE_ACTIVITY_HAND", useActivityHand).apply();
-                                break;
-                            }
-                        }
-
-                        LocalBroadcastManager.getInstance(getContext()).sendBroadcast(new Intent(QHYBRID_EVENT_SETTINGS_UPDATED));
-                        break;
-                    }
                     case QHYBRID_COMMAND_OVERWRITE_BUTTONS: {
-                        String buttonConfig = intent.getStringExtra(FossilWatchAdapter.ITEM_BUTTONS);
-                        watchAdapter.overwriteButtons(buttonConfig);
+                        watchAdapter.overwriteButtons(null);
                         break;
                     }
                     case QHYBRID_COMMAND_NOTIFICATION_CONFIG_CHANGED: {
@@ -539,8 +499,7 @@ public class QHybridSupport extends QHybridBaseSupport {
     protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
         builder.setDeviceState(GBDevice.State.INITIALIZING);
 
-        this.useActivityHand = GBApplication.getPrefs().getBoolean("QHYBRID_USE_ACTIVITY_HAND", false);
-        getDevice().addDeviceInfo(new GenericItem(ITEM_USE_ACTIVITY_HAND, String.valueOf(this.useActivityHand)));
+        this.useActivityHand = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean("use_activity_hand_as_notification_counter", false);
 
         if (GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(DeviceSettingsPreferenceConst.PREF_USE_CUSTOM_DEVICEICON, true)) {
             getDevice().setNotificationIconConnected(R.drawable.ic_notification_qhybrid);
@@ -747,8 +706,8 @@ public class QHybridSupport extends QHybridBaseSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
-        watchAdapter.onTestNewFunction();
+    public void onTestNewFunction(@Nullable Bundle options) {
+        watchAdapter.onTestNewFunction(options);
     }
 
     @Override
@@ -823,10 +782,10 @@ public class QHybridSupport extends QHybridBaseSupport {
             }
             case "00002a19-0000-1000-8000-00805f9b34fb": {
                 short level = value[0];
-                gbDevice.setBatteryLevel(level);
+                gbDevice.setBatteryLevel(level, 0);
 
                 GBDeviceEventBatteryInfo batteryInfo = new GBDeviceEventBatteryInfo();
-                batteryInfo.level = gbDevice.getBatteryLevel();
+                batteryInfo.level = gbDevice.getBatteryLevel(0);
                 batteryInfo.state = BatteryState.BATTERY_NORMAL;
                 handleGBDeviceEvent(batteryInfo);
                 break;

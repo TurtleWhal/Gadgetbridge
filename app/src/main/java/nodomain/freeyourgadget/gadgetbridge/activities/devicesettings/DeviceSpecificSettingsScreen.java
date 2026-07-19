@@ -30,6 +30,8 @@ public enum DeviceSpecificSettingsScreen {
     CALENDAR("pref_screen_calendar", R.xml.devicesettings_root_calendar),
     CALLS_AND_NOTIFICATIONS("pref_screen_calls_and_notifications", R.xml.devicesettings_root_calls_and_notifications),
     CONNECTION("pref_screen_connection", R.xml.devicesettings_root_connection),
+    INTERNET("pref_screen_internet", R.xml.devicesettings_root_internet),
+    DASHBOARD("pref_screen_dashboard", R.xml.devicesettings_root_dashboard),
     DEVELOPER("pref_screen_developer", R.xml.devicesettings_root_developer),
     DISPLAY("pref_screen_display", R.xml.devicesettings_root_display),
     GENERIC("pref_screen_generic", R.xml.devicesettings_root_generic),
@@ -40,6 +42,7 @@ public enum DeviceSpecificSettingsScreen {
     HEALTH("pref_screen_health", R.xml.devicesettings_root_health),
     TOUCH_OPTIONS("pref_screen_touch_options", R.xml.devicesettings_root_touch_options),
     SOUND("pref_screen_sound", R.xml.devicesettings_root_sound),
+    EXPERIMENTAL("pref_screen_experimental", R.xml.devicesettings_root_experimental),
     ;
 
     private final String key;

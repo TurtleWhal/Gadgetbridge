@@ -1,4 +1,4 @@
-/*  Copyright (C) 2025 Thomas Kuehne
+/*  Copyright (C) 2025-2026 Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -16,15 +16,23 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.garmin.hrm;
 
+import android.content.SharedPreferences;
+
 import androidx.annotation.NonNull;
 
 import java.util.regex.Pattern;
 
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
+import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminSupportHrm;
+import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
+import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
 public class GarminHrmProPlusCoordinator extends GarminCoordinator {
     @Override
@@ -32,6 +40,7 @@ public class GarminHrmProPlusCoordinator extends GarminCoordinator {
         return R.drawable.ic_device_lovetoy;
     }
 
+    @NonNull
     @Override
     public DeviceKind getDeviceKind(@NonNull GBDevice device) {
         return DeviceKind.CHEST_STRAP;
@@ -44,7 +53,7 @@ public class GarminHrmProPlusCoordinator extends GarminCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(@NonNull final GBDevice device) {
         return GarminSupportHrm.class;
     }
 
@@ -65,7 +74,7 @@ public class GarminHrmProPlusCoordinator extends GarminCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -92,5 +101,25 @@ public class GarminHrmProPlusCoordinator extends GarminCoordinator {
     @Override
     public boolean supportsSleepMeasurement(@NonNull final GBDevice device){
         return false;
+    }
+
+    @Override
+    public boolean supportsTrainingLoad(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public GBDevice createDevice(@NonNull GBDeviceCandidate candidate, DeviceType deviceType) {
+        final GBDevice gbDevice = super.createDevice(candidate, deviceType);
+        if (gbDevice != null) {
+            DevicePrefs devicePreferences = GBApplication.getDevicePrefs(gbDevice);
+            SharedPreferences preferences = devicePreferences.getPreferences();
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putBoolean(DeviceSettingsPreferenceConst.PREF_CONNECTION_PRIORITY_LOW_POWER, true);
+            editor.putBoolean(GBPrefs.DEVICE_CONNECT_BACK, true);
+            editor.apply();
+        }
+
+        return gbDevice;
     }
 }

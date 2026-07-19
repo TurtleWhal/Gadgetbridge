@@ -19,6 +19,7 @@ package nodomain.freeyourgadget.gadgetbridge.devices.test;
 import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -38,6 +39,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability;
+import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.BarcodeFormat;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.widgets.WidgetManager;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractDeviceCoordinator;
@@ -87,7 +89,7 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
 
     @Override
     public String getManufacturer() {
-        return "Gadgetbridge";
+        return "Generic";
     }
 
     @NonNull
@@ -134,7 +136,7 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
 
     @Override
     public TimeSampleProvider<? extends TemperatureSample> getTemperatureSampleProvider(final GBDevice device, final DaoSession session) {
-        return supportsTemperatureMeasurement(device) ? new TestTemperatureSampleProvider() : super.getTemperatureSampleProvider(device, session);
+        return supportsTemperatureMeasurement(device) ? new TestTemperatureSampleProvider(device) : super.getTemperatureSampleProvider(device, session);
     }
 
     @Override
@@ -173,7 +175,7 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     @Nullable
     @Override
     public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
-        return supportsActivityTracks(device) ? new TestActivitySummaryParser() : super.getActivitySummaryParser(device, context);
+        return this.supportsRecordedActivities(device) ? new TestActivitySummaryParser() : super.getActivitySummaryParser(device, context);
     }
 
     @Override
@@ -203,9 +205,9 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
 
     @Nullable
     @Override
-    public InstallHandler findInstallHandler(final Uri uri, final Context context) {
+    public InstallHandler findInstallHandler(final Uri uri, final Bundle options, final Context context) {
         // TODO findInstallHandler?
-        return super.findInstallHandler(uri, context);
+        return super.findInstallHandler(uri, options, context);
     }
 
     @Override
@@ -284,7 +286,7 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return supports(device, TestFeature.ACTIVITY_DATA_FETCHING);
     }
 
@@ -309,8 +311,8 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTabs(@NonNull GBDevice device) {
-        return supports(getTestDevice(), TestFeature.ACTIVITY_TABS);
+    public boolean supportsCharts(@NonNull GBDevice device) {
+        return supports(getTestDevice(), TestFeature.CHARTS);
     }
 
     @Override
@@ -319,8 +321,13 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
-        return supports(device, TestFeature.ACTIVITY_TRACKS);
+    public boolean supportsContinuousTemperature(@NonNull final GBDevice device) {
+        return supports(getTestDevice(), TestFeature.CONTINUOUS_TEMPERATURE);
+    }
+
+    @Override
+    public boolean supportsRecordedActivities(@NonNull final GBDevice device) {
+        return supports(device, TestFeature.RECORDED_ACTIVITIES);
     }
 
     @Override
@@ -530,6 +537,23 @@ public class TestDeviceCoordinator extends AbstractDeviceCoordinator {
                 "auto",
                 "en_US",
         };
+    }
+
+    @Override
+    public Set<BarcodeFormat> getSupportedBarcodeFormats(@NonNull final GBDevice device) {
+        return Set.of(
+                BarcodeFormat.CODABAR,
+                BarcodeFormat.CODE_128,
+                BarcodeFormat.CODE_39,
+                BarcodeFormat.DATA_MATRIX,
+                BarcodeFormat.EAN_13,
+                BarcodeFormat.EAN_8,
+                BarcodeFormat.ITF,
+                BarcodeFormat.PDF_417,
+                BarcodeFormat.QR_CODE,
+                BarcodeFormat.UPC_A,
+                BarcodeFormat.UPC_E
+        );
     }
 
     @Nullable

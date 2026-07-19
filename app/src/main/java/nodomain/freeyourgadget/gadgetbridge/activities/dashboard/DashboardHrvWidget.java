@@ -60,12 +60,12 @@ public class DashboardHrvWidget extends AbstractGaugeWidget {
 
         HrvSummarySample latestSummary = null;
 
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+        try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
             for (GBDevice dev : devices) {
                 final TimeSampleProvider<? extends HrvSummarySample> hrvSummarySampleProvider = dev.getDeviceCoordinator().getHrvSummarySampleProvider(dev, dbHandler.getDaoSession());
 
                 if (hrvSummarySampleProvider == null) {
-                    LOG.warn("Device {} does not has an hrv summary sample provider", dev);
+                    LOG.warn("Device {} does not have a hrv summary sample provider", dev);
                     continue;
                 }
 

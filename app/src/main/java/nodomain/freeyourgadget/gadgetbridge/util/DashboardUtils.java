@@ -52,9 +52,9 @@ public class DashboardUtils {
     public static int getStepsTotal(DashboardFragment.DashboardData dashboardData) {
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
         int totalSteps = 0;
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+        try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsStepCounter(dev)) {
                     totalSteps += (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getSteps();
                 }
             }
@@ -67,7 +67,7 @@ public class DashboardUtils {
     public static int getActiveCaloriesTotal(DashboardFragment.DashboardData dashboardData) {
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
         int totalActiveCalories = 0;
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+        try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
             for (GBDevice dev : devices) {
                 if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActiveCalories(dev)) {
                     totalActiveCalories += (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getActiveCalories();
@@ -84,7 +84,7 @@ public class DashboardUtils {
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
         int totalRestingCalories = 0;
         int totalRestingCaloriesDevices = 0;
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+        try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
             for (GBDevice dev : devices) {
                 if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActiveCalories(dev)) {
                     final int restingCalories = (int) getDailyTotals(dev, dbHandler, dashboardData.timeTo).getRestingCalories();
@@ -121,9 +121,9 @@ public class DashboardUtils {
     public static long getSleepMinutesTotal(DashboardFragment.DashboardData dashboardData) {
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
         long totalSleepMinutes = 0;
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+        try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsSleepMeasurement(dev)) {
                     totalSleepMinutes += getSleep(dev, dbHandler, dashboardData.timeTo);
                 }
             }
@@ -145,12 +145,11 @@ public class DashboardUtils {
     public static float getDistanceTotal(DashboardFragment.DashboardData dashboardData) {
         ActivityUser activityUser = new ActivityUser();
         int stepLength = activityUser.getStepLengthCm();
-
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
         long totalDistanceCm = 0;
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+        try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsStepCounter(dev)) {
                     final DailyTotals dailyTotals = getDailyTotals(dev, dbHandler, dashboardData.timeTo);
                     if (dailyTotals.getSteps() > 0 && dailyTotals.getDistance() > 0) {
                         totalDistanceCm += dailyTotals.getDistance();
@@ -186,9 +185,9 @@ public class DashboardUtils {
     public static long getActiveMinutesTotal(DashboardFragment.DashboardData dashboardData) {
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
         long totalActiveMinutes = 0;
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
+        try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
             for (GBDevice dev : devices) {
-                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsActivityTracking(dev)) {
+                if ((dashboardData.showAllDevices || dashboardData.showDeviceList.contains(dev.getAddress())) && dev.getDeviceCoordinator().supportsStepCounter(dev)) {
                     totalActiveMinutes += getActiveMinutes(dev, dbHandler, dashboardData);
                 }
             }
@@ -208,19 +207,15 @@ public class DashboardUtils {
     }
 
     public static long getActiveMinutes(GBDevice gbDevice, DBHandler db, DashboardFragment.DashboardData dashboardData) {
-        ActivitySession stepSessionsSummary = new ActivitySession();
-        List<ActivitySession> stepSessions;
         List<? extends ActivitySample> activitySamples = getAllSamples(db, gbDevice, dashboardData);
         StepAnalysis stepAnalysis = new StepAnalysis();
 
         boolean isEmptySummary = false;
-        if (activitySamples != null) {
-            stepSessions = stepAnalysis.calculateStepSessions(activitySamples);
-            if (stepSessions.size() == 0) {
-                isEmptySummary = true;
-            }
-            stepSessionsSummary = stepAnalysis.calculateSummary(stepSessions, isEmptySummary);
+        final List<ActivitySession> stepSessions = stepAnalysis.calculateStepSessions(activitySamples, Collections.emptyList());
+        if (stepSessions.isEmpty()) {
+            isEmptySummary = true;
         }
+        final ActivitySession stepSessionsSummary = stepAnalysis.calculateSummary(stepSessions, isEmptySummary);
         long duration = stepSessionsSummary.getEndTime().getTime() - stepSessionsSummary.getStartTime().getTime();
         return duration / 1000 / 60;
     }
@@ -235,10 +230,13 @@ public class DashboardUtils {
         return coordinator.getSampleProvider(device, db.getDaoSession());
     }
 
-    public static List<BaseActivitySummary> getWorkoutSamples(DBHandler db, DashboardFragment.DashboardData dashboardData) {
+    public static List<BaseActivitySummary> getWorkoutSamples(DBHandler db,
+                                                              DashboardFragment.DashboardData dashboardData,
+                                                              List<Long> deviceIds) {
         return db.getDaoSession().getBaseActivitySummaryDao().queryBuilder().where(
                 BaseActivitySummaryDao.Properties.StartTime.gt(new Date(dashboardData.timeFrom * 1000L)),
-                BaseActivitySummaryDao.Properties.EndTime.lt(new Date(dashboardData.timeTo * 1000L))
+                BaseActivitySummaryDao.Properties.EndTime.lt(new Date(dashboardData.timeTo * 1000L)),
+                BaseActivitySummaryDao.Properties.DeviceId.in(deviceIds)
         ).build().list();
     }
 }

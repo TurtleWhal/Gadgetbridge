@@ -1,14 +1,18 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit;
 
+import androidx.annotation.NonNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminByteBufferReader;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.baseTypes.BaseType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionTimestamp;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.MessageWriter;
+import nodomain.freeyourgadget.gadgetbridge.util.GBToStringBuilder;
 
 public class FieldDefinition implements FieldInterface {
     protected static final Logger LOG = LoggerFactory.getLogger(FieldDefinition.class);
@@ -33,34 +37,25 @@ public class FieldDefinition implements FieldInterface {
         this(number, size, baseType, name, 1, 0);
     }
 
-    public static FieldDefinition parseIncoming(GarminByteBufferReader garminByteBufferReader, GlobalFITMessage globalFITMessage) {
+    public static FieldDefinition parseIncoming(GarminByteBufferReader garminByteBufferReader, NativeFITMessage nativeFITMessage) {
         int number = garminByteBufferReader.readByte();
         int size = garminByteBufferReader.readByte();
         int baseTypeIdentifier = garminByteBufferReader.readByte();
         BaseType baseType = BaseType.fromIdentifier(baseTypeIdentifier);
-        FieldDefinition global = globalFITMessage.getFieldDefinition(number, size);
-        if (global != null) {
-            if (global.getBaseType().equals(baseType)) {
-                return global;
-            } else {
-                if (baseType == BaseType.UINT8 && global.getBaseType() == BaseType.ENUM) {
-                    // Allow uint8 -> enum, as older fit versions changed the type of some fields
-                    return global;
-                }
-                LOG.warn(
-                        "Global for {}[{}] is of type {}, but message declares {}",
-                        globalFITMessage.name(),
-                        global.name,
-                        global.getBaseType(),
-                        baseType
-                );
-            }
+        FieldDefinition nativeFITMessageFieldDefinition = nativeFITMessage.getFieldDefinition(number, size, baseType);
+        if (nativeFITMessageFieldDefinition != null) {
+            return nativeFITMessageFieldDefinition;
         }
 
         if (number == 253 && size == 4 && baseType.equals(BaseType.UINT32)) {
             return new FieldDefinitionTimestamp(number, size, baseType, "253_timestamp");
         }
 
+        if (0 != (size % baseType.getSize())) {
+            LOG.warn("inconsistent size of field {} in record {}/{} - total size: {}, base size: {}, base type: {}",
+                    number, nativeFITMessage.getNumber(), nativeFITMessage.name(), size,
+                    baseType.getSize(), baseType);
+        }
         return new FieldDefinition(number, size, baseType, "");
     }
 
@@ -99,5 +94,41 @@ public class FieldDefinition implements FieldInterface {
     @Override
     public void invalidate(ByteBuffer byteBuffer) {
         baseType.invalidate(byteBuffer);
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        final GBToStringBuilder tsb = new GBToStringBuilder(this);
+        tsb.append("baseType", baseType);
+        if (scale != 1) {
+            tsb.append("scale", scale);
+        }
+        if (offset != 0) {
+            tsb.append("offset", offset);
+        }
+        if (size != 1) {
+            tsb.append("size", size);
+        }
+        return tsb.toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+
+        FieldDefinition that = (FieldDefinition) o;
+        return scale == that.scale && offset == that.offset && number == that.number && size == that.size && baseType == that.baseType && Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hashCode(baseType);
+        result = 31 * result + scale;
+        result = 31 * result + offset;
+        result = 31 * result + number;
+        result = 31 * result + size;
+        result = 31 * result + Objects.hashCode(name);
+        return result;
     }
 }

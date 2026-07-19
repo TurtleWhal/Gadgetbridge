@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+
     <!--
         Comment in for testing Pebble Emulator
         <uses-permission android:name="android.permission.INTERNET" />
@@ -50,6 +51,16 @@
     <!-- Read loyalty cards from Catima -->
     <uses-permission android:name="me.hackerchick.catima.READ_CARDS"/>
     <uses-permission android:name="me.hackerchick.catima.debug.READ_CARDS"/>
+
+    <!-- Read passes from FossWallet -->
+    <uses-permission android:name="nz.eloque.foss_wallet.READ_CARDS"/>
+    <uses-permission android:name="nz.eloque.foss_wallet.dev.READ_CARDS"/>
+
+    <!-- Make sure we don't get the INTERNET permission even when a dependency requires it -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+
+    <!-- Internet Helper -->
+    <uses-permission android:name="nodomain.freeyourgadget.internethelper.INTERNET"/>
 
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -101,6 +112,31 @@
 
     <!-- Needed to show notification with targetSdkVersion 33 with Android 13 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Needed for Health Connect See this for more: https://developer.android.com/health-and-fitness/guides/health-connect/plan/data-types#alpha10 -->
+    <uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED"/>
+    <uses-permission android:name="android.permission.health.WRITE_HEART_RATE"/>
+    <uses-permission android:name="android.permission.health.WRITE_STEPS"/>
+    <uses-permission android:name="android.permission.health.WRITE_EXERCISE"/>
+    <uses-permission android:name="android.permission.health.WRITE_SLEEP"/>
+    <uses-permission android:name="android.permission.health.WRITE_TOTAL_CALORIES_BURNED"/>
+    <uses-permission android:name="android.permission.health.WRITE_DISTANCE"/>
+    <uses-permission android:name="android.permission.health.WRITE_VO2_MAX"/>
+    <uses-permission android:name="android.permission.health.WRITE_HEART_RATE_VARIABILITY"/>
+    <uses-permission android:name="android.permission.health.WRITE_WEIGHT"/>
+    <uses-permission android:name="android.permission.health.WRITE_OXYGEN_SATURATION"/>
+    <uses-permission android:name="android.permission.health.WRITE_BODY_TEMPERATURE" />
+    <uses-permission android:name="android.permission.health.WRITE_SKIN_TEMPERATURE" />
+    <uses-permission android:name="android.permission.health.WRITE_ELEVATION_GAINED" />
+    <uses-permission android:name="android.permission.health.WRITE_SPEED" />
+    <uses-permission android:name="android.permission.health.WRITE_POWER" />
+    <uses-permission android:name="android.permission.health.WRITE_EXERCISE_ROUTE" />
+    <uses-permission android:name="android.permission.health.WRITE_RESPIRATORY_RATE" />
+    <uses-permission android:name="android.permission.health.WRITE_RESTING_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
+    <uses-permission android:name="android.permission.health.WRITE_STEPS_CADENCE" />
+    <uses-permission android:name="android.permission.health.WRITE_CYCLING_PEDALING_CADENCE" />
+    <uses-sdk tools:overrideLibrary="androidx.health.connect.client"/>
 
     <uses-feature
         android:name="android.hardware.bluetooth"
@@ -195,6 +231,14 @@
             android:label="@string/pref_header_auto_export_zip"
             android:parentActivityName=".activities.SettingsActivity" />
         <activity
+            android:name=".activities.automations.AutoExportGpxSettingsActivity"
+            android:label="@string/pref_header_auto_export_gpx"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.automations.AutoExportFitSettingsActivity"
+            android:label="@string/pref_header_auto_export_fit"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
             android:name=".activities.maps.MapsTrackActivity"
             android:label="@string/maps"
             android:parentActivityName=".activities.SettingsActivity" />
@@ -206,6 +250,22 @@
         <activity
             android:name=".activities.SleepAsAndroidPreferencesActivity"
             android:label="@string/sleepasandroid_settings"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.InternetHelperPreferencesActivity"
+            android:label="@string/prefs_internet_helper_title"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.internet.InternetFirewallActivity"
+            android:label="@string/internet_firewall_title"
+            android:parentActivityName=".activities.InternetHelperPreferencesActivity" />
+        <activity
+            android:name=".activities.preferences.HealthConnectPreferencesActivity"
+            android:label="@string/healthconnect_settings"
+            android:parentActivityName=".activities.SettingsActivity" />
+        <activity
+            android:name=".activities.endurain.OnlineFitnessTrackersPreferencesActivity"
+            android:label="@string/prefs_online_fitness_trackers_title"
             android:parentActivityName=".activities.SettingsActivity" />
         <activity
             android:name=".activities.AboutUserPreferencesActivity"
@@ -265,6 +325,15 @@
             android:launchMode="singleTop"
             android:parentActivityName=".activities.ControlCenterv2" />
         <activity
+            android:name=".activities.appmanager.config.DynamicAppConfigActivity"
+            android:label="@string/app_configure"
+            android:launchMode="singleTop"
+            android:parentActivityName=".activities.appmanager.AppManagerActivity" />
+        <activity
+            android:name=".activities.appmanager.RebbleAppStoreActivity"
+            android:label="@string/activity_title_rebble_app_store"
+            android:parentActivityName=".activities.appmanager.AppManagerActivity" />
+        <activity
             android:name=".activities.musicmanager.MusicManagerActivity"
             android:label="@string/title_activity_musicmanager"
             android:parentActivityName=".activities.SettingsActivity" />
@@ -273,8 +342,8 @@
             android:label="@string/title_activity_notification_management"
             android:parentActivityName=".activities.SettingsActivity" />
         <activity
-            android:name=".activities.CalBlacklistActivity"
-            android:label="@string/title_activity_calblacklist"
+            android:name=".activities.CalendarSelectionActivity"
+            android:label="@string/pref_title_calendar_sync_choose"
             android:parentActivityName=".activities.SettingsActivity" />
         <activity
             android:name=".devices.vesc.VescControlActivity"
@@ -545,7 +614,12 @@
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
-            android:exported="false" />
+            tools:node="merge"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Used for syncing data with Health Connect" />
+        </service>
         <service
             android:name=".externalevents.NotificationListener"
             android:label="@string/app_name"
@@ -591,10 +665,16 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".service.devices.pebble.webview.PebbleJsService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="connectedDevice" />
+
         <receiver
             android:name=".externalevents.GenericWeatherReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="nodomain.freeyourgadget.gadgetbridge.ACTION_GENERIC_WEATHER" />
             </intent-filter>
@@ -644,10 +724,14 @@
             dialog when changing orientation
         -->
         <activity
-            android:name=".activities.DebugActivity"
+            android:name=".activities.debug.DebugActivityV2"
             android:label="@string/title_activity_debug"
             android:parentActivityName=".activities.ControlCenterv2"
-            android:screenOrientation="portrait"
+            android:windowSoftInputMode="stateHidden" />
+        <activity
+            android:name=".activities.debug.preferences.PreferenceManagerActivity"
+            android:label="@string/menuitem_settings"
+            android:parentActivityName=".activities.debug.DebugActivityV2"
             android:windowSoftInputMode="stateHidden" />
         <activity
             android:name=".activities.AboutActivity"
@@ -668,7 +752,11 @@
             android:name=".activities.BatteryInfoActivity"
             android:label="@string/battery_detail_activity_title"
             android:parentActivityName=".activities.ControlCenterv2" />
-
+        <activity
+            android:exported="false"
+            android:name=".activities.DeviceDeleteActivity"
+            android:label="@string/controlcenter_delete_device"
+            android:parentActivityName=".activities.ControlCenterv2" />
         <activity
             android:name=".activities.workouts.WorkoutDetailsActivity"
             android:label="@string/activity_summary_detail"
@@ -679,7 +767,6 @@
             android:label="@string/activity_filter_filter_title"
             android:parentActivityName=".activities.workouts.WorkoutListActivity"
             android:excludeFromRecents="true"/>
-
         <activity
             android:name=".activities.DataManagementActivity"
             android:label="@string/title_activity_db_management"
@@ -728,16 +815,16 @@
             android:label="@string/devicetype_gree_ac"
             android:parentActivityName=".activities.discovery.DiscoveryActivityV2" />
         <activity
-            android:name=".devices.watch9.Watch9PairingActivity"
+            android:name=".devices.lenovo.watch9.Watch9PairingActivity"
             android:label="@string/title_activity_watch9_pairing" />
         <activity
-            android:name=".devices.watch9.Watch9CalibrationActivity"
+            android:name=".devices.lenovo.watch9.Watch9CalibrationActivity"
             android:label="@string/title_activity_watch9_calibration" />
         <activity
-            android:name=".devices.lenovo.LenovoWatchPairingActivity"
+            android:name=".devices.lenovo.watchxplus.LenovoWatchPairingActivity"
             android:label="@string/title_activity_watch9_pairing" />
         <activity
-            android:name=".devices.lenovo.LenovoWatchCalibrationActivity"
+            android:name=".devices.lenovo.watchxplus.LenovoWatchCalibrationActivity"
             android:label="@string/title_activity_LenovoWatch_calibration" />
         <activity
             android:name=".activities.charts.ActivityChartsActivity"
@@ -758,6 +845,10 @@
         <activity
             android:name=".activities.widgets.WidgetScreensListActivity"
             android:label="@string/menuitem_widgets"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.xiaomi.XiaomiVibrationPatternsActivity"
+            android:label="@string/pref_xiaomi_vibration_patterns_title"
             android:parentActivityName=".activities.ControlCenterv2" />
         <activity
             android:name=".activities.ConfigureWorldClocks"
@@ -807,7 +898,8 @@
             android:windowSoftInputMode="stateHidden|adjustPan" />
         <activity
             android:name=".activities.FindPhoneActivity"
-            android:label="Find Phone" />
+            android:label="@string/prefs_find_phone"
+            android:launchMode="singleTask" />
 
         <provider
             android:name=".contentprovider.PebbleContentProvider"
@@ -875,10 +967,7 @@
 
         <activity
             android:name=".activities.ExternalPebbleJSActivity"
-            android:allowTaskReparenting="true"
-            android:clearTaskOnLaunch="true"
             android:label="@string/app_configure"
-            android:launchMode="singleTask"
             android:parentActivityName=".activities.appmanager.AppManagerActivity"
             android:exported="true">
             <meta-data
@@ -896,15 +985,15 @@
         </activity>
 
         <activity
-            android:name=".devices.qhybrid.QHybridConfigActivity"
+            android:name=".devices.qhybrid.QHybridNotificationsConfigActivity"
             android:label="@string/qhybrid_title_watchface"
             android:exported="true"
             android:parentActivityName=".activities.devicesettings.DeviceSettingsActivity" />
         <activity
-            android:name=".devices.qhybrid.QHybridAppChoserActivity"
+            android:name=".devices.qhybrid.QHybridAppChooserActivity"
             android:label="@string/qhybrid_title_apps"
             android:exported="true"
-            android:parentActivityName=".devices.qhybrid.QHybridConfigActivity" />
+            android:parentActivityName=".devices.qhybrid.QHybridNotificationsConfigActivity" />
         <activity
             android:name=".devices.qhybrid.HRConfigActivity"
             android:label="@string/qhybrid_title_watchface"
@@ -964,7 +1053,7 @@
             android:exported="true" />
 
         <activity
-            android:name=".devices.marstek.SolarEquipmentStatusActivity"
+            android:name=".devices.SolarEquipmentStatusActivity"
             android:label="Solar Equipment Status"
             android:exported="true" />
 
@@ -982,7 +1071,7 @@
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
+                <data android:mimeType="application/gpx+xml" />
             </intent-filter>
         </activity>
 
@@ -1022,6 +1111,215 @@
             android:name=".devices.cycling_sensor.activity.CyclingLiveDataActivity"
             android:launchMode="singleInstance"
             android:exported="true" />
+
+        <activity
+            android:name=".devices.garmin.actions.GarminSendWaypointActivity"
+            android:exported="true"
+            android:label="@string/activity_send_waypoint_titel">
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="geo" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".activities.endurain.EndurainOAuthCallbackActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- Deep link scheme for OAuth callback -->
+                <data
+                    android:scheme="${appAuthRedirectScheme}"
+                    android:host="endurain"
+                    android:pathPrefix="/oauth/callback" />
+            </intent-filter>
+        </activity>
+
+        <!-- For supported versions through Android 13, create an activity to show the rationale
+       of Health Connect permissions once users click the privacy policy link. -->
+        <activity
+            android:name=".activities.PermissionsRationaleActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <!-- For versions starting Android 14, create an activity alias to show the rationale
+             of Health Connect permissions once users click the privacy policy link. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".activities.PermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Quick Settings preset tiles (API 24+). Each tile is independently assignable
+             to a device setting via QuickSettingsTilesActivity. -->
+        <service
+            android:name=".activities.quicksettings.DeviceTileService0"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_1"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService1"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_2"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService2"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_3"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService3"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_4"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService4"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_5"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService5"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_6"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService6"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_7"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService7"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_8"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService8"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_9"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".activities.quicksettings.DeviceTileService9"
+            android:exported="true"
+            android:icon="@drawable/ic_devices_other"
+            android:label="@string/qs_tile_label_10"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Configuration activity for the preset Quick Settings tiles. -->
+        <activity
+            android:name=".activities.quicksettings.QuickSettingsTilesActivity"
+            android:exported="false"
+            android:label="@string/qs_tile_activity_title"
+            android:theme="@style/Theme.AppCompat.Light.Dialog"
+            tools:targetApi="24" />
+
+        <!-- Settings screen for Quick Settings tiles and Device Controls. -->
+        <activity
+            android:name=".activities.quicksettings.QuickSettingsPreferencesActivity"
+            android:exported="true"
+            android:label="@string/pref_header_quick_settings"
+            android:parentActivityName=".activities.SettingsActivity"
+            tools:targetApi="24">
+            <!-- Handle long-press on any of the QS tiles -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
     </application>
 
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+
+        <!--
+             This is required such that the app can query and resolve packages that have written
+             Health Connect data, and obtain their friendly App Name and Icon to show for data
+             attribution in the app
+        -->
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+    </queries>
 </manifest>

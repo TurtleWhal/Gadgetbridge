@@ -19,6 +19,7 @@ package nodomain.freeyourgadget.gadgetbridge.devices.huawei;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.jetbrains.annotations.UnknownNullability;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +35,7 @@ import de.greenrobot.dao.Property;
 import de.greenrobot.dao.query.QueryBuilder;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.HuaweiSleepStageSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.HuaweiActivitySample;
@@ -215,7 +217,8 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
                 sample.getCalories(),
                 sample.getDistance(),
                 sample.getSpo(),
-                sample.getHeartRate()
+                sample.getHeartRate(),
+                sample.getRestingHeartRate()
         );
         sampleCopy.setProvider(sample.getProvider());
         return sampleCopy;
@@ -238,7 +241,7 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
     }
 
     @Override
-    public void addGBActivitySamples(HuaweiActivitySample[] activitySamples) {
+    public void addGBActivitySamples(@NonNull List<HuaweiActivitySample> activitySamples) {
         List<HuaweiActivitySample> newSamples = new ArrayList<>();
         for (HuaweiActivitySample sample : activitySamples) {
             HuaweiActivitySample start = copySample(sample);
@@ -249,6 +252,7 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
             end.setDistance(ActivitySample.NOT_MEASURED);
             end.setSpo(ActivitySample.NOT_MEASURED);
             end.setHeartRate(ActivitySample.NOT_MEASURED);
+            end.setRestingHeartRate(ActivitySample.NOT_MEASURED);
             end.setOtherTimestamp(start.getTimestamp());
 
             newSamples.add(start);
@@ -375,6 +379,7 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
                 (byte) 0x00,
                 ActivitySample.NOT_MEASURED,
                 0,
+                ActivitySample.NOT_MEASURED,
                 ActivitySample.NOT_MEASURED,
                 ActivitySample.NOT_MEASURED,
                 ActivitySample.NOT_MEASURED,
@@ -587,7 +592,8 @@ public class HuaweiSampleProvider extends AbstractSampleProvider<HuaweiActivityS
                 ActivitySample.NOT_MEASURED,
                 ActivitySample.NOT_MEASURED,
                 ActivitySample.NOT_MEASURED,
-                hr
+                hr,
+                ActivitySample.NOT_MEASURED
         );
         newSample.setProvider(this);
         return newSample;

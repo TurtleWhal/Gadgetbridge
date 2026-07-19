@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.Date;
@@ -36,9 +37,11 @@ import java.util.Map;
 public class CatimaContentProvider {
     private static final Logger LOG = LoggerFactory.getLogger(CatimaContentProvider.class);
 
-    public static final List<String> KNOWN_PACKAGES = new ArrayList<String>() {{
+    public static final List<String> KNOWN_PACKAGES = new ArrayList<>() {{
         add("me.hackerchick.catima");
         add("me.hackerchick.catima.debug");
+        add("nz.eloque.foss_wallet");
+        add("nz.eloque.foss_wallet.dev");
     }};
 
     private final Context mContext;
@@ -144,13 +147,7 @@ public class CatimaContentProvider {
             while (cursor.moveToNext()) {
                 final int cardId = cursor.getInt(cursor.getColumnIndexOrThrow(LoyaltyCardDbIdsGroups.cardID));
                 final String groupId = cursor.getString(cursor.getColumnIndexOrThrow(LoyaltyCardDbIdsGroups.groupID));
-                final List<Integer> group;
-                if (groupCards.containsKey(groupId)) {
-                    group = groupCards.get(groupId);
-                } else {
-                    group = new ArrayList<>();
-                    groupCards.put(groupId, group);
-                }
+                final List<Integer> group = groupCards.computeIfAbsent(groupId, ignored -> new ArrayList<>());
                 group.add(cardId);
             }
         } catch (final Exception e) {
@@ -172,6 +169,9 @@ public class CatimaContentProvider {
         final int starred = cursor.getInt(cursor.getColumnIndexOrThrow(LoyaltyCardDbIds.STAR_STATUS));
         final long lastUsed = cursor.getLong(cursor.getColumnIndexOrThrow(LoyaltyCardDbIds.LAST_USED));
         final int archiveStatus = cursor.getInt(cursor.getColumnIndexOrThrow(LoyaltyCardDbIds.ARCHIVE_STATUS));
+        // Barcode encoding since content provider version 1.1
+        final int barcodeEncodingColumn = cursor.getColumnIndex(LoyaltyCardDbIds.BARCODE_ENCODING);
+        final String barcodeEncoding = barcodeEncodingColumn >= 0 ? cursor.getString(barcodeEncodingColumn) : StandardCharsets.ISO_8859_1.name();
 
         int barcodeTypeColumn = cursor.getColumnIndexOrThrow(LoyaltyCardDbIds.BARCODE_TYPE);
         int balanceTypeColumn = cursor.getColumnIndexOrThrow(LoyaltyCardDbIds.BALANCE_TYPE);
@@ -212,6 +212,7 @@ public class CatimaContentProvider {
                 cardId,
                 barcodeId,
                 barcodeFormat,
+                barcodeEncoding,
                 headerColor,
                 starred != 0,
                 archiveStatus != 0,
@@ -221,8 +222,9 @@ public class CatimaContentProvider {
 
     /**
      * Copied from Catima, protect.card_locker.DBHelper.LoyaltyCardDbGroups.
-     * Commit: 8607e1c2
+     * Commit: a5599dc
      */
+    @SuppressWarnings("unused")
     public static class LoyaltyCardDbGroups {
         public static final String TABLE = "groups";
         public static final String ID = "_id";
@@ -231,12 +233,14 @@ public class CatimaContentProvider {
 
     /**
      * Copied from Catima, protect.card_locker.DBHelper.LoyaltyCardDbIds.
-     * Commit: 8607e1c2
+     * Commit: a5599dc
      */
+    @SuppressWarnings("unused")
     public static class LoyaltyCardDbIds {
         public static final String TABLE = "cards";
         public static final String ID = "_id";
         public static final String STORE = "store";
+        public static final String VALID_FROM = "validfrom";
         public static final String EXPIRY = "expiry";
         public static final String BALANCE = "balance";
         public static final String BALANCE_TYPE = "balancetype";
@@ -246,6 +250,7 @@ public class CatimaContentProvider {
         public static final String CARD_ID = "cardid";
         public static final String BARCODE_ID = "barcodeid";
         public static final String BARCODE_TYPE = "barcodetype";
+        public static final String BARCODE_ENCODING = "barcodeencoding";
         public static final String STAR_STATUS = "starstatus";
         public static final String LAST_USED = "lastused";
         public static final String ZOOM_LEVEL = "zoomlevel";
@@ -254,7 +259,7 @@ public class CatimaContentProvider {
 
     /**
      * Copied from Catima, protect.card_locker.DBHelper.LoyaltyCardDbIdsGroups.
-     * Commit: 8607e1c2
+     * Commit: a5599dc
      */
     public static class LoyaltyCardDbIdsGroups {
         public static final String TABLE = "cardsGroups";

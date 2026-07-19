@@ -27,19 +27,21 @@ package nodomain.freeyourgadget.gadgetbridge.service;
 
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
-import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.GBException;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.PebbleSupport;
-import nodomain.freeyourgadget.gadgetbridge.util.GB;
+import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
 import java.lang.reflect.Constructor;
 import java.util.EnumSet;
@@ -56,7 +58,7 @@ public class DeviceSupportFactory {
     }
 
     @Nullable
-    public synchronized DeviceSupport createDeviceSupport(GBDevice device) throws GBException {
+    public synchronized DeviceSupport createDeviceSupport(final @NonNull GBDevice device) throws GBException {
         DeviceSupport deviceSupport;
         String deviceAddress = device.getAddress();
         int indexFirstColon = deviceAddress.indexOf(":");
@@ -72,13 +74,7 @@ public class DeviceSupportFactory {
             deviceSupport = createClassNameDeviceSupport(device);
         }
 
-        if (deviceSupport != null) {
-            return deviceSupport;
-        }
-
-        // no device found, check transport availability and warn
-        checkBtAvailability();
-        return null;
+        return deviceSupport;
     }
 
     @Nullable
@@ -92,17 +88,10 @@ public class DeviceSupportFactory {
             support.setContext(device, null, mContext);
             return support;
         } catch (ClassNotFoundException e) {
+            LOG.warn("Unable to find DeviceSupport class {} for {}", className, device.getAddress());
             return null; // not a class, or not known at least
         } catch (Exception e) {
             throw new GBException("Error creating DeviceSupport instance for " + className, e);
-        }
-    }
-
-    private void checkBtAvailability() {
-        if (mBtAdapter == null) {
-            GB.toast(mContext.getString(R.string.bluetooth_is_not_supported_), Toast.LENGTH_SHORT, GB.WARN);
-        } else if (!mBtAdapter.isEnabled()) {
-            GB.toast(mContext.getString(R.string.bluetooth_is_disabled_), Toast.LENGTH_SHORT, GB.WARN);
         }
     }
 
@@ -112,25 +101,39 @@ public class DeviceSupportFactory {
 
         try {
             final DeviceSupport supportInstance = (DeviceSupport) supportClass.newInstance();
-            return new ServiceDeviceSupport(supportInstance, coordinator.getInitialFlags());
+            final EnumSet<ServiceDeviceSupport.Flags> initialFlags = coordinator.getInitialFlags();
+            if (BuildConfig.DEBUG && initialFlags.contains(ServiceDeviceSupport.Flags.BUSY_CHECKING)) {
+                final DevicePrefs devicePrefs = GBApplication.getDevicePrefs(device);
+                if (devicePrefs.getBoolean("pref_device_debug_remove_busy_checking", false)) {
+                    LOG.warn("Removing BUSY_CHECKING flag from {}", device.getAddress());
+                    initialFlags.remove(ServiceDeviceSupport.Flags.BUSY_CHECKING);
+                }
+            }
+            return new ServiceDeviceSupport(supportInstance, initialFlags);
         } catch (ReflectiveOperationException e) {
-            LOG.error("error calling DeviceSupport constructor with zero arguments");
+            LOG.error("error calling DeviceSupport constructor for {} with zero arguments", device.getAddress());
             throw new GBException(e);
         }
     }
 
     @Nullable
     private DeviceSupport createBTDeviceSupport(final GBDevice gbDevice) throws GBException {
-        if (mBtAdapter != null && mBtAdapter.isEnabled()) {
-            try {
-                final DeviceSupport deviceSupport = createServiceDeviceSupport(gbDevice);
-                deviceSupport.setContext(gbDevice, mBtAdapter, mContext);
-                return deviceSupport;
-            } catch (final Exception e) {
-                throw new GBException(mContext.getString(R.string.cannot_connect_bt_address_invalid_), e);
-            }
+        if (mBtAdapter == null) {
+            LOG.warn("Unable to create bt device support for {} - no bt adapter", gbDevice.getAddress());
+            return null;
         }
-        return null;
+        if (!mBtAdapter.isEnabled()) {
+            LOG.warn("Unable to create bt device support for {} - bt is disabled", gbDevice.getAddress());
+            return null;
+        }
+
+        try {
+            final DeviceSupport deviceSupport = createServiceDeviceSupport(gbDevice);
+            deviceSupport.setContext(gbDevice, mBtAdapter, mContext);
+            return deviceSupport;
+        } catch (final Exception e) {
+            throw new GBException(mContext.getString(R.string.cannot_connect_bt_address_invalid_), e);
+        }
     }
 
     private DeviceSupport createTCPDeviceSupport(GBDevice gbDevice) throws GBException {

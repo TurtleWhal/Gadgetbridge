@@ -1,8 +1,6 @@
 package nodomain.freeyourgadget.gadgetbridge.devices.evenrealities;
 
 import android.app.Activity;
-import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 
 import androidx.annotation.DrawableRes;
@@ -42,7 +40,7 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(@NonNull final GBDevice device) {
         return G1DeviceSupport.class;
     }
 
@@ -76,14 +74,25 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
+    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
+        return DeviceKind.SMART_GLASSES;
+    }
+
+    @Override
     public int getBondingStyle() {
         return BONDING_STYLE_LAZY;
     }
 
+    @Override
+    public int getReconnectionDelay() {
+        // 125ms.
+        return 125;
+    }
+
     private int getDeviceIndexForAddress(String address) {
         return GBApplication.getDeviceSpecificSharedPrefs(address)
-                            .getInt(G1Constants.Side.getIndexKey(),
-                                    G1Constants.Side.INVALID.getDeviceIndex());
+                .getInt(G1Constants.Side.getIndexKey(),
+                        G1Constants.Side.INVALID.getDeviceIndex());
     }
 
     private GBDevice createDevice(String address, String name, String alias, String parentFolder,
@@ -113,9 +122,9 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
 
         for (BatteryConfig batteryConfig : getBatteryConfig(gbDevice)) {
             gbDevice.setBatteryIcon(batteryConfig.getBatteryIcon(),
-                                    batteryConfig.getBatteryIndex());
+                    batteryConfig.getBatteryIndex());
             gbDevice.setBatteryLabel(batteryConfig.getBatteryLabel(),
-                                     batteryConfig.getBatteryIndex());
+                    batteryConfig.getBatteryIndex());
         }
         return gbDevice;
     }
@@ -123,14 +132,14 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public GBDevice createDevice(GBDeviceCandidate candidate, DeviceType deviceType) {
         return createDevice(candidate.getMacAddress(), candidate.getName(),
-                            G1Constants.getNameFromFullName(candidate.getName()), null,
-                            deviceType);
+                G1Constants.getNameFromFullName(candidate.getName()), null,
+                deviceType);
     }
 
     @Override
     public GBDevice createDevice(Device dbDevice, DeviceType deviceType) {
         return createDevice(dbDevice.getIdentifier(), dbDevice.getName(), dbDevice.getAlias(),
-                            dbDevice.getParentFolder(), deviceType);
+                dbDevice.getParentFolder(), deviceType);
     }
 
     @Override
@@ -143,10 +152,10 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
         ItemWithDetails right_address =
                 gbDevice.getDeviceInfo(G1Constants.Side.RIGHT.getAddressKey());
         if (right_name != null && !right_name.getDetails().isEmpty() && right_address != null &&
-            !right_address.getDetails().isEmpty()) {
+                !right_address.getDetails().isEmpty()) {
             GBDevice rightDevice =
                     new GBDevice(right_address.getDetails(), right_name.getDetails(), null,
-                                 gbDevice.getParentFolder(), gbDevice.getType());
+                            gbDevice.getParentFolder(), gbDevice.getType());
             super.deleteDevice(rightDevice, true);
             BondingUtil.Unpair(GBApplication.getContext(), rightDevice.getAddress());
         }
@@ -167,56 +176,63 @@ public class G1DeviceCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public List<DeviceCardAction> getCustomActions() {
-        return Collections.singletonList(new DeviceCardAction() {
-            @Override
-            public int getIcon(GBDevice device) {
-                return R.drawable.ic_dnd;
-            }
-
-            @Override
-            public String getDescription(final GBDevice device, final Context context) {
-                return context.getString(R.string.silent_mode);
-            }
-
-            @Override
-            public void onClick(final GBDevice device, final Context context) {
-                final Intent intent = new Intent(G1Constants.INTENT_TOGGLE_SILENT_MODE);
-                intent.putExtra(GBDevice.EXTRA_DEVICE, device);
-                intent.setPackage(context.getPackageName());
-                context.sendBroadcast(intent);
-            }
-        });
+        return Collections.singletonList(
+                DeviceCardAction.forBroadcast(
+                        R.drawable.ic_dnd,
+                        R.string.silent_mode,
+                        G1Constants.INTENT_TOGGLE_SILENT_MODE
+                )
+        );
     }
-
 
     @Override
     public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
         final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
-        if (device.isConnected()) {
-            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_screen_on_on_notifications);
-            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_screen_on_on_notifications_timeout);
-            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_even_realities_g1_display);
-            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_timeformat);
 
-            final List<Integer> developer =
-                    deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
-            developer.add(R.xml.devicesettings_header_system);
-            developer.add(R.xml.devicesettings_debug_logs_toggle);
-        }
+        final List<Integer> dashboard =
+                deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DASHBOARD);
+        dashboard.add(R.xml.devicesettings_timeformat);
+        dashboard.add(R.xml.devicesettings_even_realities_g1_dashboard);
+
+        final List<Integer> display = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DISPLAY);
+        display.add(R.xml.devicesettings_even_realities_g1_display);
+
+        final List<Integer> notifications = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.NOTIFICATIONS);
+        notifications.add(R.xml.devicesettings_screen_on_on_notifications);
+        notifications.add(R.xml.devicesettings_screen_on_on_notifications_timeout);
+
+        final List<Integer> touch = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.TOUCH_OPTIONS);
+        touch.add(R.xml.devicesettings_even_realities_g1_touch);
+
+        final List<Integer> calendar = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CALENDAR);
+        calendar.add(R.xml.devicesettings_sync_calendar);
+
+        final List<Integer> developer =
+                deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
+        developer.add(R.xml.devicesettings_header_system);
+        developer.add(R.xml.devicesettings_debug_logs_toggle);
+
+        deviceSpecificSettings.addConnectedPreferences(DeviceSpecificSettingsScreen.DASHBOARD.getKey(),
+                DeviceSpecificSettingsScreen.DISPLAY.getKey(),
+                DeviceSpecificSettingsScreen.NOTIFICATIONS.getKey(),
+                DeviceSpecificSettingsScreen.TOUCH_OPTIONS.getKey(),
+                DeviceSpecificSettingsScreen.DEVELOPER.getKey()
+        );
+
         return deviceSpecificSettings;
     }
 
     ////////////////////////////////////////////////
     // Gadget bridge feature support declarations //
-    ////////////////////////////////////////////////
+    /// /////////////////////////////////////////////
 
     @Override
-    public boolean supportsWeather(final GBDevice device) {
+    public boolean supportsWeather(@NonNull final GBDevice device) {
         return true;
     }
 
     @Override
-    public DeviceKind getDeviceKind(@NonNull GBDevice device) {
-        return DeviceKind.SMART_GLASSES;
+    public boolean supportsCalendarEvents(@NonNull final GBDevice device) {
+        return true;
     }
 }

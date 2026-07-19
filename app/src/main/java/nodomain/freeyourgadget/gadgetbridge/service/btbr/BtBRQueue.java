@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicLong;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -43,7 +44,8 @@ import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public final class BtBRQueue {
-    private static final Logger LOG = LoggerFactory.getLogger(BtBRQueue.class);
+    private final Logger LOG;
+    private static final AtomicLong QUEUE_COUNTER = new AtomicLong(0L);
     private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
     public static final int HANDLER_SUBJECT_CONNECT = 0;
     public static final int HANDLER_SUBJECT_PERFORM_TRANSACTION = 1;
@@ -58,7 +60,9 @@ public final class BtBRQueue {
 
     private final Context mContext;
     private final int mBufferSize;
+    private final int mConnectDelayMillis;
 
+    private final int mRfcommChannel;
     private final Handler mWriteHandler;
     private final HandlerThread mWriteHandlerThread = new HandlerThread("BtBRQueue_write_" + THREAD_COUNTER.getAndIncrement(), Process.THREAD_PRIORITY_BACKGROUND);
 
@@ -68,7 +72,7 @@ public final class BtBRQueue {
         return new Thread("BtBRQueue_read_" + THREAD_COUNTER.getAndIncrement()) {
             @Override
             public void run() {
-                LOG.debug("started thread {}", getName());
+                LOG.debug("started thread {} for {}", getName(), mGbDevice.getAddress());
                 final byte[] buffer = new byte[mBufferSize];
                 int nRead;
 
@@ -114,21 +118,33 @@ public final class BtBRQueue {
         };
     }
 
-    public BtBRQueue(BluetoothAdapter btAdapter, GBDevice gbDevice, Context context, SocketCallback socketCallback, @NonNull UUID supportedService, int bufferSize) {
+    public BtBRQueue(BluetoothAdapter btAdapter,
+                     GBDevice gbDevice,
+                     Context context,
+                     SocketCallback socketCallback,
+                     @NonNull UUID supportedService,
+                     int bufferSize,
+                     int connectDelayMillis,
+                     final int rfcommChannel) {
+        LOG = LoggerFactory.getLogger(BtBRQueue.class.getName() + "(" + QUEUE_COUNTER.getAndIncrement() + ")");
+
         mBtAdapter = btAdapter;
         mGbDevice = gbDevice;
         mContext = context;
         mCallback = socketCallback;
         mService = supportedService;
         mBufferSize = bufferSize;
+        mConnectDelayMillis = connectDelayMillis;
+        mRfcommChannel = rfcommChannel;
         mDisposed = new AtomicBoolean(false);
 
         mWriteHandlerThread.start();
 
         new Handler(mWriteHandlerThread.getLooper()).post(()
-                -> LOG.debug("started thread {}", Thread.currentThread().getName()));
+                -> LOG.debug("started thread {} for {}", Thread.currentThread().getName(), gbDevice.getAddress()));
 
-        LOG.debug("Write handler thread is prepared, creating write handler");
+        LOG.debug("Write handler thread for {} is prepared, creating write handler", gbDevice.getAddress());
+
         mWriteHandler = new Handler(mWriteHandlerThread.getLooper()) {
             @SuppressLint("MissingPermission")
             @Override
@@ -145,7 +161,18 @@ public final class BtBRQueue {
                             return;
                         }
 
+                        if (mConnectDelayMillis > 0) {
+                            LOG.debug("Waiting {} ms before connecting to RFCOMM socket", mConnectDelayMillis);
+                            try {
+                                Thread.sleep(mConnectDelayMillis);
+                            } catch (final InterruptedException e) {
+                                LOG.error("Interrupted while waiting for connect", e);
+                            }
+                        }
+
                         try {
+                            LOG.debug("Connecting to RFCOMM socket for {}", mGbDevice.getName());
+
                             mBtSocket.connect();
 
                             LOG.info("Connected to RFCOMM socket for {}", mGbDevice.getName());
@@ -163,7 +190,7 @@ public final class BtBRQueue {
 
                             cleanup();
 
-                            if (!GBApplication.getPrefs().getAutoReconnect(mGbDevice)) {
+                            if (mDisposed.get() || !GBApplication.getPrefs().getAutoReconnect(mGbDevice)) {
                                 mGbDevice.setUpdateState(GBDevice.State.NOT_CONNECTED, mContext);
                             } else {
                                 mGbDevice.setUpdateState(GBDevice.State.WAITING_FOR_RECONNECT, mContext);
@@ -173,7 +200,7 @@ public final class BtBRQueue {
 
                             cleanup();
 
-                            if (!GBApplication.getPrefs().getAutoReconnect(mGbDevice)) {
+                            if (mDisposed.get() || !GBApplication.getPrefs().getAutoReconnect(mGbDevice)) {
                                 mGbDevice.setUpdateState(GBDevice.State.NOT_CONNECTED, mContext);
                             } else {
                                 mGbDevice.setUpdateState(GBDevice.State.WAITING_FOR_RECONNECT, mContext);
@@ -252,7 +279,19 @@ public final class BtBRQueue {
 
         try {
             BluetoothDevice btDevice = mBtAdapter.getRemoteDevice(mGbDevice.getAddress());
-            mBtSocket = btDevice.createRfcommSocketToServiceRecord(mService);
+            if (mRfcommChannel >= 0) {
+                try {
+                    final Method createMethod = BluetoothDevice.class.getMethod("createRfcommSocket", int.class);
+                    mBtSocket = (BluetoothSocket) createMethod.invoke(btDevice, mRfcommChannel);
+                } catch (final Exception e) {
+                    LOG.error("Unable to create RFCOMM socket on channel " + mRfcommChannel + ": ", e);
+                    setDeviceConnectionState(originalState);
+                    cleanup();
+                    return false;
+                }
+            } else {
+                mBtSocket = btDevice.createRfcommSocketToServiceRecord(mService);
+            }
         } catch (IOException e) {
             LOG.error("Unable to connect to RFCOMM endpoint: ", e);
             setDeviceConnectionState(originalState);
@@ -275,7 +314,7 @@ public final class BtBRQueue {
             LOG.debug("finished thread {}", mWriteHandlerThread.getName());
         }
 
-        if (mBtSocket != null && mBtSocket.isConnected()) {
+        if (mBtSocket != null) {
             try {
                 mBtSocket.close();
             } catch (IOException e) {

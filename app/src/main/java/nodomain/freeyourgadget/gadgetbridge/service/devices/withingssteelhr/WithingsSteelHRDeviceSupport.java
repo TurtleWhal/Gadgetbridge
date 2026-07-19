@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2024 Ascense, Frank Ertl
+/*  Copyright (C) 2023-2026 Ascense, Frank Ertl
 
     This file is part of Gadgetbridge.
 
@@ -28,11 +28,13 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
@@ -47,12 +49,12 @@ import java.util.List;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
@@ -107,7 +109,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.comm
 import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.communication.notification.NotificationProvider;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.withingssteelhr.communication.notification.NotificationSource;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_LANGUAGE;
@@ -256,7 +257,7 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLESingleDeviceSuppor
         activitySampleHandler = new ActivitySampleHandler(this);
         conversationQueue.clear();
         try {
-            if (syncInProgress || !shoudSync()) {
+            if (syncInProgress) {
                 return;
             }
 
@@ -266,33 +267,37 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLESingleDeviceSuppor
             addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_ANCS_STATUS));
             addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_BATTERY_STATUS), new BatteryStateHandler(this));
             addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.SET_TIME, new Time()));
-            WithingsMessage message = new WithingsMessage(WithingsMessageType.SET_USER);
-            message.addDataStructure(getUser());
-            // The UserSecret appears in the original communication with the HealthMate app. Until now GB works without the secret.
-            // This makes the "authentication" far easier. However if it turns out that this is needed, we would need to find a way to savely store a unique generated secret.
-            //  message.addDataStructure(new UserSecret());
-            addSimpleConversationToQueue(message);
-            addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.SET_ACTIVITY_TARGET, new ActivityTarget(activityUser.getStepsGoal())));
-            addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.SET_USER_UNIT, new UserUnit(UserUnitConstants.DISTANCE, getUnit())));
-            addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.SET_USER_UNIT, new UserUnit(UserUnitConstants.CLOCK_MODE, getTimeMode())));
-            addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_ALARM_SETTINGS));
-            addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_SCREEN_SETTINGS));
-            addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_ALARM));
-            addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_ALARM_ENABLED));
-            addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_WORKOUT_SCREEN_LIST), new WorkoutScreenListHandler(this));
-            Calendar c = Calendar.getInstance();
-            c.setTimeInMillis(getLastSyncTimestamp());
-            message = new WithingsMessage(WithingsMessageType.GET_ACTIVITY_SAMPLES, ExpectedResponse.EOT);
-            message.addDataStructure(new GetActivitySamples(c.getTimeInMillis() / 1000, (short) 0));
-            addSimpleConversationToQueue(message, activitySampleHandler);
-            message = new WithingsMessage(WithingsMessageType.GET_MOVEMENT_SAMPLES, ExpectedResponse.EOT);
-            message.addDataStructure(new GetActivitySamples(c.getTimeInMillis() / 1000, (short) 0));
-            message.addDataStructure(new TypeVersion());
-            addSimpleConversationToQueue(message, activitySampleHandler);
-            message = new WithingsMessage(WithingsMessageType.GET_HEARTRATE_SAMPLES, ExpectedResponse.EOT);
-            message.addDataStructure(new GetActivitySamples(c.getTimeInMillis() / 1000, (short) 0));
-            message.addDataStructure(new TypeVersion());
-            addSimpleConversationToQueue(message, activitySampleHandler);
+
+            if (shoudSync()) {
+                logger.debug("Doing full sync...");
+                WithingsMessage message = new WithingsMessage(WithingsMessageType.SET_USER);
+                message.addDataStructure(getUser());
+                // The UserSecret appears in the original communication with the HealthMate app. Until now GB works without the secret.
+                // This makes the "authentication" far easier. However if it turns out that this is needed, we would need to find a way to savely store a unique generated secret.
+                //  message.addDataStructure(new UserSecret());
+                addSimpleConversationToQueue(message);
+                addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.SET_ACTIVITY_TARGET, new ActivityTarget(activityUser.getStepsGoal())));
+                addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.SET_USER_UNIT, new UserUnit(UserUnitConstants.DISTANCE, getUnit())));
+                addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.SET_USER_UNIT, new UserUnit(UserUnitConstants.CLOCK_MODE, getTimeMode())));
+                addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_ALARM_SETTINGS));
+                addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_SCREEN_SETTINGS));
+                addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_ALARM));
+                addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_ALARM_ENABLED));
+                addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.GET_WORKOUT_SCREEN_LIST), new WorkoutScreenListHandler(this));
+                Calendar c = Calendar.getInstance();
+                c.setTimeInMillis(getLastSyncTimestamp());
+                message = new WithingsMessage(WithingsMessageType.GET_ACTIVITY_SAMPLES, ExpectedResponse.EOT);
+                message.addDataStructure(new GetActivitySamples(c.getTimeInMillis() / 1000, (short) 0));
+                addSimpleConversationToQueue(message, activitySampleHandler);
+                message = new WithingsMessage(WithingsMessageType.GET_MOVEMENT_SAMPLES, ExpectedResponse.EOT);
+                message.addDataStructure(new GetActivitySamples(c.getTimeInMillis() / 1000, (short) 0));
+                message.addDataStructure(new TypeVersion());
+                addSimpleConversationToQueue(message, activitySampleHandler);
+                message = new WithingsMessage(WithingsMessageType.GET_HEARTRATE_SAMPLES, ExpectedResponse.EOT);
+                message.addDataStructure(new GetActivitySamples(c.getTimeInMillis() / 1000, (short) 0));
+                message.addDataStructure(new TypeVersion());
+                addSimpleConversationToQueue(message, activitySampleHandler);
+            }
         } catch (Exception e) {
             logger.error("Could not synchronize! ", e);
             conversationQueue.clear();
@@ -422,7 +427,7 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLESingleDeviceSuppor
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         String hexMessage = "0105080015050900111006040102030507000000000000000000";
         conversationQueue.clear();
         addSimpleConversationToQueue(new SimpleHexToByteMessage(hexMessage));
@@ -751,9 +756,9 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLESingleDeviceSuppor
     }
 
     private short getUnit() {
-        String units = GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, GBApplication.getContext().getString(R.string.p_unit_metric));
+        final DistanceUnit distanceUnit = GBApplication.getPrefs().getDistanceUnit();
 
-        if (units.equals(GBApplication.getContext().getString(R.string.p_unit_metric))) {
+        if (distanceUnit == DistanceUnit.METRIC) {
             return UserUnitConstants.UNIT_KM;
         } else {
             return UserUnitConstants.UNIT_MILES;
@@ -763,5 +768,12 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLESingleDeviceSuppor
     @Override
     public boolean getImplicitCallbackModify() {
         return true;
+    }
+
+    @Override
+    public void onSetTime() {
+        conversationQueue.clear();
+        addSimpleConversationToQueue(new WithingsMessage(WithingsMessageType.SET_TIME, new Time()));
+        conversationQueue.send();
     }
 }

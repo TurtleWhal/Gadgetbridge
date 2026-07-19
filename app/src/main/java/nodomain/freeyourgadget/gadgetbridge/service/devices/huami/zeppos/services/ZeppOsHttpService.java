@@ -38,6 +38,8 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsS
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsTransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsWeatherHandler;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.AbstractZeppOsService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.http.HttpAppsSettingsHandler;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.services.http.ZeppOsWeatherHandlerV5;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.HttpUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
@@ -152,21 +154,40 @@ public class ZeppOsHttpService extends AbstractZeppOsService {
             return;
         }
 
+        final String host = url.getHost();
         final String path = url.getPath();
-        final Map<String, String> query = HttpUtils.urlQueryParameters(url);
+        final Map<String, String> query = HttpUtils.urlQueryParameters(url.getQuery());
+
+        final int statusCode;
+        final String response;
 
         if (path.startsWith("/weather/")) {
-            if (weatherHandler != null) {
-                final ZeppOsWeatherHandler.Response response = weatherHandler.handleHttpRequest(path, query);
-                replySimpleHttpSuccess(requestId, response.getHttpStatusCode(), response.toJson());
-                return;
+            if (path.startsWith("/weather/v5/")) {
+                statusCode = 200;
+                response = ZeppOsWeatherHandlerV5.handleHttpRequest(path, query);
+            } else if (weatherHandler != null) {
+                final ZeppOsWeatherHandler.Response weatherResponse = weatherHandler.handleHttpRequest(path, query);
+                statusCode = weatherResponse.getHttpStatusCode();
+                response = weatherResponse.toJson();
+            } else {
+                LOG.error("Weather handler is null");
+                statusCode = 0;
+                response = null;
             }
-
-            LOG.error("Weather handler is null");
+        } else if (host.equals("api-mifit.huami.com") && path.startsWith("/apps/")) {
+            statusCode = 200;
+            response = HttpAppsSettingsHandler.handleHttpRequest(path, query);
+        } else {
+            LOG.error("Unhandled simple request URL {}", url);
+            statusCode = 0;
+            response = null;
         }
 
-        LOG.error("Unhandled simple request URL {}", url);
-        replyHttpNoInternet(requestId);
+        if (response != null) {
+            replySimpleHttpSuccess(requestId, statusCode, response);
+        } else {
+            replyHttpNoInternet(requestId);
+        }
     }
 
     private void handleRawDownloadRequest(final int requestId, final String urlString) {

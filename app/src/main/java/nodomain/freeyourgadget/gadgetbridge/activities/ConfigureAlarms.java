@@ -1,6 +1,6 @@
 /*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, Damien
     Gaignon, Daniel Dakhno, Daniele Gobbetti, Dmitry Markin, José Rebelo,
-    Lem Dulfo, Petr Vaněk
+    Lem Dulfo, Martin Braun, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -37,11 +37,8 @@ import java.util.List;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.adapter.GBAlarmListAdapter;
-import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
-import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.entities.Alarm;
-import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
@@ -103,7 +100,7 @@ public class ConfigureAlarms extends AbstractGBActivity {
             alarms = AlarmUtils.readAlarmsFromPrefs(getGbDevice());
             storeMigratedAlarms(alarms);
         }
-        addMissingAlarms(alarms);
+        DBHelper.fillMissingAlarms(gbDevice, alarms);
 
         mGBAlarmListAdapter.setAlarmList(alarms);
         mGBAlarmListAdapter.notifyDataSetChanged();
@@ -112,31 +109,6 @@ public class ConfigureAlarms extends AbstractGBActivity {
     private void storeMigratedAlarms(List<Alarm> alarms) {
         for (Alarm alarm : alarms) {
             DBHelper.store(alarm);
-        }
-    }
-
-    private void addMissingAlarms(List<Alarm> alarms) {
-        DeviceCoordinator coordinator = getGbDevice().getDeviceCoordinator();
-        int supportedNumAlarms = coordinator.getAlarmSlotCount(getGbDevice());
-        if (supportedNumAlarms > alarms.size()) {
-            try (DBHandler db = GBApplication.acquireDB()) {
-                DaoSession daoSession = db.getDaoSession();
-                for (int position = 0; position < supportedNumAlarms; position++) {
-                    boolean found = false;
-                    for (Alarm alarm : alarms) {
-                        if (alarm.getPosition() == position) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        LOG.info("adding missing alarm at position {}", position);
-                        alarms.add(position, AlarmUtils.createDefaultAlarm(daoSession, getGbDevice(), position));
-                    }
-                }
-            } catch (Exception e) {
-                LOG.error("Error accessing database", e);
-            }
         }
     }
 

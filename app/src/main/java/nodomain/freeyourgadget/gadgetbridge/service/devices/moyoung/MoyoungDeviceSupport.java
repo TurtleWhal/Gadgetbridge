@@ -1,4 +1,4 @@
-/*  Copyright (C) 2019 krzys_h
+/*  Copyright (C) 2019-2026 krzys_h
 
     This file is part of Gadgetbridge.
 
@@ -21,11 +21,13 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.text.format.DateFormat;
 import android.util.Pair;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
@@ -66,16 +68,16 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventFindPhone;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventMusicControl;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
+import nodomain.freeyourgadget.gadgetbridge.devices.MoyoungBloodPressureSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.MoyoungHeartRateSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.MoyoungSleepStageSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.MoyoungSpo2SampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.MoyoungStressSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.AbstractMoyoungDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.MoyoungConstants;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.MoyoungWeatherForecast;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.MoyoungWeatherToday;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.samples.MoyoungActivitySampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.samples.MoyoungBloodPressureSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.samples.MoyoungHeartRateSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.samples.MoyoungSleepStageSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.samples.MoyoungSpo2SampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.samples.MoyoungStressSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.settings.MoyoungEnumDeviceVersion;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.settings.MoyoungEnumLanguage;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.settings.MoyoungEnumMetricSystem;
@@ -104,6 +106,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
 import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
+import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
@@ -607,16 +610,15 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     private void setMeasurementSystem(TransactionBuilder builder) {
-        Prefs prefs = GBApplication.getPrefs();
-        String unit = prefs.getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, GBApplication.getContext().getString(R.string.p_unit_metric));
+        final DistanceUnit distanceUnit = GBApplication.getPrefs().getDistanceUnit();
 
         MoyoungEnumMetricSystem metricSystem = null;
-        if (unit.equals(getContext().getString(R.string.p_unit_metric)))
+        if (distanceUnit == DistanceUnit.METRIC)
             metricSystem = MoyoungEnumMetricSystem.METRIC_SYSTEM;
-        else if (unit.equals(getContext().getString(R.string.p_unit_imperial)))
+        else if (distanceUnit == DistanceUnit.IMPERIAL)
             metricSystem = MoyoungEnumMetricSystem.IMPERIAL_SYSTEM;
         else
-            LOG.warn("Invalid unit preference: {}", unit);
+            LOG.warn("Invalid unit preference: {}", distanceUnit);
 
         if (metricSystem != null) {
             if (builder == null)
@@ -1339,26 +1341,33 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     public void handleTrainingData(byte[] data) {
-        int protocolVersion = 0;
-        int trainingBytesLength = 24;
+        final int protocolVersion;
+        final int trainingBytesLength;
         if (data.length % 24 == 0) {
             protocolVersion = 1;
+            trainingBytesLength = 24;
         } else if (data.length % 26 == 0) {
             protocolVersion = 2;
             trainingBytesLength = 26;
-        }
-        if (protocolVersion == 0) {
-            LOG.error("Invalid training data received");
+        } else if (data.length % 30 == 0) {
+            protocolVersion = 3;
+            trainingBytesLength = 30;
+        } else {
+            LOG.error("Invalid training data received of length {}", data.length);
             return;
         }
 
         for (int i = 0; i < data.length / trainingBytesLength; i++) {
             if (protocolVersion == 1 && ArrayUtils.isAllZeros(data, trainingBytesLength * i, trainingBytesLength)) {
-                LOG.info("Skipping empty workout details packet");
+                LOG.info("Skipping empty workout details packet v1");
                 continue;
             }
             if (protocolVersion == 2 && ArrayUtils.isAllZeros(data, 2, trainingBytesLength - 2)) {
-                LOG.info("Skipping empty workout details packet");
+                LOG.info("Skipping empty workout details packet v2");
+                continue;
+            }
+            if (protocolVersion == 3 && ArrayUtils.isAllZeros(data, trainingBytesLength * i + 2, 24)) {
+                LOG.info("Skipping empty workout details packet v3");
                 continue;
             }
 
@@ -1366,7 +1375,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             buffer.order(ByteOrder.LITTLE_ENDIAN);
             byte num = 0;
             byte avgHR = 0;
-            if (protocolVersion == 2) {
+            if (protocolVersion == 2 || protocolVersion == 3) {
                 buffer.get();  // skip packet subtype
                 num = buffer.get();
             }
@@ -1375,8 +1384,10 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             int validTime = buffer.getShort();
             if (protocolVersion == 1) {
                 num = buffer.get(); // == i
-            } else {
+            } else if (protocolVersion == 2) {
                 avgHR = buffer.get();
+            } else {
+                buffer.get(); // unknown (always 0x00)
             }
             byte type = buffer.get();
             int steps = buffer.getInt();
@@ -1384,8 +1395,13 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
             int calories;
             if (protocolVersion == 1) {
                 calories = buffer.getShort();
-            } else {
+            } else if (protocolVersion == 2) {
                 calories = buffer.getInt();
+            } else {
+                calories = buffer.getShort();
+                avgHR = buffer.get();
+                buffer.get(); // 0?
+                // todo last 4 bytes?
             }
             LOG.info("Training data: start={} end={} totalTimeWithoutPause={} num={} type={} steps={} avgHR={} distance={} calories={}", startTime, endTime, validTime, num, type, steps, avgHR, distance, calories);
 
@@ -1415,8 +1431,8 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     summary.setDevice(device);
                     summary.setUser(user);
 
-                    ActivityKind gbType = provider.normalizeType(type);
-                    summary.setName(gbType.name());
+                    ActivityKind gbType = protocolVersion < 3 ? provider.normalizeType(type) : provider.normalizeTypeV3(type);
+                    summary.setName(gbType.getLabel(getContext()));
                     summary.setActivityKind(gbType.getCode());
 
                     summary.setStartTime(startTime);
@@ -1606,7 +1622,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 sendSetting(getSetting("TIME_SYSTEM"), timeSystem);
                 break;
 
-            case SettingsActivity.PREF_MEASUREMENT_SYSTEM:
+            case SettingsActivity.PREF_UNIT_DISTANCE:
                 setMeasurementSystem(null);
                 break;
 
@@ -1854,7 +1870,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
 //            case "METRIC_SYSTEM":
 //                MoyoungEnumMetricSystem metricSystem = (MoyoungEnumMetricSystem) value;
 //                if (metricSystem == MoyoungEnumMetricSystem.METRIC_SYSTEM)
-//                    changedProperties.put(DeviceSettingsPreferenceConst.PREF_MEASUREMENTSYSTEM, getContext().getString(R.string.p_unit_metric));
+//                    changedProperties.put(DeviceSettingsPreferenceConst.PREF_MEASUREMENTSYSTEM, SettingsActivity.PREF_UNIT_METRIC);
 //                else if (metricSystem == MoyoungEnumMetricSystem.IMPERIAL_SYSTEM)
 //                    changedProperties.put(DeviceSettingsPreferenceConst.PREF_MEASUREMENTSYSTEM, getContext().getString(R.string.p_unit_imperial));
 //                else
@@ -1972,7 +1988,7 @@ public class MoyoungDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         try {
             new QuerySettingsOperation(this).perform();
         } catch (IOException e) {

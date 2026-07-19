@@ -37,7 +37,18 @@ public class Ear2Coordinator extends AbstractEarCoordinator {
     }
 
     @Override
-    public boolean supportsLightAncAndTransparency() {
+    public boolean supportsLightAnc() {
         return true;
     }
+
+    @Override
+    public boolean supportsTransparency() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsMediumAnc() { return false; }
+
+    @Override
+    public boolean supportsAdaptiveAnc() { return false; }
 }

@@ -8,13 +8,16 @@ message WorkoutSummary {
     Location location = 2;
     Type type = 3;
     Distance distance = 4;
+    Count count = 5;
     Steps steps = 11;
     Time time = 7;
     SwimmingData swimmingData = 9;
     Pace pace = 10;
     Altitude altitude = 13;
     HeartRate heartRate = 19;
+    Temperature temperature = 20;
     Calories calories = 16;
+    Frequency frequency = 18;
     TrainingEffect trainingEffect = 21;
     HeartRateZones heartRateZones = 22;
     Elevation elevation = 23;
@@ -39,6 +42,12 @@ message HeartRate {
     int32 min = 3; // bpm
 }
 
+message Temperature {
+    float avg = 1; // celsius
+    float max = 2; // celsius
+    float min = 3; // celsius
+}
+
 message Steps {
     float avgCadence = 1; // steps/sec
     float maxCadence = 2; // steps/sec
@@ -53,6 +62,10 @@ message Type {
 
 message Distance {
     float distance = 1; // meters
+}
+
+message Count {
+    uint32 totalJumps = 1;
 }
 
 message Time {
@@ -77,6 +90,11 @@ message Altitude {
 
 message Calories {
     int32 calories = 1; // kcal
+}
+
+message Frequency {
+    uint32 avgFrequency = 1;
+    uint32 maxFrequency = 2;
 }
 
 message HeartRateZones {

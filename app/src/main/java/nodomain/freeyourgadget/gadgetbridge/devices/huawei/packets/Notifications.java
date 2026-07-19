@@ -20,6 +20,7 @@ import android.text.TextUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiTLV;
@@ -36,6 +37,18 @@ public class Notifications {
     public static class NotificationActionRequest extends HuaweiPacket {
         public static final byte id = 0x01;
 
+        public static class TextElement {
+            public byte textType;
+            public byte encoding;
+            public String value;
+
+            public TextElement(byte textType, byte encoding, String value) {
+                this.textType = textType;
+                this.value = value;
+                this.encoding = encoding;
+            }
+        }
+
         public static class AdditionalParams {
 
             public boolean supportsReply = false;
@@ -51,6 +64,9 @@ public class Notifications {
             public byte subscriptionId = 0;
             public String address = "";
             public String category = "";
+            public int voipType = 0;
+            public long when = 0;
+            public String pictureName = "";
         }
 
         // TODO: support other types of notifications
@@ -76,10 +92,7 @@ public class Notifications {
                 ParamsProvider paramsProvider,
                 short msgId,
                 byte notificationType,
-                int encoding,
-                String titleContent,
-                String senderContent,
-                String bodyContent,
+                ArrayList<TextElement> content,
                 String sourceAppId,
                 AdditionalParams addParams
         ) {
@@ -96,26 +109,15 @@ public class Notifications {
                     .put(0x03, true); // This used to be vibrate, but doesn't work
 
             HuaweiTLV subTlv = new HuaweiTLV();
-            if (titleContent != null && !titleContent.isEmpty())
-                subTlv.put(0x8D, new HuaweiTLV()
-                        .put(0x0E, (byte) TextType.title)
-                        .put(0x0F, (byte) encoding)
-                        .put(0x10, titleContent)
-                );
 
-            if (senderContent != null && !senderContent.isEmpty())
-                subTlv.put(0x8D, new HuaweiTLV()
-                        .put(0x0E, (byte) TextType.sender)
-                        .put(0x0F, (byte) encoding)
-                        .put(0x10, senderContent)
-                );
-
-            if (bodyContent != null && !bodyContent.isEmpty())
-                subTlv.put(0x8D, new HuaweiTLV()
-                        .put(0x0E, (byte) TextType.text)
-                        .put(0x0F, (byte) encoding)
-                        .put(0x10, bodyContent)
-                );
+            for(TextElement el: content) {
+                HuaweiTLV elTlv = new HuaweiTLV()
+                        .put(0x0E, el.textType)
+                        .put(0x0F, el.encoding);
+                if(el.value != null && !el.value.isEmpty())
+                    elTlv.put(0x10, el.value); // TODO: truncate text by capability.
+                subTlv.put(0x8D, elTlv);
+            }
 
             if (subTlv.length() != 0) {
                 this.tlv.put(0x84, new HuaweiTLV().put(0x8C, subTlv));
@@ -127,7 +129,6 @@ public class Notifications {
                 this.tlv.put(0x11, sourceAppId.length() > 127?sourceAppId.substring(0, 127): sourceAppId);
 
             if(addParams != null) {
-
                 if(!TextUtils.isEmpty(addParams.category)) { // type >= 34
                     this.tlv.put(0x12, addParams.category); // "imcall" also possible value, not standard for android
                 }
@@ -145,6 +146,17 @@ public class Notifications {
                     this.tlv.put(0x19, (addParams.notificationKey != null) ? addParams.notificationKey : "");
                     this.tlv.put(0x1a, addParams.notificationId);
                     this.tlv.put(0x1b, (addParams.channelId != null) ? addParams.channelId : "");
+                }
+                if(addParams.voipType != 0) {
+                    this.tlv.put(0x29, (byte)addParams.voipType);
+                }
+
+                if(addParams.when != 0) {
+                    this.tlv.put(0x32, addParams.when);
+                }
+
+                if(!TextUtils.isEmpty(addParams.pictureName)) {
+                    this.tlv.put(0x34, addParams.pictureName);
                 }
             }
 
@@ -247,8 +259,10 @@ public class Notifications {
         public static final byte weChat = 0x03;
         public static final byte qq = 0x0B;
         public static final byte stopNotification = 0x0C; // To stop showing a (call) notification
+        public static final byte startCall = 0x0D;
         public static final byte missedCall = 0x0E;
         public static final byte email = 0x0F;
+        public static final byte outgoingCall = 0x32;
         public static final byte generic = 0x7F;
     }
 

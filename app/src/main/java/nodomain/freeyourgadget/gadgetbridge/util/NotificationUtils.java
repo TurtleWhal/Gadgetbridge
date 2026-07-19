@@ -33,10 +33,8 @@ import androidx.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
@@ -62,7 +60,6 @@ public class NotificationUtils {
             case HIPCHAT:
             case KAKAO_TALK:
             case LINE:
-            case RIOT:
             case SIGNAL:
             case WIRE:
             case SKYPE:

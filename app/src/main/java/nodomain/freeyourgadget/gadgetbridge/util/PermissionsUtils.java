@@ -26,6 +26,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -60,6 +61,8 @@ public class PermissionsUtils {
     public static final String CUSTOM_PERM_NOTIFICATION_LISTENER = "custom_perm_notifications_listener";
     public static final String CUSTOM_PERM_NOTIFICATION_SERVICE = "custom_perm_notifications_service";
     public static final String CUSTOM_PERM_DISPLAY_OVER = "custom_perm_display_over";
+    public static final String CUSTOM_PERM_INTERNET_HELPER = "nodomain.freeyourgadget.internethelper.INTERNET";
+    public static final String PACKAGE_INTERNET_HELPER = "nodomain.freeyourgadget.internethelper";
 
     public static final List<String> specialPermissions = new ArrayList<>() {{
         add(CUSTOM_PERM_IGNORE_BATT_OPTIM);
@@ -136,11 +139,18 @@ public class PermissionsUtils {
                     activity.getString(R.string.permission_post_notification_title),
                     activity.getString(R.string.permission_post_notification_summary)));
         }
-        if (BuildConfig.INTERNET_ACCESS) {
+        if (isPermissionDeclared(activity, Manifest.permission.INTERNET)) {
             permissionsList.add(new PermissionDetails(
                     Manifest.permission.INTERNET,
                     activity.getString(R.string.permission_internet_access_title),
                     activity.getString(R.string.permission_internet_access_summary)));
+        }
+        if (!GBApplication.hasDirectInternetAccess() && AndroidUtils.isPackageInstalled(PACKAGE_INTERNET_HELPER)) {
+            permissionsList.add(new PermissionDetails(
+                    CUSTOM_PERM_INTERNET_HELPER,
+                    activity.getString(R.string.internet_helper_permission_title),
+                    activity.getString(R.string.internet_helper_permission_summary)
+            ));
         }
 //        permissionsList.add(new PermissionDetails(  // NOTE: can't request this, it's only allowed for system apps
 //                Manifest.permission.MEDIA_CONTENT_CONTROL,
@@ -252,6 +262,30 @@ public class PermissionsUtils {
                                     String summary) {
     }
 
+    public static boolean isPermissionDeclared(Context context, String permission) {
+        // Checks whether a permission has been declared in the (merged) manifest file.
+        // This also includes permissions declared by dependencies.
+        try {
+            PackageManager pm = context.getPackageManager();
+            PackageInfo info = pm.getPackageInfo(
+                    context.getPackageName(),
+                    PackageManager.GET_PERMISSIONS
+            );
+
+            String[] requestedPermissions = info.requestedPermissions;
+            if (requestedPermissions != null) {
+                for (String p : requestedPermissions) {
+                    if (p.equals(permission)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            // Do nothing
+        }
+        return false;
+    }
+
     @SuppressLint("BatteryLife")
     private static void showRequestIgnoreBatteryOptimizationDialog(Activity activity) {
         Intent intent = new Intent();
@@ -266,6 +300,7 @@ public class PermissionsUtils {
                         activity.getString(R.string.app_name),
                         activity.getString(R.string.ok)))
                 .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
+                    @Override
                     public void onClick(DialogInterface dialog, int id) {
                         try {
                             Intent intent;

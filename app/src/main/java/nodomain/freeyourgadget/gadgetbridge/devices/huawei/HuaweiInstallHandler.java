@@ -34,7 +34,6 @@ import java.util.Locale;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.install.FwAppInstallerActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.install.InstallActivity;
-import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem;
@@ -111,12 +110,46 @@ public class HuaweiInstallHandler implements InstallHandler {
 
 
     @Override
-    public void validateInstallation(InstallActivity installActivity, GBDevice device) {
+    public void validateInstallation(@NonNull InstallActivity installActivity, @NonNull GBDevice device) {
+        final HuaweiState huaweiDeviceState = HuaweiDeviceStateManager.get(device);
 
-        final DeviceCoordinator coordinator = device.getDeviceCoordinator();
-        if (!(coordinator instanceof HuaweiCoordinatorSupplier huaweiCoordinatorSupplier)) {
-            LOG.warn("Coordinator is not a HuaweiCoordinatorSupplier: {}", coordinator.getClass());
-            installActivity.setInstallEnabled(false);
+        if (helper.isOfflineMap) {
+            this.valid = true;
+
+            if (device.isBusy()) {
+                installActivity.setInfoText(device.getBusyTask());
+                installActivity.setInstallEnabled(false);
+                return;
+            }
+
+            if (!device.isConnected() || !device.isInitialized()) {
+                LOG.error("Offline Map cannot be uploaded(not connected or wrong device)");
+                installActivity.setInfoText("Offline Map cannot be uploaded (not connected or wrong device)");
+                installActivity.setInstallEnabled(false);
+                return;
+            }
+
+            if (this.helper.isMapContour)
+                this.valid = huaweiDeviceState.supportsOfflineContourMap();
+
+            if (!this.valid) {
+                LOG.error("Offline Map cannot be uploaded");
+                installActivity.setInstallEnabled(false);
+                return;
+            }
+
+            GenericItem installItem = new GenericItem();
+
+            installItem.setName(helper.mapName + "("+ helper.getFileName() +")");
+            installItem.setDetails(String.valueOf(helper.mapVersion));
+            installItem.setIcon(R.drawable.ic_offlinemap);
+
+            installActivity.setInstallItem(installItem);
+
+            installActivity.setInfoText("");
+            installActivity.setInstallEnabled(true);
+
+            LOG.debug("Initialized HuaweiInstallHandler: Offline Map");
             return;
         }
 
@@ -168,8 +201,8 @@ public class HuaweiInstallHandler implements InstallHandler {
             String deviceScreen = String.format(
                     Locale.ROOT,
                     "%d*%d",
-                    huaweiCoordinatorSupplier.getHuaweiCoordinator().getHeight(),
-                    huaweiCoordinatorSupplier.getHuaweiCoordinator().getWidth()
+                    huaweiDeviceState.getHeight(),
+                    huaweiDeviceState.getWidth()
             );
             this.valid = resolution.isValid(description.screen, deviceScreen);
 
@@ -252,9 +285,9 @@ public class HuaweiInstallHandler implements InstallHandler {
 
             LOG.debug("Initialized HuaweiInstallHandler: App");
         } else if (helper.isMusic()) {
-            HuaweiMusicUtils.MusicCapabilities capabilities = huaweiCoordinatorSupplier.getHuaweiCoordinator().getExtendedMusicInfoParams();
+            HuaweiMusicUtils.MusicCapabilities capabilities = huaweiDeviceState.getExtendedMusicInfoParams();
             if (capabilities == null) {
-                capabilities = huaweiCoordinatorSupplier.getHuaweiCoordinator().getMusicInfoParams();
+                capabilities = huaweiDeviceState.getMusicInfoParams();
             }
             AudioInfo currentMusicInfo = helper.getMusicInfo();
 
@@ -311,7 +344,7 @@ public class HuaweiInstallHandler implements InstallHandler {
     }
 
     @Override
-    public void onStartInstall(GBDevice device) {
+    public void onStartInstall(@NonNull GBDevice device) {
         helper.unsetFwBytes();
     }
 }

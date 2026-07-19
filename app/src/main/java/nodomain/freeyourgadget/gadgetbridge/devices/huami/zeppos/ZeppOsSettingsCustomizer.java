@@ -54,9 +54,11 @@ import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class ZeppOsSettingsCustomizer extends HuamiSettingsCustomizer {
     private static final Logger LOG = LoggerFactory.getLogger(ZeppOsSettingsCustomizer.class);
+    private final GBDevice device;
 
     public ZeppOsSettingsCustomizer(final GBDevice device, final List<HuamiVibrationPatternNotificationType> vibrationPatternNotificationTypes) {
         super(device, vibrationPatternNotificationTypes);
+        this.device = device;
     }
 
     @Override
@@ -202,6 +204,15 @@ public class ZeppOsSettingsCustomizer extends HuamiSettingsCustomizer {
             );
         }
 
+        // Hide workout detection categories for devices without display (e.g., Helio Strap)
+        final ZeppOsCoordinator coordinator = (ZeppOsCoordinator) device.getDeviceCoordinator();
+        if (!coordinator.supportsWorkoutDetectionCategories()) {
+            final Preference workoutCategoriesPref = handler.findPreference("workout_detection_categories");
+            if (workoutCategoriesPref != null) {
+                workoutCategoriesPref.setVisible(false);
+            }
+        }
+
         // Hides the headers if none of the preferences under them are available
         hidePrefIfNoneVisible(handler, DeviceSettingsPreferenceConst.PREF_HEADER_APPS, Arrays.asList(
                 LoyaltyCardsSettingsConst.PREF_KEY_LOYALTY_CARDS
@@ -251,6 +262,22 @@ public class ZeppOsSettingsCustomizer extends HuamiSettingsCustomizer {
 
         setupGpsPreference(handler, prefs);
         setupButtonClickPreferences(handler);
+
+        // For devices without display (like Helio Strap): they have continuous HR monitoring by default
+        // Hide the preferences that can't be changed - the actual values come from the device on connection
+        if (!coordinator.hasDisplay()) {
+            // Hide the entire "All-day heart rate monitoring" category (contains only the interval preference)
+            final Preference allDayHrCategory = handler.findPreference("pref_key_header_heartrate_allday");
+            if (allDayHrCategory != null) {
+                allDayHrCategory.setVisible(false);
+            }
+
+            // Hide activity monitoring preference
+            final Preference heartRateActivityMonitoring = handler.findPreference(DeviceSettingsPreferenceConst.PREF_HEARTRATE_ACTIVITY_MONITORING);
+            if (heartRateActivityMonitoring != null) {
+                heartRateActivityMonitoring.setVisible(false);
+            }
+        }
 
         // Since we populate the values dynamically, we need to sort it here
         final Preference languagePref = handler.findPreference("language");

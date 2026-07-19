@@ -42,6 +42,10 @@ public class AppNotificationType extends HashMap<String, NotificationType> {
         put("ch.protonmail.android", NotificationType.GENERIC_EMAIL);
         put("security.pEp", NotificationType.GENERIC_EMAIL);
         put("eu.faircode.email", NotificationType.GENERIC_EMAIL);
+        put("net.thunderbird.android", NotificationType.GENERIC_EMAIL);
+        put("net.thunderbird.android.beta", NotificationType.GENERIC_EMAIL);
+        put("net.thunderbird.android.daily", NotificationType.GENERIC_EMAIL);
+        put("net.thunderbird.android.debug", NotificationType.GENERIC_EMAIL);
 
         // Generic SMS
         put("com.moez.QKSMS", NotificationType.GENERIC_SMS);
@@ -67,11 +71,20 @@ public class AppNotificationType extends HashMap<String, NotificationType> {
         // Conversations
         put("eu.siacs.conversations", NotificationType.CONVERSATIONS);
         put("de.pixart.messenger", NotificationType.CONVERSATIONS);
+        put("org.jitsi.meet", NotificationType.CONVERSATIONS);
+        put("com.microsoft.teams", NotificationType.CONVERSATIONS);
+        put("us.zoom.videomeetings", NotificationType.CONVERSATIONS);
+        put("com.nextcloud.talk2", NotificationType.CONVERSATIONS);
+        put("com.cisco.wx2.android", NotificationType.CONVERSATIONS);
+        put("com.google.android.apps.tachyon", NotificationType.CONVERSATIONS);
 
-        // Riot, Element, ElementX
-        put("im.vector.alpha", NotificationType.RIOT);
+        // Element, ElementX, SchildiChat, FluffyChat
+        // (making the last two an extra Notification Type to give them distinct colors is debatable)
         put("im.vector.app", NotificationType.ELEMENT);
-        put("io.element.android.x", NotificationType.ELEMENTX);
+        put("io.element.android.x", NotificationType.ELEMENT);
+        put("chat.fluffy.fluffychat", NotificationType.ELEMENT);
+        put("chat.schildi.android", NotificationType.ELEMENT);
+        put("de.spiritcroc.riotx", NotificationType.ELEMENT);
 
         // Signal
         put("org.thoughtcrime.securesms", NotificationType.SIGNAL);
@@ -86,8 +99,13 @@ public class AppNotificationType extends HashMap<String, NotificationType> {
         put("org.telegram.messenger.beta", NotificationType.TELEGRAM);
         put("org.telegram.messenger.web", NotificationType.TELEGRAM);
         put("org.telegram.plus", NotificationType.TELEGRAM); // "Plus Messenger"
+        put("org.forkgram.messenger", NotificationType.TELEGRAM);
         put("org.thunderdog.challegram", NotificationType.TELEGRAM);
         put("nekox.messenger", NotificationType.TELEGRAM);
+        put("tw.nekomimi.nekogram", NotificationType.TELEGRAM);
+        put("it.octogram.android", NotificationType.TELEGRAM);
+        put("org.thunderdog.challegram", NotificationType.TELEGRAM);
+        put("uz.unnarsx.cherrygram", NotificationType.TELEGRAM);
 
         // Threema
         put("ch.threema.app", NotificationType.THREEMA);
@@ -177,6 +195,7 @@ public class AppNotificationType extends HashMap<String, NotificationType> {
 
         // Etar
         put("ws.xsoh.etar", NotificationType.GENERIC_CALENDAR);
+        put("org.lineageos.etar", NotificationType.GENERIC_CALENDAR);
 
         // Discord
         put("com.discord", NotificationType.DISCORD);
@@ -193,8 +212,25 @@ public class AppNotificationType extends HashMap<String, NotificationType> {
         // KTrip
         put("org.kde.ktrip", NotificationType.TRANSIT);
 
-        // Others
+        // VK
         put("com.vkontakte.android", NotificationType.VK);
+        put("com.vkmp3mod.android", NotificationType.VK);
+        put("ua.itaysonlab.vkx", NotificationType.VK);
+
+        // Games
+        put("com.valvesoftware.android.steam.community", NotificationType.GAMES);
+        put("com.google.android.play.games", NotificationType.GAMES);
+        put("com.scee.psxandroid", NotificationType.GAMES);
+        put("com.microsoft.xboxone.smartglass", NotificationType.GAMES);
+        put("com.nintendo.znca", NotificationType.GAMES);
+        put("com.nianticlabs.pokemongo", NotificationType.GAMES);
+
+        // Weather
+        put("org.breezyweather", NotificationType.WEATHER);
+        put("com.motorola.timeweatherwidget", NotificationType.WEATHER);
+        put("com.google.android.apps.weather", NotificationType.WEATHER);
+
+        // Others
         put("com.tencent.mobileqq", NotificationType.QQ);
         put("com.tumblr", NotificationType.TUMBLR);
         put("com.pinterest", NotificationType.PINTEREST);

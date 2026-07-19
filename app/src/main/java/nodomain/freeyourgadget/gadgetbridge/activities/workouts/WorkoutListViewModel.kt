@@ -12,6 +12,7 @@ import nodomain.freeyourgadget.gadgetbridge.database.DBHelper
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummary
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummaryDao
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
+import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryJsonSummary
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser
 import org.slf4j.LoggerFactory
@@ -41,9 +42,17 @@ class WorkoutListViewModel : ViewModel() {
         dateToFilter: Long,
         nameContainsFilter: String?,
         deviceFilter: Long,
-        itemsFilter: List<Long>?
+        itemsFilter: List<Long>?,
+        /** When true, skip the [isLoading] / [isDashboardLoading]
+         *  flips so the swipe-refresh spinner and dashboard shimmer
+         *  don't blink. Used by per-line refreshes during
+         *  long-running syncs, where the loading animation
+         *  distracts from the actual content updates. */
+        silent: Boolean = false
     ) {
-        _isLoading.value = true
+        if (!silent) {
+            _isLoading.value = true
+        }
         _error.value = null
 
         viewModelScope.launch {
@@ -69,18 +78,22 @@ class WorkoutListViewModel : ViewModel() {
 
                 _summaries.value = allSummaries
 
-                loadDashboardStats(gbDevice, summaries)
+                loadDashboardStats(gbDevice, summaries, silent)
             } catch (e: Exception) {
                 LOG.error("Error loading summaries", e)
                 _error.value = "Error loading summaries: ${e.localizedMessage}"
             } finally {
-                _isLoading.value = false
+                if (!silent) {
+                    _isLoading.value = false
+                }
             }
         }
     }
 
-    private fun loadDashboardStats(gbDevice: GBDevice, summaries: List<BaseActivitySummary>) {
-        _isDashboardLoading.value = true
+    private fun loadDashboardStats(gbDevice: GBDevice, summaries: List<BaseActivitySummary>, silent: Boolean) {
+        if (!silent) {
+            _isDashboardLoading.value = true
+        }
 
         viewModelScope.launch {
             try {
@@ -93,7 +106,9 @@ class WorkoutListViewModel : ViewModel() {
                 LOG.error("Error loading dashboard stats", e)
                 _error.value = "Error loading dashboard stats: ${e.localizedMessage}"
             } finally {
-                _isDashboardLoading.value = false
+                if (!silent) {
+                    _isDashboardLoading.value = false
+                }
             }
         }
     }
@@ -107,7 +122,7 @@ class WorkoutListViewModel : ViewModel() {
         deviceFilter: Long,
         itemsFilter: List<Long>?
     ): List<BaseActivitySummary> {
-        return GBApplication.acquireDB().use { dbHandler ->
+        return GBApplication.acquireDbReadOnly().use { dbHandler ->
             val summaryDao = dbHandler.daoSession.baseActivitySummaryDao
             val dbDevice = DBHelper.findDevice(gbDevice, dbHandler.daoSession)
 
@@ -184,14 +199,14 @@ class WorkoutListViewModel : ViewModel() {
                     val summarySubData = activitySummaryJsonSummary.getSummaryData(false)
 
                     if (summarySubData != null) {
-                        if (summarySubData.has("caloriesBurnt")) {
-                            caloriesBurntSum += summarySubData.getNumber("caloriesBurnt", 0).toDouble()
+                        if (summarySubData.has(ActivitySummaryEntries.CALORIES_BURNT)) {
+                            caloriesBurntSum += summarySubData.getNumber(ActivitySummaryEntries.CALORIES_BURNT, 0).toDouble()
                         }
-                        if (summarySubData.has("distanceMeters")) {
-                            distanceSum += summarySubData.getNumber("distanceMeters", 0).toDouble()
+                        if (summarySubData.has(ActivitySummaryEntries.DISTANCE_METERS)) {
+                            distanceSum += summarySubData.getNumber(ActivitySummaryEntries.DISTANCE_METERS, 0).toDouble()
                         }
-                        if (summarySubData.has("activeSeconds")) {
-                            activeSecondsSum += summarySubData.getNumber("activeSeconds", 0).toLong()
+                        if (summarySubData.has(ActivitySummaryEntries.ACTIVE_SECONDS)) {
+                            activeSecondsSum += summarySubData.getNumber(ActivitySummaryEntries.ACTIVE_SECONDS, 0).toLong()
                         }
                     }
                 }

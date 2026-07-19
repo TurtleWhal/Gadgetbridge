@@ -31,7 +31,6 @@ import nodomain.freeyourgadget.gadgetbridge.activities.install.FwAppInstallerAct
 import nodomain.freeyourgadget.gadgetbridge.activities.install.InstallActivity;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
-import nodomain.freeyourgadget.gadgetbridge.devices.vivomovehr.GarminCapability;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminPrgFile;
@@ -59,7 +58,7 @@ public class GarminPrgFileInstallHandler implements InstallHandler {
     }
 
     @Override
-    public void validateInstallation(final InstallActivity installActivity, final GBDevice device) {
+    public void validateInstallation(@NonNull final InstallActivity installActivity, @NonNull final GBDevice device) {
         if (device.isBusy()) {
             installActivity.setInfoText(device.getBusyTask());
             installActivity.setInstallEnabled(false);
@@ -116,7 +115,7 @@ public class GarminPrgFileInstallHandler implements InstallHandler {
     }
 
     @Override
-    public void onStartInstall(final GBDevice device) {
+    public void onStartInstall(@NonNull final GBDevice device) {
     }
 
     public byte[] getRawBytes() {

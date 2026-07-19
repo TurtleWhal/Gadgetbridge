@@ -22,7 +22,9 @@ import nodomain.freeyourgadget.gadgetbridge.database.DBHelper
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventBatteryInfo
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo
 import nodomain.freeyourgadget.gadgetbridge.devices.GenericHeartRateSampleProvider
+import nodomain.freeyourgadget.gadgetbridge.devices.HeartRrIntervalSampleProvider
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericHeartRateSample
+import nodomain.freeyourgadget.gadgetbridge.entities.HeartRrIntervalSample
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService
@@ -32,10 +34,11 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.Batter
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfoProfile
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfo
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfoProfile
+import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.heartrate.HeartRate
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.heartrate.HeartRateProfile
+import nodomain.freeyourgadget.gadgetbridge.util.GB
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.Calendar
 
 class GenericHeartRateSupport : AbstractBTLESingleDeviceSupport(LOG) {
     private val deviceInfoProfile: DeviceInfoProfile<GenericHeartRateSupport>
@@ -44,6 +47,8 @@ class GenericHeartRateSupport : AbstractBTLESingleDeviceSupport(LOG) {
 
     private val versionCmd = GBDeviceEventVersionInfo()
     private val batteryCmd = GBDeviceEventBatteryInfo()
+
+    private var newSamples = false
 
     init {
         val mListener = IntentListener { intent: Intent? ->
@@ -58,7 +63,7 @@ class GenericHeartRateSupport : AbstractBTLESingleDeviceSupport(LOG) {
                     }
 
                     HeartRateProfile.ACTION_HEART_RATE -> {
-                        handleHeartRate(intent.getIntExtra(HeartRateProfile.EXTRA_HEART_RATE, -1))
+                        handleHeartRate(intent.getParcelableExtra(HeartRateProfile.EXTRA_HEART_RATE)!!)
                     }
                 }
             }
@@ -100,6 +105,28 @@ class GenericHeartRateSupport : AbstractBTLESingleDeviceSupport(LOG) {
         return builder
     }
 
+    override fun disconnect() {
+        if (newSamples) {
+            // Since we always receive samples in realtime, signal that there are new samples when we disconnect
+            GB.signalActivityDataFinish(device)
+            newSamples = false
+        }
+
+        super.disconnect()
+    }
+
+    override fun dispose() {
+        synchronized (ConnectionMonitor) {
+            if (newSamples) {
+                // Since we always receive samples in realtime, signal that there are new samples when we disconnect
+                GB.signalActivityDataFinish(device)
+                newSamples = false
+            }
+
+            super.dispose()
+        }
+    }
+
     private fun handleDeviceInfo(deviceInfo: DeviceInfo) {
         LOG.debug("Device info: {}", deviceInfo)
 
@@ -123,22 +150,38 @@ class GenericHeartRateSupport : AbstractBTLESingleDeviceSupport(LOG) {
         handleGBDeviceEvent(batteryCmd)
     }
 
-    private fun handleHeartRate(heartRate: Int) {
+    private fun handleHeartRate(heartRate: HeartRate) {
         LOG.debug("Heart rate: {}", heartRate)
 
-        if (heartRate <= 0) {
+        if (!heartRate.isValid()) {
             return
         }
 
-        val timestamp = Calendar.getInstance().getTimeInMillis()
         try {
             GBApplication.acquireDB().use { db ->
                 val sampleProvider = GenericHeartRateSampleProvider(device, db.getDaoSession())
-                val userId = DBHelper.getUser(db.getDaoSession()).id
-                val deviceId = DBHelper.getDevice(device, db.getDaoSession()).id
-                val sample = GenericHeartRateSample(timestamp, deviceId, userId, heartRate)
+                val userId = DBHelper.getUser(db.getDaoSession()).id!!
+                val deviceId = DBHelper.getDevice(device, db.getDaoSession()).id!!
+                val sample = GenericHeartRateSample(heartRate.timestamp, deviceId, userId, heartRate.heartRate)
                 sampleProvider.addSample(sample)
+
+                val rrIntervals: ArrayList<Int> = heartRate.rrIntervals
+                if (!rrIntervals.isEmpty()) {
+                    val rrIntervalSampleList: MutableList<HeartRrIntervalSample?> = ArrayList()
+                    for (i in rrIntervals.indices) {
+                        val rrSample = HeartRrIntervalSample()
+                        rrSample.timestamp = heartRate.timestamp
+                        rrSample.seq = i
+                        rrSample.rrMillis = rrIntervals[i]
+                        rrIntervalSampleList.add(rrSample)
+                    }
+
+                    val rrIntervalSampleProvider = HeartRrIntervalSampleProvider(this.device, db.getDaoSession())
+                    rrIntervalSampleProvider.persistSamples(rrIntervalSampleList, context)
+                }
             }
+
+            newSamples = true
         } catch (e: Exception) {
             LOG.error("Failed to save heartRate sample", e)
         }

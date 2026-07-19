@@ -21,6 +21,7 @@ package nodomain.freeyourgadget.gadgetbridge.devices.pebble;
 import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
 
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
@@ -37,7 +38,9 @@ import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.ExternalPebbleJSActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.RebbleAppStoreActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
@@ -53,6 +56,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.PebbleMorpheuzSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.PebbleSupport;
+import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleHardware;
 import nodomain.freeyourgadget.gadgetbridge.util.PebbleUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
@@ -95,7 +99,7 @@ public class PebbleCoordinator extends AbstractBLClassicDeviceCoordinator {
     }
 
     @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
+    public InstallHandler findInstallHandler(Uri uri, Bundle options, Context context) {
         PBWInstallHandler installHandler = new PBWInstallHandler(uri, context);
         return installHandler.isValid() ? installHandler : null;
     }
@@ -111,6 +115,11 @@ public class PebbleCoordinator extends AbstractBLClassicDeviceCoordinator {
     }
 
     @Override
+    public boolean supportsDataFetching(@NonNull GBDevice device) {
+        return true;
+    }
+
+    @Override
     public boolean supportsScreenshots(final GBDevice device) {
         return true;
     }
@@ -122,7 +131,7 @@ public class PebbleCoordinator extends AbstractBLClassicDeviceCoordinator {
 
     @Override
     public boolean supportsHeartRateMeasurement(GBDevice device) {
-        return PebbleUtils.hasHRM(device.getModel());
+        return PebbleHardware.hasHRM(device.getModel());
     }
 
     @Override
@@ -138,6 +147,16 @@ public class PebbleCoordinator extends AbstractBLClassicDeviceCoordinator {
     @Override
     public Class<? extends Activity> getAppsManagementActivity(final GBDevice device) {
         return AppManagerActivity.class;
+    }
+
+    @Override
+    public Class<? extends Activity> getAppStoreActivity(final GBDevice device) {
+        return RebbleAppStoreActivity.class;
+    }
+
+    @Override
+    public Class<? extends Activity> getAppConfigurationActivity(final GBDevice device) {
+        return ExternalPebbleJSActivity.class;
     }
 
     @Override
@@ -199,6 +218,9 @@ public class PebbleCoordinator extends AbstractBLClassicDeviceCoordinator {
     public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
         final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
 
+        final List<Integer> generic = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.GENERIC);
+        generic.add(R.xml.devicesettings_pebble_generic);
+
         final List<Integer> notifications = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CALLS_AND_NOTIFICATIONS);
         notifications.add(R.xml.devicesettings_autoremove_notifications);
         notifications.add(R.xml.devicesettings_pebble_calls_notifications);
@@ -229,7 +251,6 @@ public class PebbleCoordinator extends AbstractBLClassicDeviceCoordinator {
     public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
         return PebbleSupport.class;
     }
-
 
     @Override
     @StringRes

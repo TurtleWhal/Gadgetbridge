@@ -1,19 +1,50 @@
+/*  Copyright (C) 2024-2026 José Rebelo, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.workouts;
 
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_CM;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_EPOC_TIME;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_FOOT;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_FOOT_PER_HOUR;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KG;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KILOMETERS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KMPH;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KNOTS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_LB;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_METERS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_METERS_PER_HOUR;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_METERS_PER_SECOND;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MILE;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MILE_PER_HOUR;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_100_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_100_YARDS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_500_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_KM;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_MILE;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MM;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_NAUTICAL_MILES;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_RAW_STRING;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_100_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_100_YARDS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_500_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_KM;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_M;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_SPORT;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,8 +56,10 @@ import java.util.concurrent.TimeUnit;
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries;
+import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
+import nodomain.freeyourgadget.gadgetbridge.model.WeightUnit;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 
 public class WorkoutValueFormatter {
@@ -34,15 +67,26 @@ public class WorkoutValueFormatter {
 
     private boolean show_raw_data = false;
 
-    private final String units;
-    private final String UNIT_IMPERIAL;
-    private final String UNIT_METRIC;
-    private final DecimalFormat df = new DecimalFormat("#.##");
+    private ActivityKind activityKind;
+    private final DistanceUnit distanceUnit;
+    private final WeightUnit weightUnit;
+    private final boolean useNauticalUnits;
+    private final DecimalFormat df2 = new DecimalFormat("#.##");
+    private final DecimalFormat df1 = new DecimalFormat("#.#");
 
     public WorkoutValueFormatter() {
-        this.units = GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, GBApplication.getContext().getString(R.string.p_unit_metric));
-        this.UNIT_IMPERIAL = GBApplication.getContext().getString(R.string.p_unit_imperial);
-        this.UNIT_METRIC = GBApplication.getContext().getString(R.string.p_unit_metric);
+        this(ActivityKind.UNKNOWN);
+    }
+
+    public WorkoutValueFormatter(final ActivityKind activityKind) {
+        this.activityKind = activityKind;
+        this.distanceUnit = GBApplication.getPrefs().getDistanceUnit();
+        this.weightUnit = GBApplication.getPrefs().getWeightUnit();
+        this.useNauticalUnits = GBApplication.getPrefs().getBoolean("units_nautical", true);
+    }
+
+    public void setActivityKind(final ActivityKind activityKind) {
+        this.activityKind = activityKind;
     }
 
     public void toggleRawData() {
@@ -54,7 +98,7 @@ public class WorkoutValueFormatter {
             return GBApplication.getContext().getString(R.string.stats_empty_value);
         }
 
-        if (ActivitySummaryEntries.UNIT_RAW_STRING.equals(unit)) {
+        if (UNIT_RAW_STRING.equals(unit)) {
             return String.valueOf(rawValue);
         }
 
@@ -89,73 +133,83 @@ public class WorkoutValueFormatter {
 
             switch (unit) {
                 case UNIT_KG:
-                    if (units.equals(UNIT_IMPERIAL)) {
-                        value = value * 2.2046226f;
-                        unit = UNIT_LB;
-                    }
-                    break;
+                    return WeightUnit.Companion.formatWeight(GBApplication.getContext(), value, weightUnit);
                 case UNIT_LB:
-                    if (units.equals(UNIT_METRIC)) {
-                        value = value / 2.2046226f;
-                        unit = UNIT_KG;
-                    }
-                    break;
+                    return WeightUnit.Companion.formatWeight(GBApplication.getContext(), value / 2.2046226f, weightUnit);
                 case UNIT_CM:
-                    if (units.equals(UNIT_IMPERIAL)) {
+                    if (distanceUnit == DistanceUnit.IMPERIAL) {
                         value = value * 0.0328084;
-                        unit = "ft";
+                        unit = UNIT_FOOT;
                     }
                     break;
                 case UNIT_METERS_PER_SECOND:
-                    if (units.equals(UNIT_IMPERIAL)) {
+                    if (distanceUnit == DistanceUnit.IMPERIAL) {
                         value = value * 2.236936D;
-                        unit = "mi_h";
+                        unit = UNIT_MILE_PER_HOUR;
                     } else { //metric
                         value = value * 3.6;
-                        unit = "km_h";
+                        unit = UNIT_KMPH;
+                    }
+                    break;
+                case UNIT_METERS_PER_HOUR:
+                    if (distanceUnit == DistanceUnit.IMPERIAL) {
+                        value = value * 3.28084D;
+                        unit = UNIT_FOOT_PER_HOUR;
                     }
                     break;
                 case UNIT_SECONDS_PER_M:
-                    if (units.equals(UNIT_IMPERIAL)) {
+                    if (distanceUnit == DistanceUnit.IMPERIAL) {
                         value = value * (1609.344 / 60D);
-                        unit = "minutes_mi";
+                        unit = UNIT_MINUTES_PER_MILE;
                     } else { //metric
                         value = value * (1000 / 60D);
-                        unit = "minutes_km";
+                        unit = UNIT_MINUTES_PER_KM;
                     }
                     break;
                 case UNIT_SECONDS_PER_KM:
-                    if (units.equals(UNIT_IMPERIAL)) {
+                    if (distanceUnit == DistanceUnit.IMPERIAL) {
                         value = value / 60D * 1.609344;
-                        unit = "minutes_mi";
+                        unit = UNIT_MINUTES_PER_MILE;
                     } else { //metric
                         value = value / 60D;
-                        unit = "minutes_km";
+                        unit = UNIT_MINUTES_PER_KM;
                     }
                     break;
                 case UNIT_KILOMETERS:
-                    if (units.equals(UNIT_IMPERIAL)) {
+                    if (distanceUnit == DistanceUnit.IMPERIAL) {
                         value = value * 0.621371D;
-                        unit = "mi";
+                        unit = UNIT_MILE;
                     }
                     break;
                 case UNIT_METERS:
-                    if (units.equals(UNIT_IMPERIAL)) {
+                    if (useNauticalUnits && ActivityKind.isNauticalActivity(activityKind)) {
+                        value = value / 1852D;
+                        unit = UNIT_NAUTICAL_MILES;
+                    } else if (distanceUnit == DistanceUnit.IMPERIAL) {
                         value = value * 3.28084D;
-                        unit = "ft";
+                        unit = UNIT_FOOT;
                         if (value > 6000) {
                             value = value * 0.0001893939D;
-                            unit = "mi";
+                            unit = UNIT_MILE;
                         }
                     } else { //metric
                         if (value > 2000) {
                             value = value / 1000;
-                            unit = "km";
+                            unit = UNIT_KILOMETERS;
                         }
                     }
                     break;
+                case UNIT_KMPH:
+                    if (useNauticalUnits && ActivityKind.isNauticalActivity(activityKind)) {
+                        value = value / 1.852D;
+                        unit = UNIT_KNOTS;
+                    } else if (distanceUnit == DistanceUnit.IMPERIAL) {
+                        value = value * 0.621371D;
+                        unit = UNIT_MILE_PER_HOUR;
+                    }
+                    break;
                 case UNIT_SECONDS_PER_100_METERS:
-                    if (units.equals(UNIT_IMPERIAL)) {
+                    if (distanceUnit == DistanceUnit.IMPERIAL) {
                         value = (value * 0.9144) / 60D;
                         unit = UNIT_MINUTES_PER_100_YARDS;
                     } else { //metric
@@ -164,7 +218,7 @@ public class WorkoutValueFormatter {
                     }
                     break;
                 case UNIT_SECONDS_PER_100_YARDS:
-                    if (units.equals(UNIT_IMPERIAL)) {
+                    if (distanceUnit == DistanceUnit.IMPERIAL) {
                         value = value / 60D;
                         unit = UNIT_MINUTES_PER_100_YARDS;
                     } else { //metric
@@ -172,12 +226,26 @@ public class WorkoutValueFormatter {
                         unit = UNIT_MINUTES_PER_100_METERS;
                     }
                     break;
+                case UNIT_SECONDS_PER_500_METERS:
+                    value = value / 60D;
+                    unit = UNIT_MINUTES_PER_500_METERS;
+                    break;
+                case ActivitySummaryEntries.UNIT_JOULE:
+                    if (value > 10000) {
+                        value = value / 1000D;
+                        unit = "unit_kilojoule";
+                    }
             }
         }
 
-        if (unit.equals("seconds") && !show_raw_data && showUnit) { //rather then plain seconds, show formatted duration
+        if (unit.equals(UNIT_SECONDS) && !show_raw_data && showUnit) { //rather than plain seconds, show formatted duration
             return DateTimeUtils.formatDurationHoursMinutes((long) value, TimeUnit.SECONDS);
-        } else if (unit.equals("minutes_km") || unit.equals("minutes_mi") || unit.equals("minutes_100m") || unit.equals("minutes_100yd")) {
+        } else if (unit.equals(UNIT_SECONDS_SPORT) && !show_raw_data && showUnit) {
+            return DateTimeUtils.formatSportsDuration(Math.round(1000L * (double) value), TimeUnit.MILLISECONDS);
+        } else if (UNIT_EPOC_TIME.equals(unit) && !show_raw_data) {
+            long epoc = ((Number) rawValue).longValue();
+            return DateTimeUtils.formatLocalTime(epoc * 1000L);
+        } else if (unit.equals(UNIT_MINUTES_PER_KM) || unit.equals(UNIT_MINUTES_PER_MILE) || unit.equals(UNIT_MINUTES_PER_100_METERS) || unit.equals(UNIT_MINUTES_PER_100_YARDS) || unit.equals(UNIT_MINUTES_PER_500_METERS)) {
             // Format pace
             String format = showUnit ? "%d:%02d %s" : "%d:%02d";
             return String.format(
@@ -188,7 +256,13 @@ public class WorkoutValueFormatter {
             );
         } else {
             String format = showUnit ? "%s %s" : "%s";
-            return String.format(format, df.format(value), getStringResourceByName(unit));
+            // Reduce precision for certain measurements
+            final String formattedValue = switch (unit) {
+                case ActivitySummaryEntries.UNIT_ML_KG_MIN -> df1.format(value);
+                case ActivitySummaryEntries.UNIT_BREATHS_PER_MIN -> String.valueOf(Math.round(value));
+                default -> df2.format(value);
+            };
+            return String.format(format, formattedValue, getStringResourceByName(unit));
         }
     }
 

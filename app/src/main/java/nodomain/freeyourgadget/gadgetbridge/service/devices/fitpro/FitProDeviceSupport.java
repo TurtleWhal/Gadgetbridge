@@ -1,4 +1,4 @@
-/*  Copyright (C) 2021-2024 Arjan Schrijver, Damien Gaignon, Petr Vaněk
+/*  Copyright (C) 2021-2026 Arjan Schrijver, Damien Gaignon, Petr Vaněk
 
     This file is part of Gadgetbridge.
 
@@ -89,8 +89,10 @@ import static nodomain.freeyourgadget.gadgetbridge.devices.fitpro.FitProConstant
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
+import android.os.Bundle;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -120,6 +122,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSett
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventBatteryInfo;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventFindPhone;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventMusicControl;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
@@ -135,7 +138,9 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
+import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
@@ -213,23 +218,23 @@ public class FitProDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         builder.write(writeCharacteristic, craftData(CMD_GROUP_GENERAL, FitProConstants.CMD_INIT1, (byte) 0x2));
         setTime(builder);
-        builder.wait(200);
+        builder.sleep(200);
         builder.write(writeCharacteristic, craftData(CMD_GROUP_REQUEST_DATA, FitProConstants.CMD_INIT1));
-        builder.wait(200);
+        builder.sleep(200);
         builder.write(writeCharacteristic, craftData(CMD_GROUP_REQUEST_DATA, FitProConstants.CMD_INIT2));
-        builder.wait(200);
+        builder.sleep(200);
         setLanguage(builder);
-        builder.wait(200);
+        builder.sleep(200);
         builder.write(writeCharacteristic, craftData(CMD_GROUP_GENERAL, FitProConstants.CMD_INIT3, VALUE_ON));
-        builder.wait(200);
+        builder.sleep(200);
         builder.write(writeCharacteristic, craftData(CMD_GROUP_REQUEST_DATA, VALUE_ON));
-        builder.wait(200);
+        builder.sleep(200);
         builder.write(writeCharacteristic, craftData(CMD_GROUP_REQUEST_DATA, (byte) 0xf));
-        builder.wait(200);
+        builder.sleep(200);
         builder.write(writeCharacteristic, craftData(CMD_GROUP_REQUEST_DATA, CMD_GET_HW_INFO));
-        builder.wait(200);
+        builder.sleep(200);
         builder.write(writeCharacteristic, craftData(CMD_GROUP_BAND_INFO, CMD_RX_BAND_INFO));
-        builder.wait(200);
+        builder.sleep(200);
 
         builder.setDeviceState(GBDevice.State.INITIALIZED);
         return builder;
@@ -486,7 +491,7 @@ public class FitProDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 case DeviceSettingsPreferenceConst.PREF_DISPLAY_ON_LIFT_END:
                     setDisplayOnLift(builder);
                     break;
-                case SettingsActivity.PREF_MEASUREMENT_SYSTEM:
+                case SettingsActivity.PREF_UNIT_DISTANCE:
                 case ActivityUser.PREF_USER_WEIGHT_KG:
                 case ActivityUser.PREF_USER_GENDER:
                 case ActivityUser.PREF_USER_HEIGHT_CM:
@@ -539,7 +544,7 @@ public class FitProDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         LOG.debug("Hello FitPro Test function");
     }
 
@@ -554,8 +559,8 @@ public class FitProDeviceSupport extends AbstractBTLESingleDeviceSupport {
         short todayMax = (short) (weatherSpec.getTodayMaxTemp() - 273);
         short todayMin = (short) (weatherSpec.getTodayMinTemp() - 273);
         byte weatherUnit = 0;
-        String units = GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, GBApplication.getContext().getString(R.string.p_unit_metric));
-        if (units.equals(GBApplication.getContext().getString(R.string.p_unit_imperial))) {
+        final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
+        if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
             todayMax = (short) (todayMax * 1.8f + 32);
             todayMin = (short) (todayMin * 1.8f + 32);
             weatherUnit = 1;
@@ -728,13 +733,13 @@ public class FitProDeviceSupport extends AbstractBTLESingleDeviceSupport {
         int heightCm = activityUser.getHeightCm();
         int weightKg = activityUser.getWeightKg();
 
-        byte distanceUnit = UNIT_METRIC;
-        String units = GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, GBApplication.getContext().getString(R.string.p_unit_metric));
-        if (units.equals(GBApplication.getContext().getString(R.string.p_unit_imperial))) {
-            distanceUnit = UNIT_IMPERIAL;
+        byte distanceUnitByte = UNIT_METRIC;
+        final DistanceUnit distanceUnit = GBApplication.getPrefs().getDistanceUnit();
+        if (distanceUnit == DistanceUnit.IMPERIAL) {
+            distanceUnitByte = UNIT_IMPERIAL;
         }
 
-        int userData = genderUnit << 31 | age << 24 | heightCm << 15 | weightKg << 5 | distanceUnit;
+        int userData = genderUnit << 31 | age << 24 | heightCm << 15 | weightKg << 5 | distanceUnitByte;
         byte[] data = craftData(CMD_GROUP_GENERAL, CMD_SET_USER_DATA, ByteBuffer.allocate(4).putInt(userData).array());
         builder.write(writeCharacteristic, data);
         return this;
@@ -785,7 +790,10 @@ public class FitProDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
      */
     public void handleCamera(byte command) {
-        GB.toast(getContext(), "Camera buttons are detected but not further handled.", Toast.LENGTH_SHORT, GB.INFO);
+        LOG.debug("Got camera button: {}", String.format("0x%02x", command));
+        final GBDeviceEventCameraRemote cameraEvent = new GBDeviceEventCameraRemote();
+        cameraEvent.event = GBDeviceEventCameraRemote.Event.TAKE_PICTURE;
+        evaluateGBDeviceEvent(cameraEvent);
     }
 
     public void handleFindPhone() {

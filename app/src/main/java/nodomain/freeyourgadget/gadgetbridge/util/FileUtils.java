@@ -1,6 +1,6 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+/*  Copyright (C) 2015-2026 Andreas Shimokawa, Arjan Schrijver, Carsten
     Pfeiffer, Daniele Gobbetti, Felix Konstantin Maurer, JohnnySun, José Rebelo,
-    Petr Vaněk, Taavi Eomäe
+    Petr Vaněk, Taavi Eomäe, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -18,19 +18,25 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.util;
 
+import static nodomain.freeyourgadget.gadgetbridge.util.gpx.GpxParser.GPX_START;
+import static nodomain.freeyourgadget.gadgetbridge.util.gpx.GpxParser.XML_HEADER;
+
 import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Environment;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -44,6 +50,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -51,10 +58,11 @@ import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.GBEnvironment;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.FitFile;
 
 public class FileUtils {
-    // Don't use slf4j here -- would be a bootstrapping problem
-    private static final String TAG = "FileUtils";
+    private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);
 
     private static final List<String> KNOWN_PACKAGES = Arrays.asList(
             "nodomain.freeyourgadget.gadgetbridge",
@@ -65,11 +73,7 @@ public class FileUtils {
     );
 
     /**
-     * Copies the the given sourceFile to destFile, overwriting it, in case it exists.
-     *
-     * @param sourceFile
-     * @param destFile
-     * @throws IOException
+     * Copies the given sourceFile to destFile, overwriting it, in case it exists.
      */
     public static void copyFile(File sourceFile, File destFile) throws IOException {
         if (!sourceFile.exists()) {
@@ -90,7 +94,6 @@ public class FileUtils {
      * Copies the contents of the given input stream to the destination file.
      * @param inputStream the contents to write. Note: the caller has to close the input stream!
      * @param destFile the file to write to
-     * @throws IOException
      */
     public static void copyStreamToFile(InputStream inputStream, File destFile) throws IOException {
         try (FileOutputStream fout = new FileOutputStream(destFile)) {
@@ -106,7 +109,6 @@ public class FileUtils {
      * Copies the contents of the given string to the destination file.
      * @param string the contents to write.
      * @param dst the file to write to
-     * @throws IOException
      */
     public static void copyStringToFile(String string, File dst, String mode) throws IOException {
         boolean append = true;
@@ -121,7 +123,6 @@ public class FileUtils {
      * Copies the contents of the given file to the destination output stream.
      * @param src the file from which to read.
      * @param dst the output stream that is written to. Note: the caller has to close the output stream!
-     * @throws IOException
      */
     public static void copyFileToStream(File src, OutputStream dst) throws IOException {
         try (FileInputStream in = new FileInputStream(src)) {
@@ -149,12 +150,11 @@ public class FileUtils {
     }
 
     /**
-     * Copies the content of a file to an uri,
+     * Copies the content of a file to a uri,
      * which for example was retrieved using the storage access framework.
      * @param context the application context.
      * @param src the file from which the content should be copied.
      * @param dst the destination uri.
-     * @throws IOException
      */
     public static void copyFileToURI(Context context, File src, Uri dst) throws IOException {
         OutputStream out = context.getContentResolver().openOutputStream(dst);
@@ -167,11 +167,10 @@ public class FileUtils {
     }
 
     /**
-     * Returns the textual contents of the given file. The contents is expected to be
+     * Returns the textual contents of the given file. The content is expected to be
      * in UTF-8 encoding.
      * @param file the file to read
      * @return the file contents as a newline-delimited string
-     * @throws IOException
      * @see #getStringFromFile(File, String)
      */
     public static String getStringFromFile(File file) throws IOException {
@@ -183,7 +182,6 @@ public class FileUtils {
      * given encoding.
      * @param file the file to read
      * @return the file contents as a newline-delimited string
-     * @throws IOException
      * @see #getStringFromFile(File)
      */
     public static String getStringFromFile(File file, String encoding) throws IOException {
@@ -221,7 +219,6 @@ public class FileUtils {
      * It doesn't matter whether child shall represent a file or a directory.
      * The parent directory will automatically be created, if necessary.
      * @param child the path to become relative to the external files directory
-     * @throws IOException
      * @see #getExternalFilesDir()
      */
     public static File getExternalFile(String child) throws IOException {
@@ -246,7 +243,7 @@ public class FileUtils {
             file.delete();
             return true;
         } catch (FileNotFoundException e) {
-            GB.log("Cannot write to directory: " + dir.getAbsolutePath(), GB.INFO, e);
+            LOG.debug("Cannot write to directory: {}", dir.getAbsolutePath(), e);
             return false;
         }
     }
@@ -260,7 +257,6 @@ public class FileUtils {
      * can actually write to them. But when created, they *should* be writable.
      *
      * @return the list of writable directories
-     * @throws IOException
      */
     @NonNull
     private static List<File> getWritableExternalFilesDirs() throws IOException {
@@ -285,20 +281,19 @@ public class FileUtils {
         if (dirs.length == 0) {
             throw new IOException("Unable to access external files dirs: 0");
         }
-        for (int i = 0; i < dirs.length; i++) {
-            File dir = dirs[i];
+        for (File dir : dirs) {
             if (dir == null) {
                 continue;
             }
             if (!dir.exists() && !dir.mkdirs()) {
-                GB.log("Unable to create directories: " + dir.getAbsolutePath(), GB.INFO, null);
+                LOG.info("Unable to create directories: {}", dir.getAbsolutePath());
                 continue;
             }
 
             if (!GBEnvironment.env().isLocalTest()) { // don't do this with robolectric
                 final String storageState = Environment.getExternalStorageState(dir);
                 if (!Environment.MEDIA_MOUNTED.equals(storageState)) {
-                    GB.log("ignoring '" +  storageState + "' external storage dir: " + dir, GB.INFO, null);
+                    LOG.info("ignoring '{}' external storage dir: {}", storageState, dir);
                     continue;
                 }
             }
@@ -330,6 +325,12 @@ public class FileUtils {
             }
         }
         return out.toByteArray();
+    }
+
+    public static byte[] readAll(final File inputFile) throws IOException {
+        try (InputStream inputStream = new FileInputStream(inputFile)) {
+            return FileUtils.readAll(inputStream, inputFile.length());
+        }
     }
 
     public static List<File> listRecursive(final File dir, final FilenameFilter filter) {
@@ -424,6 +425,16 @@ public class FileUtils {
     }
 
     /**
+     * See {@link FileUtils#tryFixPath(File)}
+     */
+    public static File tryFixPath(final String path) {
+        if (path == null) {
+            return null;
+        }
+        return tryFixPath(new File(path));
+    }
+
+    /**
      * When migrating the database between Gadgetbridge versions or phones, we may end up with the
      * wrong path persisted in the database. Attempt to find the file in the current external data.
      *
@@ -460,6 +471,38 @@ public class FileUtils {
             }
         }
 
+        return null;
+    }
+
+    public static void writeToFile(@NonNull final byte[] bytes, @NonNull final File destFile) throws IOException {
+        if (GBApplication.isRunningOreoOrLater()) {
+            Files.write(destFile.toPath(), bytes);
+        } else {
+            try(ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)) {
+                copyStreamToFile(inputStream, destFile);
+            }
+        }
+    }
+
+    /// apply simple heuristic to identify payload content based on file signature
+    @Nullable
+    public static String guessFileExtension(@NonNull byte[] data) {
+        for (byte[] header : XML_HEADER) {
+            if (ArrayUtils.equals(data, header, 0)) {
+                return "xml";
+            }
+        }
+        for (byte[] header : GPX_START) {
+            if (ArrayUtils.equals(data, header, 0)) {
+                return "gpx";
+            }
+        }
+        if (ArrayUtils.equals(data, new byte[]{0x50, 0x4B, 0x03, 0x04}, 0)) {
+            return "zip";
+        }
+        if (data.length > 13 && BLETypeConversions.toUint32(data, 8) == FitFile.Header.MAGIC) {
+            return "fit";
+        }
         return null;
     }
 }

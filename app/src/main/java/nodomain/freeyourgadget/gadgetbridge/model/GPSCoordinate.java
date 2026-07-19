@@ -22,8 +22,6 @@ import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 
-import androidx.annotation.NonNull;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
@@ -79,6 +77,10 @@ public class GPSCoordinate implements Parcelable {
         return altitude;
     }
 
+    public boolean hasAltitude() {
+        return altitude > UNKNOWN_ALTITUDE;
+    }
+
     public void setHdop(double hdop) {
         this.hdop = hdop;
     }
@@ -122,9 +124,9 @@ public class GPSCoordinate implements Parcelable {
     }
 
     public double getAltitudeDifference(GPSCoordinate source) {
-        if (this.getAltitude() == UNKNOWN_ALTITUDE)
+        if (!hasAltitude())
             return 0;
-        if (source.getAltitude() == UNKNOWN_ALTITUDE)
+        if (!source.hasAltitude())
             return 0;
         return this.getAltitude() - source.getAltitude();
     }

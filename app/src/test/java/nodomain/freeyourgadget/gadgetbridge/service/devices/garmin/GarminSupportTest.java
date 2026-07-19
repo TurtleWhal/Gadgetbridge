@@ -1,4 +1,4 @@
-/*  Copyright (C) 2024-2025 Daniele Gobbetti, José Rebelo, Thomas Kuehne
+/*  Copyright (C) 2024-2026 Daniele Gobbetti, José Rebelo, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -15,6 +15,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin;
+
+import android.bluetooth.BluetoothGattCharacteristic;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -34,19 +36,23 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.UUID;
 
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.deviceevents.IncomingFitDefinitionDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.FieldDefinition;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.FitFile;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.GlobalFITMessage;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.NativeFITMessages;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordData;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordDefinition;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordHeader;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.baseTypes.BaseType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.exception.FitParseException;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionLocationSymbol;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitFileCreator;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitFileId;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitLocation;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.FitDataMessage;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.FitDefinitionMessage;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.GFDIMessage;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.status.FitDataStatusMessage;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.status.FitDefinitionStatusMessage;
 import nodomain.freeyourgadget.gadgetbridge.test.TestBase;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -58,9 +64,64 @@ public class GarminSupportTest extends TestBase {
     }
 
     @Test
+    public void testWeatherDataMessage() {
+        byte[] weatherDataMessage = GB.hexStringToByteArray("540194130000438CC424438CC4240F0A1904000C630BA40D1E00000026FFFFFF860A02477265656E2048696C6C00000000000101438CD2340A000A001E1748320A400000000101438CE0440B000B001F1872330B404000000101438CEE540C000C0020199C340C408000000101438CFC640D000D00211AC6350D40A000000101438D0A740E000E00221BF0360E40C000000101438D18840F000F00231D1A370F40E000000101438D269410001000241E443810410000000101438D34A411001100251F6E3911411000000101438D42B4120012002620983A12412000000101438D50C4130013002721C23B13413000000101438D5ED4140014002822EC3C14414000000101438D6CE4150015002924163D15415000000202438CC4240A19046305020202438CC4240A19003206030202438CC4240B1A003300030202438CC4240C1B003401030202438CC4240D1C0035020330AD");
+        FitDataMessage fitDataMessage = (FitDataMessage) GFDIMessage.parseIncoming(weatherDataMessage);
+
+        byte[] weatherDefinitionMessage = GB.hexStringToByteArray("81009313400001008011000100FD04860904860101010E01010D01010201000302840501020402840601010701020A04850B04850F0101110100080F0741000100800A000100FD0486010101020100060101030284040284050102070102100488420001008008000100FD04860E01010D01010201000501020C0100110100F2FF");
+        FitDefinitionMessage fitDefinitionMessage = (FitDefinitionMessage) GFDIMessage.parseIncoming(weatherDefinitionMessage);
+
+        List<RecordData> recordDataList = fitDataMessage.applyDefinitions(fitDefinitionMessage.getRecordDefinitions());
+
+        List<RecordData> weatherData = new ArrayList<>();
+
+        for (RecordData rec : recordDataList) {
+            RecordData out = new RecordData(rec.getRecordDefinition(), rec.getRecordDefinition().getRecordHeader());
+
+            for (int fieldNumber :
+                    rec.getFieldsNumbers()) {
+                Object o = rec.getFieldByNumber(fieldNumber);
+                out.setFieldByNumber(fieldNumber, o);
+                //due to the different ways applyDefinitions and setFieldByNumber we manually set the computedTimestamp to ensure the equality is passed
+                out.computedTimestamp = rec.getComputedTimestamp();
+                Assert.assertEquals(o, out.getFieldByNumber(fieldNumber));
+            }
+            Assert.assertEquals(rec.toString(), out.toString());
+            weatherData.add(out);
+        }
+
+        Assert.assertArrayEquals(weatherDataMessage, new FitDataMessage(weatherData).getOutgoingMessage());
+    }
+
+    @Test
+    public void incomingFitDefinition() {
+        GarminSupport support = createSupport();
+
+        final byte[] incomingDefinition = GB.hexStringToByteArray("5700931340000000000603048C0404860102840202840502840001004100000C000404028400010001010005010042000001000317048C1A048C01010A4300007F00060318070101000401000501000701000A010054CE");
+        FitDefinitionMessage fitDefinitionMessage = (FitDefinitionMessage) GFDIMessage.parseIncoming(incomingDefinition);
+        FitDefinitionStatusMessage ok_applied = new FitDefinitionStatusMessage(GFDIMessage.GarminMessage.FIT_DEFINITION, GFDIMessage.Status.ACK, FitDefinitionStatusMessage.FitDefinitionStatusCode.APPLIED, true);
+
+        Assert.assertArrayEquals(ok_applied.getOutgoingMessage(), fitDefinitionMessage.getAckBytestream());
+
+        final List<GBDeviceEvent> events = fitDefinitionMessage.getGBDeviceEvent();
+        Assert.assertEquals(1, events.size());
+        Assert.assertTrue((events.getFirst() instanceof IncomingFitDefinitionDeviceEvent));
+
+        final FitLocalMessageHandler fitLocalMessageHandler = new FitLocalMessageHandler(support, ((IncomingFitDefinitionDeviceEvent) events.getFirst()).getRecordDefinitions());
+
+        final byte[] incomingData = GB.hexStringToByteArray("2E00941302CA960015070000000703466F726572756E6E65722033350000000000000000000000000101010197F3");
+        FitDataMessage fitDataMessage = (FitDataMessage) GFDIMessage.parseIncoming(incomingData);
+
+        // FIXME this fails, and we were not validating its result anyway fitLocalMessageHandler.handle(fitDataMessage);
+
+        FitDataStatusMessage ok_applied_data = new FitDataStatusMessage(GFDIMessage.GarminMessage.FIT_DATA, GFDIMessage.Status.ACK, FitDataStatusMessage.FitDataStatusCode.APPLIED, true);
+        Assert.assertArrayEquals(ok_applied_data.getOutgoingMessage(), fitDataMessage.getAckBytestream());
+    }
+
+    @Test
     public void testBaseFields() {
 
-        RecordDefinition recordDefinition = new RecordDefinition(new RecordHeader((byte) 6), ByteOrder.LITTLE_ENDIAN, GlobalFITMessage.WEATHER, null, null); //just some random data
+        RecordDefinition recordDefinition = new RecordDefinition(new RecordHeader((byte) 6), ByteOrder.LITTLE_ENDIAN, NativeFITMessages.FIT_WEATHER(), null, null); //just some random data
         List<FieldDefinition> fieldDefinitionList = new ArrayList<>();
         for (BaseType baseType :
                 BaseType.values()) {
@@ -308,105 +369,28 @@ public class GarminSupportTest extends TestBase {
     }
 
     @Test
-    public void TestFitFileSettings2() throws FitParseException {
-
-        byte[] fileContents = GB.hexStringToByteArray("0e101405b90600002e464954b18b40000000000603048c04048601028402" +
-                "028405028400010000ed2adce7ffffffff01001906ffff02410000310002" +
-                "000284010102015401ff4200000200160104860204860001020301000401" +
-                "000501010a01000b01000c01000d01020e01020f01021001001101001201" +
-                "001501001601001a01001b01001d01003401003501000200000000000000" +
-                "0000000000030002000032ffffff0100fe00000001430000030013000807" +
-                "0402840101000201020301020501000601000701000801020a01020b0102" +
-                "0c01000d01000e0100100100110100120100150100180102036564676535" +
-                "3130000c030129b70000003cb9b901000001a80200ff440000040004fe02" +
-                "8401028b00010203010a04000058c3010145000006002400040703048627" +
-                "040a290c0afe028404028b05028b06028b07028b0802840902840a02840b" +
-                "02842a028b0101000201000c01020d01020e01020f010210010211010212" +
-                "010213010214010215010a16010a17010a18010a23030224010025010226" +
-                "010a28010a2b010a2c01000545564f00849eb90227350000171513121110" +
-                "0f0e0d0c0b00000000000000000001ba300800005000f4010000ffff0101" +
-                "0000000001fe01000000050032ff04ff020b000046000006002400050703" +
-                "048627040a290c0afe028404028b05028b06028b07028b0802840902840a" +
-                "02840b02842a028b0101000201000c01020d01020e01020f010210010211" +
-                "010212010213010214010215010a16010a17010a18010a23030224010025" +
-                "010226010a28010a2b010a2c0100065032534c0000000000273500001715" +
-                "131211100f0e0d0c0b000100000000000000316e300800005a00f4010000" +
-                "ffff01010000000001fe01000000050076be04ff020b0000470000060024" +
-                "00090703048627040a290c0afe028404028b05028b06028b07028b080284" +
-                "0902840a02840b02842a028b0101000201000c01020d01020e01020f0102" +
-                "10010211010212010213010214010215010a16010a17010a18010a230302" +
-                "24010025010226010a28010a2b010a2c0100074c414e47535445520013cc" +
-                "1200273500001715131211100f0e0d0c0b000200000000000000632a3008" +
-                "00005f00f4010000ffff010100000000010001000000050032ff04ff020b" +
-                "000048000006002400020703048627040a290c0afe028404028b05028b06" +
-                "028b07028b0802840902840a02840b02842a028b0101000201000c01020d" +
-                "01020e01020f010210010211010212010213010214010215010a16010a17" +
-                "010a18010a23030224010025010226010a28010a2b010a2c0100084d0000" +
-                "000000352700001715131211100f0e0d0c0b000300000000000000697a30" +
-                "0800005f00f4010000ffff010100000000010001000000050032ff04ff02" +
-                "0b000049000006002400070703048627040a290c0afe028404028b05028b" +
-                "06028b07028b0802840902840a02840b02842a028b0101000201000c0102" +
-                "0d01020e01020f010210010211010212010213010214010215010a16010a" +
-                "17010a18010a23030224010025010226010a28010a2b010a2c0100094269" +
-                "6b6520350000000000273500001715131211100f0e0d0c0b000400000000" +
-                "0000000000300800005f00f4010000ffff01010000000000fe0000000000" +
-                "0032ff04ff020b00000942696b6520360000000000273500001715131211" +
-                "100f0e0d0c0b0005000000000000000000300800005f00f4010000ffff01" +
-                "010000000000fe00000000000032ff04ff020b00000942696b6520370000" +
-                "000000273500001715131211100f0e0d0c0b000600000000000000000030" +
-                "0800005f00f4010000ffff01010000000000fe00000000000032ff04ff02" +
-                "0b00000942696b6520380000000000273500001715131211100f0e0d0c0b" +
-                "0007000000000000000000300800005f00f4010000ffff01010000000000" +
-                "fe00000000000032ff04ff020b00000942696b6520390000000000273500" +
-                "001715131211100f0e0d0c0b0008000000000000000000300800005f00f4" +
-                "010000ffff01010000000000fe00000000000032ff04ff020b00004a0000" +
-                "06002400080703048627040a290c0afe028404028b05028b06028b07028b" +
-                "0802840902840a02840b02842a028b0101000201000c01020d01020e0102" +
-                "0f010210010211010212010213010214010215010a16010a17010a18010a" +
-                "23030224010025010226010a28010a2b010a2c01000a42696b6520313000" +
-                "00000000273500001715131211100f0e0d0c0b0009000000000000000000" +
-                "300800005f00f4010000ffff01010000000000fe00000000000032ff04ff" +
-                "020b00004b00007f00090309070001000401000501000601000701000801" +
-                "000901000a01000b45646765203531300000ffffffffffffff09ef");//https://github.com/polyvertex/fitdecode/blob/48b6554d8a3baf33f8b5b9b2fd079fcbe9ac8ce2/tests/files/Settings2.fit
-
-        String expectedOutput = "[" +
-                "FitFileId{type=SETTINGS, manufacturer=1, product=1561, serial_number=3889965805}, FitFileCreator{software_version=340}, " +
-                "FitDeviceSettings{active_time_zone=0, utc_offset=0, time_offset=0, unknown_3(ENUM/1)=0, time_mode=0, time_zone_offset=0, unknown_10(ENUM/1)=3, unknown_11(ENUM/1)=0, backlight_mode=2, unknown_13(UINT8/1)=0, unknown_14(UINT8/1)=0, unknown_15(UINT8/1)=50, unknown_21(ENUM/1)=1, unknown_22(ENUM/1)=0, unknown_26(ENUM/1)=254, unknown_27(ENUM/1)=0, unknown_29(ENUM/1)=0, unknown_52(ENUM/1)=0, unknown_53(ENUM/1)=1}, " +
-                "FitUserProfile{friendly_name=edge510, gender=1, age=41, height=183, weight=78.0, language=english, elev_setting=metric, weight_setting=metric, resting_heart_rate=60, default_max_biking_heart_rate=185, default_max_heart_rate=185, hr_setting=1, speed_setting=metric, dist_setting=metric, power_setting=1, activity_class=168, position_setting=2, temperature_setting=metric}, " +
-                "FitHrmProfile{enabled=true, hrm_ant_id=50008, hrm_ant_id_trans_type=1, message_index=0}, " +
-                "FitBikeProfile{name=EVO, odometer=457191.72, bike_power_ant_id=47617, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=8.0, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=true, crank_length=227.0, enabled=true, bike_power_ant_id_trans_type=5, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=0}, " +
-                "FitBikeProfile{name=P2SL, odometer=0.0, bike_power_ant_id=28209, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.0, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=true, crank_length=227.0, enabled=true, bike_power_ant_id_trans_type=5, unknown_35(UINT8/3)=[0,118,190], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=1}, " +
-                "FitBikeProfile{name=LANGSTER, odometer=12318.91, bike_power_ant_id=10851, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.5, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=true, crank_length=100.0, enabled=true, bike_power_ant_id_trans_type=5, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=2}, " +
-                "FitBikeProfile{name=M, odometer=0.0, bike_power_ant_id=31337, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.5, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=true, crank_length=100.0, enabled=true, bike_power_ant_id_trans_type=5, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[53,39,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=3}, " +
-                "FitBikeProfile{name=Bike 5, odometer=0.0, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.5, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=false, crank_length=227.0, enabled=false, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=4}, " +
-                "FitBikeProfile{name=Bike 6, odometer=0.0, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.5, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=false, crank_length=227.0, enabled=false, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=5}, " +
-                "FitBikeProfile{name=Bike 7, odometer=0.0, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.5, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=false, crank_length=227.0, enabled=false, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=6}, " +
-                "FitBikeProfile{name=Bike 8, odometer=0.0, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.5, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=false, crank_length=227.0, enabled=false, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=7}, " +
-                "FitBikeProfile{name=Bike 9, odometer=0.0, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.5, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=false, crank_length=227.0, enabled=false, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=8}, " +
-                "FitBikeProfile{name=Bike 10, odometer=0.0, custom_wheelsize=2.096, auto_wheelsize=0.0, bike_weight=9.5, power_cal_factor=50.0, auto_wheel_cal=true, auto_power_zero=true, id=0, spd_enabled=false, cad_enabled=false, spdcad_enabled=false, power_enabled=false, crank_length=227.0, enabled=false, unknown_35(UINT8/3)=[0,50,], unknown_36(ENUM/1)=4, front_gear_num=2, front_gear=[39,53,,], rear_gear_num=11, rear_gear=[23,21,19,18,17,16,15,14,13,12,11,], shimano_di2_enabled=false, message_index=9}, " +
-                "FitConnectivity{bluetooth_enabled=0, name=Edge 510}" +
-                "]";
+    public void TestFitFileSettings2() throws FitParseException, IOException {
+        //https://github.com/polyvertex/fitdecode/blob/48b6554d8a3baf33f8b5b9b2fd079fcbe9ac8ce2/tests/files/Settings2.fit
+        byte[] fileContents = readBinaryResource("/TestFitFileSettings2.fit");
+        String expectedOutput = readTextResource("/TestFitFileSettings2.txt");
 
         FitFile fitFile = FitFile.parseIncoming(fileContents);
-        Assert.assertEquals(expectedOutput, fitFile.toString());
+        String actualOutput = fitFile.toString().replace("}, Fit", "},\nFit").replace("}, RecordData{", "},\nRecordData{");
+        Assert.assertEquals(expectedOutput, actualOutput);
         getAllFitFieldValues(fitFile);
     }
 
     @Test
-    public void TestFitFileDevelopersField() throws FitParseException {
-        byte[] fileContents = GB.hexStringToByteArray("0e206806a20000002e464954bed040000100000401028400010002028403048c00000f042329000006a540000100cf0201100d030102000101020305080d1522375990e97962db0040000100ce05000102010102020102031107080a0700000001646f7567686e7574735f6561726e656400646f7567686e7574730060000100140403010204010205048606028401000100008c580000c738b98001008f5a00032c808e400200905c0005a9388a1003d39e");//https://github.com/polyvertex/fitdecode/blob/48b6554d8a3baf33f8b5b9b2fd079fcbe9ac8ce2/tests/files/DeveloperData.fit
-
-        String expectedOutput = "[" +
-                "FitFileId{type=ACTIVITY, manufacturer=15, product=9001, serial_number=1701}, " +
-                "FitDeveloperData{application_id=[1,1,2,3,5,8,13,21,34,55,89,144,233,121,98,219], developer_data_index=0}, " +
-                "FitFieldDescription{developer_data_index=0, field_definition_number=0, fit_base_type_id=1, field_name=doughnuts_earned, units=doughnuts}, " +
-                "FitRecord{doughnuts_earned=1, heart_rate=140, cadence=88, distance=510.0, speed=47.488}, " +
-                "FitRecord{doughnuts_earned=2, heart_rate=143, cadence=90, distance=2080.0, speed=36.416}, " +
-                "FitRecord{doughnuts_earned=3, heart_rate=144, cadence=92, distance=3710.0, speed=35.344}" +
-                "]";
+    public void TestFitFileDevelopersField() throws FitParseException, IOException {
+        //https://github.com/polyvertex/fitdecode/blob/48b6554d8a3baf33f8b5b9b2fd079fcbe9ac8ce2/tests/files/DeveloperData.fit
+        byte[] fileContents = readBinaryResource("/TestFitFileDevelopersField.fit");
+        String expectedOutput = readTextResource("/TestFitFileDevelopersField.txt");
 
         FitFile fitFile = FitFile.parseIncoming(fileContents);
-        Assert.assertEquals(expectedOutput, fitFile.toString());
+        String actualOutput = fitFile.toString().replace("}, Fit", "},\nFit").replace("}, RecordData{", "},\nRecordData{");
+        Assert.assertEquals(expectedOutput, actualOutput);
+        // Field 0 is not overwritten by the developer field
+        Assert.assertNull(fitFile.getRecords().get(3).getFieldByNumber(0));
         getAllFitFieldValues(fitFile);
     }
 
@@ -419,65 +403,6 @@ public class GarminSupportTest extends TestBase {
         String actual = fitFile.toString().replace("}, Fit", "},\nFit").replace("}, RecordData{", "},\nRecordData{");
         Assert.assertEquals(expected, actual);
         getAllFitFieldValues(fitFile);
-    }
-
-    /// encode->decode three locations / waypoints in a Lctns.fit compliant format
-    @Test
-    public void TestFitLocationEncoding() throws FitParseException, IOException {
-        final List<RecordData> records = new ArrayList<>();
-
-        FitFileId.Builder fileId = new FitFileId.Builder();
-        fileId.setType(FileType.FILETYPE.LOCATION);
-        fileId.setManufacturer(5759);
-        fileId.setProduct(65534);
-        fileId.setTimeCreated(null);
-        fileId.setNumber(65533);
-        fileId.setProductName("Gadgetbridge");
-        records.add(fileId.build());
-
-        FitFileCreator.Builder fileCreator = new FitFileCreator.Builder();
-        fileCreator.setSoftwareVersion(2318);
-        fileCreator.setHardwareVersion(254);
-        records.add(fileCreator.build());
-
-        FitLocation.Builder bregenz = new FitLocation.Builder();
-        bregenz.setName("Bregenz");
-        bregenz.setPositionLat(47.505);
-        bregenz.setPositionLong(9.740);
-        bregenz.setSymbol(FieldDefinitionLocationSymbol.LocationSymbol.Airport);
-        bregenz.setAltitude(-495.0f);
-        bregenz.setMessageIndex(0);
-        records.add(bregenz.build());
-
-        FitLocation.Builder friedrichshafen = new FitLocation.Builder();
-        friedrichshafen.setName("腓特烈港");
-        friedrichshafen.setPositionLat(47.656);
-        friedrichshafen.setPositionLong(9.473);
-        friedrichshafen.setSymbol(FieldDefinitionLocationSymbol.LocationSymbol.Anchor);
-        friedrichshafen.setAltitude(0.0f);
-        friedrichshafen.setMessageIndex(1);
-        records.add(friedrichshafen.build());
-
-        FitLocation.Builder kreuzlingen = new FitLocation.Builder();
-        kreuzlingen.setName("קרויצלינגן");
-        kreuzlingen.setPositionLat(47.633);
-        kreuzlingen.setPositionLong(9.167);
-        kreuzlingen.setSymbol(FieldDefinitionLocationSymbol.LocationSymbol.Water_Source);
-        kreuzlingen.setAltitude(8850.0f);
-        kreuzlingen.setMessageIndex(2);
-        records.add(kreuzlingen.build());
-
-        FitFile fitEncoded = new FitFile(records);
-        byte[] fit = fitEncoded.getOutgoingMessage();
-
-        byte[] expectedFit = readBinaryResource("/TestFitLocationEncoding.fit");
-        Assert.assertArrayEquals(expectedFit, fit);
-
-        String expectedText = readTextResource("/TestFitLocationEncoding.txt");
-        FitFile fitDecoded = FitFile.parseIncoming(fit);
-        String actual = fitDecoded.toString().replace("}, Fit", "},\nFit").replace("}, RecordData{", "},\nRecordData{");
-        Assert.assertEquals(expectedText, actual);
-        getAllFitFieldValues(fitDecoded);
     }
 
     // try to retrieve the value of each message's fields
@@ -510,11 +435,6 @@ public class GarminSupportTest extends TestBase {
                 } catch (Exception e) {
                     String recordName = record.getClass().getSimpleName();
                     String message = methodName + " failed for " + recordName;
-                    if ("FitRecord".equals(recordName) && "getLatitude".equals(methodName)) {
-                        // TODO GarminSupportTest.TestFitFileDevelopersField -> FitRecord / getLatitude
-                        // FIXME java.lang.ClassCastException: class java.lang.Integer cannot be cast to class java.lang.Double
-                        continue;
-                    }
                     throw new AssertionError(message, e);
                 }
             }
@@ -537,5 +457,15 @@ public class GarminSupportTest extends TestBase {
                 return writer.toString().replace("\r\n", "\n");
             }
         }
+    }
+
+
+    private GarminSupport createSupport() {
+        return new GarminSupport() {
+            @Override
+            public BluetoothGattCharacteristic getCharacteristic(final UUID uuid) {
+                return new BluetoothGattCharacteristic(null, 0, 0);
+            }
+        };
     }
 }

@@ -19,35 +19,28 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.cmfwatchpro;
 import android.content.Context;
 import android.widget.Toast;
 
-import androidx.annotation.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 
-import de.greenrobot.dao.query.QueryBuilder;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
+import nodomain.freeyourgadget.gadgetbridge.devices.CmfHeartRateSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.CmfSleepSessionSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.CmfSleepStageSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.CmfSpo2SampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.CmfStressSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.CmfWorkoutGpsSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.samples.CmfActivitySampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.samples.CmfHeartRateSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.samples.CmfSleepSessionSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.samples.CmfSleepStageSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.samples.CmfSpo2SampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.samples.CmfStressSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.samples.CmfWorkoutGpsSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.workout.CmfActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.cmfwatchpro.workout.CmfWorkoutSummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummary;
-import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummaryDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.CmfActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.CmfHeartRateSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.CmfSleepSessionSample;
@@ -58,15 +51,11 @@ import nodomain.freeyourgadget.gadgetbridge.entities.CmfWorkoutGpsSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.entities.User;
-import nodomain.freeyourgadget.gadgetbridge.export.ActivityTrackExporter;
-import nodomain.freeyourgadget.gadgetbridge.export.GPXExporter;
+import nodomain.freeyourgadget.gadgetbridge.export.AutoFitExporter;
+import nodomain.freeyourgadget.gadgetbridge.export.AutoGpxExporter;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
-import nodomain.freeyourgadget.gadgetbridge.model.ActivityPoint;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrack;
-import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
-import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
-import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class CmfActivitySync {
@@ -108,7 +97,10 @@ public class CmfActivitySync {
                 handleSpo2(payload);
                 return true;
             case WORKOUT_SUMMARY:
-                handleWorkoutSummary(payload);
+                handleWorkoutSummary(payload, 1);
+                return true;
+            case WORKOUT_SUMMARY_V3:
+                handleWorkoutSummary(payload, 3);
                 return true;
             case WORKOUT_GPS:
                 handleWorkoutGps(payload);
@@ -188,7 +180,7 @@ public class CmfActivitySync {
             }
 
             LOG.debug("Will persist {} activity samples", samples.size());
-            sampleProvider.addGBActivitySamples(samples.toArray(new CmfActivitySample[0]));
+            sampleProvider.addGBActivitySamples(samples);
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving activity samples", Toast.LENGTH_LONG, GB.ERROR, e);
         }
@@ -381,23 +373,25 @@ public class CmfActivitySync {
         }
     }
 
-    private void handleWorkoutSummary(final byte[] payload) {
+    private void handleWorkoutSummary(final byte[] payload, final int version) {
         final int bytesPerWorkout;
 
-        if (payload.length % 32 == 0) {
+        if (version == 3) {
+            bytesPerWorkout = payload.length;
+        } else if (payload.length % 32 == 0) {
             bytesPerWorkout = 32;
         } else if (payload.length % 54 == 0) {
             bytesPerWorkout = 54;
         } else {
-            LOG.error("Workout summary payload size {} not divisible by 32 or 54", payload.length);
+            LOG.error("Workout summary payload size {} not divisible by 32/54", payload.length);
             return;
         }
 
-        LOG.debug("Got {} workout summary samples", payload.length / bytesPerWorkout);
+        LOG.debug("Got {} workout summary samples for version {}", payload.length / bytesPerWorkout, version);
 
         final ByteBuffer buf = ByteBuffer.wrap(payload).order(ByteOrder.LITTLE_ENDIAN);
 
-        final CmfWorkoutSummaryParser summaryParser = new CmfWorkoutSummaryParser(getDevice(), getContext());
+        final CmfWorkoutSummaryParser summaryParser = new CmfWorkoutSummaryParser(getDevice(), getContext(), version);
 
         while (buf.remaining() > 0) {
             final byte[] summaryBytes = new byte[bytesPerWorkout];
@@ -438,10 +432,8 @@ public class CmfActivitySync {
                 return;
             }
 
-            // FIXME: This should be set by CmfWorkoutSummaryParser
-            if (summaryBytes[30] == 1) {
-                activitiesWithGps.add(summary);
-            }
+            // Assume all activities have GPS
+            activitiesWithGps.add(summary);
         }
     }
 
@@ -501,161 +493,20 @@ public class CmfActivitySync {
     }
 
     private void processGps(final BaseActivitySummary summary) {
-        final ActivityTrack activityTrack = buildActivityTrack(summary);
+        final CmfActivityTrackProvider activityTrackProvider = new CmfActivityTrackProvider(getDevice());
+        final ActivityTrack activityTrack = activityTrackProvider.getActivityTrack(summary);
         if (activityTrack == null) {
             return;
         }
 
-        // Save the gpx file
-        final File gpxFile = exportGpx(summary, activityTrack);
-        if (gpxFile == null) {
-            return;
+        final boolean hasGps = activityTrack.getAllPoints().stream()
+                .anyMatch(p -> p.getLocation() != null);
+
+        if (hasGps) {
+            // GPX needs at least one GPS-valid point; FIT can be emitted regardless.
+            AutoGpxExporter.doExport(getContext(), getDevice(), summary, activityTrack);
         }
-
-        // Update the summary in the db with the gpx path
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
-            final DaoSession session = dbHandler.getDaoSession();
-            final Device device = DBHelper.getDevice(mSupport.getDevice(), session);
-            final User user = DBHelper.getUser(session);
-
-            final BaseActivitySummaryDao summaryDao = session.getBaseActivitySummaryDao();
-            final QueryBuilder<BaseActivitySummary> qb = summaryDao.queryBuilder();
-            qb.where(BaseActivitySummaryDao.Properties.StartTime.eq(summary.getStartTime()));
-            qb.where(BaseActivitySummaryDao.Properties.DeviceId.eq(device.getId()));
-            qb.where(BaseActivitySummaryDao.Properties.UserId.eq(user.getId()));
-            final List<BaseActivitySummary> summaries = qb.build().list();
-
-            if (summaries.isEmpty()) {
-                LOG.warn("Failed to find existing summary in db - this should never happen");
-                return;
-            }
-            if (summaries.size() > 1) {
-                LOG.warn("Found multiple summaries in db - this should never happen");
-            }
-
-            final BaseActivitySummary summaryToUpdate = summaries.get(0);
-            summaryToUpdate.setGpxTrack(gpxFile.getAbsolutePath());
-            session.getBaseActivitySummaryDao().insertOrReplace(summaryToUpdate);
-        } catch (final Exception e) {
-            LOG.error("Failed to update summary with gpx path", e);
-        }
-    }
-
-    @Nullable
-    private File exportGpx(final BaseActivitySummary summary, final ActivityTrack activityTrack) {
-        final GPXExporter exporter = new GPXExporter();
-
-        final String gpxFileName = FileUtils.makeValidFileName("gadgetbridge-" + DateTimeUtils.formatIso8601(summary.getStartTime()) + ".gpx");
-        final File gpxTargetFile;
-        try {
-            gpxTargetFile = new File(FileUtils.getExternalFilesDir(), gpxFileName);
-        } catch (final IOException e) {
-            LOG.error("Failed to get external files dir", e);
-            return null;
-        }
-
-        try {
-            exporter.performExport(activityTrack, gpxTargetFile);
-        } catch (final ActivityTrackExporter.GPXTrackEmptyException e) {
-            LOG.warn("Gpx is empty");
-            return null;
-        } catch (IOException e) {
-            LOG.error("Failed to write gpx", e);
-            return null;
-        }
-
-        return gpxTargetFile;
-    }
-
-    @Nullable
-    private ActivityTrack buildActivityTrack(final BaseActivitySummary summary) {
-        final ActivityTrack track = new ActivityTrack();
-        track.setUser(summary.getUser());
-        track.setDevice(summary.getDevice());
-        track.setName(createActivityName(summary));
-
-        final List<CmfWorkoutGpsSample> gpsSamples;
-        final List<CmfHeartRateSample> hrSamples;
-        try (DBHandler handler = GBApplication.acquireDB()) {
-            final DaoSession session = handler.getDaoSession();
-
-            final CmfWorkoutGpsSampleProvider gpsSampleProvider = new CmfWorkoutGpsSampleProvider(getDevice(), session);
-            gpsSamples = gpsSampleProvider.getAllSamples(summary.getStartTime().getTime(), summary.getEndTime().getTime());
-
-            final CmfHeartRateSampleProvider hrSampleProvider = new CmfHeartRateSampleProvider(getDevice(), session);
-            hrSamples = new ArrayList<>(hrSampleProvider.getAllSamples(summary.getStartTime().getTime(), summary.getEndTime().getTime()));
-        } catch (final Exception e) {
-            LOG.error("Error while building activity track", e);
-            return null;
-        }
-
-        Collections.sort(hrSamples, (a, b) -> Long.compare(a.getTimestamp(), b.getTimestamp()));
-
-        for (final CmfWorkoutGpsSample gpsSample : gpsSamples) {
-            final ActivityPoint ap = new ActivityPoint(new Date(gpsSample.getTimestamp()));
-            final GPSCoordinate coordinate = new GPSCoordinate(
-                    gpsSample.getLongitude() / 10000000d,
-                    gpsSample.getLatitude() / 10000000d
-            );
-            ap.setLocation(coordinate);
-
-            final CmfHeartRateSample hrSample = findNearestSample(hrSamples, gpsSample.getTimestamp());
-            if (hrSample != null) {
-                ap.setHeartRate(hrSample.getHeartRate());
-            }
-
-            track.addTrackPoint(ap);
-        }
-
-        return track;
-    }
-
-    @Nullable
-    private CmfHeartRateSample findNearestSample(final List<CmfHeartRateSample> samples, final long timestamp) {
-        if (samples.isEmpty()) {
-            return null;
-        }
-
-        if (timestamp < samples.get(0).getTimestamp()) {
-            return samples.get(0);
-        }
-
-        if (timestamp > samples.get(samples.size() - 1).getTimestamp()) {
-            return samples.get(samples.size() - 1);
-        }
-
-        int start = 0;
-        int end = samples.size() - 1;
-
-        while (start <= end) {
-            final int mid = (start + end) / 2;
-
-            if (timestamp < samples.get(mid).getTimestamp()) {
-                end = mid - 1;
-            } else if (timestamp > samples.get(mid).getTimestamp()) {
-                start = mid + 1;
-            } else {
-                return samples.get(mid);
-            }
-        }
-
-        // FIXME return null if too far?
-
-        if (samples.get(start).getTimestamp() - timestamp < timestamp - samples.get(end).getTimestamp()) {
-            return samples.get(start);
-        }
-
-        return samples.get(end);
-    }
-
-    protected static String createActivityName(final BaseActivitySummary summary) {
-        String name = summary.getName();
-        String nameText = "";
-        Long id = summary.getId();
-        if (name != null) {
-            nameText = name + " - ";
-        }
-        return nameText + id;
+        AutoFitExporter.doExport(getContext(), getDevice(), summary, activityTrack);
     }
 
     private Context getContext() {

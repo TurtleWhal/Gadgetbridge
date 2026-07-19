@@ -90,7 +90,7 @@ public interface SampleProvider<T extends AbstractActivitySample> {
      * timestamp will be overwritten.
      * @param activitySamples the samples to add
      */
-    void addGBActivitySamples(T[] activitySamples);
+    void addGBActivitySamples(@NonNull List<T> activitySamples);
 
     /**
      * Factory method to creates an empty sample of the correct type for this sample provider
@@ -118,5 +118,12 @@ public interface SampleProvider<T extends AbstractActivitySample> {
      */
     @Nullable
     T getFirstActivitySample();
+
+    /**
+     * Returns the activity sample with the oldest timestamp strictly after the given limit, or null if none
+     * @return the oldest sample after the limit or null
+     */
+    @Nullable
+    T getFirstActivitySample(int after);
 
 }

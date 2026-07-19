@@ -1,4 +1,4 @@
-/*  Copyright (C) 2025 José Rebelo
+/*  Copyright (C) 2025-2026 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -20,6 +20,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.content.Context
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import nodomain.freeyourgadget.gadgetbridge.GBApplication
@@ -41,14 +42,17 @@ import nodomain.freeyourgadget.gadgetbridge.model.BatteryState
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec
 import nodomain.freeyourgadget.gadgetbridge.model.Contact
+import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.wena3.protocol.packets.notification.defines.VibrationKind
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol
 import nodomain.freeyourgadget.gadgetbridge.util.MediaManager
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.coerceIn
 import org.apache.commons.lang3.ArrayUtils
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.Logger
@@ -59,7 +63,6 @@ import java.util.Calendar
 import java.util.GregorianCalendar
 import java.util.Locale
 import java.util.UUID
-import kotlin.math.roundToInt
 
 class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
     init {
@@ -126,6 +129,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         }
         setEnableCallRejection(builder)
         setEnableSmsReply(builder)
+        setSosContact(builder)
 
         // FIXME this is probably too early
         builder.setDeviceState(GBDevice.State.INITIALIZED)
@@ -364,6 +368,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
             ActivityUser.PREF_USER_GENDER,
             DeviceSettingsPreferenceConst.PREF_HEARTRATE_ALERT_HIGH_THRESHOLD,
             DeviceSettingsPreferenceConst.PREF_HEARTRATE_ALERT_LOW_THRESHOLD,
+            DeviceSettingsPreferenceConst.PREF_SCREEN_TIMEOUT,
             DeviceSettingsPreferenceConst.PREF_LIFTWRIST_NOSHED -> {
                 setUserInfo(builder)
             }
@@ -393,7 +398,9 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
                 setLanguage(builder)
             }
 
-            SettingsActivity.PREF_MEASUREMENT_SYSTEM -> {
+            SettingsActivity.PREF_UNIT_DISTANCE,
+            SettingsActivity.PREF_UNIT_TEMPERATURE,
+            SettingsActivity.PREF_UNIT_WEIGHT -> {
                 setUserInfo(builder) // user info also has temperature unit
                 setUnits(builder)
             }
@@ -412,6 +419,11 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
             DeviceSettingsPreferenceConst.PREF_SPO2_MEASUREMENT_START,
             DeviceSettingsPreferenceConst.PREF_SPO2_MEASUREMENT_END -> {
                 setSpo2Measurement(builder)
+            }
+
+            DeviceSettingsPreferenceConst.PREF_SOS_CONTACT_NAME,
+            DeviceSettingsPreferenceConst.PREF_SOS_CONTACT_NUMBER -> {
+                setSosContact(builder)
             }
 
             DeviceSettingsPreferenceConst.PREF_ENABLE_SMS_QUICK_REPLY -> {
@@ -473,21 +485,12 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         val encodedContacts: MutableList<ByteArray> = mutableListOf()
 
         for (contact in contacts) {
-            val numberBytes = contact.number.toByteArray()
-            val nameBytes = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateUtf16BE(contact.name, 20)
+            val numberNameBytes = encodeContact(contact.name, contact.number) ?: continue
 
-            if (numberBytes.size > 15) {
-                LOG.warn("Contact number length {} too long, skipping", contact.number.length)
-                continue
-            }
-
-            val buf = ByteBuffer.allocate(4 + numberBytes.size + nameBytes.size).order(ByteOrder.BIG_ENDIAN)
+            val buf = ByteBuffer.allocate(2 + numberNameBytes.size).order(ByteOrder.BIG_ENDIAN)
             buf.put(CMD_CONTACTS)
             buf.put(CONTACTS_ADD)
-            buf.put(numberBytes.size.toByte())
-            buf.put(nameBytes.size.toByte())
-            buf.put(numberBytes)
-            buf.put(nameBytes)
+            buf.put(numberNameBytes)
 
             encodedContacts.add(buf.array())
         }
@@ -556,6 +559,24 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
             )
         )
         builder.queue()
+    }
+
+    private fun encodeContact(name: String, number: String): ByteArray? {
+        val numberBytes = number.toByteArray()
+        val nameBytes = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateUtf16BE(name, 20)
+
+        if (numberBytes.size > 15) {
+            LOG.warn("Contact number length {} too long, skipping", number.length)
+            return null
+        }
+
+        val buf = ByteBuffer.allocate(2 + numberBytes.size + nameBytes.size).order(ByteOrder.BIG_ENDIAN)
+        buf.put(numberBytes.size.toByte())
+        buf.put(nameBytes.size.toByte())
+        buf.put(numberBytes)
+        buf.put(nameBytes)
+
+        return buf.array()
     }
 
     override fun onSetAlarms(alarms: ArrayList<out Alarm>) {
@@ -629,11 +650,11 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
 
             if (appSpecificSetting != null) {
                 if (appSpecificSetting.vibrationPattern != null) {
-                    vibrationKind = VibrationKind.valueOf(appSpecificSetting.vibrationPattern.uppercase(Locale.ROOT))
+                    vibrationKind = VibrationKind.valueOf(appSpecificSetting.vibrationPattern!!.uppercase(Locale.ROOT))
                 }
 
                 if (appSpecificSetting.vibrationRepetition != null) {
-                    vibrationCount = appSpecificSetting.vibrationRepetition.toInt()
+                    vibrationCount = appSpecificSetting.vibrationRepetition!!.toInt()
                 }
             }
         }
@@ -770,7 +791,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         builder.queue()
     }
 
-    override fun onSetMusicState(stateSpec: MusicStateSpec?) {
+    override fun onSetMusicState(stateSpec: MusicStateSpec) {
         if (!mMediaManager!!.onSetMusicState(stateSpec)) {
             return
         }
@@ -811,7 +832,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         builder.queue()
     }
 
-    override fun onSetMusicInfo(musicSpec: MusicSpec?) {
+    override fun onSetMusicInfo(musicSpec: MusicSpec) {
         if (!mMediaManager!!.onSetMusicInfo(musicSpec)) {
             return
         }
@@ -869,7 +890,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         // TODO onSendWeather
     }
 
-    override fun onTestNewFunction() {
+    override fun onTestNewFunction(options: Bundle?) {
 
     }
 
@@ -937,17 +958,16 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
             0x00.toByte()
         }
 
-        val measurementSystem =
-            GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, "metric")
+        val temperatureUnit = GBApplication.getPrefs().temperatureUnit
 
         val buf = ByteBuffer.allocate(19).order(ByteOrder.BIG_ENDIAN)
         buf.put(CMD_USER_INFO)
         buf.putShort(activityUser.heightCm.coerceIn(91, 241).toShort())
         buf.putShort(activityUser.weightKg.coerceIn(20, 255).toShort())
-        buf.put(0x05) // ?
+        buf.put(devicePrefs.screenTimeout.coerceIn(5, 15, 5).toByte())
         buf.put(0x00) // ?
         buf.put(0x00) // ?
-        buf.putShort(((activityUser.stepsGoal / 1000.0).roundToInt() * 1000).coerceIn(1000, 30000).toShort())
+        buf.putShort(activityUser.stepsGoal.coerceIn(1000, 30000, 1000).toShort())
         buf.put(if (raiseHandToActivateDisplay) 0x01 else 0x00)
         buf.put(heartRateAlertHigh)
         buf.put(0x00) // ?
@@ -960,7 +980,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
             }
         )
         buf.put(0x00) // ?
-        buf.put(if (measurementSystem == "metric") 0x02 else 0x01) // 0x02 celsius, 0x01 fahrenheit
+        buf.put(if (temperatureUnit == TemperatureUnit.CELSIUS) 0x02 else 0x01) // 0x02 celsius, 0x01 fahrenheit
         buf.put(0x01) // ?
         buf.put(heartRateAlertLow)
 
@@ -970,7 +990,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
     fun setGoalSteps(builder: TransactionBuilder) {
         val activityUser = ActivityUser()
 
-        val stepsCoerced = ((activityUser.stepsGoal / 1000.0).roundToInt() * 1000).coerceIn(1000, 30000).toShort()
+        val stepsCoerced = activityUser.stepsGoal.coerceIn(1000, 30000, 1000).toShort()
 
         LOG.debug("Setting steps goal to {}", stepsCoerced)
 
@@ -988,7 +1008,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
     fun setGoalCalories(builder: TransactionBuilder) {
         val activityUser = ActivityUser()
 
-        val caloriesCoerced = ((activityUser.caloriesBurntGoal / 50.0).roundToInt() * 50).coerceIn(50, 1000).toShort()
+        val caloriesCoerced = activityUser.caloriesBurntGoal.coerceIn(50, 1000, 50).toShort()
 
         LOG.debug("Setting calories goal to {}", caloriesCoerced)
 
@@ -1004,8 +1024,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
     fun setGoalDistance(builder: TransactionBuilder) {
         val activityUser = ActivityUser()
 
-        val distanceCoerced =
-            ((activityUser.distanceGoalMeters / 1000f).roundToInt() * 1000).coerceIn(1000, 20000).toShort()
+        val distanceCoerced = activityUser.distanceGoalMeters.coerceIn(1000, 20000, 1000).toShort()
 
         LOG.debug("Setting distance goal to {}", distanceCoerced)
 
@@ -1037,7 +1056,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         val buf = ByteBuffer.allocate(12).order(ByteOrder.BIG_ENDIAN)
         buf.put(CMD_SEDENTARY_REMINDER)
         buf.put(if (enabled) 0x01 else 0x00)
-        buf.put(((duration / 5.0).roundToInt() * 5).coerceIn(30, 180).toByte())
+        buf.put(duration.coerceIn(30, 180, 5).toByte())
         buf.put(0x02) // ?
         buf.put(0x03) // ?
         buf.put(0x01) // ?
@@ -1085,18 +1104,16 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
     }
 
     private fun setUnits(builder: TransactionBuilder) {
-        val measurementSystem =
-            GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, "metric")
+        val distanceUnit = GBApplication.getPrefs().distanceUnit
         val devicePrefs = getDevicePrefs()
 
-        val metric = measurementSystem == "metric"
         val timeFormat24h = DeviceSettingsPreferenceConst.PREF_TIMEFORMAT_24H == devicePrefs.timeFormat
 
-        LOG.debug("Setting units metric={} 24h={}", metric, timeFormat24h)
+        LOG.debug("Setting units unit={} 24h={}", distanceUnit, timeFormat24h)
 
         val buf = ByteBuffer.allocate(3).order(ByteOrder.BIG_ENDIAN)
         buf.put(CMD_UNITS)
-        buf.put(if (metric) 0x01 else 0x02)
+        buf.put(if (distanceUnit == DistanceUnit.METRIC) 0x01 else 0x02)
         buf.put(if (timeFormat24h) 0x01 else 0x02)
 
         builder.write(UUID_CHARACTERISTIC_GLORYFIT_CMD_WRITE, *buf.array())
@@ -1179,6 +1196,50 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
                 CMD_SMS_QUICK_REPLY,
                 if (enabled) 0x01 else 0x00,
             )
+        )
+    }
+
+    private fun setSosContact(builder: TransactionBuilder) {
+        if (!GBApplication.getPrefs().experimentalSettings()) {
+            LOG.warn("Experimental settings disabled, ignoring SOS contact")
+            return
+        }
+
+        val name = devicePrefs.getString(DeviceSettingsPreferenceConst.PREF_SOS_CONTACT_NAME, "")
+        val number = devicePrefs.getString(DeviceSettingsPreferenceConst.PREF_SOS_CONTACT_NUMBER, "")
+
+        if (name.isBlank() || number.isBlank()) {
+            LOG.warn("SOS contact number or name is blank, ignoring")
+            return
+        }
+
+        val numberNameBytes = encodeContact(name, number) ?: return
+
+        LOG.debug("Setting SOS contact name = {}, number = {}", name, number)
+
+        // Clear
+        builder.write(
+            UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE,
+            *byteArrayOf(CMD_CONTACTS, CONTACT_SOS_CLEAR)
+        )
+
+        // Set - 37 ac 01 37 ac 06 10 35 3536363636004a0061006e006500200044006f006500000000000000000000000000
+        builder.write(
+            UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE,
+            *ByteBuffer.allocate(244).order(ByteOrder.LITTLE_ENDIAN).apply {
+                put(CMD_CONTACTS)
+                put(CONTACT_SOS_SET)
+                put(0x01.toByte())
+                put(CMD_CONTACTS)
+                put(CONTACT_SOS_SET)
+                put(numberNameBytes)
+            }.array()
+        )
+
+        // End - 37 ad fd c1
+        builder.write(
+            UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE,
+            *byteArrayOf(CMD_CONTACTS, CONTACT_SOS_END, 0xfd.toByte(), 0xc1.toByte())
         )
     }
 
@@ -1314,6 +1375,9 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         const val CONTACTS_START: Byte = 0xfa.toByte()
         const val CONTACTS_ADD: Byte = 0xfb.toByte()
         const val CONTACTS_END: Byte = 0xfc.toByte()
+        const val CONTACT_SOS_CLEAR: Byte = 0xae.toByte()
+        const val CONTACT_SOS_SET: Byte = 0xac.toByte()
+        const val CONTACT_SOS_END: Byte = 0xad.toByte()
         const val CMD_FACTORY_RESET: Byte = 0xad.toByte()
     }
 }

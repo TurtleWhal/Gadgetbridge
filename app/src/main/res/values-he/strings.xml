@@ -28,7 +28,6 @@
     <string name="appmanager_hrm_deactivate">השבתת מעקב דופק</string>
     <string name="appmanager_weather_activate">הפעלת יישומון מזג האוויר של המערכת</string>
     <string name="appmanager_weather_deactivate">השבתת יישומון מזג האוויר של המערכת</string>
-    <string name="appmanager_weather_install_provider">התקנת יישומון דיווח מזג האוויר</string>
     <string name="app_configure">הגדרה</string>
     <string name="app_move_to_top">העברה למעלה</string>
     <!--Strings related to CalBlacklist-->
@@ -180,7 +179,7 @@
     <string name="miband_pairing_using_dummy_userdata">לא ניתנו נתוני משתמש, נעשה שימוש בנתוני דמה לבינתיים.</string>
     <string name="miband_pairing_tap_hint">כאשר ה־Mi Band שלך רוטט ומהבהב, יש לגעת בו מספר פעמים ברצף.</string>
     <string name="appinstaller_install">התקנה</string>
-    <string name="discovery_connected_devices_hint">יש להפעיל את האפשרות לאיתור ההתקן שלך. התקנים שכבר מחוברים כעת לא יתגלו. יש להפעיל מיקום (GPS) באנדרואיד 6+. יש לכבות את שומר הפרטיות עבור Gadgetbridge כיוון שתכונה זו עשויה להקריס ולהפעיל מחדש את הטלפון שלך. אם לא נמצא אף התקן לאחר מספר דקות יש לנסות שוב לאחר הפעלת הטלפון הנייד שלך מחדש.</string>
+    <string name="discovery_connected_devices_hint">יש להפעיל את האפשרות לאיתור ההתקן שלך. התקנים שכבר מחוברים כעת לא יתגלו. יש להפעיל מיקום (GPS). יש לכבות את הגנת הפרטיות עבור Gadgetbridge כיוון שהיכולת הזאת עלולה להקריס ולהפעיל מחדש את הטלפון שלך. אם לא נמצא אף התקן לאחר מספר דקות יש לנסות שוב לאחר הפעלת הטלפון הנייד שלך מחדש.</string>
     <string name="discovery_note">לתשומת לבך:</string>
     <string name="candidate_item_device_image">תמונת ההתקן</string>
     <string name="miband_prefs_alias">שם/כינוי</string>
@@ -299,7 +298,6 @@
     <string name="authentication_required">נדרש אימות</string>
     <string name="appwidget_text">חררר</string>
     <string name="add_widget">הוספת וידג׳ט</string>
-    <string name="activity_prefs_sleep_duration">משך השינה המועדף בשעות</string>
     <string name="appwidget_setting_alarm">הוגדר שעון מעורר לשעה %1$02d:%2$02d</string>
     <string name="device_hw">מהדורת חומרה: %1$s</string>
     <string name="device_fw">מהדורת קושחה: %1$s</string>
@@ -321,7 +319,6 @@
 \n ‎*.gpx - הקלטות GPS
 \n ‎*.log - קובצי יומנים
 \nהקבצים שלך אמורים להיות (או ששם עליך להביא את מה שמיועד לייבוא) פה:</string>
-    <string name="activity_db_management_merge_old_title">מחיקת מסד נתונים מיושן</string>
     <string name="dbmanagementactivvity_cannot_access_export_path">לא ניתן לגשת לנתיב הייצוא. נא ליצור קשר עם המפתחים.</string>
     <string name="dbmanagementactivity_exported_to">ייוצא אל: %1$s</string>
     <string name="dbmanagementactivity_error_exporting_db">שגיאה בייצוא מסד הנתונים: %1$s</string>
@@ -338,14 +335,13 @@
     <string name="dbmanagementactivity_old_activity_db_successfully_deleted">נתוני פעילות ישנים נמחקו.</string>
     <string name="dbmanagementactivity_old_activity_db_deletion_failed">מחיקת מסד נתוני הפעילות הישן נכשל.</string>
     <string name="dbmanagementactivity_overwrite">שכתוב</string>
-    <string name="Cancel">ביטול</string>
-    <string name="Delete">מחיקה</string>
+    <string name="cancel">ביטול</string>
+    <string name="delete">מחיקה</string>
     <!--Strings related to Vibration Activity-->
     <string name="title_activity_vibration">רטט</string>
     <!--Strings related to Pebble Pairing Activity-->
     <string name="title_activity_pebble_pairing">צימוד Pebble</string>
     <string name="pebble_pairing_hint">במסך של התקן האנדרואיד שלך אמורה לקפוץ חלונית צימוד. אם החלונית לא מופיעה, יש לחפש במגירת הדיווחים ולאשר את בקשת הצימוד. לאחר מכן יש לאשר את בקשת הצימוד ב־Pebble שלך.</string>
-    <string name="weather_notification_label">נא לוודא שערכת עיצוב זו מופעלת ביישומון דיווח מזג האוויר כדי לקבל נתוני מזג אוויר ל־Pebble שלך.\n\nלא נדרשות כאן הגדרות.\n\nניתן להפעיל את יישומון מזג האוויר המערכתי של ה־Pebble שלך ממנהל היישומונים.\n\nמסיכות השעון התומכות יציגו את מזג האוויר אוטומטית.</string>
     <string name="pref_title_setup_bt_pairing">הפעלת צימוד Bluetooth</string>
     <string name="pref_summary_setup_bt_pairing">יש להשבית את זה אם קורות תקלות בחיבור</string>
     <string name="unit_metric">מטרית</string>
@@ -363,7 +359,6 @@
     <string name="controlcenter_snackbar_disconnecting">מתבצע ניתוק</string>
     <string name="controlcenter_snackbar_connecting">מתבצעת התחברות…</string>
     <string name="controlcenter_snackbar_requested_screenshot">מסך ההתקן מצולם</string>
-    <string name="title_activity_calblacklist">יומנים חסומים</string>
     <string name="pref_call_privacy_mode_number">הסתרת המספר אך הצגת השם</string>
     <string name="pref_blacklist_calendars">חסימת יומנים</string>
     <string name="pref_header_pebble_timeline">ציר זמן Pebble</string>
@@ -576,8 +571,8 @@
     <string name="language_and_region_prefs">הגדרות שפה ואיזור</string>
     <string name="lack_of_sleep">מחסור בשינה: %1$s</string>
     <string name="overslept">עודף שינה: %1$s</string>
-    <string name="lack_of_step">מחסור בצעדים: %1$d</string>
-    <string name="overstep">עודף צעדים: %1$d</string>
+    <string name="lack_of_step">מחסור בצעדים: %1$s</string>
+    <string name="overstep">עודף צעדים: %1$s</string>
     <string name="no_data">אין נתונים</string>
     <string name="live_activity_max_heart_rate">דופק נוכחי / מרבי: %1$d ‏/ %2$d</string>
     <string name="debugactivity_really_factoryreset_title">לאפס להגדרות יצרן\?</string>
@@ -681,8 +676,6 @@
     <string name="pref_title_expose_hr">גישה של צד־שלישי לדופק בזמן אמת</string>
     <string name="pref_title_use_custom_font">גופן מותאם</string>
     <string name="pref_summary_use_custom_font">יש להפעיל תכונה זו אם למכשיר שלך יש קושחה עם גופן שתומך באמוג׳י</string>
-    <string name="activity_db_management_autoexport_explanation">מיקום הייצוא האוטומטי של מסד הנתונים הוגדר לכאן:</string>
-    <string name="activity_db_management_autoexport_label">ייצוא אוטומטי</string>
     <string name="activity_DB_ExportButton">ייצוא נתונים</string>
     <string name="activity_DB_import_button">ייבוא נתונים</string>
     <string name="activity_DB_test_export_button">הפעלת ייצוא אוטומטי כעת</string>
@@ -702,7 +695,7 @@
     <string name="pref_display_add_device_fab">כפתור הוספת התקן חדש</string>
     <string name="pref_display_add_device_fab_on">גלוי תמיד</string>
     <string name="pref_display_add_device_fab_off">גלוי רק אם טרם נוספו התקנים</string>
-    <plurals name="widget_alarm_target_hours">
+    <plurals name="widget_alarm_target_hours" tools:ignore="MissingQuantity">
         <item quantity="one">שעה</item>
         <item quantity="two">שעתיים</item>
         <item quantity="other">%d שעות</item>
@@ -733,8 +726,6 @@
     <string name="pref_chart_heartrate_color_orange">כתום</string>
     <string name="pref_title_chart_heartrate_color">צבע דופק</string>
     <string name="pref_title_chart_sleep_rolling_24_hour">טווח שינה</string>
-    <string name="pref_chart_sleep_rolling_24_on">24 השעות האחרונות</string>
-    <string name="pref_chart_sleep_rolling_24_off">צהריים עד צהריים</string>
     <string name="fw_upgrade_notice_amazfitgts">פעולה זו תתקין את הקושחה %s ב־Amazfit GTS שלך.
 \n
 \nנא לוודא את התקנת קושחת ה־‎.fw בהתחלה, לאחר מכן את קובץ ה־‎.res ולבסוף קובץ ה־‎.gps השעון שלך יופעל מחדש לאחר התקנת קובץ ה־fw.
@@ -743,14 +734,9 @@
 \n
 \nהמשך התהליך הוא על אחריותך!</string>
     <string name="mi2_prefs_button_press_broadcast_default_value" translatable="false">nodomain.freeyourgadget.gadgetbridge.ButtonPressed</string>
-    <string name="preferences_qhybrid_settings">הגדרות Q Hybrid</string>
     <string name="watch_not_connected">השעון לא מחובר</string>
-    <string name="qhybrid_vibration_strength">עצמת רטט:</string>
-    <string name="qhybrid_goal_in_steps">יעד בצעדים</string>
     <string name="qhybrid_time_shift">הזחת זמן</string>
     <string name="qhybrid_second_timezone_offset_relative_to_utc">היסט אזור זמן שני ביחס ל־UTC</string>
-    <string name="qhybrid_overwrite_buttons">דריסת כפתורים</string>
-    <string name="qhybrid_prompt_million_steps">נא להגדיר את מניין הצעדים למיליון כדי להפעיל זאת.</string>
     <string name="qhybrid_buttons_overwrite_success">הכפתורים נדרסו</string>
     <string name="qhybrid_buttons_overwrite_error">דריסת הכפתורים נכשלה</string>
     <string name="qhybrid_changes_delay_prompt">השינויים יתבצעו בהקדם…</string>
@@ -873,7 +859,6 @@
     <string name="error_setting_alias">שגיאה בהגדרת כינוי:</string>
     <string name="error_exporting_device_preferences">שגיאה בייצוא העדפות ייחודיות למכשיר</string>
     <string name="pref_check_permission_status">בדיקת מצב ההרשאות</string>
-    <string name="device_requires_key">נדרש מפתח, ללחוץ ארוכות כדי להקלידה</string>
     <string name="device_is_currently_bonded">כבר מאוגד</string>
     <string name="error_location_enabled_mandatory">יש להפעיל מיקום כדי לסרוק לאיתור מכשירים</string>
     <string name="companiondevice_pairing">צימוד CompanionDevice</string>
@@ -1073,11 +1058,7 @@
     <string name="widget_settings_select_device_title">נא לבחור מכשיר</string>
     <string name="dbmanagementactivity_export_confirmation">לייצא נתונים\? נתוני הפעילות שיוצאו קודם לכן (אם יש כאלו) וההעדפות יידרסו.</string>
     <string name="dbmanagementactivity_export_data_title">לייצא נתונים\?</string>
-    <string name="activity_db_management_clean_export_directory_text">הקבצים שבתיקייה הייצוא/ייבוא זמינים לכל יישומון במכשיר שלך. יכול להיות שכדאי לך להסיר את הקבצים האלו לאחר סנכרון או גיבוי. נא לוודא שיש לך גיבוי בטרם מחיקתם. קובצי GPX, תת־תיקיות וקובץ מסד נתונים שיוצא אוטומטית (אם קיים) לא יימחקו. הנתיב לתיקיית הייצוא/ייבוא הוא:</string>
     <string name="dbmanagementactivity_export_finished">המחיקה הושלמה</string>
-    <string name="activity_DB_clean_export_directory_warning_message">באמת למחוק את הקבצים שבתיקיית ייצוא/ייבוא\?</string>
-    <string name="activity_DB_clean_export_directory_warning_title">למחוק קבצים בתיקיית ייצוא/ייבוא\?</string>
-    <string name="activity_db_management_clean_export_directory_label">מחיקת קבצים בתיקיית ייצוא/ייבוא</string>
     <string name="dbmanagementactivity_error_cleaning_export_directory">שגיאה במחיקת קבצים מתיקיית הייצוא %1$s</string>
     <string name="activity_type_strength_training">אימון כוח</string>
     <string name="mi">מייל</string>
@@ -1406,8 +1387,6 @@
     <string name="ascentDistance">מרחק במעלה</string>
     <string name="activity_type_hiking">טיול</string>
     <string name="activity_type_climbing">טיפוס</string>
-    <string name="distance_format_kilometers">###.# ק״מ</string>
-    <string name="distance_format_feet">### רגל</string>
     <string name="about_hash">הגשה %s</string>
     <string name="pref_media_play">נגינת מדיה</string>
     <string name="pref_media_playpause">החלפת מצב נגינה</string>
@@ -1417,11 +1396,9 @@
     <string name="pref_media_forward">לדלג קדימה</string>
     <string name="pref_media_rewind">לדלג אחורה</string>
     <string name="pref_device_action_broadcast">שליחת שידור</string>
-    <string name="distance_format_meters">### מ׳</string>
     <string name="pref_button_action_disabled">מושבת</string>
     <string name="pref_media_pause">השהית מדיה</string>
     <string name="pref_media_volumedown">הנמכת עצמת השמע</string>
-    <string name="distance_format_miles">###.# מי׳</string>
     <string name="pref_activity_recognize_rowing">זיהוי חתירה</string>
     <string name="menuitem_menu">תפריט</string>
     <string name="pref_activity_recognize_running">זיהוי ריצה</string>
@@ -1472,9 +1449,6 @@
     <string name="pref_device_action_fitness_app_control_stop">עצירת מעקב יישומון חיטוב</string>
     <string name="pref_device_action_fitness_app_control_start">התחלת מעקב יישומון חיטוב</string>
     <string name="pref_title_notifications_generic_settings">הגדרות הודעות של Android</string>
-    <string name="autoExport_lastTime_label">הייצוא האוטומטי האחרון: %1$s</string>
-    <string name="activity_db_management_autoexport_enabled_yes">ייצוא אוטומטי מופעל.</string>
-    <string name="activity_db_management_autoexport_enabled_no">ייצוא אוטומטי מושבת.</string>
     <string name="activity_db_management_autoexport_scheduled_no">הייצוא האוטומטי לא תוזמן.</string>
     <string name="activity_db_management_autoexport_scheduled_yes">הייצוא האוטומטי תוזמן (במקור) ל־%1$s</string>
     <string name="activity_db_management_autoexport_location">לא ניתן לפענח את המיקום. כנראה תקלה במערכת ההרשאות החדשה של Android. סביר להניח שהייצוא האוטומטי לא עובד כרגע.</string>
@@ -1667,7 +1641,6 @@
     <string name="pref_summary_banglejs_txt_bitmap_size">הגודל לשימוש לעיבוד מפות סיביות של טקסט</string>
     <string name="steps_streaks_achievement_rate">קצב
 \nהישגיות</string>
-    <string name="share_log_not_enabled_message">עליך להפעיל תיעוד ליומנים תחילה דרך הגדרות - כתיבת קובצי יומן</string>
     <string name="steps_streaks">רצפי צעידה</string>
     <string name="steps_streaks_hint">רצף של ימים ללא הפסקה בהם הגעת ליעד הצעדים</string>
     <string name="step_streak_ongoing">מתמשך</string>
@@ -1917,7 +1890,7 @@
     <string name="pref_title_notification_media_ignores_application_list">רשימת יישומונים להתעלמות בהתראות מדיה</string>
     <string name="pref_summary_notification_media_ignores_application_list">לעבד את בקשות המדיה לפני רשימת היישומונים. אם העדפה זו לא מסומנת, יש לאפשר יישומוני מדיה ברשימת היישומונים כדי שפקדי המדיה יעבדו על המכשיר.</string>
     <string name="debugactivity_confirm_remove_device_preferences_title">להסיר את העדפות המכשיר\?</string>
-    <string name="debugactivity_confirm_remove_device_preferences">פעולה זו תאפס את העדפות המכשיר לכל המכשירים המקושרים. להמשיך\?</string>
+    <string name="debugactivity_confirm_remove_device_preferences">פעולה זו תאפס את העדפות המכשיר לכל המכשירים המקושרים. להמשיך?</string>
     <string name="fw_upgrade_notice_amazfit_band7">פעולה זו תתקין את הקושחה %s על ה־Amazfit Band 7 שלך.
 \n
 \nהצמיד שלך יופעל מחדש לאחר התקנת קובץ ה־‎.zip.
@@ -2017,7 +1990,7 @@
     <string name="pref_pair_bluetooth_calls_help_summary">כדי לקבל שיחות Bluetooth יש לצמד את הטלפון שלך עם מופע שני של השעון.</string>
     <string name="pref_summary_receive_calls_watch">התקשרות ומענה לשיחות ישירות מהשעון</string>
     <string name="pref_morning_updates_categories_summary">רשימת הקטגוריות להצגה בכל בוקר</string>
-    <string name="pref_pair_bluetooth_calls_help_warning">אזהרה: כדי להפעיל שיחות Bluetooth מבלי לצמד למופע השני, הודעות שיחה לא תעבודנה כמתוכנן.</string>
+    <string name="pref_pair_bluetooth_calls_help_warning">אזהרה: הפעלת שיחות Bluetooth מבלי לצמד למופע השני תגרום לכך שהודעות שיחה לא תעבודנה כמתוכנן.</string>
     <string name="pref_title_notification_cache_while_disconnected">שמירה במטמון תוך חריגה מהטווח</string>
     <string name="pref_summary_notification_cache_while_disconnected">לשלוח התראות שהוחמצו כאשר ההתקן מתחבר מחדש לאחר היציאה מהטווח</string>
     <string name="pref_switch_controls_anc_ambient_off">ביטול רעשים →← הקפי →← כבוי</string>
@@ -2124,25 +2097,18 @@
     <string name="pai_plus_num">+%d</string>
     <string name="pai_chart_per_month">PAI בחודש</string>
     <string name="pai_chart_per_week">PAI בשבוע</string>
-    <string name="loyalty_cards_install">התקנת Catima</string>
     <string name="loyalty_cards_sync_groups_only">סנכרון קבוצות מסוימות בלבד</string>
     <string name="loyalty_cards_sync_archived">סנכרון כרטיסים בארכיון</string>
-    <string name="loyalty_cards_install_catima_fail">פתיחת החנות להתקנת Catima נכשלה</string>
     <string name="loyalty_cards_sync_starred">לסנכרן כרטיסים בכוכב בלבד</string>
-    <string name="loyalty_cards_catima_not_compatible">גרסת ה־Catima המותקנת לא תואמת ל־Gadgetbridge. נא לעדכן את Catima ואת Gadgetbridge לגרסאות העדכניות ביותר.</string>
     <string name="loyalty_cards_catima">Catima</string>
-    <string name="loyalty_cards_open_catima">פתיחת Catima</string>
     <string name="pai_total">סך הכול</string>
     <string name="pai_day">עלייה יומית</string>
     <string name="loyalty_cards_sync_groups">קבוצות לסנכרון</string>
     <string name="loyalty_cards_sync_title">סנכרון כרטיסי מועדון</string>
-    <string name="loyalty_cards_catima_package">שם חבילת Catima</string>
     <string name="loyalty_cards_sync_summary">יש ללחוץ כדי לסנכרן את הכרטיסים לשעון</string>
-    <string name="loyalty_cards_catima_not_installed">צריך Catima כדי לנהל את כרטיסי המועדון</string>
     <string name="loyalty_cards_catima_permissions_title">חסרות הרשאות</string>
     <string name="loyalty_cards_sync_options">אפשרויות סנכרון</string>
     <string name="loyalty_cards_sync">סנכרון</string>
-    <string name="loyalty_cards_catima_permissions_summary">ל־Gadgetbridge דרושות הרשאות לקרוא כרטיסים מ־Catima כדי סלנכרן אותם. נגיעה בכפתור הזה תאשר את הגישה.</string>
     <string name="loyalty_cards">כרטיסי מועדון</string>
     <string name="loyalty_cards_syncing">%d כרטיסי מועדון מסונכרנים למכשיר</string>
     <string name="pref_title_mb_intents">שידור Intents של כפתורי מדיה ישירות</string>
@@ -2933,7 +2899,7 @@
     <string name="map_theme_osmarender">Osmarender</string>
     <string name="map_theme_motorider">Motorider</string>
     <string name="service_notification_collector_service_text">מעקב אחר התראות ברקע</string>
-    <plurals name="amount_of_days">
+    <plurals name="amount_of_days" tools:ignore="MissingQuantity">
         <item quantity="one">יום</item>
         <item quantity="two">יומיים</item>
         <item quantity="other">%d ימים</item>

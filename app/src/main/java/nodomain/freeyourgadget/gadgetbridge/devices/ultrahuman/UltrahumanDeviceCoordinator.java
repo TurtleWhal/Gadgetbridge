@@ -36,6 +36,7 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.ComputedHrvSummarySampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCardAction;
 import nodomain.freeyourgadget.gadgetbridge.devices.GenericHeartRateSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.GenericHrvValueSampleProvider;
@@ -58,6 +59,7 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.HrvSummarySample;
 import nodomain.freeyourgadget.gadgetbridge.model.HrvValueSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
@@ -142,12 +144,17 @@ public class UltrahumanDeviceCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public String getManufacturer() {
-        return "Ultrahuman Healthcare Pvt Ltd";
+        return "Ultrahuman";
     }
 
     @Override
     public TimeSampleProvider<? extends HrvValueSample> getHrvValueSampleProvider(GBDevice device, DaoSession session) {
         return new GenericHrvValueSampleProvider(device, session);
+    }
+
+    @Override
+    public TimeSampleProvider<? extends HrvSummarySample> getHrvSummarySampleProvider(GBDevice device, DaoSession session) {
+        return new ComputedHrvSummarySampleProvider(getHrvValueSampleProvider(device, session), device, session);
     }
 
     @Override
@@ -191,7 +198,7 @@ public class UltrahumanDeviceCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 

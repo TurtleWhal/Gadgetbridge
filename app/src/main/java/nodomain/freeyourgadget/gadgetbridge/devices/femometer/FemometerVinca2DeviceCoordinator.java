@@ -92,26 +92,8 @@ public class FemometerVinca2DeviceCoordinator extends AbstractBLEDeviceCoordinat
     }
 
     @Override
-    public boolean supportsActivityTracking(@NonNull GBDevice device) {
+    public boolean supportsCharts(@NonNull GBDevice device) {
         return true;
-    }
-
-    @Override
-    public boolean supportsSleepMeasurement(@NonNull GBDevice device) {
-        return false;
-    }
-
-    @Override
-    public boolean supportsStepCounter(@NonNull GBDevice device) {
-        return false;
-    }
-    @Override
-    public boolean supportsSpeedzones(@NonNull GBDevice device) {
-        return false;
-    }
-    @Override
-    public boolean supportsActivityTabs(@NonNull GBDevice device) {
-        return false;
     }
 
     @Override
@@ -119,7 +101,6 @@ public class FemometerVinca2DeviceCoordinator extends AbstractBLEDeviceCoordinat
         return new int[]{
                 R.xml.devicesettings_volume,
                 R.xml.devicesettings_femometer,
-                R.xml.devicesettings_temperature_scale_cf,
         };
     }
 

@@ -37,7 +37,6 @@ import java.util.UUID;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Watchface;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceApp;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetWatchfacesList;
@@ -46,7 +45,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.Requ
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendWatchfaceOperation;
 
 public class HuaweiWatchfaceManager {
-    static Logger LOG = LoggerFactory.getLogger(HuaweiCoordinator.class);
+    static Logger LOG = LoggerFactory.getLogger(HuaweiWatchfaceManager.class);
 
     public static class Resolution {
 
@@ -67,6 +66,7 @@ public class HuaweiWatchfaceManager {
             map.put("HWHD11", "480*336");
             map.put("HWHD12", "240*240");
             map.put("HWHD13", "480*408");
+            map.put("HWHD14", "482*286");
             //Honor sizes
             map.put("HNHD01", "466*466");
             map.put("HNHD02", "368*194");

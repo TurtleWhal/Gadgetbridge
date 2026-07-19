@@ -17,7 +17,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huami.operations.fetch;
 
-import android.text.format.DateUtils;
 import android.widget.Toast;
 
 import org.slf4j.Logger;
@@ -26,7 +25,10 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Locale;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
@@ -35,9 +37,8 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummary;
-import nodomain.freeyourgadget.gadgetbridge.export.ActivityTrackExporter;
-import nodomain.freeyourgadget.gadgetbridge.export.GPXExporter;
-import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
+import nodomain.freeyourgadget.gadgetbridge.export.AutoFitExporter;
+import nodomain.freeyourgadget.gadgetbridge.export.AutoGpxExporter;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrack;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.AbstractHuamiActivityDetailsParser;
@@ -111,48 +112,8 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
 
         try {
             final ActivityTrack track = detailsParser.parse(buffer.toByteArray());
-            final ActivityTrackExporter exporter = new GPXExporter();
-            final String trackType;
-            switch (ActivityKind.fromCode(summary.getActivityKind())) {
-                case CYCLING:
-                    trackType = getContext().getString(R.string.activity_type_biking);
-                    break;
-                case RUNNING:
-                    trackType = getContext().getString(R.string.activity_type_running);
-                    break;
-                case WALKING:
-                    trackType = getContext().getString(R.string.activity_type_walking);
-                    break;
-                case HIKING:
-                    trackType = getContext().getString(R.string.activity_type_hiking);
-                    break;
-                case CLIMBING:
-                    trackType = getContext().getString(R.string.activity_type_climbing);
-                    break;
-                case SWIMMING:
-                    trackType = getContext().getString(R.string.activity_type_swimming);
-                    break;
-                default:
-                    trackType = "track";
-                    break;
-            }
-
-            final String fileName = FileUtils.makeValidFileName("gadgetbridge-" + trackType.toLowerCase() + "-" + DateTimeUtils.formatIso8601(summary.getStartTime()) + ".gpx");
-            final File targetFile = new File(FileUtils.getExternalFilesDir(), fileName);
-
-            boolean exportGpxSuccess = true;
-            try {
-                exporter.performExport(track, targetFile);
-            } catch (final ActivityTrackExporter.GPXTrackEmptyException ex) {
-                exportGpxSuccess = false;
-            }
-
-            try (DBHandler dbHandler = GBApplication.acquireDB()) {
-                if (exportGpxSuccess) {
-                    summary.setGpxTrack(targetFile.getAbsolutePath());
-                }
-                dbHandler.getDaoSession().getBaseActivitySummaryDao().update(summary);
-            }
+            AutoGpxExporter.doExport(getContext(), getDevice(), summary, track);
+            AutoFitExporter.doExport(getContext(), getDevice(), summary, track);
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving activity details: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             // #4549 - we do not return false here, since this might cause the same activity to be fetched over and over again
@@ -160,8 +121,22 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
         }
 
         // Always increment the sync timestamp on success, even if we did not get data
+        final GregorianCalendar startTime = BLETypeConversions.createCalendar();
+        startTime.setTime(summary.getStartTime());
         final GregorianCalendar endTime = BLETypeConversions.createCalendar();
         endTime.setTime(summary.getEndTime());
+
+        if (sameMinute(startTime, endTime)) {
+            // #6072 #2958 #3199 - If the activity starts and ends in the same minute, we might get stuck fetching it
+            // over and over again. Move the start timestamp to the next minute if we're truncating fetch operation timestamps
+            final boolean truncate = GBApplication.getDevicePrefs(fetcher.getDevice())
+                    .getBoolean("huami_truncate_fetch_operation_timestamps", true);
+            if (truncate) {
+                LOG.warn("Activity starts and ends in the same minute - pushing timestamp forward 1 minute");
+                endTime.add(Calendar.MINUTE, 1);
+            }
+        }
+
         saveLastSyncTimestamp(endTime);
 
         if (needsAnotherFetch(endTime)) {
@@ -170,6 +145,14 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
         }
 
         return true;
+    }
+
+    private boolean sameMinute(final GregorianCalendar startTime, final GregorianCalendar endTime) {
+        return startTime.get(Calendar.YEAR) == endTime.get(Calendar.YEAR)
+                && startTime.get(Calendar.MONTH) == endTime.get(Calendar.MONTH)
+                && startTime.get(Calendar.DAY_OF_MONTH) == endTime.get(Calendar.DAY_OF_MONTH)
+                && startTime.get(Calendar.HOUR_OF_DAY) == endTime.get(Calendar.HOUR_OF_DAY)
+                && startTime.get(Calendar.MINUTE) == endTime.get(Calendar.MINUTE);
     }
 
     private boolean needsAnotherFetch(GregorianCalendar lastSyncTimestamp) {
@@ -201,13 +184,24 @@ public class FetchSportsDetailsOperation extends AbstractFetchOperation {
     }
 
     private String saveRawBytes() {
-        final String fileName = FileUtils.makeValidFileName(String.format("%s.bin", DateTimeUtils.formatIso8601(summary.getStartTime())));
+        final SimpleDateFormat SDF_YEAR = new SimpleDateFormat("yyyy", Locale.ROOT);
+
+        final StringBuilder sb = new StringBuilder();
+
+        sb.append("rawDetails");
+        sb.append(File.separator);
+        sb.append(SDF_YEAR.format(summary.getStartTime()));
+        sb.append(File.separator);
+        sb.append(FileUtils.makeValidFileName(String.format("%s.bin", DateTimeUtils.formatIso8601(summary.getStartTime()))));
 
         try {
-            final File targetFolder = new File(FileUtils.getExternalFilesDir(), "rawDetails");
-            //noinspection ResultOfMethodCallIgnored
-            targetFolder.mkdirs();
-            final File targetFile = new File(targetFolder, fileName);
+            final File writableExportDirectory = getDevice().getDeviceCoordinator().getWritableExportDirectory(getDevice(), true);
+            final File targetFile = new File(writableExportDirectory, sb.toString());
+            final File parent = targetFile.getParentFile();
+            if (parent != null) {
+                //noinspection ResultOfMethodCallIgnored
+                parent.mkdirs();
+            }
             final FileOutputStream outputStream = new FileOutputStream(targetFile);
             outputStream.write(buffer.toByteArray());
             outputStream.close();

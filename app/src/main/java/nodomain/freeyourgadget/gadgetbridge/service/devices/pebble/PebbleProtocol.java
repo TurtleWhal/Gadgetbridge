@@ -41,11 +41,11 @@ import java.util.SimpleTimeZone;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
+import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleHardware;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppInfo;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppManagement;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.pebble.GBDeviceEventFirmwareUpdateStart;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppMessage;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCallControl;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventMusicControl;
@@ -68,6 +68,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec.Action;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
@@ -109,6 +110,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
     private static final short ENDPOINT_APPREORDER = (short) 0xabcd; // FW >=3.x
     private static final short ENDPOINT_BLOBDB = (short) 0xb1db;  // FW >=3.x
     private static final short ENDPOINT_PUTBYTES = (short) 0xbeef;
+    private static final short ENDPOINT_HEALTH_SYNC = 911;
 
     private static final byte APPRUNSTATE_START = 1;
     private static final byte APPRUNSTATE_STOP = 2;
@@ -201,6 +203,9 @@ public class PebbleProtocol extends GBDeviceProtocol {
     private static final byte DATALOG_ACK = (byte) 0x85;
     private static final byte DATALOG_NACK = (byte) 0x86;
 
+    private static final byte HEALTH_SYNC_CMD_SYNC = 0x01;
+    private static final byte HEALTH_SYNC_CMD_ACK = 0x11;
+
     private static final byte PING_PING = 0;
     private static final byte PING_PONG = 1;
 
@@ -230,6 +235,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
     private static final byte SYSTEMMESSAGE_FIRMWARE_OUTOFDATE = 5;
     private static final byte SYSTEMMESSAGE_STOPRECONNECTING = 6;
     private static final byte SYSTEMMESSAGE_STARTRECONNECTING = 7;
+    private static final byte SYSTEMMESSAGE_FIRMWARESTART_RESPONSE = 0x0a;
 
     private static final byte PHONEVERSION_REQUEST = 0;
     private static final byte PHONEVERSION_APPVERSION_MAGIC = 2; // increase this if pebble complains
@@ -283,28 +289,17 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
     private static final long GB_UUID_MASK = 0x4767744272646700L;
 
-    // base is -8
-    private static final String[] hwRevisions = {
-            // Emulator
-            "silk_bb2", "robert_bb", "silk_bb",
-            "spalding_bb2", "snowy_bb2", "snowy_bb",
-            "bb2", "bb",
-            "unknown",
-            // Pebble Classic Series
-            "ev1", "ev2", "ev2_3", "ev2_4", "v1_5", "v2_0",
-            // Pebble Time Series
-            "snowy_evt2", "snowy_dvt", "spalding_dvt", "snowy_s3", "spalding",
-            // Pebble 2 Series
-            "silk_evt", "robert_evt", "silk",
-            // Pebble 2 Duo
-            "asterix",
-            // Pebble Time 2
-            "obelix",
-    };
+    // Hardware revisions are now defined in PebbleHardware class
 
     private static final Random mRandom = new Random();
 
     int mFwMajor = 3;
+    boolean isNewEraPebble = false;
+
+    // Dual-slot firmware support
+    // Bit 2 (0x04) = IsDualSlot, Bit 3 (0x08) = IsSlot0
+    private boolean mIsDualSlot = false;
+    private boolean mIsSlot0 = false;
     boolean mEnablePebbleKit = false;
     boolean mAlwaysACKPebbleKit = false;
     private byte[] screenshotData = null;
@@ -414,6 +409,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
     public static final UUID UUID_NOTIFICATIONS = UUID.fromString("b2cae818-10f8-46df-ad2b-98ad2254a3c1");
 
     private static final UUID UUID_GBPEBBLE = UUID.fromString("61476764-7465-7262-6469-656775527a6c");
+    private static final UUID UUID_FINDMYGADGETBRIDGE = UUID.fromString("ebd972be-e3b2-402c-a039-66d01284fbd7");
     private static final UUID UUID_MORPHEUZ = UUID.fromString("5be44f1d-d262-4ea6-aa30-ddbec1e3cab2");
     private static final UUID UUID_MISFIT = UUID.fromString("0b73b76a-cd65-4dc2-9585-aaa213320858");
     private static final UUID UUID_PEBBLE_TIMESTYLE = UUID.fromString("4368ffa4-f0fb-4823-90be-f754b076bdaa");
@@ -421,6 +417,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
     private static final UUID UUID_MARIOTIME = UUID.fromString("43caa750-2896-4f46-94dc-1adbd4bc1ff3");
     private static final UUID UUID_HELTHIFY = UUID.fromString("7ee97b2c-95e8-4720-b94e-70fccd905d98");
     private static final UUID UUID_TREKVOLLE = UUID.fromString("2da02267-7a19-4e49-9ed1-439d25db14e4");
+    private static final UUID UUID_TREKV3_REWORKED = UUID.fromString("fb9b2ec0-586b-4d3a-8a4d-89c24e80d971");
     private static final UUID UUID_SQUARE = UUID.fromString("cb332373-4ee5-4c5c-8912-4f62af2d756c");
     private static final UUID UUID_ZALEWSZCZAK_CROWEX = UUID.fromString("a88b3151-2426-43c6-b1d0-9b288b3ec47e");
     private static final UUID UUID_ZALEWSZCZAK_FANCY = UUID.fromString("014e17bf-5878-4781-8be1-8ef998cee1ba");
@@ -430,6 +427,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
     private static final UUID UUID_M7S = UUID.fromString("03adc57a-569b-4669-9a80-b505eaea314d");
     private static final UUID UUID_YWEATHER = UUID.fromString("35a28a4d-0c9f-408f-9c6d-551e65f03186");
     private static final UUID UUID_REALWEATHER = UUID.fromString("1f0b0701-cc8f-47ec-86e7-7181397f9a52");
+    private static final UUID UUID_TOTK = UUID.fromString("c234bf39-a905-48a4-9972-2931aadf4d9e");
 
     private static final UUID UUID_ZERO = new UUID(0, 0);
 
@@ -443,28 +441,26 @@ public class PebbleProtocol extends GBDeviceProtocol {
         super(device);
         mAppMessageHandlers.put(UUID_MORPHEUZ, new AppMessageHandlerMorpheuz(UUID_MORPHEUZ, PebbleProtocol.this));
         mAppMessageHandlers.put(UUID_MISFIT, new AppMessageHandlerMisfit(UUID_MISFIT, PebbleProtocol.this));
-        mAppMessageHandlers.put(UUID_WEATHER, new AppMessageHandler(UUID_WEATHER, PebbleProtocol.this) {
-            @Override
-            public GBDeviceEvent[] onAppStart() {
-                return new GBDeviceEvent[]{new GBDeviceEventSendBytes(encodeSendWeather())};
-            }
-        });
+        mAppMessageHandlers.put(UUID_WEATHER, new AppMessageHandler(UUID_WEATHER, PebbleProtocol.this));
+        mAppMessageHandlers.put(UUID_GBPEBBLE, new AppMessageHandlerGBPebble(UUID_GBPEBBLE, PebbleProtocol.this));
+        mAppMessageHandlers.put(UUID_FINDMYGADGETBRIDGE, new AppMessageHandlerGBPebble(UUID_FINDMYGADGETBRIDGE, PebbleProtocol.this));
         if (!((PebbleCoordinator) device.getDeviceCoordinator()).isBackgroundJsEnabled(device)) {
             mAppMessageHandlers.put(UUID_PEBBLE_TIMESTYLE, new AppMessageHandlerTimeStylePebble(UUID_PEBBLE_TIMESTYLE, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_PEBSTYLE, new AppMessageHandlerPebStyle(UUID_PEBSTYLE, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_MARIOTIME, new AppMessageHandlerMarioTime(UUID_MARIOTIME, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_HELTHIFY, new AppMessageHandlerHealthify(UUID_HELTHIFY, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_TREKVOLLE, new AppMessageHandlerTrekVolle(UUID_TREKVOLLE, PebbleProtocol.this));
+            mAppMessageHandlers.put(UUID_TREKV3_REWORKED, new AppMessageHandlerTrekV3Reworked(UUID_TREKV3_REWORKED, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_SQUARE, new AppMessageHandlerSquare(UUID_SQUARE, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_ZALEWSZCZAK_CROWEX, new AppMessageHandlerZalewszczak(UUID_ZALEWSZCZAK_CROWEX, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_ZALEWSZCZAK_FANCY, new AppMessageHandlerZalewszczak(UUID_ZALEWSZCZAK_FANCY, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_ZALEWSZCZAK_TALLY, new AppMessageHandlerZalewszczak(UUID_ZALEWSZCZAK_TALLY, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_OBSIDIAN, new AppMessageHandlerObsidian(UUID_OBSIDIAN, PebbleProtocol.this));
-            mAppMessageHandlers.put(UUID_GBPEBBLE, new AppMessageHandlerGBPebble(UUID_GBPEBBLE, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_SIMPLY_LIGHT, new AppMessageHandlerSimplyLight(UUID_SIMPLY_LIGHT, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_M7S, new AppMessageHandlerM7S(UUID_M7S, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_YWEATHER, new AppMessageHandlerRealWeather(UUID_YWEATHER, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_REALWEATHER, new AppMessageHandlerRealWeather(UUID_REALWEATHER, PebbleProtocol.this));
+            mAppMessageHandlers.put(UUID_TOTK, new AppMessageHandlerTearsOfTheKingdom(UUID_TOTK, PebbleProtocol.this));
         }
     }
 
@@ -528,7 +524,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
     @Override
     public byte[] encodeNotification(NotificationSpec notificationSpec) {
-        final PebbleNotification pebbleNotification = new PebbleNotification(notificationSpec);
+        final PebbleNotification pebbleNotification = new PebbleNotification(notificationSpec, isNewEraPebble);
         int id = notificationSpec.getId() != -1 ? notificationSpec.getId() : mRandom.nextInt();
         String title;
         String subtitle = null;
@@ -718,13 +714,25 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
     byte[] encodeActivateWeather(boolean activate) {
         if (activate) {
-            ByteBuffer buf = ByteBuffer.allocate(0x61);
-            buf.put((byte) 1);
+            ByteBuffer buf = ByteBuffer.allocate(5 * LENGTH_UUID + 1);
+            buf.put((byte) 5); // nr_locations
             buf.order(ByteOrder.BIG_ENDIAN);
             buf.putLong(UUID_LOCATION.getMostSignificantBits());
             buf.putLong(UUID_LOCATION.getLeastSignificantBits());
-            // disable remaining 5 possible location
-            buf.put(new byte[60 - LENGTH_UUID]);
+
+            // just put fake UUIDs for the remaining ones
+            buf.putLong(0);
+            buf.putLong(1);
+
+            buf.putLong(0);
+            buf.putLong(2);
+
+            buf.putLong(0);
+            buf.putLong(3);
+
+            buf.putLong(0);
+            buf.putLong(4);
+
             return encodeBlobdb("weatherApp", BLOBDB_INSERT, BLOBDB_APPSETTINGS, buf.array());
         } else {
             return encodeBlobdb("weatherApp", BLOBDB_DELETE, BLOBDB_APPSETTINGS, null);
@@ -740,7 +748,28 @@ public class PebbleProtocol extends GBDeviceProtocol {
         if (dataTypes == RecordedDataTypes.TYPE_DEBUGLOGS) {
             return encodeRequestLogDump(0, 0);
         }
+        if ((dataTypes & RecordedDataTypes.TYPE_ACTIVITY) != 0) {
+            return encodeHealthSync();
+        }
         return null;
+    }
+
+    private byte[] encodeHealthSync() {
+        // Health sync message format (from PebbleOS health_sync_endpoint.c):
+        // - 1 byte: command (0x01 = sync)
+        // - 4 bytes: seconds_since_sync (uint32_t, little-endian)
+        // Sending 0 requests all queued health data from the DLS
+        final short LENGTH_HEALTH_SYNC = 5;
+        ByteBuffer buf = ByteBuffer.allocate(LENGTH_PREFIX + LENGTH_HEALTH_SYNC);
+        buf.order(ByteOrder.BIG_ENDIAN);
+        buf.putShort(LENGTH_HEALTH_SYNC);
+        buf.putShort(ENDPOINT_HEALTH_SYNC);
+        buf.put(HEALTH_SYNC_CMD_SYNC);
+
+        // Request all queued data (0 = send everything in DLS queue)
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        buf.putInt(0);
+        return buf.array();
     }
 
     byte[] encodeRequestLogDump(int generation, int cookie) {
@@ -1087,30 +1116,44 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
     @Override
     public byte[] encodeSendWeather() {
-        final WeatherSpec weatherSpec = Weather.getWeatherSpec();
-        if (weatherSpec == null) {
+        final List<WeatherSpec> weatherSpecs = Weather.getWeatherSpecs();
+        if (weatherSpecs.isEmpty()) {
             LOG.warn("No weather found in singleton");
             return null;
         }
 
-        byte[] forecastProtocol = null;
         byte[] watchfaceProtocol = null;
+        byte[][] forecastProtocolBuf = {null, null, null, null, null};
+        byte[] deleteWeatherDataProtocol = null;
+
         int length = 0;
         if (mFwMajor >= 4) {
-            forecastProtocol = encodeWeatherForecast(weatherSpec);
-            length += forecastProtocol.length;
+            deleteWeatherDataProtocol = encodeBlobDBClear(BLOBDB_WEATHER);
+            length += deleteWeatherDataProtocol.length;
+            for (int i = 0; i < 5; i++) {
+                if (weatherSpecs.size() < i + 1)
+                    break;
+                WeatherSpec weatherSpec = weatherSpecs.get(i);
+                forecastProtocolBuf[i] = encodeWeatherForecast(weatherSpec, i);
+                length += forecastProtocolBuf[i].length;
+            }
         }
         AppMessageHandler handler = mAppMessageHandlers.get(currentRunningApp);
         if (handler != null) {
-            watchfaceProtocol = handler.encodeUpdateWeather(weatherSpec);
+            watchfaceProtocol = handler.encodeUpdateWeather(weatherSpecs.get(0));
             if (watchfaceProtocol != null) {
                 length += watchfaceProtocol.length;
             }
         }
         ByteBuffer buf = ByteBuffer.allocate(length);
 
-        if (forecastProtocol != null) {
-            buf.put(forecastProtocol);
+        if (deleteWeatherDataProtocol != null) {
+            buf.put(deleteWeatherDataProtocol);
+        }
+        for (byte[] forecastProtocol : forecastProtocolBuf) {
+            if (forecastProtocol != null) {
+                buf.put(forecastProtocol);
+            }
         }
         if (watchfaceProtocol != null) {
             buf.put(watchfaceProtocol);
@@ -1119,8 +1162,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
         return buf.array();
     }
 
-    private byte[] encodeWeatherForecast(WeatherSpec weatherSpec) {
-
+    private byte[] encodeWeatherForecast(WeatherSpec weatherSpec, int location) {
         short currentTemp = (short) (weatherSpec.getCurrentTemp() - 273);
         short todayMax = (short) (weatherSpec.getTodayMaxTemp() - 273);
         short todayMin = (short) (weatherSpec.getTodayMinTemp() - 273);
@@ -1134,8 +1176,8 @@ public class PebbleProtocol extends GBDeviceProtocol {
             tomorrowConditionCode = tomorrow.getConditionCode();
         }
 
-        String units = GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, GBApplication.getContext().getString(R.string.p_unit_metric));
-        if (units.equals(GBApplication.getContext().getString(R.string.p_unit_imperial))) {
+        final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
+        if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
             currentTemp = (short) (currentTemp * 1.8f + 32);
             todayMax = (short) (todayMax * 1.8f + 32);
             todayMin = (short) (todayMin * 1.8f + 32);
@@ -1184,7 +1226,10 @@ public class PebbleProtocol extends GBDeviceProtocol {
             LOG.info(s);
         }
 
-        return encodeBlobdb(UUID_LOCATION, BLOBDB_INSERT, BLOBDB_WEATHER, buf.array());
+        if (location == 0) {
+            return encodeBlobdb(UUID_LOCATION, BLOBDB_INSERT, BLOBDB_WEATHER, buf.array()); // compatibility for people who already had the weather app enabled
+        }
+        return encodeBlobdb(new UUID(0, location), BLOBDB_INSERT, BLOBDB_WEATHER, buf.array());
     }
 
     private byte[] encodeActionResponse(UUID uuid, int iconId, String caption) {
@@ -1497,16 +1542,28 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
     /* pebble specific install methods */
     byte[] encodeUploadStart(byte type, int app_id, int size, String filename) {
+        // The watch uses two different INIT packet formats:
+        // - Firmware/recovery/sysresources: type without bit 7, 1-byte bank number
+        // - App binary/resources/worker:    type with bit 7 set, 4-byte app slot
+        // - File (language):                type as-is, 1-byte slot, optional filename
+        boolean isFirmwareType = (type == PUTBYTES_TYPE_FIRMWARE ||
+                                   type == PUTBYTES_TYPE_RECOVERY ||
+                                   type == PUTBYTES_TYPE_SYSRESOURCES);
+        boolean isFileType = (type == PUTBYTES_TYPE_FILE);
+
         short length;
-        if (type != PUTBYTES_TYPE_FILE) {
+        if (isFileType) {
+            length = (short) 7;
+            if (filename != null) {
+                length += (short) (filename.getBytes().length + 1);
+            }
+        } else if (isFirmwareType) {
+            // 1-byte bank number; type without bit 7
+            length = (short) 7;
+        } else {
+            // App slot: 4-byte; type with bit 7 to select app-init variant
             length = (short) 10;
             type |= (byte) 0b10000000;
-        } else {
-            length = (short) 7;
-        }
-
-        if (type == PUTBYTES_TYPE_FILE && filename != null) {
-            length += (short) ((short) filename.getBytes().length + 1);
         }
 
         ByteBuffer buf = ByteBuffer.allocate(LENGTH_PREFIX + length);
@@ -1517,16 +1574,16 @@ public class PebbleProtocol extends GBDeviceProtocol {
         buf.putInt(size);
         buf.put(type);
 
-        if (type != PUTBYTES_TYPE_FILE) {
-            buf.putInt(app_id);
-        } else {
-            // slot
+        if (isFileType) {
             buf.put((byte) app_id);
-        }
-
-        if (type == PUTBYTES_TYPE_FILE && filename != null) {
-            buf.put(filename.getBytes());
-            buf.put((byte) 0);
+            if (filename != null) {
+                buf.put(filename.getBytes());
+                buf.put((byte) 0);
+            }
+        } else if (isFirmwareType) {
+            buf.put((byte) app_id);  // 1-byte bank number
+        } else {
+            buf.putInt(app_id);      // 4-byte app slot
         }
 
         return buf.array();
@@ -1591,8 +1648,20 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
     }
 
-    byte[] encodeInstallFirmwareStart() {
-        return encodeSystemMessage(SYSTEMMESSAGE_FIRMWARESTART);
+    byte[] encodeInstallFirmwareStart(int totalBytes) {
+        // FirmwareUpdateStart includes bytesAlreadyTransferred + bytesToSend
+        // so the watch knows how much data is coming and can pre-erase the full flash region.
+        final short LENGTH_FIRMWARESTART = 10; // command(1) + messageType(1) + alreadyTransferred(4LE) + bytesToSend(4LE)
+        ByteBuffer buf = ByteBuffer.allocate(LENGTH_PREFIX + LENGTH_FIRMWARESTART);
+        buf.order(ByteOrder.BIG_ENDIAN);
+        buf.putShort(LENGTH_FIRMWARESTART);
+        buf.putShort(ENDPOINT_SYSTEMMESSAGE);
+        buf.put((byte) 0); // command
+        buf.put(SYSTEMMESSAGE_FIRMWARESTART);
+        buf.order(ByteOrder.LITTLE_ENDIAN); // size fields are little-endian per Pebble protocol
+        buf.putInt(0); // bytesAlreadyTransferred: always 0 (fresh install)
+        buf.putInt(totalBytes);
+        return buf.array();
     }
 
     byte[] encodeInstallFirmwareComplete() {
@@ -1601,19 +1670,6 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
     public byte[] encodeInstallFirmwareError() {
         return encodeSystemMessage(SYSTEMMESSAGE_FIRMWAREFAIL);
-    }
-
-
-    byte[] encodeAppRefresh(int index) {
-        final short LENGTH_REFRESHAPP = 5;
-        ByteBuffer buf = ByteBuffer.allocate(LENGTH_PREFIX + LENGTH_REFRESHAPP);
-        buf.order(ByteOrder.BIG_ENDIAN);
-        buf.putShort(LENGTH_REFRESHAPP);
-        buf.putShort(ENDPOINT_APPMANAGER);
-        buf.put(APPMANAGER_REFRESHAPP);
-        buf.putInt(index);
-
-        return buf.array();
     }
 
     private byte[] encodeDatalog(byte handle, byte reply) {
@@ -2109,6 +2165,14 @@ public class PebbleProtocol extends GBDeviceProtocol {
             case SYSTEMMESSAGE_STARTRECONNECTING:
                 LOG.info(ENDPOINT_NAME + ": start reconnecting");
                 break;
+            case SYSTEMMESSAGE_FIRMWARESTART_RESPONSE:
+                if (buf.remaining() >= 1) {
+                    byte status = buf.get();
+                    LOG.info(ENDPOINT_NAME + ": firmware update start response, status={}", status);
+                    return new GBDeviceEventFirmwareUpdateStart(status);
+                }
+                LOG.warn(ENDPOINT_NAME + ": firmware update start response missing status byte");
+                break;
             default:
                 LOG.info(ENDPOINT_NAME + ": {}", command);
                 break;
@@ -2255,6 +2319,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
                         devEvtsDataLogging = new GBDeviceEvent[]{dataLogging, null};
                     }
                     if (datalogSession.uuid.equals(UUID_ZERO) && (datalogSession.tag == 81 || datalogSession.tag == 83 || datalogSession.tag == 84)) {
+                        // Tag 81 = activity minute data, Tag 84 = activity sessions
                         GB.signalActivityDataFinish(getDevice());
                     }
                     mDatalogSessions.remove(id);
@@ -2389,13 +2454,31 @@ public class PebbleProtocol extends GBDeviceProtocol {
                 versionCmd.fwVersion = getFixedString(buf, 32);
 
                 mFwMajor = versionCmd.fwVersion.charAt(1) - 48;
+                String[] parsedVersion = versionCmd.fwVersion.split("\\.");
                 LOG.info("Pebble firmware major detected as {}", mFwMajor);
+                LOG.info("Pebble firmware minor detected as {}", parsedVersion[1]);
+                if (mFwMajor >= 5 || (mFwMajor == 4 && Integer.parseInt(parsedVersion[1]) >= 9)) {
+                    isNewEraPebble = true;
+                }
+
                 String gitHash = getFixedString(buf, 8);
                 int fwFlags = buf.get();
                 LOG.info("git hash: {}, flags: {}", gitHash, fwFlags);
-                int hwRev = buf.get() + 8;
-                if (hwRev >= 0 && hwRev < hwRevisions.length) {
-                    versionCmd.hwVersion = hwRevisions[hwRev];
+
+                // Extract dual-slot firmware flags
+                mIsDualSlot = (fwFlags & 0x04) != 0;  // Bit 2: IsDualSlot
+                mIsSlot0 = (fwFlags & 0x08) != 0;      // Bit 3: IsSlot0
+                if (mIsDualSlot) {
+                    int runningSlot = mIsSlot0 ? 0 : 1;
+                    int targetSlot = mIsSlot0 ? 1 : 0;
+                    versionCmd.fwUpdateTargetSlot = targetSlot;
+                    versionCmd.fwVersion2 = "slot " + runningSlot + " active";
+                    LOG.info("Dual-slot firmware detected: running slot {}, will update slot {}", runningSlot, targetSlot);
+                }
+                int hwRev = buf.get() & 0xFF;  // Convert to unsigned
+                String codename = PebbleHardware.getCodenameByHardwareId(hwRev);
+                if (codename != null) {
+                    versionCmd.hwVersion = codename;
                 } else {
                     LOG.warn("unknown hw revision {}", hwRev);
                 }
@@ -2605,6 +2688,24 @@ public class PebbleProtocol extends GBDeviceProtocol {
             case ENDPOINT_AUDIOSTREAM:
                 devEvts = new GBDeviceEvent[]{decodeAudioStream(buf)};
 //                LOG.debug("AUDIOSTREAM DATA: " + GB.hexdump(responseData, 4, length));
+                break;
+            case ENDPOINT_HEALTH_SYNC:
+                pebbleCmd = buf.get();
+                if (pebbleCmd == HEALTH_SYNC_CMD_ACK) {
+                    // ACK response format: cmd (0x11) + ack_nack (0x01=ok, 0x02=fail)
+                    byte ackNack = buf.get();
+                    if (ackNack == 0x01) {
+                        // Success: actual data will arrive via DATALOG (tags 81/83/84), which
+                        // already calls signalActivityDataFinish. Leave the spinner running.
+                        LOG.info("Health sync ACK received (success), data will arrive via data logging");
+                    } else {
+                        // Failure: no DATALOG data is coming, so dismiss the spinner now.
+                        LOG.warn("Health sync ACK received but watch reported failure (ack_nack={}), signalling finish", ackNack);
+                        GB.signalActivityDataFinish(getDevice());
+                    }
+                } else {
+                    LOG.warn("Unknown health sync response: 0x{}", Integer.toHexString(pebbleCmd & 0xff));
+                }
                 break;
             default:
                 break;

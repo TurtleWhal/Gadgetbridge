@@ -86,11 +86,13 @@ public class BackupRestoreProgressActivity extends AbstractGBActivity {
         final TextView backupRestoreProgressText = binding.backupRestoreProgressText;
         final TextView backupRestoreProgressPercentage = binding.backupRestoreProgressPercentage;
 
+        backupRestoreProgressBar.setKeepScreenOn(true);
+
         final Handler mHandler = new Handler(getMainLooper());
 
         final ZipBackupCallback zipBackupCallback = new ZipBackupCallback() {
             @Override
-            public void onProgress(final int progress, final String message) {
+            public void onProgress(final int progress, final @Nullable String message) {
                 mHandler.post(() -> {
                     backupRestoreProgressBar.setIndeterminate(progress == 0);
                     backupRestoreProgressBar.setProgress(progress);
@@ -100,7 +102,7 @@ public class BackupRestoreProgressActivity extends AbstractGBActivity {
             }
 
             @Override
-            public void onSuccess(final String warnings) {
+            public void onSuccess(final @Nullable String warnings) {
                 mHandler.post(() -> {
                     jobFinished = true;
                     backupRestoreHint.setVisibility(View.GONE);
@@ -125,16 +127,17 @@ public class BackupRestoreProgressActivity extends AbstractGBActivity {
                                     .setTitle(R.string.backup_restore_restart_title)
                                     .setMessage(message.toString())
                                     .setOnCancelListener((dialog -> {
-                                        finish();
+                                        finishAffinity();
                                         GBApplication.restart();
                                     }))
                                     .setPositiveButton(R.string.ok, (dialog, which) -> {
-                                        finish();
+                                        finishAffinity();
                                         GBApplication.restart();
                                     }).show();
                             break;
                         case "export":
                             backupRestoreProgressText.setText(R.string.backup_restore_export_complete);
+                            backupRestoreProgressBar.setKeepScreenOn(false);
                             break;
                     }
                 });
@@ -239,7 +242,7 @@ public class BackupRestoreProgressActivity extends AbstractGBActivity {
                         }).start();
                     }
                 })
-                .setNegativeButton(R.string.Cancel, (dialog, which) -> {
+                .setNegativeButton(R.string.cancel, (dialog, which) -> {
                 });
 
         if ("import".equals(action)) {

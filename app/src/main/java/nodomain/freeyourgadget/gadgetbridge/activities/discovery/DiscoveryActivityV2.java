@@ -25,7 +25,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanRecord;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
@@ -45,7 +44,6 @@ import android.os.ParcelUuid;
 import android.os.Parcelable;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.Pair;
 import android.util.SparseArray;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -53,10 +51,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
-import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -65,7 +61,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.RequiresPermission;
-import androidx.annotation.StringRes;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.MenuProvider;
@@ -78,7 +73,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -86,12 +80,9 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.AuthKeyActivity;
-import nodomain.freeyourgadget.gadgetbridge.activities.DebugActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.adapter.DeviceCandidateAdapter;
 import nodomain.freeyourgadget.gadgetbridge.adapter.SimpleIconListAdapter;
-import nodomain.freeyourgadget.gadgetbridge.adapter.SpinnerWithIconAdapter;
-import nodomain.freeyourgadget.gadgetbridge.adapter.SpinnerWithIconItem;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
@@ -104,6 +95,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.BondingUtil;
 import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
+import nodomain.freeyourgadget.gadgetbridge.util.DeviceTypeDialog;
 
 
 public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterView.OnItemClickListener,
@@ -132,8 +124,6 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     private boolean scanning;
 
     private ActivityResultLauncher<Intent> authKeyLauncher;
-
-    private long selectedUnsupportedDeviceKey = DebugActivity.SELECT_DEVICE;
 
     private final Runnable stopRunnable = () -> {
         stopDiscovery();
@@ -210,7 +200,7 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
                             return;
                         }
                         final GBDeviceCandidate deviceCandidate = data.getParcelableExtra(AuthKeyActivity.EXTRA_DEVICE_CANDIDATE_RESULT);
-                        final DeviceType deviceType = DeviceHelper.getInstance().resolveDeviceType(deviceCandidate);
+                        final DeviceType deviceType = DeviceHelper.getInstance().resolveDeviceType(Objects.requireNonNull(deviceCandidate));
                         startPair(deviceCandidate, deviceType.getDeviceCoordinator());
                     }
                 });
@@ -305,6 +295,8 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
         LOG.info("Starting discovery");
         startButton.setText(getString(R.string.discovery_stop_scanning));
 
+        DeviceHelper.getInstance().clearForcedDeviceTypes();
+
         deviceFoundProcessor.clear();
         deviceFoundProcessor.start();
 
@@ -316,7 +308,7 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
             final Set<BluetoothDevice> pairedDevices = BluetoothAdapter.getDefaultAdapter().getBondedDevices();
             for (final BluetoothDevice device : pairedDevices) {
                 try {
-                    final Method isConnectedMethod = device.getClass().getMethod("isConnected");
+                    @SuppressWarnings("JavaReflectionMemberAccess") final Method isConnectedMethod = device.getClass().getMethod("isConnected");
                     final Boolean isConnected = (Boolean) isConnectedMethod.invoke(device);
                     if (isConnected != null && isConnected) {
                         LOG.debug("Pre-adding already bonded device {}", device.getAddress());
@@ -530,26 +522,10 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
         return builder.build();
     }
 
-    private List<ScanFilter> getScanFilters() {
-        final List<ScanFilter> allFilters = new ArrayList<>();
-        for (DeviceType deviceType : DeviceType.values()) {
-            allFilters.addAll(deviceType.getDeviceCoordinator().createBLEScanFilters());
-        }
-        return allFilters;
-    }
-
     private Message getPostMessage(final Runnable runnable) {
         final Message message = Message.obtain(handler, runnable);
         message.obj = runnable;
         return message;
-    }
-
-    private void showWarnDialog(@StringRes final int message) {
-        new MaterialAlertDialogBuilder(getContext())
-                .setMessage(message)
-                .setPositiveButton(R.string.ok, (dialog, whichButton) -> {
-                })
-                .show();
     }
 
     private void checkAndRequestLocationPermission() {
@@ -566,7 +542,7 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
             wantedPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
         }
         // if we need location permissions, request both together to avoid a bunch of dialogs
-        if (wantedPermissions.size() > 0) {
+        if (!wantedPermissions.isEmpty()) {
             toast(DiscoveryActivityV2.this, getString(R.string.error_no_location_access), Toast.LENGTH_SHORT, GB.ERROR);
             ActivityCompat.requestPermissions(this, wantedPermissions.toArray(new String[0]), 0);
             wantedPermissions.clear();
@@ -592,13 +568,14 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
                 wantedPermissions.add(Manifest.permission.BLUETOOTH_CONNECT);
             }
         }
-        if (wantedPermissions.size() > 0) {
+        if (!wantedPermissions.isEmpty()) {
             GB.toast(this, getString(R.string.permission_granting_mandatory), Toast.LENGTH_LONG, GB.ERROR);
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
                 ActivityCompat.requestPermissions(this, wantedPermissions.toArray(new String[0]), 0);
             } else {
                 ActivityResultLauncher<String[]> requestMultiplePermissionsLauncher =
                         registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), isGranted -> {
+                            //noinspection StatementWithEmptyBody
                             if (!isGranted.containsValue(false)) {
                                 // Permission is granted. Continue the action or workflow in your app.
                                 // should we do startDiscovery here??
@@ -637,11 +614,14 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
             return;
         }
 
+        // Normal click - clear all potential forced devices
+        DeviceHelper.getInstance().clearForcedDeviceTypes();
+
         preparePair(deviceCandidate);
     }
 
     private void preparePair(final GBDeviceCandidate deviceCandidate) {
-        DeviceType deviceType = DeviceHelper.getInstance().resolveDeviceType(deviceCandidate);
+        final DeviceType deviceType = DeviceHelper.getInstance().resolveDeviceType(deviceCandidate);
 
         if (!deviceType.isSupported()) {
             LOG.warn("Unsupported device candidate {}", deviceCandidate);
@@ -795,56 +775,13 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     private void showUnsupportedDeviceDialog(final GBDeviceCandidate deviceCandidate) {
         LOG.info("Unsupported device candidate selected: {}", deviceCandidate);
 
-        final Map<String, Pair<Long, Integer>> allDevices = DebugActivity.getAllSupportedDevices(getApplicationContext());
-
-        final LinearLayout linearLayout = new LinearLayout(DiscoveryActivityV2.this);
-        linearLayout.setOrientation(LinearLayout.VERTICAL);
-
-        final ArrayList<SpinnerWithIconItem> deviceListArray = new ArrayList<>();
-        for (Map.Entry<String, Pair<Long, Integer>> item : allDevices.entrySet()) {
-            deviceListArray.add(new SpinnerWithIconItem(item.getKey(), item.getValue().first, item.getValue().second));
-        }
-        final SpinnerWithIconAdapter deviceListAdapter = new SpinnerWithIconAdapter(
-                DiscoveryActivityV2.this,
-                R.layout.spinner_with_image_layout,
-                R.id.spinner_item_text,
-                deviceListArray
-        );
-
-        final Spinner deviceListSpinner = new Spinner(DiscoveryActivityV2.this);
-        deviceListSpinner.setAdapter(deviceListAdapter);
-        deviceListSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(final AdapterView<?> parent, final View view, final int pos, final long id) {
-                final SpinnerWithIconItem selectedItem = (SpinnerWithIconItem) parent.getItemAtPosition(pos);
-                selectedUnsupportedDeviceKey = selectedItem.getId();
-            }
-
-            @Override
-            public void onNothingSelected(final AdapterView<?> arg0) {
-            }
-        });
-        linearLayout.addView(deviceListSpinner);
-
-        final LinearLayout macLayout = new LinearLayout(DiscoveryActivityV2.this);
-        macLayout.setOrientation(LinearLayout.HORIZONTAL);
-        macLayout.setPadding(20, 0, 20, 0);
-        linearLayout.addView(macLayout);
-
-        new MaterialAlertDialogBuilder(DiscoveryActivityV2.this)
-                .setCancelable(true)
-                .setTitle(R.string.add_test_device)
-                .setView(linearLayout)
-                .setPositiveButton(R.string.ok, (dialog, which) -> {
-                    if (selectedUnsupportedDeviceKey != DebugActivity.SELECT_DEVICE) {
-                        final DeviceType deviceType = DeviceType.values()[(int) selectedUnsupportedDeviceKey];
-                        deviceCandidate.setForcedType(deviceType);
-                        preparePair(deviceCandidate);
-                    }
-                })
-                .setNegativeButton(R.string.Cancel, (dialog, which) -> {
-                })
-                .show();
+        new DeviceTypeDialog(this, R.string.add_test_device, deviceCandidate.getMacAddress())
+                .show(null, (macAddress, deviceType) -> {
+                    LOG.debug("Force-pairing {} as {}", deviceCandidate, deviceType);
+                    DeviceHelper.getInstance().setForcedDeviceType(deviceCandidate.getMacAddress().toLowerCase(), deviceType);
+                    preparePair(deviceCandidate);
+                    return kotlin.Unit.INSTANCE;
+                });
     }
 
     @Override
@@ -988,7 +925,7 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
                     return;
                 }
                 ParcelUuid[] uuids = null;
-                SparseArray<byte[]> manufacturerSpecificData = null;
+                SparseArray<byte[]> manufacturerSpecificData;
                 final List<ParcelUuid> serviceUuids = scanRecord.getServiceUuids();
                 if (serviceUuids != null) {
                     uuids = serviceUuids.toArray(new ParcelUuid[0]);

@@ -57,6 +57,10 @@
     <color name="hrv_status_low" type="color">#fc5203</color>
     <color name="hrv_status_poor" type="color">#be03fc</color>
     <color name="hrv_status_char_line_color" type="color">#d12a2a</color>
+    <color name="hrv_status_range_color" type="color">#99d12a2a</color>
+    <color name="hrv_status_last_night_color" type="color">#3f7dff</color>
+    <color name="hrv_status_baseline_color" type="color">#0c8a03</color>
+    <color name="hrv_status_baseline_fill_color" type="color">#660c8a03</color>
     <color name="training_load_dark" type="color">#FFF</color>
     <color name="training_load" type="color">#1d2436</color>
     <color name="training_chronic_load" type="color">#8847a1</color>
@@ -76,7 +80,13 @@
     <color name="calories_color" type="color">#fa4502</color>
     <color name="calories_resting_color" type="color">#1f49f2</color>
     <color name="respiratory_rate_color" type="color">#163ede</color>
-    <color name="spo2_color" type="color">#80D8FF</color>
+    <color name="chart_temperature" type="color">#ff8f00</color>
+    <color name="chart_temperature_average" type="color">#00acc1</color>
+    <color name="spo2_color" type="color">#aad93832</color>
+    <color name="spo2_avg_color_light" type="color">#630b0d</color>
+    <color name="spo2_avg_color_dark" type="color">#ff9393</color>
+    <color name="blood_pressure_systolic_color" type="color">#d93832</color>
+    <color name="blood_pressure_diastolic_color" type="color">#3F84E5</color>
 
     <color name="value_line_color" type="color">#858585</color>
     <color name="row_separator_light" type="color">#ffe2e2e5</color>
@@ -98,6 +108,13 @@
     <color name="chart_line_stroke_rate" type="color">#6495ED</color>
     <color name="chart_highline_dolor" type="color">#ffff8800</color>
     <color name="chart_line_depth" type="color">#ff4040ff</color>
+    <color name="chart_line_distance" type="color">#88FF88</color>
+    <color name="chart_line_stride" type="color">#FF8888</color>
+    <color name="chart_line_body_energy" type="color">#884088</color>
+    <color name="chart_line_stamina" type="color">#8888FF</color>
+    <color name="chart_line_step_length" type="color">#FF4088</color>
+    <color name="chart_cns_toxicity" type="color">#FF4040</color>
+    <color name="chart_n2_load" type="color">#FF8840</color>
 
     <attr name="row_separator" format="color" />
     <color name="alternate_row_background_light">#FFEDEDED</color>

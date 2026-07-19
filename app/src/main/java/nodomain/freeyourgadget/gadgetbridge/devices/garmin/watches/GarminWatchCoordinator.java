@@ -7,7 +7,7 @@ import java.util.List;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.devices.vivomovehr.GarminCapability;
+import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminCapability;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 
@@ -58,7 +58,7 @@ public abstract class GarminWatchCoordinator extends GarminCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -68,7 +68,7 @@ public abstract class GarminWatchCoordinator extends GarminCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
+    public boolean supportsRecordedActivities(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -93,17 +93,17 @@ public abstract class GarminWatchCoordinator extends GarminCoordinator {
     }
 
     @Override
-    public boolean supportsVO2MaxCycling(@NonNull GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsVO2MaxRunning(@NonNull GBDevice device) {
-        return true;
+    public boolean supportsVO2MultiSport(@NonNull GBDevice device) {
+        return supportsVO2Max(device);
     }
 
     @Override
     public boolean supportsActiveCalories(@NonNull GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsActivityDistance(@NonNull GBDevice device) {
         return true;
     }
 
@@ -185,17 +185,6 @@ public abstract class GarminWatchCoordinator extends GarminCoordinator {
     @Override
     public int getPaiTarget() {
         return 150;
-    }
-
-    @Override
-    public boolean supportsTrainingLoad(@NonNull GBDevice device) {
-        // Not all devices support it
-        return true;
-    }
-
-    @Override
-    public boolean supportsWorkoutLoad(@NonNull GBDevice device) {
-        return true;
     }
 
     @Override

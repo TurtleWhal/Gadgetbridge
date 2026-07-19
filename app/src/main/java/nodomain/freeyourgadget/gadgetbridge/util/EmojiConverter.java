@@ -72,6 +72,10 @@ public class EmojiConverter {
             {"\uD83D\uDE43", "(-:"},  // upside_down_face
             {"\u2639", ":-("},        // frowning_face
             {"\u2764", "<3"},         // heart
+            {"\u27A1", "->"},         // right arrow
+            {"\u2B05", "<-"},         // left arrow
+            {"\uD83d\uDC48", "<-@"},  // finger point left
+            {"\uD83d\uDC49", "@->"},  // finger point right
     };
 
     private static EmojiManager emojiManagerInstance;
@@ -104,7 +108,7 @@ public class EmojiConverter {
     }
 
     public static synchronized EmojiManager getEmojiManager(final Context context) {
-        // Do a lazy initialisation not to slowdown the startup and when it is needed
+        // Do a lazy initialisation not to slow down the startup and when it is needed
         if (emojiManagerInstance == null) {
             emojiManagerInstance = EmojiManager.Companion.create(context, new GsonDeserializer());
         }

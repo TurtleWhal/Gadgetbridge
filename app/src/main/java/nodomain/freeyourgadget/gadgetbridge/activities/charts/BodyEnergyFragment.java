@@ -168,7 +168,7 @@ public class BodyEnergyFragment extends AbstractChartFragment<BodyEnergyFragment
         lineDataSet.setCircleColor(getResources().getColor(R.color.body_energy_level_color));
         lineDataSet.setAxisDependency(YAxis.AxisDependency.LEFT);
         lineDataSet.setDrawValues(false);
-        lineDataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        lineDataSet.setMode(LineDataSet.Mode.HORIZONTAL_BEZIER);
         lineDataSet.setDrawFilled(true);
         lineDataSet.setFillAlpha(70);
         lineDataSet.setFillColor(getResources().getColor(R.color.body_energy_level_color));
@@ -270,7 +270,7 @@ public class BodyEnergyFragment extends AbstractChartFragment<BodyEnergyFragment
     }
 
     /**
-     * Build an binned average body energy curve with an arbitrary bin size.
+     * Build a binned average body energy curve with an arbitrary bin size.
      *
      * @param historicDays list of samples maps (timestamp -> energy)
      * @param binSizeMinutes width of a bin in minutes (must divide 24 hours evenly)
@@ -320,6 +320,7 @@ public class BodyEnergyFragment extends AbstractChartFragment<BodyEnergyFragment
         return avgEntries;
     }
 
+    @Override
     protected void setupLegend(Chart<?> chart) {}
 
     Bitmap drawGauge(int width, int barWidth, @ColorInt int filledColor, int value, int maxValue) {

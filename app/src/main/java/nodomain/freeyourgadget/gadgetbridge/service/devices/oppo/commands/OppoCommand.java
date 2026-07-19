@@ -21,7 +21,9 @@ import androidx.annotation.Nullable;
 public enum OppoCommand {
     BATTERY_REQ(0x0106),
     BATTERY_RET(0x8106),
-    DEVICE_INFO(0x0204),
+    SUBSCRIPTION_SET(0x0205),
+    SUBSCRIPTION_ACK(0x8205),
+    SUBSCRIPTION_RET(0x0204),
     FIRMWARE_GET(0x0105),
     FIRMWARE_RET(0x8105),
     TOUCH_CONFIG_REQ(0x0108),
@@ -30,6 +32,14 @@ public enum OppoCommand {
     TOUCH_CONFIG_ACK(0x8401),
     FIND_DEVICE_REQ(0x0400),
     FIND_DEVICE_ACK(0x8400),
+    MISC_CONFIG_SET(0x0403),
+    MISC_CONFIG_REQ(0x010d),
+    MISC_CONFIG_ACK(0x8403),
+    MISC_CONFIG_RET(0x810d),
+    ANC_CONFIG_SET(0x0404),
+    ANC_CONFIG_REQ(0x010c),
+    ANC_CONFIG_ACK(0x8404),
+    ANC_CONFIG_RET(0x810c),
     ;
 
     private final short code;

@@ -14,6 +14,8 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.core.content.FileProvider
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.SimpleItemAnimator
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -29,6 +31,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes
 import nodomain.freeyourgadget.gadgetbridge.util.ActivitySummaryUtils
 import nodomain.freeyourgadget.gadgetbridge.util.GB
+import nodomain.freeyourgadget.gadgetbridge.util.WorkoutFilterUtils
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.BitSet
@@ -51,26 +54,36 @@ class WorkoutListActivity : AbstractListActivity<BaseActivitySummary>() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != GBDevice.ACTION_DEVICE_CHANGED) {
-                LOG.warn("Got unexpected action {}", intent.action)
-                return
-            }
-            val device = intent.getParcelableExtra<GBDevice>(GBDevice.EXTRA_DEVICE)
-            if (device == null) {
-                LOG.error("Got device changed without device")
-                return
-            }
-            if (device != gbDevice) {
-                return
-            }
-            if (device.isBusy) {
-                swipeLayout.isRefreshing = true
-            } else {
-                val wasBusy = swipeLayout.isRefreshing
-                swipeLayout.isRefreshing = false
-                if (wasBusy) {
-                    refresh()
+            when (intent.action) {
+                GBDevice.ACTION_DEVICE_CHANGED -> {
+                    val device = intent.getParcelableExtra<GBDevice>(GBDevice.EXTRA_DEVICE)
+                    if (device == null) {
+                        LOG.error("Got device changed without device")
+                        return
+                    }
+                    if (device != gbDevice) {
+                        return
+                    }
+                    if (device.isBusy) {
+                        swipeLayout.isRefreshing = true
+                    } else {
+                        val wasBusy = swipeLayout.isRefreshing
+                        swipeLayout.isRefreshing = false
+                        if (wasBusy) {
+                            refresh()
+                        }
+                    }
                 }
+                // ExploreSync (and other long-running fetches) hold the
+                // device busy for the whole catalog walk, so the
+                // busy→idle edge above only fires at session end.
+                // Refresh on every per-line flush as well so newly
+                // imported activities appear in the list right away.
+                // Pass silent=true so the dashboard's loading shimmer
+                // and swipe-refresh spinner don't blink on every
+                // incremental update.
+                GBApplication.ACTION_NEW_DATA -> refresh(silent = true)
+                else -> LOG.warn("Got unexpected action {}", intent.action)
             }
         }
     }
@@ -128,7 +141,13 @@ class WorkoutListActivity : AbstractListActivity<BaseActivitySummary>() {
             ?: throw IllegalArgumentException("Must provide a device when invoking this activity")
         deviceFilter = getDeviceId(gbDevice!!)
 
-        val filterLocal = IntentFilter(GBDevice.ACTION_DEVICE_CHANGED)
+        // Load and apply saved quick filter
+        applySavedQuickFilter()
+
+        val filterLocal = IntentFilter().apply {
+            addAction(GBDevice.ACTION_DEVICE_CHANGED)
+            addAction(GBApplication.ACTION_NEW_DATA)
+        }
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver, filterLocal)
 
         super.onCreate(savedInstanceState)
@@ -191,6 +210,13 @@ class WorkoutListActivity : AbstractListActivity<BaseActivitySummary>() {
 
         setItemAdapter(workoutSummariesAdapter)
 
+        // The dashboard row gets a notifyItemChanged on every silent
+        // refresh during sync; the default ChangeAnimator cross-fades
+        // that, which reads as a distracting opacity blink. Disable
+        // just the change animation — add/remove animations still run.
+        val recycler = findViewById<RecyclerView>(R.id.itemListView)
+        (recycler.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
+
         swipeLayout = findViewById(R.id.list_activity_swipe_layout)
         swipeLayout.setOnRefreshListener {
             if (GBApplication.getPrefs().refreshOnSwipe()) {
@@ -252,6 +278,16 @@ class WorkoutListActivity : AbstractListActivity<BaseActivitySummary>() {
             override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
                 mode.title = getString(R.string.number_selected_items, numSelected)
                 menuInflater.inflate(R.menu.activity_list_context_menu, menu)
+
+                // For some reason the icons in the context menu are not tinted
+                // by the theme, so we do it manually here
+                val typedValue = android.util.TypedValue()
+                theme.resolveAttribute(R.attr.actionmenu_icon_color, typedValue, true)
+                val iconColor = typedValue.data
+                for (i in 0 until menu.size()) {
+                    menu.getItem(i).icon?.setTint(iconColor)
+                }
+
                 findViewById<View>(R.id.fab).visibility = View.INVISIBLE
                 return true
             }
@@ -283,8 +319,12 @@ class WorkoutListActivity : AbstractListActivity<BaseActivitySummary>() {
                         for (i in 0 until selectedItems!!.length()) {
                             if (selectedItems!!.get(i)) {
                                 itemAdapter?.getItem(i)?.let { summary ->
-                                    ActivitySummaryUtils.getGpxFile(summary)?.let { file ->
-                                        paths.add(file.path)
+                                    val activityTrackProvider =
+                                        gbDevice?.deviceCoordinator?.getActivityTrackProvider(gbDevice!!, this@WorkoutListActivity)
+                                    if (activityTrackProvider != null) {
+                                        ActivitySummaryUtils.getShareableGpxFile(activityTrackProvider, summary)?.let { file ->
+                                            paths.add(file.path)
+                                        }
                                     }
                                 }
                             }
@@ -450,7 +490,7 @@ class WorkoutListActivity : AbstractListActivity<BaseActivitySummary>() {
 
     private fun getDeviceId(device: GBDevice): Long {
         return try {
-            GBApplication.acquireDB().use { handler ->
+            GBApplication.acquireDbReadOnly().use { handler ->
                 DBHelper.findDevice(device, handler.daoSession)?.id ?: 0L
             }
         } catch (e: Exception) {
@@ -460,6 +500,10 @@ class WorkoutListActivity : AbstractListActivity<BaseActivitySummary>() {
     }
 
     override fun refresh() {
+        refresh(silent = false)
+    }
+
+    private fun refresh(silent: Boolean) {
         gbDevice?.let { device ->
             viewModel.loadSummaries(
                 device,
@@ -468,9 +512,18 @@ class WorkoutListActivity : AbstractListActivity<BaseActivitySummary>() {
                 dateToFilter,
                 nameContainsFilter,
                 deviceFilter,
-                itemsFilter
+                itemsFilter,
+                silent
             )
         }
+    }
+
+    private fun applySavedQuickFilter() {
+        val savedFilter = GBApplication.getPrefs().preferences.getString("workout_list_quick_filter", "noselection")
+        val dateRange = WorkoutFilterUtils.getDateRangeForFilter(savedFilter) ?: return
+
+        dateFromFilter = dateRange.first
+        dateToFilter = dateRange.second
     }
 
     companion object {

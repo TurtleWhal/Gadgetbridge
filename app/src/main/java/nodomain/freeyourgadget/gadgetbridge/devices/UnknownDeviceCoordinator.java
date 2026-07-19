@@ -80,7 +80,7 @@ public class UnknownDeviceCoordinator extends AbstractDeviceCoordinator {
         }
 
         @Override
-        public void addGBActivitySamples(AbstractActivitySample[] activitySamples) {
+        public void addGBActivitySamples(@NonNull List<AbstractActivitySample> activitySamples) {
         }
 
         @Override
@@ -103,6 +103,12 @@ public class UnknownDeviceCoordinator extends AbstractDeviceCoordinator {
         @Nullable
         @Override
         public AbstractActivitySample getFirstActivitySample() {
+            return null;
+        }
+
+        @Nullable
+        @Override
+        public AbstractActivitySample getFirstActivitySample(final int after) {
             return null;
         }
 

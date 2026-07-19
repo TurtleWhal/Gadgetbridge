@@ -1,5 +1,6 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, Daniel
-    Dakhno, Daniele Gobbetti, José Rebelo, Lem Dulfo, Petr Vaněk, Taavi Eomäe
+/*  Copyright (C) 2015-2026 Andreas Shimokawa, Carsten Pfeiffer, Daniel
+    Dakhno, Daniele Gobbetti, José Rebelo, Lem Dulfo, Petr Vaněk, Taavi Eomäe,
+    Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -16,6 +17,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.install;
+
+import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_OPTIONS;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -85,19 +88,21 @@ public class FwAppInstallerActivity extends AbstractGBActivity implements Instal
             String action = intent.getAction();
             if (GBDevice.ACTION_DEVICE_CHANGED.equals(action)) {
                 final GBDevice changedDevice = intent.getParcelableExtra(GBDevice.EXTRA_DEVICE);
-                if (changedDevice != null && changedDevice.equals(device)) {
-                    refreshBusyState(device);
-                    if (!device.isInitialized()) {
-                        setInstallEnabled(false);
-                        if (mayConnect) {
-                            GB.toast(FwAppInstallerActivity.this, getString(R.string.connecting), Toast.LENGTH_SHORT, GB.INFO);
-                            connect();
-                        } else {
-                            setInfoText(getString(R.string.fwappinstaller_connection_state, device.getStateString(context)));
-                        }
+                if(changedDevice == null || !changedDevice.equals(device)) {
+                    return;
+                }
+                device = changedDevice;
+                refreshBusyState(device);
+                if (!device.isInitialized()) {
+                    setInstallEnabled(false);
+                    if (mayConnect) {
+                        GB.toast(FwAppInstallerActivity.this, getString(R.string.connecting), Toast.LENGTH_SHORT, GB.INFO);
+                        connect();
                     } else {
-                        validateInstallation();
+                        setInfoText(getString(R.string.fwappinstaller_connection_state, device.getStateString(context)));
                     }
+                } else {
+                    validateInstallation();
                 }
             } else if (GB.ACTION_SET_PROGRESS_BAR.equals(action)) {
                 if (intent.hasExtra(GB.PROGRESS_BAR_INDETERMINATE)) {
@@ -212,7 +217,11 @@ public class FwAppInstallerActivity extends AbstractGBActivity implements Instal
         installButton.setOnClickListener(v -> {
             setInstallEnabled(false);
             installHandler.onStartInstall(device);
-            GBApplication.deviceService(device).onInstallApp(uri, Bundle.EMPTY);
+            Bundle options = getIntent().getParcelableExtra(EXTRA_OPTIONS);
+            if (options == null) {
+                options = Bundle.EMPTY;
+            }
+            GBApplication.deviceService(device).onInstallApp(uri, options);
         });
 
         closeButton.setOnClickListener(v -> finish());
@@ -222,13 +231,20 @@ public class FwAppInstallerActivity extends AbstractGBActivity implements Instal
             uri = getIntent().getParcelableExtra(Intent.EXTRA_STREAM);
         }
 
-        installHandler = device.getDeviceCoordinator().findInstallHandler(uri, this);
+        Bundle options = getIntent().getParcelableExtra(EXTRA_OPTIONS);
+        if (options == null) {
+            options = Bundle.EMPTY;
+        }
+        installHandler = device.getDeviceCoordinator().findInstallHandler(uri, options, this);
 
         if (installHandler == null) {
             // Should never happen? at this point, we got here by installing to the device
+            LOG.error("Install handler not found for {}", uri);
             setInfoText(getString(R.string.installer_activity_unable_to_find_handler));
             return;
         }
+
+        LOG.debug("Install handler for {}: {}", uri, installHandler.getClass());
 
         setInfoText(getString(R.string.installer_activity_wait_while_determining_status));
 

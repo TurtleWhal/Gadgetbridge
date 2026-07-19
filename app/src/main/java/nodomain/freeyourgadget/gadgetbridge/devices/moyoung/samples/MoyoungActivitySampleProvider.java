@@ -36,6 +36,8 @@ import de.greenrobot.dao.internal.SqlUtils;
 import de.greenrobot.dao.query.WhereCondition;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.MoyoungHeartRateSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.MoyoungSleepStageSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.moyoung.MoyoungConstants;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
@@ -112,6 +114,15 @@ public class MoyoungActivitySampleProvider extends AbstractSampleProvider<Moyoun
             return ActivityKind.NOT_MEASURED;
         else
             return MoyoungConstants.WORKOUT_TYPES_TO_ACTIVITY_KIND.getOrDefault((byte) rawType, ActivityKind.ACTIVITY);
+    }
+
+    // FIXME we should actually persist the raw kinds...
+    public ActivityKind normalizeTypeV3(int rawType) {
+        return switch (rawType) {
+            case 13 -> ActivityKind.WALKING; // gps on foot?
+            case 14 -> ActivityKind.WALKING;
+            default -> ActivityKind.UNKNOWN;
+        };
     }
 
     @Override

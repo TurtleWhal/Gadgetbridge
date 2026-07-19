@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, José Rebelo,
+/*  Copyright (C) 2015-2026 Andreas Shimokawa, Carsten Pfeiffer, José Rebelo,
     Julien Pivotto, Steffen Liebergeld
 
     This file is part of Gadgetbridge.
@@ -18,6 +18,7 @@
 package nodomain.freeyourgadget.gadgetbridge.service.serial;
 
 import android.location.Location;
+import android.os.Bundle;
 
 import androidx.annotation.Nullable;
 
@@ -32,10 +33,13 @@ import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
 
+/**
+ * @deprecated Use {@link nodomain.freeyourgadget.gadgetbridge.service.btbr.AbstractBTBRDeviceSupport}
+ */
+@Deprecated
 public abstract class GBDeviceProtocol {
 
     public static final int RESET_FLAGS_REBOOT = 1;
@@ -161,7 +165,7 @@ public abstract class GBDeviceProtocol {
     }
 
     @Nullable
-    public byte[] encodeTestNewFunction() { return null; }
+    public byte[] encodeTestNewFunction(@Nullable Bundle options) { return null; }
 
     @Nullable
     public GBDeviceEvent[] decodeResponse(byte[] responseData) {

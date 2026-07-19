@@ -9,6 +9,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider
 import nodomain.freeyourgadget.gadgetbridge.entities.AbstractActivitySample
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericHeartRateSampleDao
+import nodomain.freeyourgadget.gadgetbridge.entities.HeartRrIntervalSampleDao
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport
@@ -42,7 +43,7 @@ class GenericHeartRateCoordinator : AbstractBLEDeviceCoordinator() {
         return "Generic"
     }
 
-    override fun getDeviceSupportClass(device: GBDevice?): Class<out DeviceSupport> {
+    override fun getDeviceSupportClass(device: GBDevice): Class<out DeviceSupport> {
         return GenericHeartRateSupport::class.java
     }
 
@@ -58,24 +59,8 @@ class GenericHeartRateCoordinator : AbstractBLEDeviceCoordinator() {
         return true
     }
 
-    override fun supportsActivityTracking(device: GBDevice): Boolean {
+    override fun supportsCharts(device: GBDevice): Boolean {
         return true
-    }
-
-    override fun supportsActivityTabs(device: GBDevice): Boolean {
-        return false
-    }
-
-    override fun supportsSleepMeasurement(device: GBDevice): Boolean {
-        return false
-    }
-
-    override fun supportsStepCounter(device: GBDevice): Boolean {
-        return false
-    }
-
-    override fun supportsSpeedzones(device: GBDevice): Boolean {
-        return false
     }
 
     override fun getSampleProvider(device: GBDevice, session: DaoSession): SampleProvider<out AbstractActivitySample>? {
@@ -86,6 +71,7 @@ class GenericHeartRateCoordinator : AbstractBLEDeviceCoordinator() {
         return object : HashMap<AbstractDao<*, *>, Property>() {
             init {
                 put(session.genericHeartRateSampleDao, GenericHeartRateSampleDao.Properties.DeviceId)
+                put(session.heartRrIntervalSampleDao, HeartRrIntervalSampleDao.Properties.DeviceId)
             }
         }
     }

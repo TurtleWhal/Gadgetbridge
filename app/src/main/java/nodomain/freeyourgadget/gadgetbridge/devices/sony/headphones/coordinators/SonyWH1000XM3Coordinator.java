@@ -39,14 +39,17 @@ public class SonyWH1000XM3Coordinator extends SonyHeadphonesCoordinator {
         return R.string.devicetype_sony_wh_1000xm3;
     }
 
+    @NonNull
     @Override
-    public Set<SonyHeadphonesCapabilities> getCapabilities() {
+    public Set<SonyHeadphonesCapabilities> getDefaultCapabilities() {
         return new HashSet<>(Arrays.asList(
                 SonyHeadphonesCapabilities.BatterySingle,
                 SonyHeadphonesCapabilities.AmbientSoundControl,
                 SonyHeadphonesCapabilities.WindNoiseReduction,
                 SonyHeadphonesCapabilities.AncOptimizer,
                 SonyHeadphonesCapabilities.AudioSettingsOnlyOnSbcCodec,
+                SonyHeadphonesCapabilities.AudioLDAC,
+                SonyHeadphonesCapabilities.ButtonFunctionNcAmbient,
                 SonyHeadphonesCapabilities.EqualizerWithCustomBands,
                 SonyHeadphonesCapabilities.SoundPosition,
                 SonyHeadphonesCapabilities.SurroundMode,

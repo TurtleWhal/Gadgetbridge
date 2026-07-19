@@ -49,13 +49,17 @@ public class PhoneCallReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        LOG.debug("Got phone call intent: {}", intent.getAction());
+
         TelephonyManager tm = (TelephonyManager) context.getSystemService(Service.TELEPHONY_SERVICE);
         if ("android.intent.action.NEW_OUTGOING_CALL".equals(intent.getAction())) {
             mSavedNumber = intent.getExtras().getString("android.intent.extra.PHONE_NUMBER");
         } else if ("nodomain.freeyourgadget.gadgetbridge.MUTE_CALL".equals(intent.getAction())) {
             // Handle the mute request only if the phone is currently ringing
-            if (mLastState != TelephonyManager.CALL_STATE_RINGING)
+            if (mLastState != TelephonyManager.CALL_STATE_RINGING) {
+                LOG.warn("Last state was not ringing ({}), ignoring mute", mLastState);
                 return;
+            }
 
             AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
             mLastRingerMode = audioManager.getRingerMode();
@@ -76,8 +80,11 @@ public class PhoneCallReceiver extends BroadcastReceiver {
 
     public void onCallStateChanged(Context context, int state, String number) {
         if (mLastState == state) {
+            LOG.debug("Call state changed to same state {}, ignoring", state);
             return;
         }
+
+        LOG.info("Call state changed to {}", state);
 
         int callCommand = CallSpec.CALL_UNDEFINED;
         switch (state) {

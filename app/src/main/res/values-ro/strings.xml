@@ -27,7 +27,6 @@
     <string name="app_configure">Configurează</string>
     <string name="blacklist_all_for_notifications">Blochează toate notificările</string>
     <string name="whitelist_all_for_notifications">Permite toate notificările</string>
-    <string name="title_activity_calblacklist">Calendare blocate</string>
     <string name="title_activity_fw_app_insaller">Instalare firmware</string>
     <string name="fw_multi_upgrade_notice">Ești pe punctul de a instala firmware-ul %1$s si %2$s, În locul celor deja instalate pe Mi Band.</string>
     <string name="miband_firmware_known">Firmware-ul a fost testat și este compatibil cu Gadgetbridge.</string>
@@ -65,7 +64,6 @@
     <string name="appmanager_installed_watchfaces">Cadrane instalate</string>
     <string name="appmananger_app_delete">Șterge</string>
     <string name="appmanager_app_openinstore">Caută in magazinul Pebble</string>
-    <string name="appmanager_weather_install_provider">Instalează aplicația Notificări Meteo</string>
     <string name="app_move_to_top">Mută la început</string>
     <string name="fw_upgrade_notice">Ești pe punctul de a instala firmware-ul %s.</string>
     <string name="fw_upgrade_notice_amazfitbip">Ești pe punctul de a instala firmware-ul %s pe Amazfit Bip.
@@ -953,16 +951,9 @@
     <string name="pref_sleep_breathing_quality_monitoring">Monitorizarea calității respirației în somn</string>
     <string name="miband_prefs_device_time_offset_hours">Compensarea timpului dispozitivului în ore (pentru detectarea somnului lucrătorilor în ture)</string>
     <string name="miband2_prefs_dateformat">Formatul datei</string>
-    <string name="dateformat_date_time">Timp și dată</string>
+    <string name="dateformat_date_time"><![CDATA[Timp și dată]]></string>
     <string name="prefs_disconnect_notification_summary">Notificare pe dispozitiv când este deconectat de la Bluetooth.</string>
     <string name="mi2_prefs_button_actions">Acțiunile butonului</string>
-    <string name="weather_notification_label">Asigură-te că acest skin este activat în aplicația Notificare vreme pentru a obține informații despre vreme pe Pebble.
-\n
-\nNu este necesară nicio configurație aici.
-\n
-\nPoți activa aplicația meteo de sistem a Pebble din gestionarea aplicației.
-\n
-\nCadranele de ceas acceptate vor afișa automat vremea.</string>
     <string name="button_watchface_select_image">Schimbă imaginea de fundal</string>
     <string name="watchface_widget_type_calories">Calorii</string>
     <string name="watchface_widget_type_2nd_tz">al 2-lea fus orar</string>
@@ -1036,7 +1027,7 @@
     <string name="watchface_setting_wrist_flick_move_relative">Mișcarea acelor în raport cu timpul</string>
     <string name="watchface_setting_wrist_flick_hour">Ac oră (de la -360 la 360)</string>
     <string name="weeksteps_today_steps_description">Pași astăzi, obiectiv: %1$s</string>
-    <string name="overstep">Depășire: %1$d</string>
+    <string name="overstep">Depășire: %1$s</string>
     <string name="app_install_info">Ești pe cale să instalezi următoarea aplicație:
 \n
 \n%1$s
@@ -1137,7 +1128,7 @@
 \nNotă: Nu trebuie să instalezi .res dacă este exact același cu cel instalat anterior.
 \n
 \nACȚIONEZI PE PROPRIU RISC!</string>
-    <string name="lack_of_step">Lipsa pașilor: %1$d</string>
+    <string name="lack_of_step">Lipsa pașilor: %1$s</string>
     <string name="fw_upgrade_notice_amazfitbip3pro">Ești pe cale să instalezi firmware-ul %s pe Amazfit Bip 3 Pro.
 \n
 \nAsigură-te că instalezi fișierul .fw, iar după aceea fișierul .res. Ceasul se va reporni după instalarea fișierului .fw.
@@ -1175,7 +1166,6 @@
     <string name="active_calories_goal">Țintă curentă</string>
     <string name="total_calories_burnt">Total consumate</string>
     <string name="cyan">Cyan</string>
-    <string name="qhybrid_vibration_strength">Intensitate vibrații:</string>
     <string name="green">Verde</string>
     <string name="white">Alb</string>
     <string name="prefs_wena3_hint_lift_wrist">Pornește ecranul când privești la încheietură</string>

@@ -32,7 +32,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCrypto;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiTLV;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiUtil;
-import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCoordinatorSupplier.HuaweiDeviceType;
+import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiCoordinator.HuaweiDeviceType;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiTLV.TLV;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
@@ -837,7 +837,7 @@ public class DeviceConfig {
                         case 0xf:
                             break;
                         case 0x11:
-                            this.tlv.put(b, 1600008300); // Force AppVersion to 16.0.8.300
+                            this.tlv.put(b, 1600103320); // Force AppVersion to 16.1.3.320
                             break;
                         case 0x15:
                             this.tlv.put(b); // Force buildOSPlatformVersion to ""
@@ -1857,7 +1857,8 @@ public class DeviceConfig {
                 this.commandId = id;
 
                 // Bits like ext capabilities
-                byte[] capabilities = {(byte) 0xFD, (byte) 0xF7, (byte)0x73, (byte)0x7A};
+                //byte[] capabilities = {(byte) 0xFD, (byte) 0xF7, (byte)0x73, (byte)0x7A};
+                byte[] capabilities = {(byte) 0xFD, (byte) 0xF7, 0x33, (byte) 0xFA, 0x29, 0x37};
                 this.tlv = new HuaweiTLV()
                         .put(0x01, capabilities);
 

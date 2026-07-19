@@ -22,6 +22,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcel;
@@ -79,8 +80,8 @@ public class StepStreaksDashboard extends MaterialDialogFragment {
 
     }
 
-    //Calculates some stats for longest streak (daily steps goal being reached for subsequent days
-    //without interruption (day with steps less then goal)
+    //Calculates some stats for longest streak (daily steps goal being reached for subsequent days)
+    //without interruption (day with steps less than goal)
     //Possible improvements/nice to haves:
     //- cache values until new activity fetch is performed
     //- read the goals from the USER_ATTRIBUTES table. But, this would also require to be able
@@ -142,8 +143,8 @@ public class StepStreaksDashboard extends MaterialDialogFragment {
                 populateData();
             }
         }
-        createTaskCalculateLatestStepsStreak("Visualizing data current", getActivity(), PERIOD_CURRENT).execute();
-        createTaskCalculateLatestStepsStreak("Visualizing data maximum", getActivity(), PERIOD_TOTALS).execute();
+        createTaskCalculateLatestStepsStreak("Visualizing data current", getActivity(), PERIOD_CURRENT).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        createTaskCalculateLatestStepsStreak("Visualizing data maximum", getActivity(), PERIOD_TOTALS).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     void indicate_progress(boolean inProgress) {
@@ -211,7 +212,7 @@ public class StepStreaksDashboard extends MaterialDialogFragment {
             total.setVisibility(View.VISIBLE);
             days_total_label.setText(R.string.steps_streaks_achievement_rate);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                //labels here have diferent meaning, so we must also add proper hint
+                //labels here have different meaning, so we must also add proper hint
                 days_total_label.setTooltipText(getString(R.string.steps_streaks_total_days_hint_totals));
                 days_total.setTooltipText(getString(R.string.steps_streaks_total_days_hint_totals));
                 date_total_label.setTooltipText(getString(R.string.steps_streaks_total_steps_hint_totals));
@@ -242,7 +243,7 @@ public class StepStreaksDashboard extends MaterialDialogFragment {
         String period;
 
         public TaskCalculateLatestStepsStreak(String taskName, Context context, String period) {
-            super(taskName, context);
+            super(taskName, context, false);
             this.period = period;
         }
 

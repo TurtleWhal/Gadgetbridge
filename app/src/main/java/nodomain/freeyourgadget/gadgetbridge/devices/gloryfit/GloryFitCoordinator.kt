@@ -16,8 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.gloryfit
 
-import android.content.Context
-import android.content.Intent
 import de.greenrobot.dao.AbstractDao
 import de.greenrobot.dao.Property
 import nodomain.freeyourgadget.gadgetbridge.R
@@ -26,7 +24,6 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen
 import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability.MeasurementInterval
-import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCardAction
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator
@@ -94,7 +91,7 @@ abstract class GloryFitCoordinator : AbstractBLEDeviceCoordinator() {
         return false
     }
 
-    override fun supportsActivityDataFetching(device: GBDevice): Boolean {
+    override fun supportsDataFetching(device: GBDevice): Boolean {
         return true
     }
 
@@ -188,6 +185,10 @@ abstract class GloryFitCoordinator : AbstractBLEDeviceCoordinator() {
         )
     }
 
+    override fun getSupportedDeviceSpecificExperimentalSettings(device: GBDevice): IntArray? {
+        return intArrayOf(R.xml.devicesettings_sos_contact)
+    }
+
     override fun getDeviceSpecificSettings(device: GBDevice): DeviceSpecificSettings {
         val deviceSpecificSettings = DeviceSpecificSettings()
 
@@ -196,6 +197,7 @@ abstract class GloryFitCoordinator : AbstractBLEDeviceCoordinator() {
 
         val display = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DISPLAY)
         display.add(R.xml.devicesettings_liftwrist_display_noshed)
+        display.add(R.xml.devicesettings_screen_timeout)
 
         val health = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.HEALTH)
         health.add(R.xml.devicesettings_heartrate_automatic_enable)
@@ -246,25 +248,7 @@ abstract class GloryFitCoordinator : AbstractBLEDeviceCoordinator() {
         }
 
         return listOf(
-            object : DeviceCardAction {
-                override fun getIcon(device: GBDevice): Int {
-                    return R.drawable.ic_camera_remote
-                }
-
-                override fun getDescription(device: GBDevice, context: Context): String? {
-                    return context.getString(R.string.open_camera)
-                }
-
-                override fun onClick(device: GBDevice, context: Context) {
-                    val cameraIntent = Intent(context, CameraActivity::class.java)
-                    cameraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    cameraIntent.putExtra(
-                        CameraActivity.intentExtraEvent,
-                        GBDeviceEventCameraRemote.eventToInt(GBDeviceEventCameraRemote.Event.OPEN_CAMERA)
-                    )
-                    context.startActivity(cameraIntent)
-                }
-            }
+            DeviceCardAction.CameraAction()
         )
     }
 }

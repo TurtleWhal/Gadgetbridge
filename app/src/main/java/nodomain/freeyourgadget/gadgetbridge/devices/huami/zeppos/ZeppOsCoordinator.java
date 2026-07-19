@@ -19,8 +19,10 @@ package nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos;
 import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -34,7 +36,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
@@ -43,13 +47,12 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability;
+import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.BarcodeFormat;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.SleepAsAndroidFeature;
-import nodomain.freeyourgadget.gadgetbridge.devices.Vo2MaxSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.WorkoutVo2MaxSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.HuamiExtendedSampleProvider;
@@ -57,10 +60,11 @@ import nodomain.freeyourgadget.gadgetbridge.entities.AbstractActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
-import nodomain.freeyourgadget.gadgetbridge.model.Vo2MaxSample;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiLanguageType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiVibrationPatternNotificationType;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsBtbrSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsBtleSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsFwInstallHandler;
@@ -129,7 +133,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public InstallHandler findInstallHandler(final Uri uri, final Context context) {
+    public InstallHandler findInstallHandler(final Uri uri, final Bundle options, final Context context) {
         if (supportsAgpsUpdates()) {
             final ZeppOsAgpsInstallHandler agpsInstallHandler = new ZeppOsAgpsInstallHandler(uri, context);
             if (agpsInstallHandler.isValid()) {
@@ -192,7 +196,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
+    public boolean supportsRecordedActivities(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -208,11 +212,6 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
 
     @Override
     public boolean supportsVO2Max(@NonNull GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsVO2MaxRunning(@NonNull GBDevice device) {
         return true;
     }
 
@@ -253,7 +252,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
 
     @Override
     public boolean supportsHrvMeasurement(@NonNull final GBDevice device) {
-        return !hasDisplay() || supportsDisplayItem(device, "hrv");
+        return !hasDisplay() || supportsDisplayItem(device, "hrv") || supportsDisplayItem(device, "readiness");
     }
 
     @Override
@@ -278,7 +277,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
 
     @Override
     public boolean supportsAppsManagement(@NonNull final GBDevice device) {
-        return experimentalFeatures(device);
+        return experimentalSettingEnabled(device, "zepp_os_experimental_app_management");
     }
 
     @Override
@@ -317,13 +316,14 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     @Override
-    public Vo2MaxSampleProvider<? extends Vo2MaxSample> getVo2MaxSampleProvider(final GBDevice device, final DaoSession session) {
-        return new WorkoutVo2MaxSampleProvider(device, session);
+    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
+        return new ZeppOsActivitySummaryParser(context);
     }
 
     @Override
-    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
-        return new ZeppOsActivitySummaryParser(context);
+    @Nullable
+    public ActivityTrackProvider getActivityTrackProvider(@NonNull final GBDevice device, @NonNull final Context context) {
+        return new ZeppOsActivityTrackProvider();
     }
 
     @Override
@@ -388,6 +388,11 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         );
     }
 
+    @Override
+    public int[] getSupportedDeviceSpecificExperimentalSettings(final GBDevice device) {
+        return new int[]{R.xml.devicesettings_zeppos_experimental};
+    }
+
     /**
      * Returns a superset of all settings supported by Zepp OS Devices. Unsupported settings are removed
      * by {@link ZeppOsSettingsCustomizer}.
@@ -439,7 +444,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
             display.add(R.xml.devicesettings_liftwrist_display_sensitivity_with_smart);
             display.add(R.xml.devicesettings_password);
             display.add(R.xml.devicesettings_huami2021_watchface);
-            display.add(R.xml.devicesettings_always_on_display);
+            display.add(R.xml.devicesettings_always_on_display_mode);
             display.add(R.xml.devicesettings_screen_timeout);
             if (supportsAutoBrightness(device)) {
                 display.add(R.xml.devicesettings_screen_brightness_withauto);
@@ -458,16 +463,18 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         //
         // Workout
         //
-        if (hasDisplay()) {
+        if (hasDisplay() || supportsWorkoutActivityTypesConfiguration()) {
             final List<Integer> workout = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.WORKOUT);
-            if (hasGps(device)) {
-                workout.add(R.xml.devicesettings_gps_agps);
-            } else {
-                // If the device has GPS, it doesn't report workout start/end to the phone
-                workout.add(R.xml.devicesettings_workout_start_on_phone);
-                workout.add(R.xml.devicesettings_workout_send_gps_to_band);
+            if (hasDisplay()) {
+                if (hasGps(device)) {
+                    workout.add(R.xml.devicesettings_gps_agps);
+                } else {
+                    // If the device has GPS, it doesn't report workout start/end to the phone
+                    workout.add(R.xml.devicesettings_workout_start_on_phone);
+                    workout.add(R.xml.devicesettings_workout_send_gps_to_band);
+                }
+                workout.add(R.xml.devicesettings_workout_keep_screen_on);
             }
-            workout.add(R.xml.devicesettings_workout_keep_screen_on);
             workout.add(R.xml.devicesettings_workout_detection);
         }
 
@@ -500,6 +507,10 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
             deviceSpecificSettings.addRootScreen(
                     DeviceSpecificSettingsScreen.CALENDAR,
                     R.xml.devicesettings_sync_calendar
+            );
+            deviceSpecificSettings.addRootScreen(
+                    DeviceSpecificSettingsScreen.CALENDAR,
+                    R.xml.devicesettings_sync_calendar_event_reminders
             );
         }
 
@@ -544,6 +555,9 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         }
         developer.add(R.xml.devicesettings_keep_activity_data_on_device);
         developer.add(R.xml.devicesettings_huami2021_fetch_operation_time_unit);
+        if (BuildConfig.DEBUG) {
+            developer.add(R.xml.devicesettings_zeppos_request_all_configs);
+        }
 
         return deviceSpecificSettings;
     }
@@ -638,8 +652,16 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
         return false;
     }
 
+    public boolean supportsWorkoutActivityTypesConfiguration() {
+        return hasDisplay();
+    }
+
+    public boolean supportsWorkoutDetectionCategories() {
+        return hasDisplay();
+    }
+
     public boolean supportsFtpServer(final GBDevice device) {
-        return false;
+        return supportsWifiHotspot(device);
     }
 
     public boolean hasGps(final GBDevice device) {
@@ -659,7 +681,7 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
     }
 
     public boolean supportsAssistant(final GBDevice device) {
-        return experimentalFeatures(device) && ZeppOsAssistantService.isSupported(getPrefs(device));
+        return experimentalSettingEnabled(device, "zepp_os_experimental_assistant") && ZeppOsAssistantService.isSupported(getPrefs(device));
     }
 
     public boolean supportsMaps(final GBDevice device) {
@@ -687,13 +709,18 @@ public abstract class ZeppOsCoordinator extends HuamiCoordinator {
                 .contains(service);
     }
 
-    public static boolean experimentalFeatures(final GBDevice device) {
-        return getPrefs(device).getBoolean("zepp_os_experimental_features", false);
-    }
-
     @Override
     public boolean validateAuthKey(final String authKey) {
         final byte[] authKeyBytes = authKey.trim().getBytes();
         return authKeyBytes.length == 32 || (authKey.trim().startsWith("0x") && authKeyBytes.length == 34);
+    }
+
+    @Override
+    public Set<BarcodeFormat> getSupportedBarcodeFormats(@NonNull final GBDevice device) {
+        return getPrefs(device)
+                .getStringSet(ZeppOsLoyaltyCardService.PREF_FORMATS, Collections.emptySet())
+                .stream()
+                .map(BarcodeFormat::valueOf)
+                .collect(Collectors.toSet());
     }
 }

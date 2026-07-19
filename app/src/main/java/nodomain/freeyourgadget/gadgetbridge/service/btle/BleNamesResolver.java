@@ -497,6 +497,9 @@ public class BleNamesResolver {
         mServices.put("0000185a-0000-1000-8000-00805f9b34fb", "Industrial Measurement Device");
         mServices.put("0000185b-0000-1000-8000-00805f9b34fb", "Ranging");
         mServices.put("0000185c-0000-1000-8000-00805f9b34fb", "HID ISO");
+        mServices.put("0000185d-0000-1000-8000-00805f9b34fb", "Cookware");
+        mServices.put("0000185e-0000-1000-8000-00805f9b34fb", "Voice Assistant");
+        mServices.put("0000185f-0000-1000-8000-00805f9b34fb", "Generic Voice Assistant");
 
         // source: https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/uuids/service_class.yaml
         mServices.put("00001000-0000-1000-8000-00805f9b34fb", "ServiceDiscoveryServerServiceClassID");
@@ -586,13 +589,15 @@ public class BleNamesResolver {
         mServices.put("16187f00-0000-1000-8000-00807f9b34fb", "(Propr: Xiaomi Wear Service - Mi Smart Watch 4C/Redmi Band)");
         mServices.put("1314f000-1000-9000-7000-301291e21220", "(Propr: Xiaomi Wear Service - Mi Watch/Mi Watch Color/Mi Watch Color Sport)");
         mServices.put("7495fe00-a7f3-424b-92dd-4a006a3aef56", "(Propr: Xiaomi Wear Service - Mi Watch CN)");
-        mServices.put("0000fff0-0000-1000-8000-00805f9b34fb", "(Propr: Nothing CMF Command");
+        mServices.put("0000fff0-0000-1000-8000-00805f9b34fb", "(Propr: Custom Service)");
         mServices.put("02f00000-0000-0000-0000-00000000ffe0", "(Propr: Nothing CMF Data");
         mServices.put("02f00000-0000-0000-0000-00000000fe00", "(Propr: Nothing CMF Firmware");
         mServices.put("77d4e67c-2fe2-2334-0d35-9ccd078f529c", "(Propr: Nothing CMF Shell");
         mServices.put("000055ff-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Command");
         mServices.put("000056ff-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Data");
+        mServices.put("af9df7a1-e595-11e3-96b4-0002a5d5c51b", "(Propr: OneTouch");
         mServices.put("9b012401-bc30-ce9a-e111-0f67e491abde", "(Propr: Garmin GFDI V0)");
+        mServices.put("6217ff4b-fb31-1140-ad5a-a45545d7ecf3", "(Propr: Polar Settings)");
         mServices.put("6a4e2401-667b-11e3-949a-0800200c9a66", "(Propr: Garmin GFDI V1)");
         mServices.put("6a4e2800-667b-11e3-949a-0800200c9a66", "(Propr: Garmin ML)");
         mServices.put("86f61000-f706-58a0-95b2-1fb9261e4dc7", "(Propr: Ultrahuman State)");
@@ -601,6 +606,8 @@ public class BleNamesResolver {
         mServices.put("8d53dc1d-1db7-4cd3-868b-8a527460aa84", "(Propr: SMP - Simple Management Protocol)");
         mServices.put("6e40fff0-b5a3-f393-e0a9-e50e24dcca9e", "(Propr: NUS - Nordic UART Service)");
         mServices.put("de5bf728-d711-4e47-af26-65e3012a5dc7", "(Propr: Yawell Serial)");
+        mServices.put("0000ae00-0000-1000-8000-00805f9b34fb", "(Propr: Sinilink-APP)");
+        mServices.put("65970000-4bda-4c1e-af4b-551c4cf74769", "(Propr: Victron)");
 
         // source https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/uuids/characteristic_uuids.yaml
         mCharacteristics.put("00002a00-0000-1000-8000-00805f9b34fb", "Device Name");
@@ -1074,6 +1081,7 @@ public class BleNamesResolver {
         mCharacteristics.put("00002c17-0000-1000-8000-00805f9b34fb", "RAS Control Point");
         mCharacteristics.put("00002c18-0000-1000-8000-00805f9b34fb", "Ranging Data Ready");
         mCharacteristics.put("00002c19-0000-1000-8000-00805f9b34fb", "Ranging Data Overwritten");
+        mCharacteristics.put("00002c1a-0000-1000-8000-00805f9b34fb", "Coordinated Set Name");
         mCharacteristics.put("00002c1b-0000-1000-8000-00805f9b34fb", "Humidity 8");
         mCharacteristics.put("00002c1c-0000-1000-8000-00805f9b34fb", "Illuminance 16");
         mCharacteristics.put("00002c1d-0000-1000-8000-00805f9b34fb", "Acceleration 3D");
@@ -1084,6 +1092,28 @@ public class BleNamesResolver {
         mCharacteristics.put("00002c22-0000-1000-8000-00805f9b34fb", "Contact Status 8");
         mCharacteristics.put("00002c23-0000-1000-8000-00805f9b34fb", "HID ISO Properties");
         mCharacteristics.put("00002c24-0000-1000-8000-00805f9b34fb", "LE HID Operation Mode");
+        mCharacteristics.put("00002c25-0000-1000-8000-00805f9b34fb", "Cookware Description");
+        mCharacteristics.put("00002c26-0000-1000-8000-00805f9b34fb", "Recipe Control");
+        mCharacteristics.put("00002c27-0000-1000-8000-00805f9b34fb", "Recipe Parameters");
+        mCharacteristics.put("00002c28-0000-1000-8000-00805f9b34fb", "Cooking Step Status");
+        mCharacteristics.put("00002c29-0000-1000-8000-00805f9b34fb", "Cooking Zone Capabilities");
+        mCharacteristics.put("00002c2a-0000-1000-8000-00805f9b34fb", "Cooking Zone Desired Cooking Conditions");
+        mCharacteristics.put("00002c2b-0000-1000-8000-00805f9b34fb", "Cooking Zone Actual Cooking Conditions");
+        mCharacteristics.put("00002c2c-0000-1000-8000-00805f9b34fb", "Cookware Sensor Data");
+        mCharacteristics.put("00002c2d-0000-1000-8000-00805f9b34fb", "Cookware Sensor Aggregate");
+        mCharacteristics.put("00002c2e-0000-1000-8000-00805f9b34fb", "Cooking Temperature");
+        mCharacteristics.put("00002c2f-0000-1000-8000-00805f9b34fb", "Cooking Zone Perceived Power");
+        mCharacteristics.put("00002c30-0000-1000-8000-00805f9b34fb", "Kitchen Appliance Airflow");
+        mCharacteristics.put("00002c31-0000-1000-8000-00805f9b34fb", "Voice Assistant Name");
+        mCharacteristics.put("00002c32-0000-1000-8000-00805f9b34fb", "Voice Assistant UUID");
+        mCharacteristics.put("00002c33-0000-1000-8000-00805f9b34fb", "Voice Assistant Service Control Point");
+        mCharacteristics.put("00002c34-0000-1000-8000-00805f9b34fb", "Installed Location");
+        mCharacteristics.put("00002c35-0000-1000-8000-00805f9b34fb", "Voice Assistant Session State");
+        mCharacteristics.put("00002c36-0000-1000-8000-00805f9b34fb", "Voice Assistant Session Flag");
+        mCharacteristics.put("00002c37-0000-1000-8000-00805f9b34fb", "Voice Assistant Supported Languages");
+        mCharacteristics.put("00002c38-0000-1000-8000-00805f9b34fb", "Voice Assistant Supported Features");
+        mCharacteristics.put("00002c39-0000-1000-8000-00805f9b34fb", "HID SCI Mode");
+        mCharacteristics.put("00002c3A-0000-1000-8000-00805f9b34fb", "HID SCI Information");
 
         mCharacteristics.put("14702856-620a-3973-7c78-9cfff0876abd", "(Propr: HPLUS Control)");
         mCharacteristics.put("14702853-620a-3973-7c78-9cfff0876abd", "(Propr: HPLUS Measurements)");
@@ -1134,6 +1164,8 @@ public class BleNamesResolver {
         mCharacteristics.put("000033f2-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Command Read");
         mCharacteristics.put("000034f1-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Data Write");
         mCharacteristics.put("000034f2-0000-1000-8000-00805f9b34fb", "(Propr: GloryFit Data Read");
+        mCharacteristics.put("af9df7a2-e595-11e3-96b4-0002a5d5c51b", "(Propr: OneTouch Write");
+        mCharacteristics.put("af9df7a3-e595-11e3-96b4-0002a5d5c51b", "(Propr: OneTouch Read");
         mCharacteristics.put("00010203-0405-0607-0809-0a0b0c0d2b12", "(Propr: Telink OTA Write)");
         mCharacteristics.put("ebe0ccb7-7a0a-4b0c-8a1a-6ff2997da3a6", "(Propr: Lywsd TIME)");
         mCharacteristics.put("ebe0ccc4-7a0a-4b0c-8a1a-6ff2997da3a6", "(Propr: Lywsd BATTERY)");
@@ -1167,10 +1199,19 @@ public class BleNamesResolver {
         mCharacteristics.put("86f65002-f706-58a0-95b2-1fb9261e4dc7", "(Propr: Ultrahuman Response)");
         mCharacteristics.put("86f66001-f706-58a0-95b2-1fb9261e4dc7", "(Propr: Ultrahuman Data)");
         mCharacteristics.put("da2e7828-fbce-4e01-ae9e-261174997c48", "(Propr: SMP - Simple Management Protocol)");
+        mCharacteristics.put("6217ff4d-91bb-91d0-7e2a-7cd3bda8a1f3", "(Propr: Polar Settings)");
         mCharacteristics.put("6e400002-b5a3-f393-e0a9-e50e24dcca9e", "(Propr: Nordic UART TX)");
         mCharacteristics.put("6e400003-b5a3-f393-e0a9-e50e24dcca9e", "(Propr: Nordic UART RX)");
         mCharacteristics.put("de5bf729-d711-4e47-af26-65e3012a5dc7", "(Propr: Yawell Notify)");
         mCharacteristics.put("de5bf72a-d711-4e47-af26-65e3012a5dc7", "(Propr: Yawell Write)");
+        mCharacteristics.put("0000ae04-0000-1000-8000-00805f9b34fb", "(Propr: Sinilink-APP RX)");
+        mCharacteristics.put("0000ae10-0000-1000-8000-00805f9b34fb", "(Propr: Sinilink-APP TX)");
+        mCharacteristics.put("6597ffff-4bda-4c1e-af4b-551c4cf74769", "(Propr: Victron Keep-alive)");
+        mCharacteristics.put("6597eeff-4bda-4c1e-af4b-551c4cf74769", "(Propr: Victron Consumed Ah)");
+        mCharacteristics.put("6597ed8e-4bda-4c1e-af4b-551c4cf74769", "(Propr: Victron Power)");
+        mCharacteristics.put("6597ed8d-4bda-4c1e-af4b-551c4cf74769", "(Propr: Victron Voltage)");
+        mCharacteristics.put("6597ed8c-4bda-4c1e-af4b-551c4cf74769", "(Propr: Victron Current)");
+        mCharacteristics.put("65970fff-4bda-4c1e-af4b-551c4cf74769", "(Propr: Victron Charge)");
 
         mValueFormats.put(52, "32bit float");
         mValueFormats.put(50, "16bit float");

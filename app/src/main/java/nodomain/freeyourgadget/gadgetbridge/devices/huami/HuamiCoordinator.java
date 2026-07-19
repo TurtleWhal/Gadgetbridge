@@ -39,13 +39,20 @@ import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.password.PasswordCapabilityImpl;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.ComputedHrvSummarySampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.GenericHrvValueSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.GenericTemperatureSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.HuamiHeartRateManualSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.HuamiHeartRateMaxSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.HuamiHeartRateRestingSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.HuamiPaiSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.HuamiSleepRespiratoryRateSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.HuamiSpo2SampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.HuamiStressSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.miband.DateTimeDisplay;
@@ -73,8 +80,11 @@ import nodomain.freeyourgadget.gadgetbridge.entities.HuamiStressSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.MiBandActivitySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrackProvider;
+import nodomain.freeyourgadget.gadgetbridge.model.HrvSummarySample;
 import nodomain.freeyourgadget.gadgetbridge.model.SleepScoreSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.HuamiVibrationPatternNotificationType;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -144,7 +154,7 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -209,6 +219,11 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
+    public TimeSampleProvider<? extends HrvSummarySample> getHrvSummarySampleProvider(GBDevice device, DaoSession session) {
+        return new ComputedHrvSummarySampleProvider(getHrvValueSampleProvider(device, session), device, session);
+    }
+
+    @Override
     public GenericTemperatureSampleProvider getTemperatureSampleProvider(GBDevice device, DaoSession session) {
         return new GenericTemperatureSampleProvider(device, session, TemperatureSample.TYPE_SKIN, TemperatureSample.LOCATION_WRIST);
     }
@@ -221,6 +236,12 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
         return new HuamiActivitySummaryParser();
+    }
+
+    @Override
+    @Nullable
+    public ActivityTrackProvider getActivityTrackProvider(@NonNull final GBDevice device, @NonNull final Context context) {
+        return new HuamiActivityTrackProvider();
     }
 
     protected static Prefs getPrefs(final GBDevice device) {
@@ -454,16 +475,6 @@ public abstract class HuamiCoordinator extends AbstractBLEDeviceCoordinator {
         }
 
         return prefs.getTimePreference(key, defaultValue);
-    }
-
-    public static MiBandConst.DistanceUnit getDistanceUnit() {
-        Prefs prefs = GBApplication.getPrefs();
-        String unit = prefs.getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, GBApplication.getContext().getString(R.string.p_unit_metric));
-        if (unit.equals(GBApplication.getContext().getString(R.string.p_unit_metric))) {
-            return MiBandConst.DistanceUnit.METRIC;
-        } else {
-            return MiBandConst.DistanceUnit.IMPERIAL;
-        }
     }
 
     public static DoNotDisturb getDoNotDisturb(String deviceAddress) {

@@ -28,6 +28,7 @@ import java.util.Queue;
 
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventNotificationControl;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.packets.Notifications;
+import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.SendNotificationRequest;
@@ -66,6 +67,13 @@ public class HuaweiNotificationsManager {
         return "0|" + notificationSpec.sourceAppId + "|" + notificationSpec.getId() + "||0";
     }
 
+    public static String getCallSpecKey(CallSpec callSpec, int id) {
+        if(!TextUtils.isEmpty(callSpec.key)) {
+            return callSpec.key;
+        }
+        return "0|" + callSpec.sourceAppId + "|" + id + "||0";
+    }
+
     public void onNotification(NotificationSpec notificationSpec) {
 
         addNotificationToCache(notificationSpec);
@@ -80,7 +88,7 @@ public class HuaweiNotificationsManager {
     }
 
     public void onDeleteNotification(int id) {
-        if (!support.getHuaweiCoordinator().supportsNotificationsRepeatedNotify() && !support.getHuaweiCoordinator().supportsNotificationsRemoveSingle()) {
+        if (!support.getDeviceState().supportsNotificationsRepeatedNotify() && !support.getDeviceState().supportsNotificationsRemoveSingle()) {
             LOG.info("Delete notification is not supported");
             return;
         }
@@ -114,7 +122,7 @@ public class HuaweiNotificationsManager {
 
     void onReplyResponse(Notifications.NotificationReply.ReplyResponse response) {
         LOG.info(" KEY: {}, Text: {}", response.key, response.text);
-        if(!this.support.getHuaweiCoordinator().supportsNotificationsReplyActions()) {
+        if(!this.support.getDeviceState().supportsNotificationsReplyActions()) {
             LOG.info("Reply is not supported");
             return;
         }

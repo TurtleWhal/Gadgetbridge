@@ -44,7 +44,6 @@ import de.greenrobot.dao.query.CloseableListIterator;
 import de.greenrobot.dao.query.QueryBuilder;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.charts.TimestampTranslation;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.charts.DefaultWorkoutCharts;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummaryProgressEntry;
@@ -78,6 +77,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
 import nodomain.freeyourgadget.gadgetbridge.model.heartratezones.HeartRateZones;
 import nodomain.freeyourgadget.gadgetbridge.model.heartratezones.HeartRateZonesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.workout.WorkoutChart;
+import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
@@ -214,12 +214,32 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
     @Override
     public nodomain.freeyourgadget.gadgetbridge.model.workout.Workout parseWorkout(BaseActivitySummary summary, final boolean forDetails) {
         if (!forDetails) {
+            final ActivitySummaryData activitySummaryData = ActivitySummaryData.fromJson(summary.getSummaryData());
+            if (summary.getGpxTrack() == null) {
+                // Quickly check and update whether the activity has gps
+                try (DBHandler db = GBApplication.acquireDbReadOnly()) {
+                    final DaoSession session = db.getDaoSession();
+                    final Device device = DBHelper.getDevice(gbDevice, session);
+                    final User user = DBHelper.getUser(session);
+                    final QueryBuilder<HuaweiWorkoutSummarySample> qb = session.getHuaweiWorkoutSummarySampleDao().queryBuilder();
+                    qb.where(HuaweiWorkoutSummarySampleDao.Properties.StartTimestamp.eq(summary.getStartTime().getTime() / 1000));
+                    qb.where(HuaweiWorkoutSummarySampleDao.Properties.DeviceId.eq(device.getId()));
+                    qb.where(HuaweiWorkoutSummarySampleDao.Properties.UserId.eq(user.getId()));
+                    final List<HuaweiWorkoutSummarySample> huaweiSummaries = qb.build().list();
+                    if (!huaweiSummaries.isEmpty()) {
+                        activitySummaryData.setHasGps(huaweiSummaries.get(0).getRawGpsFileLocation() != null);
+                    }
+                } catch (Exception e) {
+                    LOG.error("Failed to check whether activity has gps");
+                }
+            }
+
             // Our parsing is too slow, especially without a RecyclerView
-            return new nodomain.freeyourgadget.gadgetbridge.model.workout.Workout(summary, ActivitySummaryData.fromJson(summary.getSummaryData()));
+            return new nodomain.freeyourgadget.gadgetbridge.model.workout.Workout(summary, activitySummaryData);
         }
 
         // Find the existing HuaweiWorkoutSummarySample
-        try (DBHandler db = GBApplication.acquireDB()) {
+        try (DBHandler db = GBApplication.acquireDbReadOnly()) {
             final DaoSession session = db.getDaoSession();
             final Device device = DBHelper.getDevice(gbDevice, session);
             final User user = DBHelper.getUser(session);
@@ -639,6 +659,7 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
                                                  final List<HuaweiActivityPoint> activityPoints) {
 
         ActivitySummaryData summaryData = new ActivitySummaryData();
+        summaryData.setHasGps(summary.getRawGpsFileLocation() != null);
 
         try {
 
@@ -1178,9 +1199,9 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
                     )
             );
 
-            String measurementSystem = GBApplication.getPrefs().getString(SettingsActivity.PREF_MEASUREMENT_SYSTEM, "metric");
+            final DistanceUnit distanceUnit = GBApplication.getPrefs().getDistanceUnit();
 
-            byte unitType = (byte) (measurementSystem.equals("metric") ? 0 : 1);
+            byte unitType = (byte) (distanceUnit == DistanceUnit.METRIC ? 0 : 1);
             try (CloseableListIterator<HuaweiWorkoutPaceSample> it = qbPace.build().listIterator()) {
 
                 int paceWeightSum = 0;

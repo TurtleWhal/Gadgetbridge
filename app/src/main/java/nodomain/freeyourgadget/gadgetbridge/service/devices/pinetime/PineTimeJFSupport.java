@@ -97,6 +97,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.GattCharacteristic;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.adablefs.AdaBleFsProfile;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.alertnotification.AlertCategory;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.alertnotification.AlertNotificationProfile;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.alertnotification.NewAlert;
@@ -112,6 +113,7 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
 
     private final DeviceInfoProfile<PineTimeJFSupport> deviceInfoProfile;
     private final BatteryInfoProfile<PineTimeJFSupport> batteryInfoProfile;
+    private final AdaBleFsProfile<PineTimeJFSupport> adaBleFsProfile;
 
     private final int MaxNotificationLength = 100;
     private final int CutNotificationTitleMinAt = 25;
@@ -264,16 +266,36 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
         addSupportedService(PineTimeJFConstants.UUID_CHARACTERISTIC_ALERT_NOTIFICATION_EVENT);
         addSupportedService(PineTimeJFConstants.UUID_SERVICE_MOTION);
         addSupportedService(PineTimeJFConstants.UUID_SERVICE_HEART_RATE);
+        addSupportedService(AdaBleFsProfile.UUID_SERVICE_FS);
 
-        IntentListener mListener = new IntentListener() {
-            @Override
-            public void notify(Intent intent) {
-                String action = intent.getAction();
-                if (DeviceInfoProfile.ACTION_DEVICE_INFO.equals(action)) {
-                    handleDeviceInfo((nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfo) intent.getParcelableExtra(DeviceInfoProfile.EXTRA_DEVICE_INFO));
-                } else if (BatteryInfoProfile.ACTION_BATTERY_INFO.equals(action)) {
-                    handleBatteryInfo((nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfo) intent.getParcelableExtra(BatteryInfoProfile.EXTRA_BATTERY_INFO));
-                }
+        IntentListener mListener = intent -> {
+            LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getContext());
+            String action = intent.getAction();
+            if (DeviceInfoProfile.ACTION_DEVICE_INFO.equals(action)) {
+                handleDeviceInfo(intent.getParcelableExtra(DeviceInfoProfile.EXTRA_DEVICE_INFO));
+            } else if (BatteryInfoProfile.ACTION_BATTERY_INFO.equals(action)) {
+                handleBatteryInfo(intent.getParcelableExtra(BatteryInfoProfile.EXTRA_BATTERY_INFO));
+            } else if (PineTimeJFConstants.ACTION_UPLOAD_PROGRESS.equals(action)) {
+                String filename = intent.getStringExtra("filename");
+                String currentAction = intent.getStringExtra("currentAction");
+                int currentActionNr = intent.getIntExtra("currentActionNr", 0);
+                int allActionsCount = intent.getIntExtra("allActionsCount", 0);
+                String progressText = String.format(getContext().getString(R.string.infinitime_resource_upload_progress_status), currentActionNr, allActionsCount, currentAction, filename);
+                manager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, progressText));
+            } else if (PineTimeJFConstants.ACTION_UPLOAD_FINISHED.equals(action)) {
+                String progressText = getContext().getString(R.string.devicestatus_upload_completed);
+                manager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, progressText));
+                manager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_BAR).putExtra(GB.PROGRESS_BAR_INDETERMINATE, false));
+                manager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_BAR).putExtra(GB.PROGRESS_BAR_PROGRESS, 100));
+                GB.updateInstallNotification(progressText, false, 0, getContext());
+                gbDevice.unsetBusyTask();
+            } else if (PineTimeJFConstants.ACTION_UPLOAD_ERROR.equals(action)) {
+                String errorMsg = intent.getStringExtra("errorMsg");
+                manager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_TEXT).putExtra(GB.DISPLAY_MESSAGE_MESSAGE, errorMsg));
+                manager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_BAR).putExtra(GB.PROGRESS_BAR_INDETERMINATE, false));
+                manager.sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_BAR).putExtra(GB.PROGRESS_BAR_PROGRESS, 0));
+                GB.updateInstallNotification(getContext().getString(R.string.devicestatus_upload_failed), false, 0, getContext());
+                gbDevice.unsetBusyTask();
             }
         };
 
@@ -287,6 +309,10 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
         batteryInfoProfile = new BatteryInfoProfile<>(this);
         batteryInfoProfile.addListener(mListener);
         addSupportedProfile(batteryInfoProfile);
+
+        adaBleFsProfile = new AdaBleFsProfile<>(this);
+        adaBleFsProfile.addListener(mListener);
+        addSupportedProfile(adaBleFsProfile);
     }
 
     private void handleBatteryInfo(nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.battery.BatteryInfo info) {
@@ -387,8 +413,8 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
                 iconname = "uturn";
                 break;
             case NavigationInfoSpec.ACTION_ROUNDABOUT_RIGHT:
-		iconname = "roundabout-right";
-		break;
+                iconname = "roundabout-right";
+                break;
             case NavigationInfoSpec.ACTION_ROUNDABOUT_LEFT:
                 iconname = "roundabout-left";
                 break;
@@ -444,9 +470,42 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
 
     @Override
     public void onInstallApp(Uri uri, @NonNull final Bundle options) {
-        try {
-            handler = new PineTimeInstallHandler(uri, getContext());
+        handler = new PineTimeInstallHandler(uri, getContext());
+        if (!handler.isValid()) {
+            LocalBroadcastManager.getInstance(getContext()).sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_TEXT)
+                    .putExtra(GB.DISPLAY_MESSAGE_MESSAGE, getContext().getString(R.string.fwinstaller_firmware_not_compatible_to_device)));
+            return;
+        }
+        if (handler.updateType == PineTimeInstallHandler.InfiniTimeUpdateType.DFU) {
+            installDfu(uri);
+        } else if (handler.updateType == PineTimeInstallHandler.InfiniTimeUpdateType.RESOURCES) {
+            installResource(uri);
+        }
+    }
 
+    public void installResource(Uri uri) {
+        try {
+            gbDevice.setBusyTask(R.string.uploading_resources, getContext());
+            adaBleFsProfile.loadResources(uri, getContext(), getQueue());
+
+            LocalBroadcastManager.getInstance(getContext()).sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_BAR)
+                    .putExtra(GB.PROGRESS_BAR_INDETERMINATE, true)
+            );
+            LocalBroadcastManager.getInstance(getContext()).sendBroadcast(new Intent(GB.ACTION_SET_PROGRESS_TEXT)
+                    .putExtra(GB.DISPLAY_MESSAGE_MESSAGE, getContext().getString(R.string.devicestatus_upload_starting))
+            );
+        } catch (Exception ex) {
+            GB.toast(getContext(), getContext().getString(R.string.updatefirmwareoperation_write_failed) + ":" + ex.getMessage(), Toast.LENGTH_LONG, GB.ERROR, ex);
+            if (gbDevice.isBusy() && gbDevice.getBusyTask().equals(getContext().getString(R.string.uploading_resources))) {
+                gbDevice.unsetBusyTask();
+            }
+        }
+
+    }
+
+    public void installDfu(Uri uri) {
+        handler = new PineTimeInstallHandler(uri, getContext());
+        try {
             if (handler.isValid()) {
                 gbDevice.setBusyTask(R.string.updating_firmware, getContext());
                 DfuServiceInitiator starter = new DfuServiceInitiator(getDevice().getAddress())
@@ -511,6 +570,7 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
         setInitialized(builder);
         batteryInfoProfile.requestBatteryInfo(builder);
         batteryInfoProfile.enableNotify(builder, true);
+        adaBleFsProfile.enableNotify(builder, true);
 
         builder.requestMtu(256);
         return builder;
@@ -972,7 +1032,14 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
     private void onSendWeatherSimple(WeatherSpec weatherSpec) {
         long timestampLocal = weatherSpec.getTimestamp() + Calendar.getInstance().getTimeZone().getOffset(Calendar.getInstance(TimeZone.getTimeZone("UTC")).getTimeInMillis()) / 1000L;
 
-        ByteBuffer currentPacket = ByteBuffer.allocate(49).order(ByteOrder.LITTLE_ENDIAN);
+        int weatherMemAlloc = 49;
+        byte version = 0;
+        if (isFirmwareAtLeastVersion0_15()) {
+            weatherMemAlloc = 53;
+            version = 1;
+        }
+        ByteBuffer currentPacket = ByteBuffer.allocate(weatherMemAlloc).order(ByteOrder.LITTLE_ENDIAN);
+        currentPacket.put(1, version);
         currentPacket.putLong(2, timestampLocal);
         currentPacket.putShort(10, (short) ((weatherSpec.getCurrentTemp() - 273.15) * 100));
         currentPacket.putShort(12, (short) ((weatherSpec.getTodayMinTemp() - 273.15) * 100));
@@ -984,6 +1051,14 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
             }
         }
         currentPacket.put(48, mapOpenWeatherConditionToPineTimeCondition(weatherSpec.getCurrentConditionCode()).value);
+
+        if (isFirmwareAtLeastVersion0_15()) {
+            // Calculate sunrise and sunset minutes since midnight
+            short sunriseMinutes = (short) ((weatherSpec.getSunRise() + Calendar.getInstance().getTimeZone().getOffset(Calendar.getInstance(TimeZone.getTimeZone("UTC")).getTimeInMillis()) / 1000L) / 60 % 1440);
+            short sunsetMinutes = (short) ((weatherSpec.getSunSet() + Calendar.getInstance().getTimeZone().getOffset(Calendar.getInstance(TimeZone.getTimeZone("UTC")).getTimeInMillis()) / 1000L) / 60 % 1440);
+            currentPacket.putShort(49, sunriseMinutes);
+            currentPacket.putShort(51, sunsetMinutes);
+        }
 
         TransactionBuilder currentBuilder = createTransactionBuilder("SimpleWeatherData");
         safeWriteToCharacteristic(currentBuilder,

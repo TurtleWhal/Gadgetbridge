@@ -45,17 +45,21 @@ public class SonyWF1000XM5Coordinator extends SonyHeadphonesCoordinator {
         return new BatteryConfig[]{battery1, battery2, battery3};
     }
 
+    @NonNull
     @Override
-    public Set<SonyHeadphonesCapabilities> getCapabilities() {
+    public Set<SonyHeadphonesCapabilities> getDefaultCapabilities() {
         return new HashSet<>(Arrays.asList(
                 SonyHeadphonesCapabilities.BatteryDual,
                 SonyHeadphonesCapabilities.BatteryCase,
                 SonyHeadphonesCapabilities.AmbientSoundControl,
-                SonyHeadphonesCapabilities.WindNoiseReduction,
-                SonyHeadphonesCapabilities.EqualizerSimple,
+                SonyHeadphonesCapabilities.EqualizerWithCustomBands,
                 SonyHeadphonesCapabilities.AudioUpsampling,
                 SonyHeadphonesCapabilities.ButtonModesLeftRight,
+                SonyHeadphonesCapabilities.AmbientSoundControlButtonMode,
+                SonyHeadphonesCapabilities.PowerOffFromPhone,
                 SonyHeadphonesCapabilities.PauseWhenTakenOff,
+                SonyHeadphonesCapabilities.SpeakToChatEnabled,
+                SonyHeadphonesCapabilities.SpeakToChatConfig,
                 SonyHeadphonesCapabilities.AutomaticPowerOffWhenTakenOff
         ));
     }

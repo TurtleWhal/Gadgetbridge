@@ -49,6 +49,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
 
 public class TemperatureChartFragment extends AbstractChartFragment<TemperatureChartFragment.TemperatureChartsData> {
     protected static final Logger LOG = LoggerFactory.getLogger(TemperatureChartFragment.class);
@@ -60,6 +61,7 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
 
     protected final int TOTAL_DAYS = getRangeDays();
 
+    private final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
 
     @Override
     protected void init() {
@@ -84,16 +86,16 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
         return new TemperatureChartsDataBuilder(samples).build();
     }
 
-
     @Override
     protected void updateChartsnUIThread(final TemperatureChartsData temperatureData) {
         mTemperatureChart.setData(null); // workaround for https://github.com/PhilJay/MPAndroidChart/issues/2317
         mTemperatureChart.getXAxis().setValueFormatter(temperatureData.getXValueFormatter());
         mTemperatureChart.getXAxis().setAvoidFirstLastClipping(true);
 
-        // Using approximately the range of survivable body-temperatures (in celsius), rounded to multiples of 5
-        mTemperatureChart.getAxisLeft().setAxisMinimum(30f);
-        mTemperatureChart.getAxisLeft().setAxisMaximum(45f);
+        // Using approximately the range of survivable body-temperatures (in Celsius), rounded to multiples of 5
+        final boolean isMetric = temperatureUnit == TemperatureUnit.CELSIUS;
+        mTemperatureChart.getAxisLeft().setAxisMinimum((float) (isMetric ? 30f : celsiusToFahrenheit(30d)));
+        mTemperatureChart.getAxisLeft().setAxisMaximum((float) (isMetric ? 45f : celsiusToFahrenheit(45f)));
 
         mTemperatureChart.setData(temperatureData.getData());
     }
@@ -178,12 +180,16 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
 
         public TemperatureChartsData build() {
             TimestampTranslation tsTranslation = new TimestampTranslation();
-            List<Entry> entries = new ArrayList<Entry>();
+            List<Entry> entries = new ArrayList<>();
             long firstTs = 0;
+            final boolean isMetric = temperatureUnit == TemperatureUnit.CELSIUS;
 
             for (TemperatureSample sample : samples) {
                 int timestamp_in_seconds = (int) (sample.getTimestamp() / 1000L);
-                entries.add(new Entry(tsTranslation.shorten(timestamp_in_seconds), sample.getTemperature()));
+                entries.add(new Entry(
+                        tsTranslation.shorten(timestamp_in_seconds),
+                        (float) (isMetric ? sample.getTemperature() : celsiusToFahrenheit(sample.getTemperature()))
+                ));
                 if (firstTs == 0) {
                     firstTs = sample.getTimestamp();
                 }
@@ -242,4 +248,7 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
         }
     }
 
+    public static double celsiusToFahrenheit(final double celsius) {
+        return ((celsius * (9d/5d)) + 32d);
+    }
 }

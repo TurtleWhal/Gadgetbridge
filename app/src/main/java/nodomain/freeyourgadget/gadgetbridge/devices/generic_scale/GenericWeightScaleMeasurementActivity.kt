@@ -21,6 +21,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -29,42 +30,37 @@ import androidx.core.content.ContextCompat
 import nodomain.freeyourgadget.gadgetbridge.GBApplication
 import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper
 import nodomain.freeyourgadget.gadgetbridge.devices.GenericWeightSampleProvider
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericWeightSample
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
+import nodomain.freeyourgadget.gadgetbridge.model.WeightUnit
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.weightScale.WeightScaleMeasurement
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.weightScale.WeightScaleProfile
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Instant
-import kotlin.math.roundToInt
 
 class GenericWeightScaleMeasurementActivity : AbstractGBActivity() {
     private val weightUpdatedReceiver: WeightUpdatedReceiver = WeightUpdatedReceiver()
     private var actual: TextView? = null
     private var save: Button? = null
-    private var device: GBDevice? = null
-    private var unit: String? = null
+    private lateinit var device: GBDevice
+    private var unit: WeightUnit? = null
 
     private var measurement: WeightScaleMeasurement? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val address = intent.getStringExtra(WeightScaleProfile.EXTRA_ADDRESS)
-            ?: throw IllegalArgumentException(WeightScaleProfile.EXTRA_ADDRESS + " must not be null")
+        device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(GBDevice.EXTRA_DEVICE, GBDevice::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(GBDevice.EXTRA_DEVICE)
+        } ?: throw IllegalArgumentException(GBDevice.EXTRA_DEVICE + " must not be null")
 
-        val manager = GBApplication.app().deviceManager
-        device = manager.getDeviceByAddress(address)
-
-        val settings = GBApplication.getDevicePrefs(device)
-        unit = settings.getString(DeviceSettingsPreferenceConst.PREF_WEIGHT_SCALE_UNIT, null)
-
-        if (unit == null) {
-            unit = if (GBApplication.getPrefs().isMetricUnits) "kilogram" else "pound"
-        }
+        unit = GBApplication.getPrefs().weightUnit
 
         setContentView(R.layout.activity_weight_scale_measurement)
 
@@ -86,20 +82,7 @@ class GenericWeightScaleMeasurementActivity : AbstractGBActivity() {
         val raw: Double? = measurement?.weightKilogram
         val kg: Double = if (raw == null || raw.isNaN()) 0.0 else raw
 
-        if (unit.equals("jin")) {
-            val jin: Double = kg * 2
-            actual?.text = getString(R.string.weight_scale_jin_format, jin)
-        } else if (unit.equals("pound")) {
-            val pound: Double = kg / 0.45359237
-            actual?.text = getString(R.string.weight_scale_pound_format, pound)
-        } else if (unit.equals("stone")) {
-            val total: Int = (kg / 0.45359237).roundToInt()
-            val stone: Int = total / 14
-            val pound: Int = total % 14
-            actual?.text = getString(R.string.weight_scale_stone_format, stone, pound)
-        } else {
-            actual?.text = getString(R.string.weight_scale_kilogram_format, kg)
-        }
+        actual?.text = WeightUnit.formatWeight(this, kg, unit ?: WeightUnit.KILOGRAM)
     }
 
     internal fun saveWeightInfo(measurement: WeightScaleMeasurement) {
@@ -125,8 +108,8 @@ class GenericWeightScaleMeasurementActivity : AbstractGBActivity() {
         try {
             GBApplication.acquireDB().use { db ->
                 val provider = GenericWeightSampleProvider(device, db.getDaoSession())
-                val userId = DBHelper.getUser(db.getDaoSession()).id
-                val deviceId = DBHelper.getDevice(device, db.getDaoSession()).id
+                val userId = DBHelper.getUser(db.getDaoSession()).id!!
+                val deviceId = DBHelper.getDevice(device, db.getDaoSession()).id!!
 
                 val sample = GenericWeightSample(
                     measurement.time!!.epochSecond,

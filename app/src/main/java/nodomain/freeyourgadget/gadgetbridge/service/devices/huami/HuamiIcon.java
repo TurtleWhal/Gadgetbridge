@@ -67,7 +67,6 @@ public class HuamiIcon {
             case GENERIC_NAVIGATION:
                 return APP_11;
             case CONVERSATIONS:
-            case RIOT:
             case HIPCHAT:
             case KONTALK:
             case ANTOX:
@@ -99,22 +98,31 @@ public class HuamiIcon {
                 return LINE;
             case WIRE:
             case THREEMA:
+            case ELEMENT:
                 return CHAT_BLUE_13;
             case TWITTER:
                 return TWITTER;
             case SKYPE:
+            case DISCORD:
                 return SKYPE;
+            case VK:
+                return VKONTAKTE;
+            case GAMES:
+                return POKEMONGO;
             case SNAPCHAT:
                 return SNAPCHAT;
             case TELEGRAM:
                 return TELEGRAM;
             case VIBER:
-            case DISCORD:
                 return VIBER;
             case WHATSAPP:
                 return WHATSAPP;
             case GENERIC_ALARM_CLOCK:
                 return ALARM_CLOCK;
+            case QQ:
+                return PENGUIN_1;
+            case WEATHER:
+                return WEATHER;
         }
         return APP_11;
     }
@@ -139,9 +147,10 @@ public class HuamiIcon {
             case VKONTAKTE:
             case CHINESE_32:
             case EMAIL:
+            case WEATHER:
                 return true;
+            default:
+                return false;
         }
-
-        return false;
     }
 }

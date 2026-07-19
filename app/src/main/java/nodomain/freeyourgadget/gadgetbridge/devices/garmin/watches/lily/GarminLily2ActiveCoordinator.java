@@ -23,4 +23,9 @@ public class GarminLily2ActiveCoordinator extends GarminWatchCoordinator {
     public boolean supportsTrainingLoad(@NonNull GBDevice device) {
         return false;
     }
+
+    @Override
+    public boolean supportsVO2MultiSport(@NonNull GBDevice device) {
+        return false;
+    }
 }

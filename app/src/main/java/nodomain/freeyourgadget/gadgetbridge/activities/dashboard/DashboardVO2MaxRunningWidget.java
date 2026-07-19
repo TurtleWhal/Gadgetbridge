@@ -37,16 +37,18 @@ public class DashboardVO2MaxRunningWidget extends AbstractDashboardVO2MaxWidget 
         return fragment;
     }
 
+    @Override
     public Vo2MaxSample.Type getVO2MaxType() {
         return Vo2MaxSample.Type.RUNNING;
     }
 
+    @Override
     public String getWidgetKey() {
         return "vo2max_running";
     }
 
     @Override
     protected boolean isSupportedBy(final GBDevice device) {
-        return device.getDeviceCoordinator().supportsVO2MaxRunning(device);
+        return device.getDeviceCoordinator().supportsVO2MultiSport(device);
     }
 }

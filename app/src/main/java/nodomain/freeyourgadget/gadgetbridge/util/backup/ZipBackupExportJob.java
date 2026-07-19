@@ -23,6 +23,7 @@ import android.net.Uri;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -39,6 +40,7 @@ import java.util.zip.ZipOutputStream;
 
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.GBDatabaseManager;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
@@ -61,7 +63,8 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
     @Override
     public void run() {
         try (final OutputStream outputStream = getContext().getContentResolver().openOutputStream(mUri, "wt");
-             final ZipOutputStream zipOut = new ZipOutputStream(outputStream)) {
+             final BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream, 1024 * 1024);
+             final ZipOutputStream zipOut = new ZipOutputStream(bufferedOutputStream)) {
 
             if (isAborted()) return;
 
@@ -101,8 +104,13 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
 
             addMetadata(zipOut);
 
+            LOG.debug("Finishing zip");
+
             zipOut.finish();
-            zipOut.flush();
+
+            LOG.debug("Flushing output stream");
+
+            bufferedOutputStream.flush();
 
             if (isAborted()) return;
 
@@ -158,12 +166,7 @@ public class ZipBackupExportJob extends AbstractZipBackupJob {
         final ZipEntry zipEntry = new ZipEntry(DATABASE_FILENAME);
         zipOut.putNextEntry(zipEntry);
 
-        try (DBHandler dbHandler = GBApplication.acquireDB()) {
-            final DBHelper helper = new DBHelper(context);
-            helper.exportDB(dbHandler, zipOut);
-        } catch (final Exception e) {
-            throw new IOException("Failed to export database", e);
-        }
+        GBDatabaseManager.exportDB(zipOut);
 
         zipOut.closeEntry();
     }

@@ -42,20 +42,22 @@ class GenericWeightScaleCoordinator : AbstractBLEDeviceCoordinator() {
     }
 
     override fun getCustomActions(): MutableList<DeviceCardAction?> {
-        return Collections.singletonList<DeviceCardAction>(GenericWeightScaleAction())
+        return Collections.singletonList(
+            DeviceCardAction.forActivity(
+                R.drawable.ic_balance,
+                R.string.weight_scale_show_measurement,
+                GenericWeightScaleMeasurementActivity::class.java
+            )
+        )
     }
 
     override fun getOrderPriority(): Int {
         return Int.MAX_VALUE
     }
 
-    override fun getSupportedDeviceSpecificSettings(device: GBDevice?): IntArray? {
-        return intArrayOf(R.xml.devicesettings_weight_scale_unit)
-    }
-
     override fun getWeightSampleProvider(
-        device: GBDevice?, session: DaoSession?
-    ): TimeSampleProvider<out WeightSample?>? {
+        device: GBDevice, session: DaoSession
+    ): TimeSampleProvider<out WeightSample?> {
         return GenericWeightSampleProvider(device, session)
     }
 
@@ -64,11 +66,11 @@ class GenericWeightScaleCoordinator : AbstractBLEDeviceCoordinator() {
         return true
     }
 
-    override fun getManufacturer(): String? {
+    override fun getManufacturer(): String {
         return "Generic"
     }
 
-    override fun getDeviceSupportClass(device: GBDevice?): Class<out DeviceSupport?> {
+    override fun getDeviceSupportClass(device: GBDevice): Class<out DeviceSupport?> {
         return GenericWeightScaleSupport::class.java
     }
 
@@ -92,24 +94,8 @@ class GenericWeightScaleCoordinator : AbstractBLEDeviceCoordinator() {
         return true
     }
 
-    override fun supportsActivityTracking(device: GBDevice): Boolean {
+    override fun supportsCharts(device: GBDevice): Boolean {
         return true
-    }
-
-    override fun supportsActivityTabs(device: GBDevice): Boolean {
-        return false
-    }
-
-    override fun supportsSleepMeasurement(device: GBDevice): Boolean {
-        return false
-    }
-
-    override fun supportsStepCounter(device: GBDevice): Boolean {
-        return false
-    }
-
-    override fun supportsSpeedzones(device: GBDevice): Boolean {
-        return false
     }
 
     override fun getDeviceKind(device: GBDevice): DeviceCoordinator.DeviceKind {

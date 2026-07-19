@@ -1,4 +1,4 @@
-/*  Copyright (C) 2019-2024 Albert, Andreas Shimokawa, Arjan Schrijver, Damien
+/*  Copyright (C) 2019-2026 Albert, Andreas Shimokawa, Arjan Schrijver, Damien
     Gaignon, Gabriele Monaco, Ganblejs, gfwilliams, glemco, Gordon Williams,
     halemmerich, illis, José Rebelo, Lukas, LukasEdl, Marc Nause, Martin Boonk,
     rarder44, Richard de Boer, Simon Sievert
@@ -19,6 +19,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.banglejs;
 
+import static java.util.Collections.emptyMap;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_ALLOW_HIGH_MTU;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_BANGLEJS_TEXT_BITMAP;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_BANGLEJS_TEXT_BITMAP_SIZE;
@@ -33,6 +34,7 @@ import static nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSCons
 import static nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants.PREF_BANGLEJS_ACTIVITY_FULL_SYNC_STATUS;
 import static nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants.PREF_BANGLEJS_NOTIFICATION_MISSED_CALL_ENABLE;
 
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.BroadcastReceiver;
@@ -53,18 +55,10 @@ import android.os.Handler;
 import android.util.Base64;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.text.HtmlCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-
-import com.android.volley.AuthFailureError;
-import com.android.volley.DefaultRetryPolicy;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -93,12 +87,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.SimpleTimeZone;
 
 import de.greenrobot.dao.query.QueryBuilder;
 import io.wax911.emojify.EmojiManager;
 import io.wax911.emojify.parser.EmojiParserKt;
-import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.WakeActivity;
@@ -122,6 +116,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.CalendarSyncState;
 import nodomain.freeyourgadget.gadgetbridge.entities.CalendarSyncStateDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.CalendarReceiver;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.IntentApiReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationProviderType;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.sleepasandroid.SleepAsAndroidAction;
@@ -140,20 +135,22 @@ import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
-import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.service.SleepAsAndroidSender;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BtLEQueue;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
+import nodomain.freeyourgadget.gadgetbridge.util.BundleUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.EmojiConverter;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs;
+import nodomain.freeyourgadget.gadgetbridge.util.InternetUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.LimitedQueue;
+import nodomain.freeyourgadget.gadgetbridge.util.MediaManager;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
-import nodomain.freeyourgadget.gadgetbridge.util.VolleyUtils;
 
 public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(BangleJSDeviceSupport.class);
@@ -182,12 +179,10 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private boolean gpsUpdateSetup = false;
 
+    protected MediaManager mediaManager;
+
     // this stores the globalUartReceiver (for uart.tx intents)
     private BroadcastReceiver globalUartReceiver = null;
-
-    // used to make HTTP requests and handle responses
-    private RequestQueue requestQueue = null;
-    private RequestQueue insecureRequestQueue = null;
 
     /// Maximum amount of characters to store in receiveHistory
     public static final int MAX_RECEIVE_HISTORY_CHARS = 100000;
@@ -211,12 +206,17 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
+    public void setContext(final GBDevice gbDevice, final BluetoothAdapter btAdapter, final Context context) {
+        super.setContext(gbDevice, btAdapter, context);
+        this.mediaManager = new MediaManager(context);
+    }
+
+    @Override
     public void dispose() {
         synchronized (ConnectionMonitor) {
             super.dispose();
             stopGlobalUartReceiver();
             stopLocationUpdate();
-            stopRequestQueue();
             handler.removeCallbacksAndMessages(null);
         }
     }
@@ -234,38 +234,6 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         LOG.info("Stop location updates");
         GBLocationService.stop(getContext(), getDevice());
         gpsUpdateSetup = false;
-    }
-
-    private void stopRequestQueue() {
-        if (requestQueue != null) {
-            requestQueue.stop();
-        }
-        if (insecureRequestQueue != null) {
-            insecureRequestQueue.stop();
-        }
-    }
-
-    private RequestQueue getRequestQueue(final boolean insecure) {
-        if (insecure) {
-            if (insecureRequestQueue == null) {
-                try {
-                    insecureRequestQueue = Volley.newRequestQueue(
-                            getContext(),
-                            VolleyUtils.createInsecureHurlStack()
-                    );
-                } catch (final Exception e) {
-                    LOG.error("Failed to initialized insecure request queue", e);
-                    // fallback to secure one
-                    return getRequestQueue(false);
-                }
-            }
-            return insecureRequestQueue;
-        } else {
-            if (requestQueue == null) {
-                requestQueue = Volley.newRequestQueue(getContext());
-            }
-            return requestQueue;
-        }
     }
 
     private void addReceiveHistory(String s) {
@@ -327,12 +295,23 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                           Action: com.banglejs.uart.tx
                           Cat: None
                           Extra: line:Terminal.println(%avariable)
+                          Extra: device:00:1A:2B:3C:4D:5E  - optional, MAC address of target gadget
                           Target: Broadcast Receiver
 
                           Variable: Number, Configure on Import, NOT structured, Value set, Nothing Exported, NOT Same as value
                          */
-                        Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
-                        if (!devicePrefs.getBoolean(PREF_DEVICE_INTENTS, false)) return;
+                        final String address = intent.getStringExtra(IntentApiReceiver.EXTRA_DEVICE);
+                        if (address != null && address.compareToIgnoreCase(gbDevice.getAddress()) != 0) {
+                            LOG.debug("ignoring intent {} for {} because this is {}",
+                                    BANGLE_ACTION_UART_TX, address, gbDevice.getAddress());
+                            return;
+                        }
+                        final Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
+                        if (!devicePrefs.getBoolean(PREF_DEVICE_INTENTS, false)) {
+                            LOG.debug("ignoring intent {} for {} because device preference {} is not true",
+                                    BANGLE_ACTION_UART_TX, address, PREF_DEVICE_INTENTS);
+                            return;
+                        }
                         String data = intent.getStringExtra("line");
                         if (data==null) {
                             GB.toast(getContext(), "UART TX Intent, but no 'line' supplied", Toast.LENGTH_LONG, GB.ERROR);
@@ -429,7 +408,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             boolean hasUnicode = false;
             //String rawString = "";
             for (int i=0;i<s.length();i++) {
-                int ch = (int)s.charAt(i); // unicode, so 0..65535 (usually)
+                int ch = (int)s.charAt(i); // Unicode, so 0..65535 (usually)
                 int nextCh = (int)(i+1<s.length() ? s.charAt(i+1) : 0); // 0..65535
                 //rawString = rawString+ch+",";
                 if (ch>255) hasUnicode = true;
@@ -453,7 +432,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     json.append("\\u").append(Integer.toHexString((ch & 65535) | 65536).substring(1));
                 else json.append(s.charAt(i));
             }
-            // if it was less characters to send base64, do that!
+            // if it was fewer characters to send base64, do that!
             if (!hasUnicode && (json.length() > 5+(s.length()*4/3))) {
                 byte[] bytes = s.getBytes(StandardCharsets.ISO_8859_1);
                 return "atob(\""+Base64.encodeToString(bytes, Base64.DEFAULT).replaceAll("\n","")+"\")";
@@ -684,7 +663,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 break;
             case SleepAsAndroidAction.SET_SUSPENDED:
                 boolean suspended = extras.getBoolean("SUSPENDED", false);
-                this.enableAccelSender(false);
+                this.enableAccelSender(!suspended);
                 sleepAsAndroidSender.pauseTracking(suspended);
                 break;
                 // Received when the app changes the batch size for the movement data
@@ -692,7 +671,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 long batchSize = extras.getLong("SIZE", 12L);
                 sleepAsAndroidSender.setBatchSize(batchSize);
                 break;
-            // Received when the app sends a notificaation
+            // Received when the app sends a notification
             case SleepAsAndroidAction.SHOW_NOTIFICATION:
                 NotificationSpec notificationSpec = new NotificationSpec();
                 notificationSpec.title = extras.getString("TITLE");
@@ -908,130 +887,85 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         }
         final String id = _id;
 
-        if (!BuildConfig.INTERNET_ACCESS) {
-            uartTxJSONError("http", "Internet access not enabled, check Gadgetbridge Device Settings", id);
+        if (!GBApplication.hasInternetAccess()) {
+            uartTxJSONError("http", "Internet access not enabled in Gadgetbridge", id);
             return;
         }
 
         Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
-        if (! devicePrefs.getBoolean(PREF_DEVICE_INTERNET_ACCESS, false)) {
-            uartTxJSONError("http", "Internet access not enabled in this Gadgetbridge build", id);
+        if (!devicePrefs.getBoolean(PREF_DEVICE_INTERNET_ACCESS, false)) {
+            uartTxJSONError("http", "Internet access not enabled for this watch", id);
             return;
         }
 
         String url = json.getString("url");
         final boolean insecure = json.optBoolean("insecure", false);
-        int method = Request.Method.GET;
+        String method = "GET";
         if (json.has("method")) {
-            String m = json.getString("method").toLowerCase(Locale.US);
-            if (m.equals("get")) method = Request.Method.GET;
-            else if (m.equals("post")) method = Request.Method.POST;
-            else if (m.equals("head")) method = Request.Method.HEAD;
-            else if (m.equals("put")) method = Request.Method.PUT;
-            else if (m.equals("patch")) method = Request.Method.PATCH;
-            else if (m.equals("delete")) method = Request.Method.DELETE;
-            else uartTxJSONError("http", "Unknown HTTP method "+m,id);
+            method = json.getString("method").toUpperCase(Locale.US);
         }
 
-        byte[] _body = null;
+        String body = null;
         if (json.has("body"))
-            _body = json.getString("body").getBytes();
-        final byte[] body = _body;
+            body = json.getString("body");
 
-        Map<String,String> _headers = null;
+        Map<String,String> headers = null;
         if (json.has("headers")) {
             JSONObject h = json.getJSONObject("headers");
-            _headers = new HashMap<String,String>();
+            headers = new HashMap<String,String>();
             Iterator<String> iter = h.keys();
             while (iter.hasNext()) {
                 String key = iter.next();
                 try {
                     String value = h.getString(key);
-                    _headers.put(key, value);
+                    headers.put(key, value);
                 } catch (JSONException e) {
                 }
             }
         }
-        final Map<String,String> headers = _headers;
+        if (headers == null) headers = emptyMap();
 
+        String response = InternetUtils.Companion.doStringRequest(Uri.parse(url), method, headers, body, insecure);
+        JSONObject o = new JSONObject();
         String _xmlPath = "";
         String _xmlReturn = "";
         try {
             _xmlPath = json.getString("xpath");
             _xmlReturn = json.getString("return");
-        } catch (JSONException e) {
+        } catch (JSONException ignored) {
         }
         final String xmlPath = _xmlPath;
         final String xmlReturn = _xmlReturn;
-        // Request a string response from the provided URL.
-        StringRequest stringRequest = new StringRequest(method, url,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        JSONObject o = new JSONObject();
-                        if (xmlPath.length() != 0) {
-                            try {
-                                Document doc = Jsoup.parse(response);
-                                Elements result = doc.selectXpath(xmlPath);
-                                if (xmlReturn.equals("array")) {
-                                    response = null; // don't add it below
-                                    JSONArray arr = new JSONArray();
-                                    for (int i = 0; i < result.size(); i++)
-                                        arr.put(result.get(i).text());
-                                    o.put("resp", arr);
-                                } else { // else return only first!
-                                    response = "";
-                                    if (!result.isEmpty())
-                                        response = result.get(0).text();
-                                }
-                            } catch (Exception error) {
-                                uartTxJSONError("http", error.toString(), id);
-                                return;
-                            }
-                        }
-                        try {
-                            o.put("t", "http");
-                            if( id!=null)
-                                o.put("id", id);
-                            if (response!=null)
-                                o.put("resp", response);
-                        } catch (JSONException e) {
-                            GB.toast(getContext(), "HTTP: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
-                        }
-                        uartTxJSON("http", o);
-                    }
-                }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                uartTxJSONError("http", error.toString(), id);
-            }
-        }) {
-            @Override
-            public byte[] getBody() throws AuthFailureError {
-                if (body == null) return super.getBody();
-                return body;
-            }
-
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                // clone the data from super.getHeaders() so we can write to it
-                Map<String, String> h = new HashMap<>(super.getHeaders());
-                if (headers != null) {
-                    for (String key : headers.keySet()) {
-                        String value = headers.get(key);
-                        h.put(key, value);
-                    }
+        if (!xmlPath.isEmpty()) {
+            try {
+                Document doc = Jsoup.parse(response);
+                Elements result = doc.selectXpath(xmlPath);
+                if (xmlReturn.equals("array")) {
+                    response = null; // don't add it below
+                    JSONArray arr = new JSONArray();
+                    for (int i = 0; i < result.size(); i++)
+                        arr.put(result.get(i).text());
+                    o.put("resp", arr);
+                } else { // else return only first!
+                    response = "";
+                    if (!result.isEmpty())
+                        response = result.get(0).text();
                 }
-                return h;
+            } catch (Exception error) {
+                uartTxJSONError("http", error.toString(), id);
+                return;
             }
-        };
-        if (json.has("timeout")) {
-            int timeout = json.getInt("timeout");
-            stringRequest.setRetryPolicy(new DefaultRetryPolicy(timeout, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
         }
-        RequestQueue queue = getRequestQueue(insecure);
-        queue.add(stringRequest);
-    }
+        try {
+            o.put("t", "http");
+            if( id!=null)
+                o.put("id", id);
+            if (response!=null)
+                o.put("resp", response);
+        } catch (JSONException e) {
+            GB.toast(getContext(), "HTTP: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+        }
+        uartTxJSON("http", o);    }
 
     /**
      * Handle "force_calendar_sync" packet
@@ -1132,10 +1066,16 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         if (json.has("extra")) {
             JSONObject extra = json.getJSONObject("extra");
             Iterator<String> iter = extra.keys();
+            Bundle extras = new Bundle();
             while (iter.hasNext()) {
                 String key = iter.next();
-                in.putExtra(key, extra.getString(key)); // Should this be implemented for other types, e.g. extra.getInt(key)? Or will this always work even if receiving ints/doubles/etc.?
+                Object value = extra.get(key);
+
+                if (!BundleUtils.addToBundle(extras, key, value)) {
+                    in.putExtra(key, value.toString());
+                }
             }
+            in.putExtras(extras);
         }
         LOG.info("Executing intent:\n\t" + String.valueOf(in) + "\n\tTargeting: " + target);
         //GB.toast(getContext(), String.valueOf(in), Toast.LENGTH_LONG, GB.INFO);
@@ -1143,7 +1083,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             case "broadcastreceiver":
                 getContext().sendBroadcast(in);
                 break;
-            case "activity": // See wakeActivity.java if you want to start activities from under the keyguard/lock sceen.
+            case "activity": // See wakeActivity.java if you want to start activities from under the keyguard/lock screen.
                 getContext().startActivity(in);
                 break;
             case "service": // Should this be implemented differently, e.g. workManager?
@@ -1434,7 +1374,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             else if (ch =='】') ch=']';
             else if (ch=='‘' || ch=='’' || ch=='‛' || ch=='′' || ch=='ʹ') ch='\'';
             else if (ch=='“' || ch=='”' || ch =='„' || ch=='‟' || ch=='″') ch='"';
-            else if (ch == 0xFEFF) continue; // nonbreaking space - ignore
+            else if (ch == 0xFEFF) continue; // non-breaking space - ignore
             boolean isCharEmoji = isCharCodeEmoji(ch);
             if (isCharEmoji) {
                 if (!wordIsAllEmoji) {
@@ -1569,7 +1509,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             for (String message : cannedMessagesSpec.cannedMessages) {
                 JSONObject jsonMessage = new JSONObject();
                 jsonMessages.put(jsonMessage);
-                // Render unicode (emojis etc.) as an image for BangleJS to display
+                // Render Unicode (emojis etc.) as an image for BangleJS to display
                 String unicodeRenderedAsImage = renderUnicodeAsImage(message);
                 // If the initial and rendered messages are not the same, include the rendered message as "disp(lay)" text so unicode is rendered on device
                 if (!unicodeRenderedAsImage.equals(message)) {
@@ -1670,37 +1610,41 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetMusicState(MusicStateSpec stateSpec) {
-        try {
-            JSONObject o = new JSONObject();
-            o.put("t", "musicstate");
-            int musicState = stateSpec.state;
-            String[] musicStates = {"play", "pause", "stop", ""};
-            if (musicState<0) musicState=3;
-            if (musicState>=musicStates.length) musicState = musicStates.length-1;
-            o.put("state", musicStates[musicState]);
-            o.put("position", stateSpec.position);
-            o.put("shuffle", stateSpec.shuffle);
-            o.put("repeat", stateSpec.repeat);
-            uartTxJSON("onSetMusicState", o);
-        } catch (JSONException e) {
-            LOG.info("JSONException: " + e.getLocalizedMessage());
+        if (mediaManager.onSetMusicState(stateSpec)) {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("t", "musicstate");
+                int musicState = stateSpec.state;
+                String[] musicStates = {"play", "pause", "stop", ""};
+                if (musicState<0) musicState=3;
+                if (musicState>=musicStates.length) musicState = musicStates.length-1;
+                o.put("state", musicStates[musicState]);
+                o.put("position", stateSpec.position);
+                o.put("shuffle", stateSpec.shuffle);
+                o.put("repeat", stateSpec.repeat);
+                uartTxJSON("onSetMusicState", o);
+            } catch (JSONException e) {
+                LOG.info("JSONException: " + e.getLocalizedMessage());
+            }
         }
     }
 
     @Override
     public void onSetMusicInfo(MusicSpec musicSpec) {
-        try {
-            JSONObject o = new JSONObject();
-            o.put("t", "musicinfo");
-            o.put("artist", renderUnicodeAsImage(musicSpec.artist));
-            o.put("album", renderUnicodeAsImage(musicSpec.album));
-            o.put("track", renderUnicodeAsImage(musicSpec.track));
-            o.put("dur", musicSpec.duration);
-            o.put("c", musicSpec.trackCount);
-            o.put("n", musicSpec.trackNr);
-            uartTxJSON("onSetMusicInfo", o);
-        } catch (JSONException e) {
-            LOG.info("JSONException: " + e.getLocalizedMessage());
+        if (mediaManager.onSetMusicInfo(musicSpec)) {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("t", "musicinfo");
+                o.put("artist", renderUnicodeAsImage(musicSpec.artist));
+                o.put("album", renderUnicodeAsImage(musicSpec.album));
+                o.put("track", renderUnicodeAsImage(musicSpec.track));
+                o.put("dur", musicSpec.duration);
+                o.put("c", musicSpec.trackCount);
+                o.put("n", musicSpec.trackNr);
+                uartTxJSON("onSetMusicInfo", o);
+            } catch (JSONException e) {
+                LOG.info("JSONException: " + e.getLocalizedMessage());
+            }
         }
     }
 
@@ -1860,16 +1804,11 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     private List<LoyaltyCard> filterSupportedCards(final List<LoyaltyCard> cards) {
+        final Set<BarcodeFormat> supportedBarcodeFormats = getDevice().getDeviceCoordinator().getSupportedBarcodeFormats(getDevice());
+
         final List<LoyaltyCard> ret = new ArrayList<>();
         for (final LoyaltyCard card : cards) {
-            // we hardcode here what is supported
-            if (card.getBarcodeFormat() == BarcodeFormat.CODE_39 ||
-                    card.getBarcodeFormat() == BarcodeFormat.CODABAR ||
-                    card.getBarcodeFormat() == BarcodeFormat.EAN_8 ||
-                    card.getBarcodeFormat() == BarcodeFormat.EAN_13 ||
-                    card.getBarcodeFormat() == BarcodeFormat.UPC_A ||
-                    card.getBarcodeFormat() == BarcodeFormat.UPC_E ||
-                    card.getBarcodeFormat() == BarcodeFormat.QR_CODE) {
+            if (supportedBarcodeFormats.contains(card.getBarcodeFormat())) {
                 ret.add(card);
             }
         }
@@ -2427,7 +2366,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         try {
             final JSONObject json = new JSONObject();
             //json.put("t", "http");

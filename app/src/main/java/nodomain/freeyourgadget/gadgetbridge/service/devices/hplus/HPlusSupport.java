@@ -1,4 +1,4 @@
-/*  Copyright (C) 2016-2024 Alberto, Andreas Shimokawa, Arjan Schrijver,
+/*  Copyright (C) 2016-2026 Alberto, Andreas Shimokawa, Arjan Schrijver,
     Carsten Pfeiffer, Damien Gaignon, ivanovlev, João Paulo Barraca, Lesur
     Frederic, Pavel Motyrev, Quallenauge, Sebastian Kranz
 
@@ -24,7 +24,10 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.hplus;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.os.Bundle;
 import android.widget.Toast;
+
+import androidx.annotation.Nullable;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
@@ -57,7 +60,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfo;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.pebble.webview.CurrentPosition;
+import nodomain.freeyourgadget.gadgetbridge.webview.CurrentPosition;
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -584,7 +587,7 @@ public class HPlusSupport extends AbstractBTLESingleDeviceSupport {
         try {
             builder = performInitialized("Sending configuration for option: " + config);
             switch (config) {
-                case SettingsActivity.PREF_MEASUREMENT_SYSTEM:
+                case SettingsActivity.PREF_UNIT_DISTANCE:
                     setUnit(builder);
                     break;
             }
@@ -595,7 +598,7 @@ public class HPlusSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         LOG.info("Test New Function");
     }
 
@@ -711,7 +714,7 @@ public class HPlusSupport extends AbstractBTLESingleDeviceSupport {
 
                 msg[0] = HPlusConstants.CMD_SET_INCOMING_CALL_NUMBER;
 
-                builder.wait(200);
+                builder.sleep(200);
                 builder.write(ctrlCharacteristic, msg);
             }
 

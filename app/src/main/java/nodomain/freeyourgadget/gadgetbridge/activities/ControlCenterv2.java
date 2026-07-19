@@ -39,9 +39,11 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.MenuProvider;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
@@ -66,6 +68,7 @@ import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.debug.DebugActivityV2;
 import nodomain.freeyourgadget.gadgetbridge.activities.discovery.DiscoveryActivityV2;
 import nodomain.freeyourgadget.gadgetbridge.activities.welcome.WelcomeActivity;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -90,11 +93,6 @@ public class ControlCenterv2 extends AppCompatActivity
     private FragmentStateAdapter pagerAdapter;
     private SwipeRefreshLayout swipeLayout;
     private AlertDialog clDialog;
-
-    //needed for KK compatibility
-    static {
-        AppCompatDelegate.setCompatVectorFromResourcesEnabled(true);
-    }
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
@@ -176,10 +174,16 @@ public class ControlCenterv2 extends AppCompatActivity
             }
         }
 
-
         // Initialize drawer
         NavigationView drawerNavigationView = findViewById(R.id.nav_view);
         drawerNavigationView.setNavigationItemSelectedListener(this);
+
+        View navigationHeaderView = drawerNavigationView.getHeaderView(0);
+        ViewCompat.setOnApplyWindowInsetsListener(navigationHeaderView, (view, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(view.getPaddingLeft(), insets.top, view.getPaddingRight(), view.getPaddingBottom());
+            return windowInsets;
+        });
 
         // Initialize bottom navigation
         BottomNavigationView navigationView = findViewById(R.id.bottom_nav_bar);
@@ -263,17 +267,24 @@ public class ControlCenterv2 extends AppCompatActivity
         swipeLayout.setEnabled(prefs.refreshOnSwipe());
         swipeLayout.setOnRefreshListener(() -> {
             if (prefs.refreshOnSwipe()) {
+                List<GBDevice> devices1 = GBApplication.app().getDeviceManager().getDevices();
+                final boolean anyConnected = devices1.stream().anyMatch(GBDevice::isInitialized);
+                if (!anyConnected) {
+                    // No devices are connected at all
+                    GB.toast(getString(R.string.info_no_devices_connected), Toast.LENGTH_LONG, GB.WARN);
+                    swipeLayout.setRefreshing(false);
+                    return;
+                }
                 // Fetch activity for all connected devices
                 GBApplication.deviceService().onFetchRecordedData(RecordedDataTypes.TYPE_SYNC);
-                // Hide 'refreshing' animation immediately if no health devices are connected
-                List<GBDevice> devices1 = GBApplication.app().getDeviceManager().getDevices();
-                for (GBDevice dev : devices1) {
-                    if (dev.getDeviceCoordinator().supportsActivityDataFetching(dev) && dev.isInitialized()) {
-                        return;
-                    }
+
+                // Hide 'refreshing' animation immediately if no devices are connected that support sync
+                final boolean anySupported = devices1.stream().filter(GBDevice::isInitialized)
+                        .anyMatch(dev -> dev.getDeviceCoordinator().supportsDataFetching(dev));
+                if (!anySupported) {
+                    swipeLayout.setRefreshing(false);
+                    GB.toast(getString(R.string.info_no_devices_to_sync), Toast.LENGTH_LONG, GB.WARN);
                 }
-                swipeLayout.setRefreshing(false);
-                GB.toast(getString(R.string.info_no_devices_connected), Toast.LENGTH_LONG, GB.WARN);
             } else {
                 swipeLayout.setRefreshing(false);
             }
@@ -316,10 +327,10 @@ public class ControlCenterv2 extends AppCompatActivity
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
-       if (clDialog != null){
-           outState.putBoolean("cl", clDialog.isShowing());
-       }
-       super.onSaveInstanceState(outState);
+        if (clDialog != null) {
+            outState.putBoolean("cl", clDialog.isShowing());
+        }
+        super.onSaveInstanceState(outState);
     }
 
     @Override
@@ -350,7 +361,7 @@ public class ControlCenterv2 extends AppCompatActivity
             startActivityForResult(settingsIntent, MENU_REFRESH_CODE);
             return false;
         } else if (itemId == R.id.action_debug) {
-            final Intent debugIntent = new Intent(this, DebugActivity.class);
+            final Intent debugIntent = new Intent(this, DebugActivityV2.class);
             startActivity(debugIntent);
             return false;
         } else if (itemId == R.id.action_data_management) {
@@ -400,10 +411,10 @@ public class ControlCenterv2 extends AppCompatActivity
     }
 
     private void handleShortcut(Intent intent) {
-        if(ACTION_CONNECT.equals(intent.getAction())) {
+        if (ACTION_CONNECT.equals(intent.getAction())) {
             String btDeviceAddress = intent.getStringExtra("device");
-            if(btDeviceAddress!=null){
-                GBDevice candidate = DeviceHelper.getInstance().findAvailableDevice(btDeviceAddress, this);
+            if (btDeviceAddress != null) {
+                GBDevice candidate = DeviceHelper.getInstance().findAvailableDevice(btDeviceAddress);
                 if (candidate != null && !candidate.isConnected()) {
                     GBApplication.deviceService(candidate).connect();
                 }
@@ -411,6 +422,7 @@ public class ControlCenterv2 extends AppCompatActivity
         }
     }
 
+    @Override
     public void setLanguage(Locale language, boolean invalidateLanguage) {
         if (invalidateLanguage) {
             isLanguageInvalid = true;

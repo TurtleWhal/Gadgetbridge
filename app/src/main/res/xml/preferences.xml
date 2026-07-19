@@ -71,14 +71,6 @@
                 android:title="@string/pref_title_language"
                 android:icon="@drawable/ic_translate"
                 app:useSimpleSummaryProvider="true" />
-            <ListPreference
-                android:defaultValue="metric"
-                android:entries="@array/pref_entries_unit_system"
-                android:entryValues="@array/pref_values_unit_system"
-                android:key="measurement_system"
-                android:title="@string/pref_title_unit_system"
-                android:icon="@drawable/ic_straighten"
-                app:useSimpleSummaryProvider="true" />
             <PreferenceScreen
                 android:key="pref_screen_rtl"
                 android:title="@string/preferences_rtl_settings"
@@ -106,6 +98,42 @@
                     android:title="@string/pref_rtl_max_line_length"
                     app:iconSpaceReserved="false" />
             </PreferenceScreen>
+        </PreferenceCategory>
+
+        <PreferenceCategory
+            android:key="pref_key_units"
+            android:title="@string/pref_title_unit_system">
+            <ListPreference
+                android:defaultValue="metric"
+                android:entries="@array/pref_entries_unit_system"
+                android:entryValues="@array/pref_values_unit_system"
+                android:key="unit_distance"
+                android:title="@string/pref_title_unit_distance"
+                android:icon="@drawable/ic_straighten"
+                app:useSimpleSummaryProvider="true" />
+            <ListPreference
+                android:defaultValue="metric"
+                android:entries="@array/temperature_scales"
+                android:entryValues="@array/temperature_scales_values"
+                android:key="unit_temperature"
+                android:title="@string/pref_title_unit_temperature"
+                android:icon="@drawable/ic_temperature"
+                app:useSimpleSummaryProvider="true" />
+            <ListPreference
+                android:defaultValue="metric"
+                android:entries="@array/weight_scale_units"
+                android:entryValues="@array/weight_scale_values"
+                android:key="unit_weight"
+                android:title="@string/pref_title_unit_weight"
+                android:icon="@drawable/ic_weight"
+                app:useSimpleSummaryProvider="true" />
+            <SwitchPreferenceCompat
+                android:defaultValue="true"
+                android:key="units_nautical"
+                android:layout="@layout/preference_checkbox"
+                android:summary="@string/pref_summary_nautical_units"
+                android:icon="@drawable/ic_sailing"
+                android:title="@string/pref_title_nautical_units" />
         </PreferenceCategory>
 
         <PreferenceCategory
@@ -260,6 +288,13 @@
         android:summary="@string/pref_description_automations"
         android:title="@string/pref_header_automations" />
 
+    <Preference
+        android:icon="@drawable/ic_settings_remote"
+        android:key="pref_screen_quick_settings"
+        android:summary="@string/pref_summary_quick_settings"
+        android:title="@string/pref_header_quick_settings"
+        app:iconSpaceReserved="false" />
+
     <PreferenceScreen
         android:icon="@drawable/ic_extension"
         android:key="pref_screen_external_integrations"
@@ -271,6 +306,17 @@
             android:summary="@string/pref_title_navigation_forward"
             android:title="@string/pref_title_nagivation_apps"
             app:iconSpaceReserved="false">
+
+            <Preference
+                android:icon="@drawable/ic_warning_gray"
+                android:key="maps_warning_supported_devices"
+                android:persistent="false"
+                android:summary="@string/pref_summary_supported_devices"
+                android:title="@string/pref_title_supported_devices">
+                <intent
+                    android:action="android.intent.action.VIEW"
+                    android:data="https://gadgetbridge.org/basics/features/navigation/#supported-devices" />
+            </Preference>
 
             <SwitchPreferenceCompat
                 android:defaultValue="true"
@@ -324,6 +370,11 @@
             android:key="pref_category_sleepasandroid"
             android:title="@string/sleepasandroid_settings" />
 
+        <Preference
+            android:icon="@drawable/ic_heart"
+            android:key="pref_category_healthconnect"
+            android:title="@string/healthconnect_settings" />
+
         <PreferenceScreen
             android:icon="@drawable/ic_partly_cloudy_day"
             android:key="pref_screen_weather"
@@ -337,6 +388,18 @@
                 app:iconSpaceReserved="false"
                 app:useSimpleSummaryProvider="true" />
         </PreferenceScreen>
+
+        <PreferenceScreen
+            android:icon="@drawable/ic_language"
+            android:key="pref_category_internethelper"
+            android:title="@string/prefs_internet_helper_title"
+            android:summary="@string/prefs_internet_helper_summary" />
+
+        <PreferenceScreen
+            android:icon="@drawable/ic_shoe"
+            android:key="pref_category_online_fitness_trackers"
+            android:title="@string/prefs_online_fitness_trackers_title"
+            android:summary="@string/prefs_online_fitness_trackers_summary" />
     </PreferenceScreen>
 
     <Preference
@@ -359,17 +422,23 @@
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:defaultValue="false"
+            android:key="log_level_trace"
+            android:layout="@layout/preference_checkbox"
+            android:summary="@string/pref_log_level_trace_summary"
+            android:title="@string/pref_log_level_trace_title"
+            app:iconSpaceReserved="false" />
+        <Preference
+            android:key="log_restart"
+            android:summary="@string/pref_restart_logging_summary"
+            android:title="@string/pref_restart_logging_title"
+            app:iconSpaceReserved="false"
+            app:isPreferenceVisible="false" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
             android:key="crash_notification"
             android:layout="@layout/preference_checkbox"
             android:summary="@string/pref_crash_notification_summary"
             android:title="@string/pref_crash_notification_title"
-            app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:key="cache_weather"
-            android:layout="@layout/preference_checkbox"
-            android:summary="@string/pref_cache_weather_summary"
-            android:title="@string/pref_cache_weather"
             app:iconSpaceReserved="false" />
 
         <PreferenceScreen
@@ -451,6 +520,19 @@
             </PreferenceCategory>
 
             <PreferenceCategory
+                android:key="pref_header_intent_global_settings"
+                android:title="@string/action_settings"
+                app:iconSpaceReserved="false">
+
+                <SwitchPreferenceCompat
+                    android:key="intent_api_allow_global_settings"
+                    android:layout="@layout/preference_checkbox"
+                    android:summary="@string/intent_api_allow_global_settings_summary"
+                    android:title="@string/pref_title_third_party_app_device_settings"
+                    app:iconSpaceReserved="false" />
+            </PreferenceCategory>
+
+            <PreferenceCategory
                 android:key="pref_header_debug"
                 android:title="@string/action_debug"
                 app:iconSpaceReserved="false">
@@ -463,6 +545,22 @@
                     app:iconSpaceReserved="false" />
             </PreferenceCategory>
         </PreferenceScreen>
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="experimental_settings"
+            android:layout="@layout/preference_checkbox"
+            android:summary="@string/pref_experimental_settings_summary"
+            android:title="@string/pref_experimental_settings_title"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="experimental_metrics"
+            android:layout="@layout/preference_checkbox"
+            android:summary="@string/pref_experimental_metrics_summary"
+            android:title="@string/pref_experimental_metrics_title"
+            app:iconSpaceReserved="false" />
     </PreferenceScreen>
 
     <PreferenceScreen

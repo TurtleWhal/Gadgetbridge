@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2024 Carsten Pfeiffer
+/*  Copyright (C) 2015-2026 Carsten Pfeiffer
 
     This file is part of Gadgetbridge.
 
@@ -36,6 +36,7 @@ public abstract class PlainAction extends BtLEAction {
         return false;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return getCreationTime() + " " + getClass().getSimpleName();

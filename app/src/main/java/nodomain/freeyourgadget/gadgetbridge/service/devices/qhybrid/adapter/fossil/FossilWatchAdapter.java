@@ -1,4 +1,4 @@
-/*  Copyright (C) 2019-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+/* Copyright (C) 2019-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
     Pfeiffer, Daniel Dakhno, Hasan Ammar, Petr Vaněk
 
     This file is part of Gadgetbridge.
@@ -17,9 +17,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.fossil;
 
-import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.ITEM_STEP_GOAL;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.ITEM_TIMEZONE_OFFSET;
-import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.ITEM_VIBRATION_STRENGTH;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.QHYBRID_EVENT_BUTTON_PRESS;
 import static nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport.QHYBRID_EVENT_MULTI_BUTTON_PRESS;
 
@@ -28,9 +26,12 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
+
+import androidx.annotation.Nullable;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -38,10 +39,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
@@ -51,14 +55,20 @@ import java.util.concurrent.atomic.AtomicLong;
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventFindPhone;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventMusicControl;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.HybridHRActivitySampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.NotificationConfiguration;
 import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.PackageConfigHelper;
+import nodomain.freeyourgadget.gadgetbridge.devices.qhybrid.QHybridCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.entities.HybridHRActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
+import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.QHybridSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.WatchAdapter;
@@ -83,6 +93,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fos
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.file.FirmwareFilePutRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.notification.NotificationFilterPutRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.notification.PlayTextNotificationRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil_hr.music.MusicControlRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.AnimationRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.MoveHandsRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.ReleaseHandsControlRequest;
@@ -91,6 +102,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.mis
 import nodomain.freeyourgadget.gadgetbridge.util.AlarmUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
+import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.UriHelper;
 
 public class FossilWatchAdapter extends WatchAdapter {
@@ -102,15 +114,14 @@ public class FossilWatchAdapter extends WatchAdapter {
 
     private int MTU = 23;
 
-    private final String ITEM_MTU = "MTU";
-    static public final String ITEM_BUTTONS = "BUTTONS";
+    private final String ITEM_MTU = "MTU: ";
 
-    private final String CONFIG_ITEM_STEP_GOAL = "step_goal";
     private final String CONFIG_ITEM_VIBRATION_STRENGTH = "vibration_strength";
     private final String CONFIG_ITEM_TIMEZONE_OFFSET = "timezone_offset";
-    public final String CONFIG_ITEM_BUTTONS = "buttons";
 
     private int lastButtonIndex = -1;
+    protected boolean saveRawActivityFiles = false;
+    private boolean findPhoneActive = false;
 
     protected final Logger LOG = LoggerFactory.getLogger(getClass().getSimpleName());
 
@@ -120,7 +131,7 @@ public class FossilWatchAdapter extends WatchAdapter {
         super(deviceSupport);
     }
 
-    private final int REQUEST_TIMEOUT = 60 * 1000;
+    private final int REQUEST_TIMEOUT = 5 * 60 * 1000;
 
     private Looper timeoutLooper = null;
     private Handler timeoutHandler;
@@ -150,6 +161,8 @@ public class FossilWatchAdapter extends WatchAdapter {
     @Override
     public void initialize() {
         timeoutThread.start();
+
+        saveRawActivityFiles = getDeviceSpecificPreferences().getBoolean("save_raw_activity_files", false);
 
         playPairingAnimation();
 
@@ -219,9 +232,7 @@ public class FossilWatchAdapter extends WatchAdapter {
     }
 
     private void syncButtonSettings() {
-        String buttonConfig = getDeviceSpecificPreferences().getString(CONFIG_ITEM_BUTTONS, null);
-        getDeviceSupport().getDevice().addDeviceInfo(new GenericItem(ITEM_BUTTONS, buttonConfig));
-        overwriteButtons(buttonConfig);
+        overwriteButtons(null);
     }
 
     @Override
@@ -233,8 +244,11 @@ public class FossilWatchAdapter extends WatchAdapter {
                 requestQueue.clear();
             }
             log("characteristic write failed: " + status);
-            if (BuildConfig.DEBUG)
-                GB.toast(fossilRequest.getName() + " characteristic write failed: " + status, Toast.LENGTH_SHORT, GB.ERROR);
+            if (BuildConfig.DEBUG) {
+                // ADDED NULL CHECK: Prevents crash if the failure came from a raw direct BLE write
+                String requestName = (fossilRequest != null) ? fossilRequest.getName() : "Raw BLE Write";
+                GB.toast(requestName + " characteristic write failed: " + status, Toast.LENGTH_SHORT, GB.ERROR);
+            }
             fossilRequest = null;
 
             queueNextRequest();
@@ -260,14 +274,16 @@ public class FossilWatchAdapter extends WatchAdapter {
     private void syncConfiguration() {
         SharedPreferences preferences = getDeviceSpecificPreferences();
 
-        int stepGoal = preferences.getInt(CONFIG_ITEM_STEP_GOAL, 1000000);
+        int stepGoal = new ActivityUser().getStepsGoal();
+        if (preferences.getBoolean("use_activity_hand_as_notification_counter", false)) {
+            stepGoal = 1000000;
+        }
+
         byte vibrationStrength = (byte) preferences.getInt(CONFIG_ITEM_VIBRATION_STRENGTH, 100);
         int timezoneOffset = preferences.getInt(CONFIG_ITEM_TIMEZONE_OFFSET, 0);
 
         GBDevice device = getDeviceSupport().getDevice();
 
-        device.addDeviceInfo(new GenericItem(ITEM_STEP_GOAL, String.valueOf(stepGoal)));
-        device.addDeviceInfo(new GenericItem(ITEM_VIBRATION_STRENGTH, String.valueOf(vibrationStrength)));
         device.addDeviceInfo(new GenericItem(ITEM_TIMEZONE_OFFSET, String.valueOf(timezoneOffset)));
 
         queueWrite(new ConfigurationPutRequest(new ConfigurationPutRequest.ConfigItem[]{
@@ -299,6 +315,41 @@ public class FossilWatchAdapter extends WatchAdapter {
         queueWrite(new PlayTextNotificationRequest(config.getPackageName(), this), false);
     }
 
+    private void vibrateStartCall() {
+        try {
+            getDeviceSupport().createTransactionBuilder("vibrate call")
+                    .write(
+                            UUID.fromString("3dda0005-957f-7d4a-34a6-74696673696d"),
+                            (byte) 0x01, (byte) 0x04, (byte) 0x30, (byte) 0x75, (byte) 0x00, (byte) 0x00)
+                    .queue();
+        } catch (Exception e) {
+            LOG.error("Error triggering call vibration", e);
+        }
+    }
+
+    private void vibrateEndCall() {
+        try {
+            getDeviceSupport().createTransactionBuilder("stop call vibration")
+                    .write(
+                            UUID.fromString("3dda0005-957f-7d4a-34a6-74696673696d"),
+                            (byte) 0x02, (byte) 0x05, (byte) 0x04)
+                    .queue();
+        } catch (Exception e) {
+            LOG.error("Error stopping call vibration", e);
+        }
+    }
+
+    @Override
+    public void onSetCallState(CallSpec callSpec) {
+        if (callSpec.command == CallSpec.CALL_INCOMING) {
+            LOG.info("Incoming call, triggering vibration on watch");
+            vibrateStartCall();
+        } else {
+            LOG.info("Call ended, stopping vibration on watch");
+            vibrateEndCall();
+        }
+    }
+
     @Override
     public void setTime() {
         queueWrite(
@@ -320,16 +371,35 @@ public class FossilWatchAdapter extends WatchAdapter {
     @Override
     public void overwriteButtons(String jsonConfigString) {
         try {
-            if (jsonConfigString == null) return;
-            getDeviceSpecificPreferences()
-                    .edit()
-                    .putString(CONFIG_ITEM_BUTTONS, jsonConfigString)
-                    .apply();
-            JSONArray buttonConfigJson = new JSONArray(jsonConfigString);
-            // JSONArray buttonConfigJson = new JSONArray(getDeviceSupport().getDevice().getDeviceInfo(ITEM_BUTTONS).getDetails());
+            String upperButtonFunction = getDeviceSpecificPreferences().getString("top_button_function", "");
+            String middleButtonFunction = getDeviceSpecificPreferences().getString("middle_button_function", "");
+            String bottomButtonFunction = getDeviceSpecificPreferences().getString("bottom_button_function", "");
+            JSONArray buttonConfigJson = new JSONArray();
+            if (upperButtonFunction.isEmpty() && middleButtonFunction.isEmpty() && bottomButtonFunction.isEmpty()) {
+                // Migrate old type button settings
+                String buttonConfig = getDeviceSpecificPreferences().getString("buttons", null);
+                if (buttonConfig != null) {
+                    JSONArray parsedConfig = new JSONArray(buttonConfig);
+                    if (parsedConfig.length() >= 3) {
+                        LOG.info("Found unmigrated button preferences, migrating now.");
+                        upperButtonFunction = parsedConfig.getString(0);
+                        middleButtonFunction = parsedConfig.getString(1);
+                        bottomButtonFunction = parsedConfig.getString(2);
+                        getDeviceSpecificPreferences()
+                                .edit()
+                                .putString("top_button_function", upperButtonFunction)
+                                .putString("middle_button_function", middleButtonFunction)
+                                .putString("bottom_button_function", bottomButtonFunction)
+                                .apply();
+                    }
+                }
+            }
+            buttonConfigJson.put(upperButtonFunction);
+            buttonConfigJson.put(middleButtonFunction);
+            buttonConfigJson.put(bottomButtonFunction);
+            LOG.info("overwriteButtons: " + buttonConfigJson);
 
             ConfigPayload[] payloads = new ConfigPayload[buttonConfigJson.length()];
-
             for (int i = 0; i < buttonConfigJson.length(); i++) {
                 try {
                     payloads[i] = ConfigPayload.valueOf(buttonConfigJson.getString(i));
@@ -340,17 +410,17 @@ public class FossilWatchAdapter extends WatchAdapter {
 
             ConfigFileBuilder builder = new ConfigFileBuilder(payloads);
 
-            FilePutRequest fileUploadRequets = new FilePutRequest(FileHandle.SETTINGS_BUTTONS, builder.build(true), this) {
+            FilePutRequest fileUploadRequest = new FilePutRequest(FileHandle.SETTINGS_BUTTONS, builder.build(true), this) {
                 @Override
                 public void onFilePut(boolean success) {
                     if (success)
-                        GB.toast("successfully overwritten button settings", Toast.LENGTH_SHORT, GB.INFO);
-                    else GB.toast("error overwriting button settings", Toast.LENGTH_SHORT, GB.INFO);
+                        LOG.info("successfully overwritten button settings");
+                    else LOG.error("error overwriting button settings");
                 }
             };
-            queueWrite(fileUploadRequets);
+            queueWrite(fileUploadRequest);
         } catch (JSONException e) {
-            LOG.error("error", e);
+            LOG.error("JSON error", e);
         }
     }
 
@@ -364,7 +434,9 @@ public class FossilWatchAdapter extends WatchAdapter {
 
     @Override
     public void setHands(MoveHandsRequest.MovementConfiguration movement) {
-        queueWrite(new MoveHandsRequest(movement), false);
+        GBDevice dev = getDeviceSupport().getDevice();
+        boolean isHybridHR = ((QHybridCoordinator) dev.getDeviceCoordinator()).isHybridHR(dev);
+        queueWrite(new MoveHandsRequest(movement, isHybridHR), false);
     }
 
     @Override
@@ -378,12 +450,6 @@ public class FossilWatchAdapter extends WatchAdapter {
     }
 
     @Override
-    public void vibrateFindMyDevicePattern() {
-
-    }
-
-
-    @Override
     public void requestHandsControl() {
         queueWrite(new RequestHandControlRequest(), false);
     }
@@ -395,39 +461,38 @@ public class FossilWatchAdapter extends WatchAdapter {
 
     @Override
     public void setStepGoal(int stepGoal) {
-        getDeviceSpecificPreferences()
-                .edit()
-                .putInt(CONFIG_ITEM_STEP_GOAL, stepGoal)
-                .apply();
+        LOG.info("setStepGoal called with value: {}", stepGoal);
 
         queueWrite(new ConfigurationPutRequest(new ConfigurationPutRequest.DailyStepGoalConfigItem(stepGoal), this) {
             @Override
             public void onFilePut(boolean success) {
                 if (success)
-                    GB.toast("successfully updated step goal", Toast.LENGTH_SHORT, GB.INFO);
-                else GB.toast("error updating step goal", Toast.LENGTH_SHORT, GB.INFO);
+                    LOG.info("successfully updated step goal to {}", stepGoal);
+                else LOG.error("error updating step goal to {}", stepGoal);
             }
         }, false);
     }
 
+    protected void setVibrationStrengthFromConfig() {
+        Prefs prefs = new Prefs(getDeviceSpecificPreferences());
+        int vibrationStrengh = prefs.getInt(DeviceSettingsPreferenceConst.PREF_VIBRATION_STRENGH_PERCENTAGE, 2);
+        if (vibrationStrengh > 0) {
+            vibrationStrengh = (vibrationStrengh + 1) * 25; // Seems 0,50,75,100 are working...
+        }
+        setVibrationStrength((short) (vibrationStrengh));
+    }
+
     @Override
     public void setVibrationStrength(short strength) {
-        getDeviceSpecificPreferences()
-                .edit()
-                .putInt(CONFIG_ITEM_VIBRATION_STRENGTH, (byte) strength)
-                .apply();
-
         ConfigurationPutRequest.ConfigItem vibrationItem = new ConfigurationPutRequest.VibrationStrengthConfigItem((byte) strength);
-
-
         queueWrite(
                 new ConfigurationPutRequest(new ConfigurationPutRequest.ConfigItem[]{vibrationItem}, this) {
                     @Override
                     public void onFilePut(boolean success) {
                         if (success)
-                            GB.toast("successfully updated vibration strength", Toast.LENGTH_SHORT, GB.INFO);
+                            LOG.info("successfully updated vibration strength to {}", strength);
                         else
-                            GB.toast("error updating vibration strength", Toast.LENGTH_SHORT, GB.INFO);
+                            LOG.error("error updating vibration strength to {}", strength);
                     }
                 }, false
         );
@@ -461,7 +526,7 @@ public class FossilWatchAdapter extends WatchAdapter {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         queueWrite(new FilePutRequest(
                 FileHandle.HAND_ACTIONS,
                 new byte[]{
@@ -483,8 +548,8 @@ public class FossilWatchAdapter extends WatchAdapter {
             public void onFilePut(boolean success) {
                 super.onFilePut(success);
 
-                if (success) GB.toast("successfully updated timezone", Toast.LENGTH_SHORT, GB.INFO);
-                else GB.toast("error updating timezone", Toast.LENGTH_SHORT, GB.ERROR);
+                if (success) LOG.info("successfully updated timezone to offset {}", offset);
+                else LOG.error("error updating timezone to offset {}", offset);
             }
         });
     }
@@ -508,11 +573,6 @@ public class FossilWatchAdapter extends WatchAdapter {
     }
 
     @Override
-    public boolean supportsFindDevice() {
-        return false;
-    }
-
-    @Override
     public boolean supportsExtendedVibration() {
         String modelNumber = getDeviceSupport().getDevice().getModel();
         switch (modelNumber) {
@@ -531,17 +591,27 @@ public class FossilWatchAdapter extends WatchAdapter {
     @Override
     public boolean supportsActivityHand() {
         String modelNumber = getDeviceSupport().getDevice().getModel();
-        switch (modelNumber) {
-            case "HW.0.0":
-                return true;
-            case "HL.0.0":
-            case "IV.0.0":
-            case "DN.1.0":
-            case "WA.0.0":
-            case "VA.0.0":
-                return false;
+        return switch (modelNumber) {
+            case "HW.0.0" -> true;
+            case "HL.0.0", "IV.0.0", "DN.1.0", "WA.0.0", "VA.0.0" -> false;
+            default ->
+                    throw new UnsupportedOperationException("Model " + modelNumber + " not supported");
+        };
+    }
+
+    protected void writeFile(String dirname, String fileName, byte[] value) {
+        File activityDir = new File(getContext().getExternalFilesDir(null), dirname);
+        activityDir.mkdir();
+        File f = new File(activityDir, fileName);
+        try {
+            f.createNewFile();
+            FileOutputStream fos = new FileOutputStream(f);
+            fos.write(value);
+            fos.close();
+            LOG.debug("Saved raw activity file: " + f.getName());
+        } catch (IOException e) {
+            LOG.error("file error", e);
         }
-        throw new UnsupportedOperationException("Model " + modelNumber + " not supported");
     }
 
     @Override
@@ -562,8 +632,15 @@ public class FossilWatchAdapter extends WatchAdapter {
                     for (int i = 0; i < entries.size(); i++) {
                         samples[i] = entries.get(i).toDAOActivitySample(userId, deviceId);
                     }
+                    if (BuildConfig.DEBUG) {
+                        LOG.debug("Activity samples parsed successfully: {}", Arrays.stream(samples).toList());
+                    }
 
-                    provider.addGBActivitySamples(samples);
+                    provider.addGBActivitySamples(Arrays.asList(samples));
+
+                    if (saveRawActivityFiles) {
+                        writeFile("activity_qhybrid", String.valueOf(System.currentTimeMillis()), fileData);
+                    }
 
                     queueWrite(new FileDeleteRequest(getHandle()));
                     GB.updateTransferNotification(null, "", false, 100, getContext());
@@ -636,7 +713,27 @@ public class FossilWatchAdapter extends WatchAdapter {
 
     @Override
     public void onSendConfiguration(String config) {
-
+        switch (config) {
+            case DeviceSettingsPreferenceConst.PREF_VIBRATION_STRENGH_PERCENTAGE: {
+                setVibrationStrengthFromConfig();
+                break;
+            }
+            case DeviceSettingsPreferenceConst.PREF_HYBRID_HR_SAVE_RAW_ACTIVITY_FILES: {
+                saveRawActivityFiles = getDeviceSpecificPreferences().getBoolean("save_raw_activity_files", false);
+                break;
+            }
+            case ActivityUser.PREF_USER_STEPS_GOAL: {
+                setStepGoal(new ActivityUser().getStepsGoal());
+                break;
+            }
+            case "use_activity_hand_as_notification_counter":
+                if (getDeviceSpecificPreferences().getBoolean("use_activity_hand_as_notification_counter", false)) {
+                    setStepGoal(1000000);
+                } else {
+                    setStepGoal(new ActivityUser().getStepsGoal());
+                }
+                break;
+        }
     }
 
     @Override
@@ -700,57 +797,30 @@ public class FossilWatchAdapter extends WatchAdapter {
     @Override
     public void onFindDevice(boolean start) {
         try {
-            if (!this.supportsExtendedVibration()) {
-                if (start) {
-                    getDeviceSupport().createTransactionBuilder("vibrate find")
-                            .write(
-                                    UUID.fromString("3dda0005-957f-7d4a-34a6-74696673696d"),
-                                    new byte[]{(byte) 0x01, (byte) 0x04, (byte) 0x30, (byte) 0x75, (byte) 0x00, (byte) 0x00}
-                            )
-                            .queue();
-                } else {
-                    getDeviceSupport().createTransactionBuilder("vibrate find")
-                            .write(
-                                    UUID.fromString("3dda0005-957f-7d4a-34a6-74696673696d"),
-                                    new byte[]{(byte) 0x02, (byte) 0x05, (byte) 0x04}
-                            )
-                            .queue();
-                }
+            if (start) {
+                vibrateStartCall();
+            } else {
+                vibrateEndCall();
             }
         } catch (UnsupportedOperationException e) {
             LOG.error("error", e);
         }
-
-        if (start && getDeviceSupport().searchDevice) return;
-
-        getDeviceSupport().searchDevice = start;
-
-        if (start) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    int i = 0;
-                    while (getDeviceSupport().searchDevice) {
-                        vibrateFindMyDevicePattern();
-                        try {
-                            Thread.sleep(2500);
-                        } catch (InterruptedException e) {
-                            LOG.error("error", e);
-                        }
-                    }
-                }
-            }).start();
-        }
     }
 
     protected void handleBackgroundCharacteristic(BluetoothGattCharacteristic characteristic, byte[] value) {
-        switch (value[1]) {
-            case 2: {
+        byte requestType = value[1];
+
+        String upperButtonFunction = getDeviceSpecificPreferences().getString("top_button_function", "");
+        String middleButtonFunction = getDeviceSpecificPreferences().getString("middle_button_function", "");
+        String bottomButtonFunction = getDeviceSpecificPreferences().getString("bottom_button_function", "");
+
+        switch (requestType) {
+            case 0x02: {
                 byte syncId = value[2];
                 getDeviceSupport().getDevice().addDeviceInfo(new GenericItem(QHybridSupport.ITEM_LAST_HEARTBEAT, DateFormat.getTimeInstance().format(new Date())));
                 break;
             }
-            case 8: {
+            case 0x08: { // FORWARD_TO_PHONE / RING_PHONE
                 if (value.length != 12) {
                     throw new RuntimeException("wrong button message");
                 }
@@ -761,35 +831,100 @@ public class FossilWatchAdapter extends WatchAdapter {
                     lastButtonIndex = index;
                     log("Button press on button " + button);
 
-                    Intent i = new Intent(QHYBRID_EVENT_BUTTON_PRESS);
-                    i.setPackage(BuildConfig.APPLICATION_ID);
-                    i.putExtra("BUTTON", button);
-                    getContext().sendBroadcast(i);
+                    if ((button == 1 && upperButtonFunction.equals("RING_PHONE"))
+                        || (button == 2 && middleButtonFunction.equals("RING_PHONE"))
+                        || (button == 3 && bottomButtonFunction.equals("RING_PHONE"))) {
+                        GBDeviceEventFindPhone findPhoneEvent = new GBDeviceEventFindPhone();
+                        findPhoneEvent.event = findPhoneActive ? GBDeviceEventFindPhone.Event.STOP : GBDeviceEventFindPhone.Event.START;
+                        getDeviceSupport().evaluateGBDeviceEvent(findPhoneEvent);
+                        findPhoneActive = !findPhoneActive;
+                    } else {
+                        Intent i = new Intent(QHYBRID_EVENT_BUTTON_PRESS);
+                        i.putExtra("BUTTON", button);
+                        getContext().sendBroadcast(i);
+
+                        LOG.debug("Sent broadcast intent: ACTION={} EXTRA=BUTTON={}", QHYBRID_EVENT_BUTTON_PRESS, button);
+                    }
                 }
                 break;
             }
 
-            case 5: {
+            case 0x05: { // FORWARD_TO_PHONE_MULTI / VOLUME_UP / VOLUME_DOWN / MUSIC_CONTROL
                 if (value.length != 4) {
                     throw new RuntimeException("wrong button message");
                 }
                 int action = value[3];
 
-                String actionString = "SINGLE";
-                if (action == 3) actionString = "DOUBLE";
-                else if (action == 4) actionString = "LONG";
+                boolean musicControlEnabled = upperButtonFunction.equals("MUSIC_CONTROL") || middleButtonFunction.equals("MUSIC_CONTROL") || bottomButtonFunction.equals("MUSIC_CONTROL");
+                MusicControlRequest.MUSIC_WATCH_REQUEST request = MusicControlRequest.MUSIC_WATCH_REQUEST.fromCommandByte((byte)action);
+                GBDevice currentDevice = getDeviceSupport().getDevice();
+                if (((QHybridCoordinator) currentDevice.getDeviceCoordinator()).isHybridHR(currentDevice)
+                    || request == MusicControlRequest.MUSIC_WATCH_REQUEST.MUSIC_REQUEST_LOUDER
+                    || request == MusicControlRequest.MUSIC_WATCH_REQUEST.MUSIC_REQUEST_QUITER
+                    || (musicControlEnabled && request == MusicControlRequest.MUSIC_WATCH_REQUEST.MUSIC_REQUEST_PLAY_PAUSE)
+                    || (musicControlEnabled && request == MusicControlRequest.MUSIC_WATCH_REQUEST.MUSIC_REQUEST_NEXT)
+                    || (musicControlEnabled && request == MusicControlRequest.MUSIC_WATCH_REQUEST.MUSIC_REQUEST_PREVIOUS)
+                ) {
+                    handleMusicRequest(value);
+                } else {
+                    String actionString = "SINGLE";
+                    if (action == 3) actionString = "DOUBLE";
+                    else if (action == 4) actionString = "LONG";
 
-                // lastButtonIndex = index;
-                log(actionString + " button press");
+                    // lastButtonIndex = index;
+                    log(actionString + " button press");
 
-                Intent i = new Intent(QHYBRID_EVENT_MULTI_BUTTON_PRESS);
-                i.putExtra("ACTION", actionString);
-                getContext().sendBroadcast(i);
+                    Intent i = new Intent(QHYBRID_EVENT_MULTI_BUTTON_PRESS);
+                    i.putExtra("ACTION", actionString);
+                    getContext().sendBroadcast(i);
+
+                    LOG.debug("Sent broadcast intent: ACTION={} EXTRA=ACTION={}", QHYBRID_EVENT_MULTI_BUTTON_PRESS, actionString);
+                }
                 break;
             }
         }
     }
 
+    private void handleMusicRequest(byte[] value) {
+        byte command = value[3];
+        LOG.info("got music command: " + command);
+        MusicControlRequest.MUSIC_WATCH_REQUEST request = MusicControlRequest.MUSIC_WATCH_REQUEST.fromCommandByte(command);
+
+        GBDeviceEventMusicControl deviceEventMusicControl = new GBDeviceEventMusicControl();
+        deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.PLAY;
+
+        // TODO add skipping/seeking
+
+        switch (request) {
+            case MUSIC_REQUEST_PLAY_PAUSE: {
+                queueWrite(new MusicControlRequest(MusicControlRequest.MUSIC_PHONE_REQUEST.MUSIC_REQUEST_PLAY_PAUSE));
+                deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.PLAYPAUSE;
+                break;
+            }
+            case MUSIC_REQUEST_NEXT: {
+                queueWrite(new MusicControlRequest(MusicControlRequest.MUSIC_PHONE_REQUEST.MUSIC_REQUEST_NEXT));
+                deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.NEXT;
+                break;
+            }
+            case MUSIC_REQUEST_PREVIOUS: {
+                queueWrite(new MusicControlRequest(MusicControlRequest.MUSIC_PHONE_REQUEST.MUSIC_REQUEST_PREVIOUS));
+                deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.PREVIOUS;
+                break;
+            }
+            case MUSIC_REQUEST_LOUDER: {
+                queueWrite(new MusicControlRequest(MusicControlRequest.MUSIC_PHONE_REQUEST.MUSIC_REQUEST_LOUDER));
+                deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.VOLUMEUP;
+                break;
+            }
+            case MUSIC_REQUEST_QUITER: {
+                queueWrite(new MusicControlRequest(MusicControlRequest.MUSIC_PHONE_REQUEST.MUSIC_REQUEST_QUITER));
+                deviceEventMusicControl.event = GBDeviceEventMusicControl.Event.VOLUMEDOWN;
+                break;
+            }
+        }
+
+        getDeviceSupport().evaluateGBDeviceEvent(deviceEventMusicControl);
+    }
 
     @Override
     public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
@@ -811,10 +946,10 @@ public class FossilWatchAdapter extends WatchAdapter {
         queueNextRequest();
     }
 
-    public void queueWrite(RequestMtuRequest request, boolean priorise) {
+    public void queueWrite(RequestMtuRequest request, boolean prioritise) {
         log("is connected: " + getDeviceSupport().isConnected());
         if (!getDeviceSupport().isConnected()) {
-            log("dropping requetst " + request.getName());
+            log("dropping request " + request.getName());
             return;
         }
         getDeviceSupport().createTransactionBuilder("requestMtu")
@@ -828,10 +963,10 @@ public class FossilWatchAdapter extends WatchAdapter {
         LOG.debug(message);
     }
 
-    public void queueWrite(SetDeviceStateRequest request, boolean priorise) {
+    public void queueWrite(SetDeviceStateRequest request, boolean prioritise) {
         if (fossilRequest != null && !fossilRequest.isFinished()) {
             log("queing request: " + request.getName());
-            if (priorise) {
+            if (prioritise) {
                 requestQueue.add(0, request);
             } else {
                 requestQueue.add(request);
@@ -847,15 +982,15 @@ public class FossilWatchAdapter extends WatchAdapter {
         getDeviceSupport().getDevice().setUpdateState(state, getContext());
     }
 
-    public void queueWrite(FossilRequest request, boolean priorise) {
+    public void queueWrite(FossilRequest request, boolean prioritise) {
         log("is connected: " + getDeviceSupport().isConnected());
         if (!getDeviceSupport().isConnected()) {
-            log("dropping requetst " + request.getName());
+            log("dropping request " + request.getName());
             return;
         }
         if (fossilRequest != null && !fossilRequest.isFinished()) {
             log("queing request: " + request.getName());
-            if (priorise) {
+            if (prioritise) {
                 requestQueue.add(0, request);
             } else {
                 requestQueue.add(request);
@@ -874,10 +1009,10 @@ public class FossilWatchAdapter extends WatchAdapter {
         }
     }
 
-    public void queueWrite(Request request, boolean priorise) {
+    public void queueWrite(Request request, boolean prioritise) {
         log("is connected: " + getDeviceSupport().isConnected());
         if (!getDeviceSupport().isConnected()) {
-            log("dropping requetst " + request.getName());
+            log("dropping request " + request.getName());
             return;
         }
         restartRequestTimeout();
@@ -889,7 +1024,7 @@ public class FossilWatchAdapter extends WatchAdapter {
     protected void queueWrite(Request request) {
         log("is connected: " + getDeviceSupport().isConnected());
         if (!getDeviceSupport().isConnected()) {
-            log("dropping requetst " + request.getName());
+            log("dropping request " + request.getName());
             return;
         }
         if (request instanceof SetDeviceStateRequest)

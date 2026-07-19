@@ -1,4 +1,4 @@
-/*  Copyright (C) 2023-2024 Andreas Shimokawa, José Rebelo, Yoran Vulker
+/*  Copyright (C) 2023-2026 Andreas Shimokawa, José Rebelo, Yoran Vulker
 
     This file is part of Gadgetbridge.
 
@@ -22,26 +22,19 @@ import android.content.Context;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
@@ -61,8 +54,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
 import nodomain.freeyourgadget.gadgetbridge.proto.xiaomi.XiaomiProto;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.XiaomiActivityFileId;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.XiaomiActivityParser;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.AbstractXiaomiService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiCalendarService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiDataUploadService;
@@ -70,17 +61,16 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.Xiao
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiMusicService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiNotificationService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiPhonebookService;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiRpkService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiScheduleService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiSystemService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiWatchfaceService;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.services.XiaomiWeatherService;
-import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class XiaomiSupport extends AbstractDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(XiaomiSupport.class);
-    private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
 
     private final XiaomiAuthService authService = new XiaomiAuthService(this);
     private final XiaomiMusicService musicService = new XiaomiMusicService(this);
@@ -93,6 +83,8 @@ public class XiaomiSupport extends AbstractDeviceSupport {
     private final XiaomiWatchfaceService watchfaceService = new XiaomiWatchfaceService(this);
     private final XiaomiDataUploadService dataUploadService = new XiaomiDataUploadService(this);
     private final XiaomiPhonebookService phonebookService = new XiaomiPhonebookService(this);
+    private final XiaomiRpkService rpkService = new XiaomiRpkService(this);
+
 
     private String cachedFirmwareVersion = null;
     private XiaomiConnectionSupport connectionSupport = null;
@@ -109,6 +101,7 @@ public class XiaomiSupport extends AbstractDeviceSupport {
         put(XiaomiWatchfaceService.COMMAND_TYPE, watchfaceService);
         put(XiaomiDataUploadService.COMMAND_TYPE, dataUploadService);
         put(XiaomiPhonebookService.COMMAND_TYPE, phonebookService);
+        put(XiaomiRpkService.COMMAND_TYPE, rpkService);
     }};
 
     @Override
@@ -246,9 +239,8 @@ public class XiaomiSupport extends AbstractDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         //sendCommand("test new function", 2, 29);
-        parseAllActivityFilesFromStorage();
     }
 
     @Override
@@ -329,6 +321,8 @@ public class XiaomiSupport extends AbstractDeviceSupport {
             systemService.installFirmware(fwHelper);
         } else if (fwHelper.isWatchface()) {
             watchfaceService.installWatchface(fwHelper);
+        }else if (fwHelper.isRpk()) {
+            rpkService.installRpk(fwHelper);
         } else {
             LOG.warn("Unknown fwhelper for {}", uri);
         }
@@ -337,6 +331,7 @@ public class XiaomiSupport extends AbstractDeviceSupport {
     @Override
     public void onAppInfoReq() {
         watchfaceService.requestWatchfaceList();
+        rpkService.requestRpkList();
     }
 
     @Override
@@ -349,6 +344,7 @@ public class XiaomiSupport extends AbstractDeviceSupport {
     @Override
     public void onAppDelete(final UUID uuid) {
         watchfaceService.deleteWatchface(uuid);
+        rpkService.deleteRpk(uuid);
     }
 
     @Override
@@ -446,112 +442,17 @@ public class XiaomiSupport extends AbstractDeviceSupport {
         return this.healthService;
     }
 
+    public XiaomiRpkService getRpkService() {
+        return this.rpkService;
+    }
+
+    public XiaomiWatchfaceService getWatchfaceService() {
+        return this.watchfaceService;
+    }
+
     @Override
     public String customStringFilter(final String inputString) {
         return StringUtils.replaceEach(inputString, EMOJI_SOURCE, EMOJI_TARGET);
-    }
-
-    boolean parsingActivityFilesFromStorage = false;
-
-    private void parseAllActivityFilesFromStorage() {
-        if (parsingActivityFilesFromStorage) {
-            GB.toast(getContext(), "Already parsing!", Toast.LENGTH_LONG, GB.ERROR);
-            return;
-        }
-
-        parsingActivityFilesFromStorage = true;
-
-        LOG.info("Parsing all activity files from storage");
-
-        final List<File> activityFiles;
-        try {
-            final File externalFilesDir = getCoordinator().getWritableExportDirectory(getDevice(), true);
-            final File exportDir = new File(externalFilesDir, "rawFetchOperations");
-
-            if (!exportDir.exists() || !exportDir.isDirectory()) {
-                LOG.error("export directory {} not found", exportDir);
-                GB.toast(getContext(), "export directory " + exportDir + " not found", Toast.LENGTH_LONG, GB.ERROR);
-                return;
-            }
-
-            activityFiles = FileUtils.listRecursive(exportDir, (dir, name) -> name.endsWith(".bin"));
-            if (activityFiles.isEmpty()) {
-                LOG.error("No activity files found in {}", exportDir);
-                GB.toast(getContext(), "No activity files found in " + exportDir, Toast.LENGTH_LONG, GB.ERROR);
-                return;
-            }
-        } catch (final Exception e) {
-            LOG.error("Failed to parse from storage", e);
-            GB.toast(getContext(), "Failed to parse from storage", Toast.LENGTH_LONG, GB.ERROR, e);
-            return;
-        }
-
-        LOG.debug("Will parse {} files", activityFiles.size());
-
-        GB.toast(getContext(), "Check notification for progress", Toast.LENGTH_LONG, GB.INFO);
-        GB.updateTransferNotification("Parsing activity files", "...", true, 0, getContext());
-        final long[] lastNotificationUpdateTs = new long[]{System.currentTimeMillis()};
-
-        final Handler handler = new Handler(getContext().getMainLooper());
-        new Thread(() -> {
-            try {
-                int[] i = new int[]{0};
-                for (final File activityFile : activityFiles) {
-                    i[0]++;
-
-                    LOG.debug("Parsing {}", activityFile);
-
-                    final long now = System.currentTimeMillis();
-                    if (now - lastNotificationUpdateTs[0] > 1500L) {
-                        lastNotificationUpdateTs[0] = now;
-                        handler.post(() -> {
-                            GB.updateTransferNotification(
-                                    "Parsing activity files", "File " + i[0] + " of " + activityFiles.size(),
-                                    true,
-                                    (i[0] * 100) / activityFiles.size(), getContext()
-                            );
-                        });
-                    }
-
-                    // The logic below just replicates XiaomiActivityFileFetcher
-
-                    final byte[] data;
-                    try (InputStream in = new FileInputStream(activityFile)) {
-                        data = FileUtils.readAll(in, 999999);
-                    } catch (final IOException ioe) {
-                        LOG.error("Failed to read {}", activityFile, ioe);
-                        continue;
-                    }
-
-                    final byte[] fileIdBytes = Arrays.copyOfRange(data, 0, 7);
-                    final XiaomiActivityFileId fileId = XiaomiActivityFileId.from(fileIdBytes);
-
-                    final XiaomiActivityParser activityParser = XiaomiActivityParser.create(fileId);
-                    if (activityParser == null) {
-                        LOG.warn("Failed to find parser for {}", fileId);
-                        continue;
-                    }
-
-                    try {
-                        if (activityParser.parse(this, fileId, data)) {
-                            LOG.info("Successfully parsed {}", fileId);
-                        } else {
-                            LOG.warn("Failed to parse {}", fileId);
-                        }
-                    } catch (final Exception ex) {
-                        LOG.error("Exception while parsing {}", fileId, ex);
-                    }
-                }
-            } catch (final Exception e) {
-                LOG.error("Failed to parse from storage", e);
-            }
-
-            handler.post(() -> {
-                parsingActivityFilesFromStorage = false;
-                GB.updateTransferNotification("", "", false, 100, getContext());
-                GB.signalActivityDataFinish(getDevice());
-            });
-        }, "XiaomiSupport_" + THREAD_COUNTER.getAndIncrement()).start();
     }
 
     public void setFeatureSupported(final String featureKey, final boolean supported) {

@@ -25,17 +25,11 @@ import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiBRCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiConstants;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 
 public class HuaweiTalkBandB6Coordinator extends HuaweiBRCoordinator {
-    public HuaweiTalkBandB6Coordinator() {
-        super();
-        getHuaweiCoordinator().setTransactionCrypted(false);
-    }
-
     @Override
-    public DeviceType getDeviceType() {
-        return DeviceType.HUAWEITALKBANDB6;
+    public boolean isTransactionCrypted() {
+        return false;
     }
 
     @Override
@@ -51,5 +45,10 @@ public class HuaweiTalkBandB6Coordinator extends HuaweiBRCoordinator {
     @Override
     public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
         return DeviceCoordinator.DeviceKind.FITNESS_BAND;
+    }
+
+    @Override
+    public boolean supportsVO2Max(@NonNull final GBDevice device) {
+        return false;
     }
 }

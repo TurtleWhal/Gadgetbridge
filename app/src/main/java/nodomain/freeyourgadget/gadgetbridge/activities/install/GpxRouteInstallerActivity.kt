@@ -27,10 +27,12 @@ import nodomain.freeyourgadget.gadgetbridge.model.ItemWithDetails
 import nodomain.freeyourgadget.gadgetbridge.util.GB
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxFile
 import nodomain.freeyourgadget.gadgetbridge.util.maps.MapsManager
+import org.slf4j.LoggerFactory
 
 class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
     companion object {
         private const val ITEM_DETAILS = "details"
+        private val LOG = LoggerFactory.getLogger(GpxRouteInstallerActivity::class.java)
     }
 
     private lateinit var binding: ActivityInstallerGpxBinding
@@ -60,9 +62,11 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
                     }
 
                     if (changedDevice == null || changedDevice != device) {
-                        return;
+                        return
                     }
                     if (finished) return
+                    LOG.debug("Device changed: {}", changedDevice)
+                    device = changedDevice
                     refreshBusyState(device)
                     if (!device.isInitialized) {
                         setInstallEnabled(false)
@@ -195,7 +199,7 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
         }
         currentUri = intentUri
 
-        val deviceInstallHandler = device.deviceCoordinator.findInstallHandler(currentUri, this)
+        val deviceInstallHandler = device.deviceCoordinator.findInstallHandler(currentUri, Bundle.EMPTY, this)
         if (deviceInstallHandler == null) {
             // Should never happen if we got here
             GB.toast(this, getString(R.string.installer_activity_unable_to_find_handler), Toast.LENGTH_LONG, GB.ERROR)

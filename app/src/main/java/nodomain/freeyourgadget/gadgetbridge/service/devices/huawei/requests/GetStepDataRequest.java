@@ -84,6 +84,8 @@ public class GetStepDataRequest extends Request {
                     byte heartrate = (byte) subContainer.heartrate;
                     byte spo = (byte) subContainer.spo;
 
+                    byte restingHeartRate = (byte) subContainer.restingHeartRate;
+
                     if (steps == -1)
                         steps = 0;
                     if (calories == -1)
@@ -109,7 +111,8 @@ public class GetStepDataRequest extends Request {
                             calories,
                             distance,
                             spo,
-                            heartrate
+                            heartrate,
+                            restingHeartRate
                     );
                     activitySample.setProvider(sampleProvider);
                     samples.add(activitySample);
@@ -118,7 +121,7 @@ public class GetStepDataRequest extends Request {
                 }
             }
 
-            sampleProvider.addGBActivitySamples(samples.toArray(new HuaweiActivitySample[0]));
+            sampleProvider.addGBActivitySamples(samples);
         } catch (Exception e) {
             LOG.error("Failed to add step data to database", e);
         }

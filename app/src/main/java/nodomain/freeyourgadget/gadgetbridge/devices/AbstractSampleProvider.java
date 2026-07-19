@@ -1,5 +1,5 @@
-/*  Copyright (C) 2016-2024 Andreas Shimokawa, Carsten Pfeiffer, Daniel
-    Dakhno, Daniele Gobbetti, José Rebelo, Petr Vaněk
+/*  Copyright (C) 2016-2026 Andreas Shimokawa, Carsten Pfeiffer, Daniel
+    Dakhno, Daniele Gobbetti, José Rebelo, Petr Vaněk, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -16,6 +16,11 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices;
+
+import static nodomain.freeyourgadget.gadgetbridge.util.GB.toast;
+
+import android.content.Context;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -37,20 +42,26 @@ import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
 import de.greenrobot.dao.query.QueryBuilder;
 import de.greenrobot.dao.query.WhereCondition;
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.entities.AbstractActivitySample;
+import nodomain.freeyourgadget.gadgetbridge.entities.AbstractTimeSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
+import nodomain.freeyourgadget.gadgetbridge.entities.User;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
+import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 /**
  * Base class for all sample providers. A Sample provider is device specific and provides
  * access to the device specific samples. There are both read and write operations.
  * @param <T> the sample type
  */
-public abstract class AbstractSampleProvider<T extends AbstractActivitySample> implements SampleProvider<T> {
+public abstract class AbstractSampleProvider<T extends AbstractActivitySample> implements SampleProvider<T>, PersistenceProvider<T> {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractSampleProvider.class);
 
     private static final WhereCondition[] NO_CONDITIONS = new WhereCondition[0];
@@ -104,7 +115,7 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
     }
 
     @Override
-    public void addGBActivitySamples(T[] activitySamples) {
+    public void addGBActivitySamples(@NonNull List<T> activitySamples) {
         getSampleDao().insertOrReplaceInTx(activitySamples);
     }
 
@@ -162,6 +173,29 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
         }
         Property deviceProperty = getDeviceIdentifierSampleProperty();
         qb.where(deviceProperty.eq(dbDevice.getId())).orderAsc(getTimestampSampleProperty()).limit(1);
+        List<T> samples = qb.build().list();
+        if (samples.isEmpty()) {
+            return null;
+        }
+        T sample = samples.get(0);
+        sample.setProvider(this);
+        return sample;
+    }
+
+    @Nullable
+    @Override
+    public T getFirstActivitySample(final int after) {
+        QueryBuilder<T> qb = getSampleDao().queryBuilder();
+        Device dbDevice = DBHelper.findDevice(getDevice(), getSession());
+        if (dbDevice == null) {
+            // no device, no sample
+            return null;
+        }
+        Property deviceProperty = getDeviceIdentifierSampleProperty();
+        Property timestampProperty = getTimestampSampleProperty();
+        qb.where(timestampProperty.gt(after))
+                .where(deviceProperty.eq(dbDevice.getId()))
+                .orderAsc(timestampProperty).limit(1);
         List<T> samples = qb.build().list();
         if (samples.isEmpty()) {
             return null;
@@ -247,7 +281,7 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
     public void convertCumulativeSteps(final List<T> samples, final Property stepsSampleProperty) {
         // Fix over-counting at the turn of day
         final T lastSample = getLastSampleWithStepsBefore(samples.get(0).getTimestamp(), stepsSampleProperty);
-        if (lastSample != null && sameDay(lastSample, samples.get(0))) {
+        if (lastSample != null && sameDay(lastSample.getTimestamp(), samples.get(0).getTimestamp())) {
             if (samples.get(0).getSteps() > 0) {
                 samples.get(0).setSteps(samples.get(0).getSteps() - lastSample.getSteps());
             }
@@ -262,9 +296,11 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
         }
 
         // This slightly breaks activity recognition, because we don't have per-minute granularity...
+        int prevTimestamp = samples.get(0).getTimestamp();
         int prevSteps = samples.get(0).getSteps();
         int prevDistance = samples.get(0).getDistanceCm();
         int prevActiveCalories = samples.get(0).getActiveCalories();
+        int lastDecreaseTimestamp = 0;
         // Round timestamp to the nearest minute
         samples.get(0).setTimestamp((samples.get(0).getTimestamp() / 60) * 60);
         int bak;
@@ -274,18 +310,47 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
             final T s2 = samples.get(i);
             s2.setTimestamp((s2.getTimestamp() / 60) * 60);
 
-            if (!sameDay(s1, s2)) {
+            if (!sameDay(s1.getTimestamp(), s2.getTimestamp())) {
                 // went past midnight - reset steps
+                prevTimestamp = s2.getTimestamp();
                 prevSteps = s2.getSteps() > 0 ? s2.getSteps() : 0;
                 prevDistance = s2.getDistanceCm() > 0 ? s2.getDistanceCm() : 0;
                 prevActiveCalories = s2.getActiveCalories() > 0 ? s2.getActiveCalories() : 0;
             } else {
+                if (s2.getSteps() >= 0 && s2.getSteps() < prevSteps) {
+                    // This is likely a bug, since cumulative steps shouldn't ever go down within the same day.
+                    // Mitigate it by ignoring the second sample, but this will likely still result in inconsistent data for the day.
+                    LOG.warn(
+                            "Cumulative steps went down from {} to {} ({} to {}) within the same day",
+                            prevTimestamp,
+                            s2.getTimestamp(),
+                            prevSteps,
+                            s2.getSteps()
+                    );
+                    if (!sameDay(lastDecreaseTimestamp, s2.getTimestamp())) {
+                        // This is the first jump in this day. Since it may have happened due to a timezone shift, let's
+                        // persist the values to mitigate missing data
+                        prevTimestamp = s2.getTimestamp();
+                        prevSteps = s2.getSteps();
+                        prevDistance = s2.getDistanceCm();
+                        prevActiveCalories = s2.getActiveCalories();
+                        lastDecreaseTimestamp = s2.getTimestamp();
+                        // We need to erase whatever cumulative value we have in this sample, or it might cause a large jump
+                        // FIXME: This might introduce missing data on timezone changes
+                        s2.setSteps(-1);
+                        s2.setDistanceCm(-1);
+                        s2.setActiveCalories(-1);
+                        continue;
+                    }
+                }
+
                 // New value for the current day - subtract the previous seen sample
 
                 if (s2.getSteps() > 0) {
                     bak = s2.getSteps();
                     s2.setSteps(s2.getSteps() - prevSteps);
                     prevSteps = bak;
+                    prevTimestamp = s2.getTimestamp();
                 }
                 if (s2.getDistanceCm() > 0) {
                     bak = s2.getDistanceCm();
@@ -321,16 +386,22 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
         return !samples.isEmpty() ? samples.get(0) : null;
     }
 
-    public boolean sameDay(final T s1, final T s2) {
+    public boolean sameDay(final int t1, final int t2) {
         final Calendar cal = Calendar.getInstance();
 
-        cal.setTimeInMillis(s1.getTimestamp() * 1000L - 1000L);
+        cal.setTimeInMillis(t1 * 1000L - 1000L);
         final LocalDate d1 = LocalDate.of(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH));
 
-        cal.setTimeInMillis(s2.getTimestamp() * 1000L - 1000L);
+        cal.setTimeInMillis(t2 * 1000L - 1000L);
         final LocalDate d2 = LocalDate.of(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH));
 
         return d1.equals(d2);
+    }
+
+    public LocalDate getLocalDate(final long timestampMillis) {
+        final Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(timestampMillis);
+        return LocalDate.of(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH));
     }
 
     protected List<T> fillGaps(final List<T> samples, final int timestamp_from, final int timestamp_to) {
@@ -347,7 +418,7 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
         final int firstTimestamp = ret.get(0).getTimestamp();
         if (firstTimestamp - timestamp_from > 60) {
             // Gap at the start
-            for (int ts = timestamp_from; ts <= firstTimestamp + 60; ts += 60) {
+            for (int ts = firstTimestamp - 60; ts >= timestamp_from; ts -= 60) {
                 ret.add(0, createDummySample(ts));
             }
         }
@@ -365,13 +436,29 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
         final ListIterator<T> it = ret.listIterator();
         T previousSample = it.next();
 
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Starting filling gaps at {}", DateTimeUtils.formatDateTime(DateTimeUtils.parseTimestampMillis(previousSample.getTimestamp() * 1000L)));
+        }
+
         while (it.hasNext()) {
             final T sample = it.next();
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Processing for gaps at {}", DateTimeUtils.formatDateTime(DateTimeUtils.parseTimestampMillis(sample.getTimestamp() * 1000L)));
+            }
             if (sample.getTimestamp() - previousSample.getTimestamp() > 60) {
-                LOG.trace("Filling gap between {} and {}", Instant.ofEpochSecond(previousSample.getTimestamp() + 60), Instant.ofEpochSecond(sample.getTimestamp()));
+                // Rewind before we insert the dummy samples so the list stays in order
+                it.previous();
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("Filling gap between {} and {}", Instant.ofEpochSecond(previousSample.getTimestamp() + 60), Instant.ofEpochSecond(sample.getTimestamp()));
+                }
                 for (int ts = previousSample.getTimestamp() + 60; ts < sample.getTimestamp(); ts += 60) {
+                    if (LOG.isTraceEnabled()) {
+                        LOG.trace("Inserting dummy sample at {}", DateTimeUtils.formatDateTime(DateTimeUtils.parseTimestampMillis(ts * 1000L)));
+                    }
                     it.add(createDummySample(ts));
                 }
+                // Move forward again
+                it.next();
             }
             previousSample = sample;
         }
@@ -397,5 +484,48 @@ public abstract class AbstractSampleProvider<T extends AbstractActivitySample> i
         dummySample.setActiveCalories(ActivitySample.NOT_MEASURED);
         dummySample.setProvider(this);
         return dummySample;
+    }
+
+    @Override
+    public boolean persistSamples(@NonNull final List<T> samples, @Nullable final Context context) {
+        if (samples.isEmpty()) {
+            return true;
+        }
+
+        LOG.debug(
+                "Will persist {} {} samples",
+                samples.size(),
+                getClass().getSimpleName().replace("Provider", "")
+        );
+
+        try {
+            final DaoSession session = getSession();
+
+            final GBDevice gbDevice = getDevice();
+            final Device device = DBHelper.findDevice(gbDevice, session);
+            if (device == null) {
+                LOG.warn("Device not found in database for '{}'", gbDevice.getAliasOrName());
+                return false;
+            }
+            final long deviceId = device.getId();
+
+            final User user = DBHelper.getUser(session);
+            final long userId = user.getId();
+
+            for (final T sample : samples) {
+                sample.setProvider(this);
+                sample.setDeviceId(deviceId);
+                sample.setUserId(userId);
+            }
+
+            addGBActivitySamples(samples);
+        } catch (final Exception e) {
+            LOG.error("Error saving samples", e);
+            final Context ctx = (context != null) ? context : GBApplication.getContext();
+            final String message = ctx.getString(R.string.persisting_samples_failed, e.getLocalizedMessage());
+            toast(ctx, message, Toast.LENGTH_LONG, GB.ERROR, e);
+            return false;
+        }
+        return true;
     }
 }

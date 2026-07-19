@@ -1,4 +1,4 @@
-/*  Copyright (C) 2024 Damien Gaignon, Martin.JM
+/*  Copyright (C) 2024-2026 Damien Gaignon, Martin.JM
 
     This file is part of Gadgetbridge.
 
@@ -26,6 +26,7 @@ import android.os.Bundle;
 
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.GattService;
@@ -65,7 +67,7 @@ public class HuaweiLESupport extends AbstractBTLESingleDeviceSupport {
     @Override
     public void setContext(GBDevice gbDevice, BluetoothAdapter btAdapter, Context context) {
         super.setContext(gbDevice, btAdapter, context);
-        supportProvider.setContext(context);
+        supportProvider.setContext(gbDevice, context);
     }
 
     @Override
@@ -163,7 +165,7 @@ public class HuaweiLESupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onInstallApp(Uri uri, @NonNull final Bundle options) {
-        supportProvider.onInstallApp(uri);
+        supportProvider.onInstallApp(uri, options);
     }
 
     @Override
@@ -212,7 +214,7 @@ public class HuaweiLESupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         supportProvider.onTestNewFunction();
     }
 
@@ -244,5 +246,10 @@ public class HuaweiLESupport extends AbstractBTLESingleDeviceSupport {
     @Override
     public void onFindDevice(boolean start) {
         supportProvider.onFindDevice(start);
+    }
+
+    @Override
+    public void onSetNavigationInfo(NavigationInfoSpec navigationInfoSpec) {
+        supportProvider.onSetNavigationInfo(navigationInfoSpec);
     }
 }

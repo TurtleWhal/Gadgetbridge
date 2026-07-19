@@ -40,12 +40,12 @@ import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.Dev
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_OPERATING_SOUNDS;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_WEARLOCATION;
 
-public class GetConfigurationOperation extends AbstractBTLEOperation<CasioGBX100DeviceSupport> {
+public class GetConfigurationOperation extends AbstractBTLEOperation<Casio2C2DSupport> {
     private static final Logger LOG = LoggerFactory.getLogger(GetConfigurationOperation.class);
-    private final CasioGBX100DeviceSupport support;
+    private final Casio2C2DSupport support;
     private final boolean mFirstConnect;
 
-    public GetConfigurationOperation(CasioGBX100DeviceSupport support, boolean firstconnect) {
+    public GetConfigurationOperation(Casio2C2DSupport support, boolean firstconnect) {
         super(support);
         this.support = support;
         this.mFirstConnect = firstconnect;
@@ -74,7 +74,7 @@ public class GetConfigurationOperation extends AbstractBTLEOperation<CasioGBX100
         if (getDevice() != null) {
             try {
                 TransactionBuilder builder = performInitialized("finished operation");
-                builder.wait(0);
+                builder.sleep(0);
                 builder.setCallback(null); // unset ourselves from being the queue's gatt callback
                 builder.queue();
             } catch (IOException ex) {

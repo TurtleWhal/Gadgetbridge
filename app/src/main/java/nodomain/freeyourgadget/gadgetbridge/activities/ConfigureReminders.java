@@ -45,7 +45,6 @@ import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.adapter.GBReminderListAdapter;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
@@ -56,7 +55,6 @@ import nodomain.freeyourgadget.gadgetbridge.entities.Reminder;
 import nodomain.freeyourgadget.gadgetbridge.entities.User;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
-import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 
 public class ConfigureReminders extends AbstractGBActivity {
@@ -111,6 +109,7 @@ public class ConfigureReminders extends AbstractGBActivity {
                             .setMessage(getBaseContext().getString(R.string.reminder_no_free_slots_description, String.format(Locale.getDefault(), "%d", deviceSlots)))
                             .setIcon(R.drawable.ic_warning)
                             .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                @Override
                                 public void onClick(final DialogInterface dialog, final int whichButton) {
                                 }
                             })

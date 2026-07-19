@@ -67,6 +67,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BleNamesResolver;
+import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleHardware;
 
 @SuppressLint("MissingPermission")
 public class BondingUtil {
@@ -133,11 +134,18 @@ public class BondingUtil {
                     } else {
                         switch (bondState) {
                             case BluetoothDevice.BOND_BONDED: {
+
                                 LOG.info("Bonded with {}", device.getAddress());
-                                //noinspection StatementWithEmptyBody
-                                if (isLePebble(device) || isPebble2(device) || !bondingInterface.getAttemptToConnect()) {
-                                    // Do not initiate connection to LE Pebble and some others!
+                                if (!bondingInterface.getAttemptToConnect()) {
+                                    LOG.info("Device bonded - notifying onBondingComplete without reconnecting.");
+                                    bondingInterface.onBondingComplete(true);
+                                } else if (!bondingInterface.shouldReconnectAfterBond()) {
+                                    // connect-first pairing, existing connection completes to INITIALIZED
+                                    // Don't interrupt by disconnecting and reconnecting in the middle of the pairing flow.
+                                    LOG.info("Device bonded - connect first pairing, connection already established.");
                                 } else {
+                                    // Bond-then-connect flow: reconnect now that bonding is complete.
+                                    LOG.info("Device bonded - reconnecting and waiting for initialization");
                                     attemptToFirstConnect(device);
                                 }
                                 return;
@@ -331,23 +339,6 @@ public class BondingUtil {
     }
 
     /**
-     * Checks if device is LE Pebble
-     */
-    public static boolean isLePebble(BluetoothDevice device) {
-        return (device.getType() == BluetoothDevice.DEVICE_TYPE_DUAL || device.getType() == BluetoothDevice.DEVICE_TYPE_LE) &&
-                (device.getName().startsWith("Pebble-LE ") || device.getName().startsWith("Pebble Time LE "));
-    }
-
-    /**
-     * Checks if device is Pebble 2
-     */
-    public static boolean isPebble2(BluetoothDevice device) {
-        return device.getType() == BluetoothDevice.DEVICE_TYPE_LE &&
-                device.getName().startsWith("Pebble ") &&
-                !device.getName().startsWith("Pebble Time LE ");
-    }
-
-    /**
      * Uses the CompanionDeviceManager bonding method
      */
     @RequiresApi(Build.VERSION_CODES.O)
@@ -445,7 +436,7 @@ public class BondingUtil {
 
         if (bondState == BluetoothDevice.BOND_BONDED) {
             GB.toast(bondingInterface.getContext().getString(R.string.pairing_already_bonded, device.getName(), device.getAddress()), Toast.LENGTH_SHORT, GB.INFO);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !isPebble2(device) && contextIsActivity) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !PebbleHardware.isBleOnly(device) && contextIsActivity) {
                 // If CompanionDeviceManager is available, skip connection and go bond
                 // TODO: It would theoretically be nice to check if it's already been granted,
                 //  but re-bond works
@@ -458,9 +449,9 @@ public class BondingUtil {
 
         GB.toast(bondingInterface.getContext(), bondingInterface.getContext().getString(R.string.pairing_creating_bond_with, device.getName(), device.getAddress()), Toast.LENGTH_LONG, GB.INFO);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !isPebble2(device) && contextIsActivity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !PebbleHardware.isBleOnly(device) && contextIsActivity) {
             askCompanionPairing(bondingInterface, device);
-        } else if (isPebble2(device)) {
+        } else if (PebbleHardware.isBleOnly(device)) {
             // TODO: start companionDevicePairing after connecting to Pebble 2 but before writing to pairing trigger
             attemptToFirstConnect(device);
         } else {

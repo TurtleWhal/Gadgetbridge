@@ -1,12 +1,32 @@
+/*  Copyright (C) 2024-2026 José Rebelo, Daniele Gobbetti, kuhy, Martin.JM, a0z, k4z4n0v4, ad0z,
+        Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.garmin;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.app.Activity;
+import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,19 +38,27 @@ import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.AppManagerActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.config.DynamicAppConfigActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.charts.DeviceChartsProvider;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminBodyEnergySampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminHeartRateRestingSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminHrvSummarySampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminHrvValueSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminRespiratoryRateSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminRestingMetabolicRateSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminSleepStatsSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminSpo2SampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminStressSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.GenericTrainingLoadAcuteSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.GenericTrainingLoadChronicSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.WorkoutLoadSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.WorkoutVo2MaxSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.Vo2MaxSampleProvider;
-import nodomain.freeyourgadget.gadgetbridge.devices.vivomovehr.GarminCapability;
+import nodomain.freeyourgadget.gadgetbridge.devices.WorkoutLoadSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummaryDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.GarminActivitySampleDao;
@@ -48,6 +76,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.GarminSleepStageSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.GarminSleepStatsSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.GarminSpo2SampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.GarminStressSampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.GenericMetricSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericTrainingLoadAcuteSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericTrainingLoadAcuteSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.GenericTrainingLoadChronicSample;
@@ -57,8 +86,11 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.model.BodyEnergySample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
+import nodomain.freeyourgadget.gadgetbridge.model.FitActivityTrackProvider;
+import nodomain.freeyourgadget.gadgetbridge.model.GpxActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.model.HrvSummarySample;
 import nodomain.freeyourgadget.gadgetbridge.model.HrvValueSample;
 import nodomain.freeyourgadget.gadgetbridge.model.PaiSample;
@@ -67,7 +99,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.RestingMetabolicRateSample;
 import nodomain.freeyourgadget.gadgetbridge.model.SleepScoreSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
-import nodomain.freeyourgadget.gadgetbridge.model.Vo2MaxSample;
 import nodomain.freeyourgadget.gadgetbridge.model.WorkoutLoadSample;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminSupport;
@@ -123,6 +154,7 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
             put(session.getPendingFileDao(), PendingFileDao.Properties.DeviceId);
             put(session.getGenericTrainingLoadAcuteSampleDao(), GenericTrainingLoadAcuteSampleDao.Properties.DeviceId);
             put(session.getGenericTrainingLoadChronicSampleDao(), GenericTrainingLoadChronicSampleDao.Properties.DeviceId);
+            put(session.getGenericMetricSampleDao(), GenericMetricSampleDao.Properties.DeviceId);
         }};
     }
 
@@ -137,10 +169,34 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
         return GarminSupport.class;
     }
 
+    @Override
+    public DeviceChartsProvider getChartsProvider() {
+        return new GarminChartsProvider();
+    }
+
     @Nullable
     @Override
     public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
         return new GarminWorkoutParser(context);
+    }
+
+    @Override
+    @Nullable
+    public ActivityTrackProvider getActivityTrackProvider(@NonNull final GBDevice device, @NonNull final Context context) {
+        // Pick the richer source when both are present:
+        //  - FIT (rawDetailsPath) carries detailed sensor streams.
+        //  - GPX (gpxTrack) is the polyline-only fallback that
+        //    ExploreSync writes when no FIT has arrived yet.
+        // If a later FIT delivery dedup-links onto an existing
+        // ExploreSync row, both fields will be set; we should return
+        // the FIT view rather than hide its richer data behind GPX.
+        return summary -> {
+            final ActivityTrackProvider provider = summary.getRawDetailsPath() != null
+                    ? new FitActivityTrackProvider()
+                    : new GpxActivityTrackProvider();
+
+            return provider.getActivityTrack(summary);
+        };
     }
 
     @Override
@@ -184,11 +240,6 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public Vo2MaxSampleProvider<? extends Vo2MaxSample> getVo2MaxSampleProvider(final GBDevice device, final DaoSession session) {
-        return new WorkoutVo2MaxSampleProvider(device, session);
-    }
-
-    @Override
     public TimeSampleProvider<? extends Spo2Sample> getSpo2SampleProvider(final GBDevice device, final DaoSession session) {
         return new GarminSpo2SampleProvider(device, session);
     }
@@ -224,6 +275,19 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
+    public int[] getSupportedDeviceSpecificExperimentalSettings(final GBDevice device) {
+        return new int[]{R.xml.devicesettings_garmin_experimental};
+    }
+
+    @Override
+    public int[] getSupportedDebugSettings(final GBDevice device) {
+        return ArrayUtils.add(
+                super.getSupportedDebugSettings(device),
+                R.xml.devicesettings_debug_drop_packets
+        );
+    }
+
+    @Override
     public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
         final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
 
@@ -237,6 +301,10 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
                     R.xml.devicesettings_header_calendar,
                     R.xml.devicesettings_sync_calendar
             );
+        }
+
+        if (supportsSendWaypoint(device)) {
+            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_garmin_send_waypoint);
         }
 
         final List<Integer> notifications = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CALLS_AND_NOTIFICATIONS);
@@ -262,8 +330,16 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
         final List<Integer> connection = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CONNECTION);
         connection.add(R.xml.devicesettings_high_mtu);
 
+        if (GBApplication.hasInternetAccess()) {
+            final List<Integer> internet = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.INTERNET);
+            internet.add(R.xml.devicesettings_device_internet_access);
+            internet.add(R.xml.devicesettings_device_internet_firewall);
+            internet.add(R.xml.devicesettings_device_internet_firewall_blacklisted_domains);
+        }
+
         final List<Integer> developer = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
         developer.add(R.xml.devicesettings_import_activity_files);
+        developer.add(R.xml.devicesettings_reprocess_activity_files);
         developer.add(R.xml.devicesettings_keep_activity_data_on_device);
         developer.add(R.xml.devicesettings_fetch_unknown_files);
         developer.add(R.xml.devicesettings_install_unsupported_files);
@@ -307,9 +383,8 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public boolean supportsAppsManagement(@NonNull final GBDevice device) {
-        // FIXME: disabled until better polished
-        //return supports(device, GarminCapability.CONNECTIQ_APP_MANAGEMENT);
-        return false;
+        // FIXME: experimental until better polished
+        return experimentalSettingEnabled(device, "garmin_experimental_app_management");
     }
 
     @Override
@@ -322,6 +397,12 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
         return AppManagerActivity.class;
     }
 
+    @Nullable
+    @Override
+    public Class<? extends Activity> getAppConfigurationActivity(final GBDevice device) {
+        return DynamicAppConfigActivity.class;
+    }
+
     @Override
     public boolean supportsAppListFetching(@NonNull final GBDevice device) {
         return true;
@@ -329,6 +410,12 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
 
     public boolean supportsAgpsUpdates(final GBDevice device) {
         return !getPrefs(device).getString(GarminPreferences.PREF_AGPS_KNOWN_URLS, "").isEmpty();
+    }
+
+    public boolean supportsSendWaypoint(@NonNull final GBDevice device){
+        return supports(device, GarminCapability.WAYPOINT_TRANSFER)
+                || supports(device, GarminCapability.EXPLORE_SYNC)
+                || GBApplication.getDevicePrefs(device).installUnsupportedFiles();
     }
 
     public boolean supports(final GBDevice device, final GarminCapability capability) {
@@ -343,8 +430,8 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Nullable
     @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
-        final GarminFitFileInstallHandler fitFileInstallHandler = new GarminFitFileInstallHandler(uri, context);
+    public InstallHandler findInstallHandler(Uri uri, Bundle options, Context context) {
+        final GarminFitFileInstallHandler fitFileInstallHandler = new GarminFitFileInstallHandler(uri, options, context);
         if (fitFileInstallHandler.isValid())
             return fitFileInstallHandler;
 
@@ -357,5 +444,11 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
             return prgFileInstallHandler;
 
         return null;
+    }
+
+    @Override
+    public boolean supportsTrainingLoad(@NonNull final GBDevice device) {
+        // Not all devices support it
+        return true;
     }
 }

@@ -11,10 +11,10 @@ import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.CyclingSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.cycling_sensor.activity.CyclingLiveDataActivity;
-import nodomain.freeyourgadget.gadgetbridge.devices.cycling_sensor.db.CyclingSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.CyclingSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.CyclingSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
@@ -42,30 +42,13 @@ public class CyclingSensorCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTracking(@NonNull GBDevice device) {
-        return true;
-    }
-
-    @Override
     public TimeSampleProvider<CyclingSample> getCyclingSampleProvider(GBDevice device, DaoSession session) {
         return new CyclingSampleProvider(device, session);
     }
 
     @Override
-    public boolean supportsSleepMeasurement(@NonNull GBDevice device) {
-        return false;
-    }
-    @Override
-    public boolean supportsStepCounter(@NonNull GBDevice device) {
-        return false;
-    }
-    @Override
-    public boolean supportsSpeedzones(@NonNull GBDevice device) {
-        return false;
-    }
-    @Override
-    public boolean supportsActivityTabs(@NonNull GBDevice device) {
-        return false;
+    public boolean supportsCharts(@NonNull GBDevice device) {
+        return true;
     }
 
     @Override

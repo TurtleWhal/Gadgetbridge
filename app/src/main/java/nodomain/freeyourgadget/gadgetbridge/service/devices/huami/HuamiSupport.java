@@ -1,4 +1,4 @@
-/*  Copyright (C) 2018-2024 Andreas Shimokawa, Arjan Schrijver, beardhatcode,
+/*  Copyright (C) 2018-2026 Andreas Shimokawa, Arjan Schrijver, beardhatcode,
     Carsten Pfeiffer, Damien Gaignon, Daniel Dakhno, Daniele Gobbetti, Dmitry
     Markin, José Rebelo, musover, Nathan Philipp Bo Seddig, NekoBox, Petr
     Vaněk, Robbert Gurdeep Singh, Sebastian Kranz, Taavi Eomäe, Toby Murray,
@@ -35,6 +35,7 @@ import android.widget.Toast;
 
 import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import net.e175.klaus.solarpositioning.DeltaT;
@@ -118,7 +119,9 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityUser;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
+import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.SleepState;
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.WearingState;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport;
@@ -891,20 +894,27 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
      * @return
      */
     public String getNotificationBody(NotificationSpec notificationSpec) {
-        String senderOrTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        final StringBuilder sb = new StringBuilder();
+        final String senderOrTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        if (!senderOrTitle.isEmpty()) {
+            sb.append(StringUtils.truncate(senderOrTitle, 32));
+        } else {
+            // if we have no title we have to send at least something on some devices, else they reboot (Bip S)
+            sb.append(" ");
+        }
+        sb.append("\0");
+        if (!StringUtils.isNullOrEmpty(notificationSpec.subject)) {
+            sb.append(StringUtils.truncate(notificationSpec.subject, 128)).append("\n\n");
+        }
+        if (!StringUtils.isNullOrEmpty(notificationSpec.body)) {
+            sb.append(StringUtils.truncate(notificationSpec.body, 512)).append("\n\n");
+        }
+        if (StringUtils.isNullOrEmpty(notificationSpec.subject) && StringUtils.isNullOrEmpty(notificationSpec.body)) {
+            // if we have no body we have to send at least something on some devices, else they reboot (Bip S)
+            sb.append(" ");
+        }
 
-        String message = StringUtils.truncate(senderOrTitle, 32) + "\0";
-        if (notificationSpec.subject != null) {
-            message += StringUtils.truncate(notificationSpec.subject, 128) + "\n\n";
-        }
-        if (notificationSpec.body != null) {
-            message += StringUtils.truncate(notificationSpec.body, 512);
-        }
-        if (notificationSpec.body == null && notificationSpec.subject == null) {
-            message += " "; // if we have no body we have to send at least something on some devices, else they reboot (Bip S)
-        }
-
-        return message;
+        return sb.toString();
     }
 
     /**
@@ -1854,7 +1864,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
         final boolean sendGpsToBand = HuamiCoordinator.getWorkoutSendGpsToBand(getDevice().getAddress());
 
         if (workoutNeedsGps) {
-            if (sendGpsToBand) {
+            if (sendGpsToBand && GBLocationService.isGpsSupportedAndEnabled()) {
                 lastPhoneGpsSent = 0;
                 sendPhoneGps(HuamiPhoneGpsStatus.SEARCHING, null);
                 GBLocationService.start(getContext(), getDevice(), GBLocationProviderType.GPS, 1000);
@@ -2688,7 +2698,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
                 case PREF_HOURLY_CHIME_END:
                     setHourlyChime(builder);
                     break;
-                case SettingsActivity.PREF_MEASUREMENT_SYSTEM:
+                case SettingsActivity.PREF_UNIT_DISTANCE:
                     setDistanceUnit(builder);
                     break;
                 case MiBandConst.PREF_SWIPE_UNLOCK:
@@ -2779,7 +2789,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         try {
             final TransactionBuilder builder = performInitialized("test request");
             writeToConfiguration(builder, HuamiService.COMMAND_REQUEST_WORKOUT_ACTIVITY_TYPES);
@@ -2872,7 +2882,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
             return;
         }
 
-        MiBandConst.DistanceUnit unit = HuamiCoordinator.getDistanceUnit();
+        final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
         int tz_offset_hours = SimpleTimeZone.getDefault().getOffset(weatherSpec.getTimestamp() * 1000L) / (1000 * 60 * 60);
         try {
             TransactionBuilder builder;
@@ -2893,7 +2903,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
             buf.put(condition);
 
             int currentTemp = weatherSpec.getCurrentTemp() - 273;
-            if (unit == MiBandConst.DistanceUnit.IMPERIAL) {
+            if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
                 currentTemp = (int) WeatherUtils.celsiusToFahrenheit(currentTemp);
             }
             buf.put((byte) currentTemp);
@@ -2978,7 +2988,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
 
             int todayMaxTemp = weatherSpec.getTodayMaxTemp() - 273;
             int todayMinTemp = weatherSpec.getTodayMinTemp() - 273;
-            if (unit == MiBandConst.DistanceUnit.IMPERIAL) {
+            if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
                 todayMaxTemp = (int) WeatherUtils.celsiusToFahrenheit(todayMaxTemp);
                 todayMinTemp = (int) WeatherUtils.celsiusToFahrenheit(todayMinTemp);
             }
@@ -2997,7 +3007,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
 
                 int forecastMaxTemp = forecast.getMaxTemp() - 273;
                 int forecastMinTemp = forecast.getMinTemp() - 273;
-                if (unit == MiBandConst.DistanceUnit.IMPERIAL) {
+                if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
                     forecastMaxTemp = (int) WeatherUtils.celsiusToFahrenheit(forecastMaxTemp);
                     forecastMinTemp = (int) WeatherUtils.celsiusToFahrenheit(forecastMinTemp);
                 }
@@ -3638,9 +3648,9 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
     }
 
     private void setDistanceUnit(TransactionBuilder builder) {
-        MiBandConst.DistanceUnit unit = HuamiCoordinator.getDistanceUnit();
-        LOG.info("Setting distance unit to " + unit);
-        if (unit == MiBandConst.DistanceUnit.METRIC) {
+        DistanceUnit distanceUnit = GBApplication.getPrefs().getDistanceUnit();
+        LOG.info("Setting distance unit to {}", distanceUnit);
+        if (distanceUnit == DistanceUnit.METRIC) {
             writeToConfiguration(builder,  HuamiService.COMMAND_DISTANCE_UNIT_METRIC);
         } else {
             writeToConfiguration(builder,  HuamiService.COMMAND_DISTANCE_UNIT_IMPERIAL);

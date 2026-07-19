@@ -32,7 +32,6 @@
     <string name="appmanager_hrm_deactivate">Poista sykemittari käytöstä</string>
     <string name="appmanager_weather_activate">Aktivoi järjestelmän sääsovellus</string>
     <string name="appmanager_weather_deactivate">Ota järjestelmän sääsovellus pois käytöstä</string>
-    <string name="appmanager_weather_install_provider">Asenna sääilmoitussovellus</string>
     <string name="app_configure">Määritä</string>
     <string name="app_move_to_top">Siirrä ylimmäksi</string>
     <string name="mi2_prefs_button_press_broadcast_default_value" translatable="false">nodomain.freeyourgadget.gadgetbridge.ButtonPressed</string>
@@ -137,7 +136,6 @@
 \nJATKA OMALLA VASTUULLA!</string>
     <string name="fw_upgrade_notice">Olet asentamassa %s.</string>
     <string name="title_activity_fw_app_insaller">Laiteohjelmiston/ohjelmiston asennusohjelma</string>
-    <string name="title_activity_calblacklist">Mustalla listalla olevat Kalenterit</string>
     <string name="whitelist_all_for_notifications">Lisää kaikki ilmoitukset valkoiselle listalle</string>
     <string name="blacklist_all_for_notifications">Lisää kaikki ilmoitukset mustalle listalle</string>
     <string name="debugactivity_really_factoryreset">Tehdasastetuksien palauttaminen poistaa yhdistetystä laitteesta kaikki tiedot (jos tuettu). Xiaomin ja Huamin laitteet myös muuttavat Bluetooth MAC -osoitteen, joten ne näkyvät uusina laitteina Gadgetbridgessä.</string>
@@ -304,7 +302,7 @@
     <string name="pref_title_middle_button_function_double">Keskimmäinen nappi tupla</string>
     <string name="devicestatus_connecting">Laite yhdistyy</string>
     <string name="devicestatus_connected">Laite on yhdistetty</string>
-    <string name="Delete">Poista</string>
+    <string name="delete">Poista</string>
     <string name="pref_message_privacy_mode_off">Näytä sisältö</string>
     <string name="pref_title_weather_location">Sään sijainti (LineageOS:n sään tarjoajaa varten)</string>
     <string name="pref_header_development">Kehittäjäasetukset</string>
@@ -381,13 +379,12 @@
     <string name="weekstepschart_steps_a_month">Askeleet kuukaudessa</string>
     <string name="pref_chart_heartrate_color_orange">Oranssi</string>
     <string name="pref_chart_heartrate_color_red">Punainen</string>
-    <string name="Cancel">Peruuta</string>
+    <string name="cancel">Peruuta</string>
     <string name="ok">OK</string>
     <string name="activity_prefs_gender">Sukupuoli</string>
     <string name="pref_header_charts">Taulukoiden asetukset</string>
     <string name="activity_prefs_height_cm">Pituus (cm)</string>
     <string name="activity_prefs_step_length_cm">Askeleen pituus (cm)</string>
-    <string name="pref_chart_sleep_rolling_24_on">Viimeiset 24h</string>
     <string name="live_activity_heart_rate">Syke</string>
     <string name="action_db_management">Tietojen hallinta</string>
     <string name="watch9_time_hours">Tunnit:</string>
@@ -453,9 +450,6 @@
     <string name="zetime_prefs_inactivity_fr">Perjantai</string>
     <string name="pref_title_location_latitude">Leveysaste</string>
     <string name="pref_title_location_longitude">Pituusaste</string>
-    <string name="distance_format_feet">###ft</string>
-    <string name="distance_format_kilometers">###.#km</string>
-    <string name="distance_format_meters">###m</string>
     <string name="watchface_dialog_widget_width">Vimpaimen leveys (pikseleinä)</string>
     <string name="watchface_dialog_widget_timezone">Aikavyöhyke</string>
     <string name="pref_activity_recognition_mode_auto">automaattinen</string>
@@ -484,7 +478,6 @@
     <string name="changelog_ok_button">Valmis</string>
     <string name="about_contributors">Osallistujat</string>
     <string name="controlcenter_start_activitymonitor">Aktiivisuutesi</string>
-    <string name="preferences_qhybrid_settings">Q Hybridin asetukset</string>
     <string name="changelog_full_title">Muutosloki</string>
     <string name="pref_write_logfiles">Kirjoita lokitiedostoja</string>
     <string name="pref_theme_dynamic_colors_not_available_warning">Dynaamiset värit ei ole tuettu, se vaati Android 12:sta tai uudemman. Tästä johtuen Gadgetbridge käyttää oletus Material 3 -värejä.</string>
@@ -572,7 +565,7 @@
     <string name="device_not_connected">Ei yhdistetty.</string>
     <string name="pref_header_audio">Ääni</string>
     <string name="dateformat_time">Aika</string>
-    <string name="dateformat_date_time">Aika ja päivämäärä</string>
+    <string name="dateformat_date_time"><![CDATA[Aika ja päivämäärä]]></string>
     <string name="prefs_find_phone">Etsi puhelin</string>
     <string name="button_watchface_add_widget">Lisää widgetti</string>
     <string name="pref_header_workout">Kuntoilu</string>

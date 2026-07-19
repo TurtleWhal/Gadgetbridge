@@ -1,6 +1,6 @@
-/*  Copyright (C) 2016-2024 Andreas Shimokawa, Arjan Schrijver, beardhatcode,
+/*  Copyright (C) 2016-2026 Andreas Shimokawa, Arjan Schrijver, beardhatcode,
     Carsten Pfeiffer, Daniele Gobbetti, Enrico Brambilla, José Rebelo, Taavi
-    Eomäe
+    Eomäe, Avery Sterk
 
     This file is part of Gadgetbridge.
 
@@ -21,6 +21,13 @@ package nodomain.freeyourgadget.gadgetbridge.model
 import android.location.Location
 import android.os.Parcel
 import android.os.Parcelable
+import net.e175.klaus.solarpositioning.DeltaT
+import net.e175.klaus.solarpositioning.SPA
+import net.e175.klaus.solarpositioning.SunriseTransitSet
+import java.util.Date
+import java.util.GregorianCalendar
+import kotlin.math.floor
+import kotlin.random.Random
 
 // FIXME: document me and my fields, including units
 /**
@@ -57,10 +64,10 @@ class WeatherSpec() : Parcelable {
 
     // Forecasts from the next day onward, in chronological order, one entry per day.
     // It should not include the current or previous days
-    var forecasts: ArrayList<Daily?> = ArrayList()
+    var forecasts: ArrayList<Daily> = ArrayList()
 
     // Hourly forecasts
-    var hourly: ArrayList<Hourly?> = ArrayList()
+    var hourly: ArrayList<Hourly> = ArrayList()
 
     constructor(parcel: Parcel) : this() {
         val version = parcel.readInt()
@@ -122,6 +129,52 @@ class WeatherSpec() : Parcelable {
 
     fun setIsCurrentLocation(currLoc: Int) {
         isCurrentLocation = currLoc
+    }
+
+    /**
+     * Determines whether the weather condition was retrieved when the sun was down
+     * @return True if the weather timestamp was outside the sunrise-sunset interval
+     */
+    fun isNight(): Boolean {
+        return isTimeNight( this.timestamp * 1000L )
+    }
+
+    /**
+     * Abstraction for whether the sunrise/set information indicates "polar night" (no sunrise)
+     * @return True if polar night, false otherwise
+     */
+    fun isPolarNight(): Boolean {
+        return (this.sunSet == 0) // unix time instant of 0
+    }
+    /**
+     * Abstraction for whether the sunrise/set information indicates "polar day" (sun never sets)
+     * @return True if polar day, false otherwise
+     */
+    fun isPolarDay(): Boolean {
+        return ((this.sunSet - this.sunRise) >= 86399) // sun is up every second of the day
+    }
+    /**
+     * Determines whether the current time falls during a night period based on sunrise and sunset
+     * @return True if the current time of day is outside the sunset-sunrise interval
+     */
+    fun isCurrentTimeNight(): Boolean {
+        return isTimeNight( System.currentTimeMillis() )
+    }
+
+    /**
+     * Checks whether a given time falls outside the sunrise-sunset interval
+     * @param unixTimeMilliSeconds Unix timestamp, in UTC, in milliseconds
+     * @return True if outside sunrise interval, false if during sunrise
+     */
+    fun isTimeNight(unixTimeMilliSeconds: Long): Boolean {
+        if (isPolarNight()) return true
+        if (isPolarDay()) return false
+        // Compute where our time falls relative to sunrise. Negative numbers mean before sunrise.
+        val millisAfterSunrise = unixTimeMilliSeconds - (this.sunRise * 1000L)
+        // Compute where sunset falls relative to sunrise. We assume it's always after, thus giving a positive number.
+        val lengthOfSolarDayInMillis = (this.sunSet - this.sunRise) * 1000L
+        // Map the input time into positive time in a 24-hour solar cycle, and compare to sunset.
+        return ( millisAfterSunrise.mod(86400000) > lengthOfSolarDayInMillis )
     }
 
     fun getLocationObject(): Location? {
@@ -318,8 +371,8 @@ class WeatherSpec() : Parcelable {
         var co: Float = -1f // Carbon Monoxide, mg/m^3
         var no2: Float = -1f // Nitrogen Dioxide, ug/m^3
         var o3: Float = -1f // Ozone, ug/m^3
-        var pm10: Float = -1f // Particulate Matter, 10 microns or less in diameter, ug/m^3
-        var pm25: Float = -1f // Particulate Matter, 2.5 microns or less in diameter, ug/m^3
+        var pm10: Float = -1f // Particulate Matter, 10 microns or fewer in diameter, ug/m^3
+        var pm25: Float = -1f // Particulate Matter, 2.5 microns or fewer in diameter, ug/m^3
         var so2: Float = -1f // Sulphur Dioxide, ug/m^3
 
         // Air Quality Index values per pollutant
@@ -487,6 +540,10 @@ class WeatherSpec() : Parcelable {
             return toBeaufort(this.windSpeed)
         }
 
+        fun lunarDay(): Int {
+            return toLunarDay(moonPhase.toDouble())
+        }
+
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -642,6 +699,127 @@ class WeatherSpec() : Parcelable {
                 level++
             }
             return level
+        }
+
+        fun toLunarDay(phaseDegrees: Double): Int {
+            val synodicMonth = 29.53059
+            val normalized = ((phaseDegrees % 360) + 360) % 360
+            return floor((normalized / 360.0) * synodicMonth).toInt() + 1
+        }
+
+        fun sunriseTransitSet(date: GregorianCalendar, location: Location): SunriseTransitSet {
+            return SPA.calculateSunriseTransitSet(
+                date.toZonedDateTime(),
+                location.latitude,
+                location.longitude,
+                DeltaT.estimate(date.toZonedDateTime().toLocalDate())
+            )
+        }
+
+        fun sunriseComputed(sunRise: Int, date: GregorianCalendar, location: Location?): Date? {
+            if (sunRise > 0) {
+                return Date(sunRise * 1000L)
+            }
+            if (location == null) {
+                return null
+            }
+            return sunriseTransitSet(date, location).sunrise?.let {
+                return Date.from(it.toInstant())
+            }
+        }
+
+        fun sunsetComputed(sunSet: Int, date: GregorianCalendar, location: Location?): Date? {
+            if (sunSet > 0) {
+                return Date(sunSet * 1000L)
+            }
+            if (location == null) {
+                return null
+            }
+            return sunriseTransitSet(date, location).sunset?.let {
+                return Date.from(it.toInstant())
+            }
+        }
+
+        fun createTestWeather(): WeatherSpec {
+            val weather = WeatherSpec()
+
+            val conditions = listOf(
+                211 /* thunderstorm */ to "Thunderstorm",
+                301 /* drizzle */ to "Drizzly",
+                314 /* heavy shower rain and drizzle */ to "Heavy rain",
+                500 /* light rain */ to "Rainy",
+                501 /* moderate rain */ to "Moderate rain",
+                521 /* shower rain */ to "Shower rain",
+                601 /* snow */ to "Snowy",
+                741 /* fog */ to "Foggy",
+                781 /* tornado */ to "Tornado",
+                800 /* clear */ to "Clear sky",
+                803 /* clouds */ to "Cloudy",
+                804 /* overcast clouds */ to "Overcast"
+            )
+
+            weather.location = "Random Hill"
+            weather.timestamp = (System.currentTimeMillis() / 1000).toInt()
+            weather.currentTemp = Random.nextInt(-40, 40) + 273
+            weather.todayMinTemp = weather.currentTemp - Random.nextInt(0, 15)
+            weather.todayMaxTemp = weather.currentTemp + Random.nextInt(0, 15)
+
+            val (conditionCode, conditionText) = conditions.random()
+            weather.currentConditionCode = conditionCode
+            weather.currentCondition = conditionText
+
+            weather.windDirection = 12
+            weather.precipProbability = 99
+            weather.windSpeed = 10f
+            weather.feelsLikeTemp = weather.currentTemp + Random.nextInt(-5, 5)
+            weather.currentHumidity = Random.nextInt(20, 80)
+            weather.latitude = 38.250137f
+            weather.longitude = -122.410805f
+            weather.dewPoint = weather.currentTemp - Random.nextInt(5, 10)
+            val airQuality = AirQuality()
+            airQuality.aqi = 50
+            weather.airQuality = airQuality
+            weather.currentHumidity = 30
+
+            weather.hourly = ArrayList()
+            var hourlyTimestamp = weather.timestamp + 3600
+
+            for (i in 0..23) {
+                val gbForecast = Hourly()
+                gbForecast.timestamp = hourlyTimestamp
+                gbForecast.temp = weather.currentTemp + i
+
+                val (conditionCode, conditionText) = conditions.random()
+                gbForecast.conditionCode = conditionCode
+
+                gbForecast.precipProbability = 50 + i
+                gbForecast.windDirection = 30 + i
+                gbForecast.windSpeed = 20f + i
+                gbForecast.humidity = 10 + i
+                gbForecast.uvIndex = 2f + i
+
+                weather.hourly.add(gbForecast)
+
+                hourlyTimestamp += 3600
+            }
+
+            weather.forecasts = ArrayList()
+            for (i in 0..4) {
+                val gbForecast = Daily()
+                gbForecast.minTemp = weather.currentTemp - 30 + (i * 10) - Random.nextInt(0, 15)
+                gbForecast.maxTemp = weather.currentTemp - 30 + (i * 10) + Random.nextInt(0, 15)
+
+                val (conditionCode, conditionText) = conditions.random()
+                gbForecast.conditionCode = conditionCode
+
+                gbForecast.precipProbability = 50 + i
+                val airQualityDaily = AirQuality()
+                airQualityDaily.aqi = 120 + i
+                gbForecast.airQuality = airQualityDaily
+                weather.forecasts.add(gbForecast)
+            }
+
+            return weather
         }
     }
 }

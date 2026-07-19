@@ -95,6 +95,7 @@ public class Request {
     protected OperationStatus operationStatus = OperationStatus.INITIAL;
     protected byte serviceId;
     protected byte commandId;
+    protected HuaweiPacket sendingPacket = null;
     protected HuaweiPacket receivedPacket = null;
     protected HuaweiSupportProvider supportProvider;
     protected HuaweiPacket.ParamsProvider paramsProvider;
@@ -120,12 +121,17 @@ public class Request {
         public RequestCallback(HuaweiSupportProvider supportProvider) {
             support = supportProvider;
         }
+        @Deprecated
         public void call() {}
         public void call(Request request) {
             call(); // To keep everything working as it was as well
         }
+        @Deprecated
         public void handleException(ResponseParseException e) {
             LOG.error("Callback request exception", e);
+        }
+        public void handleException(Request request, ResponseParseException e) {
+            handleException(e); // To keep everything working as it was as well
         }
         public void timeout(Request request) {
             request.handleNext();
@@ -221,6 +227,13 @@ public class Request {
     }
 
     protected List<byte[]> createRequest() throws RequestCreationException {
+        if (sendingPacket != null) {
+            try {
+                return sendingPacket.serialize();
+            } catch (HuaweiPacket.CryptoException e) {
+                throw new RequestCreationException(e);
+            }
+        }
         return null;
     }
 
@@ -235,14 +248,14 @@ public class Request {
         } catch (HuaweiPacket.ParseException e) {
             LOG.error("Parse TLV exception", e);
             if (finalizeReq != null)
-                finalizeReq.handleException(new ResponseParseException("Parse TLV exception", e));
+                finalizeReq.handleException(this, new ResponseParseException("Parse TLV exception", e));
             return;
         }
         try {
             processResponse();
         } catch (ResponseParseException e) {
             if (finalizeReq != null)
-                finalizeReq.handleException(e);
+                finalizeReq.handleException(this, e);
             return;
         }
         handleNext();
@@ -256,7 +269,7 @@ public class Request {
                 GB.toast(supportProvider.getContext(), "nextRequest failed", Toast.LENGTH_SHORT, GB.ERROR, e);
                 LOG.error("Next request failed", e);
                 if (finalizeReq != null)
-                    finalizeReq.handleException(new ResponseParseException("Next request failed", e));
+                    finalizeReq.handleException(this, new ResponseParseException("Next request failed", e));
                 return;
             }
         }
@@ -335,12 +348,12 @@ public class Request {
 
     private void builderWait(int millis) {
         if (!this.supportProvider.isBLE())
-            this.builderBr.wait(millis);
+            this.builderBr.sleep(millis);
         else
-            this.builderLe.wait(millis);
+            this.builderLe.sleep(millis);
     }
 
-    private void performConnected() throws IOException {
+    private void performConnected() {
         LOG.debug("Perform connected");
 
         // Start the timeout timer
@@ -348,9 +361,9 @@ public class Request {
             handler.postDelayed(this.timeoutRunner, this.timeout);
 
         if (!this.supportProvider.isBLE()) {
-            builderBr.queueConnected();
+            builderBr.queue();
         } else {
-            builderLe.queueConnected();
+            builderLe.queue();
         }
     }
 

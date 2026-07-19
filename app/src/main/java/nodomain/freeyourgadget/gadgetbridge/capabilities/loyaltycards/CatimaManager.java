@@ -23,7 +23,6 @@ import static nodomain.freeyourgadget.gadgetbridge.activities.loyaltycards.Loyal
 import static nodomain.freeyourgadget.gadgetbridge.activities.loyaltycards.LoyaltyCardsSettingsConst.LOYALTY_CARDS_SYNC_STARRED;
 
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.widget.Toast;
 
 import org.slf4j.Logger;
@@ -39,6 +38,7 @@ import java.util.Set;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -68,10 +68,15 @@ public class CatimaManager {
         final String catimaPackage = prefs.getString(LOYALTY_CARDS_CATIMA_PACKAGE, installedCatimaPackages.get(0).toString());
         final CatimaContentProvider catima = new CatimaContentProvider(context, catimaPackage);
 
+        LOG.debug("Syncing loyalty cards from {}", catimaPackage);
+
         if (!catima.isCatimaCompatible()) {
             LOG.warn("Catima is not compatible");
             return;
         }
+
+        // FossWallet does not support starred sync
+        final boolean starredSupported = catimaPackage.contains("catima");
 
         final List<LoyaltyCard> cards = catima.getCards();
         final Map<String, List<Integer>> groupCards = catima.getGroupCards();
@@ -85,15 +90,21 @@ public class CatimaManager {
             }
         }
 
+        final Set<BarcodeFormat> supportedBarcodeFormats = gbDevice.getDeviceCoordinator().getSupportedBarcodeFormats(gbDevice);
+
         final ArrayList<LoyaltyCard> cardsToSync = new ArrayList<>();
         for (final LoyaltyCard card : cards) {
+            if (!supportedBarcodeFormats.contains(card.getBarcodeFormat())) {
+                LOG.debug("Ignoring card {} - unsupported barcode format {}", card.getId(), card.getBarcodeFormat());
+                continue;
+            }
             if (syncGroupsOnly && !cardsInGroupsToSync.contains(card.getId())) {
                 continue;
             }
             if (!syncArchived && card.isArchived()) {
                 continue;
             }
-            if (syncStarred && !card.isStarred()) {
+            if (starredSupported && syncStarred && !card.isStarred()) {
                 continue;
             }
             cardsToSync.add(card);
@@ -111,18 +122,10 @@ public class CatimaManager {
     public List<CharSequence> findInstalledCatimaPackages() {
         final List<CharSequence> installedCatimaPackages = new ArrayList<>();
         for (final String knownPackage : CatimaContentProvider.KNOWN_PACKAGES) {
-            if (isPackageInstalled(knownPackage)) {
+            if (AndroidUtils.isPackageInstalled(knownPackage)) {
                 installedCatimaPackages.add(knownPackage);
             }
         }
         return installedCatimaPackages;
-    }
-
-    private boolean isPackageInstalled(final String packageName) {
-        try {
-            return context.getPackageManager().getApplicationInfo(packageName, 0).enabled;
-        } catch (final PackageManager.NameNotFoundException e) {
-            return false;
-        }
     }
 }

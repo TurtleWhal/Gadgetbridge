@@ -1,4 +1,4 @@
-/*  Copyright (C) 2018-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+/*  Copyright (C) 2018-2026 Andreas Shimokawa, Arjan Schrijver, Carsten
     Pfeiffer, chklump, Damien Gaignon, José Rebelo, Maxim Baz, Petr Vaněk,
     Sebastian Kranz
 
@@ -21,6 +21,7 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.zetime;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.SharedPreferences;
+import android.os.Bundle;
 import android.widget.Toast;
 
 import org.slf4j.Logger;
@@ -74,6 +75,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.calendar.CalendarManager;
 
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_SYNC_CALENDAR;
 
+import androidx.annotation.Nullable;
 
 public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(ZeTimeDeviceSupport.class);
@@ -461,7 +463,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
 //        byte[] strength = {
 //                ZeTimeConstants.CMD_PREAMBLE,
 //                ZeTimeConstants.CMD_SHOCK_STRENGTH,
@@ -573,7 +575,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
             byte[] message = encodeCalendarEvent(body, calendarEvent.getBeginSeconds(), opcode);
             sendMsgToWatch(builder, message);
-            builder.wait(300); // Urgh, seems it is a general problem when sending data too fast
+            builder.sleep(300); // Urgh, seems it is a general problem when sending data too fast
 
             if (eventCount++ == 16) { // limit this to 16 for now
                 break;
@@ -755,7 +757,6 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 notification[5] = ZeTimeConstants.NOTIFICATION_SKYPE;
                 break;
             case CONVERSATIONS:
-            case RIOT:
             case SIGNAL:
             case WIRE:
             case TELEGRAM:

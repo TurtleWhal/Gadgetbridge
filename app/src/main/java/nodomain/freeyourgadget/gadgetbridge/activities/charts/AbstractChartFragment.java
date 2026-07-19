@@ -1,5 +1,6 @@
-/*  Copyright (C) 2015-2024 Andreas Shimokawa, Carsten Pfeiffer, Daniele
-    Gobbetti, Dikay900, José Rebelo, Pavel Elagin, Petr Vaněk, walkjivefly
+/*  Copyright (C) 2015-2026 Andreas Shimokawa, Carsten Pfeiffer, Daniele
+    Gobbetti, Dikay900, José Rebelo, Pavel Elagin, Petr Vaněk, walkjivefly,
+    Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -24,6 +25,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.format.DateUtils;
 import android.view.View;
 
@@ -47,7 +49,9 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBFragment;
 import nodomain.freeyourgadget.gadgetbridge.database.DBAccess;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
+import nodomain.freeyourgadget.gadgetbridge.devices.GenericMetricSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.MetricSample;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 
 /**
@@ -82,6 +86,8 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
             AbstractChartFragment.this.onReceive(context, intent);
         }
     };
+
+    private final Handler loadingHandler = new Handler();
 
     private boolean mChartDirty = true;
     private AsyncTask refreshTask;
@@ -140,6 +146,7 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
 
     @Override
     public void onDestroy() {
+        loadingHandler.removeCallbacksAndMessages(null);
         super.onDestroy();
         LocalBroadcastManager.getInstance(requireActivity()).unregisterReceiver(mReceiver);
     }
@@ -333,11 +340,13 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
         ChartsHost chartsHost = getChartsHost();
         if (chartsHost != null) {
             if (chartsHost.getDevice() != null) {
+                // Delay the loading slightly to prevent quick flashes on fast loading
+                loadingHandler.postDelayed(() -> chartsHost.setLoading(true), 300L);
                 mChartDirty = false;
                 if (refreshTask != null && refreshTask.getStatus() != AsyncTask.Status.FINISHED) {
                     refreshTask.cancel(true);
                 }
-                refreshTask = createRefreshTask("Visualizing data", getActivity()).execute();
+                refreshTask = createRefreshTask("Visualizing data", getActivity()).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }
     }
@@ -351,7 +360,7 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
         private D chartsData;
 
         public RefreshTask(final String task, final Context context) {
-            super(task, context);
+            super(task, context, false);
         }
 
         @Override
@@ -372,6 +381,10 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
                 LOG.info("Not rendering charts because activity is not available anymore");
                 return;
             }
+
+            loadingHandler.removeCallbacksAndMessages(null);
+            getChartsHost().setLoading(false);
+
             if (getTaskError() != null) {
                 // Async task failed - we will have no data, so avoid NPE crashes
                 // a log + toast were already displayed by the DBAccess class
@@ -411,5 +424,10 @@ public abstract class AbstractChartFragment<D extends ChartsData> extends Abstra
         } else {
             getChartsHost().setDateInfo(DateTimeUtils.formatDateRange(from, to, dateFlags));
         }
+    }
+
+    public boolean supportsMetrics(MetricSample.Metric metric) {
+        final GBDevice device = getChartsHost().getDevice();
+        return GenericMetricSampleProvider.supportsMetrics(device, metric);
     }
 }

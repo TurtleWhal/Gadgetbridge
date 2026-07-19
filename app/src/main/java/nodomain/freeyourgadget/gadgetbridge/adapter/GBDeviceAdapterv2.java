@@ -1,4 +1,4 @@
-/*  Copyright (C) 2016-2024 Andreas Shimokawa, Arjan Schrijver, Carsten
+/*  Copyright (C) 2016-2026 Andreas Shimokawa, Arjan Schrijver, Carsten
     Pfeiffer, Damien Gaignon, Daniel Dakhno, Daniele Gobbetti, Davis Mosenkovs,
     fparri, José Rebelo, mamucho, maxirnilian, mkusnierz, Petr Vaněk, Taavi
     Eomäe
@@ -87,6 +87,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -99,8 +100,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.DeviceDeleteActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.WorkoutListActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.BatteryInfoActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.ConfigureAlarms;
@@ -127,7 +130,6 @@ import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
 import nodomain.freeyourgadget.gadgetbridge.model.DailyTotals;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
-import nodomain.freeyourgadget.gadgetbridge.util.BondingUtil;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.FormatUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
@@ -477,7 +479,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         );
 
         //fetch activity data
-        holder.fetchActivityDataBox.setVisibility((device.isInitialized() && coordinator.supportsActivityDataFetching(device)) ? View.VISIBLE : View.GONE);
+        holder.fetchActivityDataBox.setVisibility((device.isInitialized() && coordinator.supportsDataFetching(device)) ? View.VISIBLE : View.GONE);
         holder.fetchActivityData.setOnClickListener(new View.OnClickListener()
 
                                                     {
@@ -552,7 +554,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         );
 
         //show graphs
-        holder.showActivityGraphs.setVisibility(coordinator.supportsActivityTracking(device) ? View.VISIBLE : View.GONE);
+        holder.showActivityGraphs.setVisibility(coordinator.supportsCharts(device) ? View.VISIBLE : View.GONE);
         holder.showActivityGraphs.setOnClickListener(new View.OnClickListener()
 
                                                      {
@@ -567,7 +569,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         );
 
         //show activity tracks
-        holder.showActivityTracks.setVisibility(coordinator.supportsActivityTracks(device) ? View.VISIBLE : View.GONE);
+        holder.showActivityTracks.setVisibility(coordinator.supportsRecordedActivities(device) ? View.VISIBLE : View.GONE);
         holder.showActivityTracks.setOnClickListener(new View.OnClickListener()
                                                      {
                                                          @Override
@@ -607,7 +609,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                                                      new MaterialAlertDialogBuilder(context)
                                                              .setCancelable(true)
                                                              .setTitle(context.getString(R.string.controlcenter_find_device))
-                                                             .setMessage(context.getString(R.string.find_lost_device_message, device.getName()))
+                                                             .setMessage(context.getString(R.string.find_lost_device_message, device.getAliasOrName()))
                                                              .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
                                                                  @Override
                                                                  public void onClick(DialogInterface dialog, int which) {
@@ -634,7 +636,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
 
                                                                  }
                                                              })
-                                                             .setNegativeButton(R.string.Cancel, new DialogInterface.OnClickListener() {
+                                                             .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                                                                  @Override
                                                                  public void onClick(DialogInterface dialog, int which) {
                                                                      // do nothing
@@ -773,6 +775,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                                             .setTitle(R.string.pref_invalid_frequency_title)
                                             .setMessage(R.string.pref_invalid_frequency_message)
                                             .setNeutralButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                                @Override
                                                 public void onClick(DialogInterface dialog, int which) {
                                                 }
                                             })
@@ -784,7 +787,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                                 }
                             }
                         });
-                builder.setNegativeButton(context.getResources().getString(R.string.Cancel), new DialogInterface.OnClickListener() {
+                builder.setNegativeButton(context.getResources().getString(R.string.cancel), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         dialog.cancel();
@@ -856,6 +859,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                             .setMessage(R.string.controlcenter_power_off_confirm_description)
                             .setIcon(R.drawable.ic_power_settings_new)
                             .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                @Override
                                 public void onClick(final DialogInterface dialog, final int whichButton) {
                                     GBApplication.deviceService(device).onPowerOff();
                                 }
@@ -885,7 +889,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
             }
 
             final String label = action.getLabel(device, context);
-            if (!StringUtils.isEmpty(label)) {
+            if (!StringUtils.isNullOrEmpty(label)) {
                 holder.customActions[i].label.setVisibility(View.VISIBLE);
                 holder.customActions[i].label.setText(label);
             } else {
@@ -916,6 +920,9 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         final boolean detailsShown = expandedDeviceAddress.equals(device.getAddress());
         boolean showInfoIcon = device.hasDeviceInfos() && !device.isBusy();
 
+        if (BuildConfig.DEBUG) {
+            menu.getMenu().findItem(R.id.controlcenter_device_submenu_test_new_function).setVisible(deviceConnected);
+        }
         menu.getMenu().findItem(R.id.controlcenter_device_submenu_connect).setVisible(!deviceConnected);
         menu.getMenu().findItem(R.id.controlcenter_device_submenu_disconnect).setVisible(deviceConnected);
         menu.getMenu().findItem(R.id.controlcenter_device_submenu_show_details).setEnabled(showInfoIcon);
@@ -938,6 +945,12 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                         GBApplication.deviceService(device).disconnect();
                     }
                     removeFromLastDeviceAddressesPref(device);
+                    return true;
+                } else if (itemId == R.id.controlcenter_device_submenu_test_new_function) {
+                    if (device.isInitialized()) {
+                        GBApplication.deviceService(device).onTestNewFunction(null);
+                        showTransientSnackbar(R.string.controlcenter_test_new_function);
+                    }
                     return true;
                 } else if (itemId == R.id.controlcenter_device_submenu_set_alias) {
                     showSetAliasDialog(device);
@@ -982,11 +995,11 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
     private void showRemoveDeviceDialog(final GBDevice device) {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context)
                 .setCancelable(true)
-                .setTitle(context.getString(R.string.controlcenter_delete_device_name, device.getName()))
+                .setTitle(context.getString(R.string.controlcenter_delete_device_name, device.getAliasOrName()))
                 .setMessage(R.string.controlcenter_delete_device_dialogmessage)
-                .setPositiveButton(R.string.Delete,
+                .setPositiveButton(R.string.delete,
                         (dialog, which) -> removeDevice(device, true))
-                .setNegativeButton(R.string.Cancel, (dialog, which) -> {});
+                .setNegativeButton(R.string.cancel, (dialog, which) -> {});
 
         if (deviceHasFiles(device)) {
             builder.setNeutralButton(R.string.delete_device_and_retain_files,
@@ -996,19 +1009,10 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
     }
 
     private void removeDevice(GBDevice device, boolean deleteFiles) {
-        try {
-            DeviceCoordinator coordinator = device.getDeviceCoordinator();
-            coordinator.deleteDevice(device, deleteFiles);
-            BondingUtil.Unpair(context, device.getAddress());
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                removeDynamicShortcut(device);
-            }
-        } catch (Exception ex) {
-            GB.toast(context, context.getString(R.string.error_deleting_device, ex.getLocalizedMessage()), Toast.LENGTH_LONG, GB.ERROR, ex);
-        } finally {
-            Intent refreshIntent = new Intent(DeviceManager.ACTION_REFRESH_DEVICELIST);
-            LocalBroadcastManager.getInstance(context).sendBroadcast(refreshIntent);
-        }
+        final Intent intent = new Intent(context, DeviceDeleteActivity.class);
+        intent.putExtra(DeviceDeleteActivity.EXTRA_DEVICE, device);
+        intent.putExtra(DeviceDeleteActivity.EXTRA_DELETE_FILES, deleteFiles);
+        context.startActivity(intent);
     }
 
     private boolean deviceHasFiles(final GBDevice device) {
@@ -1102,6 +1106,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         deviceListSpinner.setAdapter(deviceListAdapter);
 
         deviceListSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 SpinnerWithIconItem selectedItem = (SpinnerWithIconItem) parent.getItemAtPosition(pos);
                 int folderId = selectedItem.getId().intValue();
@@ -1154,7 +1159,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                         }
                     }
                 })
-                .setNegativeButton(R.string.Cancel, new DialogInterface.OnClickListener() {
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                     }
@@ -1221,7 +1226,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                         }
                     }
                 })
-                .setNegativeButton(R.string.Cancel, new DialogInterface.OnClickListener() {
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         // do nothing
@@ -1460,14 +1465,15 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         int sleepGoalMinutes = activityUser.getSleepDurationGoal();
         int distanceGoal = activityUser.getDistanceGoalMeters() * 100;
         int stepLength = activityUser.getStepLengthCm();
+        int distanceForChart = distanceCm > 0 ? distanceCm : steps * stepLength;
         double distanceMeters = (distanceCm > 0 ? distanceCm : steps * stepLength) * 0.01;
         String distanceFormatted = FormatUtils.getFormattedDistanceLabel(distanceMeters);
 
         setUpChart(holder.TotalStepsChart);
-        setChartsData(holder.TotalStepsChart, steps, stepGoal, context.getString(R.string.steps), String.valueOf(steps), context);
+        setChartsData(holder.TotalStepsChart, steps, stepGoal, context.getString(R.string.steps), NumberFormat.getInstance().format(steps), context);
 
         setUpChart(holder.TotalDistanceChart);
-        setChartsData(holder.TotalDistanceChart, steps * stepLength, distanceGoal, context.getString(R.string.distance), distanceFormatted, context);
+        setChartsData(holder.TotalDistanceChart, distanceForChart, distanceGoal, context.getString(R.string.distance), distanceFormatted, context);
 
         setUpChart(holder.SleepTimeChart);
         setChartsData(holder.SleepTimeChart, sleep, sleepGoalMinutes, context.getString(R.string.prefs_activity_in_device_card_sleep_title), String.format("%1s", getHM(sleep)), context);
@@ -1481,7 +1487,7 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
         Hashtable<PieChart, Pair<Boolean, Integer>> activitiesStatusMiniCharts = new Hashtable<>();
         activitiesStatusMiniCharts.put(holder.TotalStepsChart, new Pair<>(showActivitySteps && steps > 0, ActivityChartsActivity.getChartsTabIndex("stepsweek", device, context)));
         activitiesStatusMiniCharts.put(holder.SleepTimeChart, new Pair<>(showActivitySleep && sleep > 0, ActivityChartsActivity.getChartsTabIndex("sleep", device, context)));
-        activitiesStatusMiniCharts.put(holder.TotalDistanceChart, new Pair<>(showActivityDistance && steps > 0, ActivityChartsActivity.getChartsTabIndex("activity", device, context)));
+        activitiesStatusMiniCharts.put(holder.TotalDistanceChart, new Pair<>(showActivityDistance && distanceForChart > 0, ActivityChartsActivity.getChartsTabIndex("activity", device, context)));
 
         for (Map.Entry<PieChart, Pair<Boolean, Integer>> miniCharts : activitiesStatusMiniCharts.entrySet()) {
             PieChart miniChart = miniCharts.getKey();
@@ -1586,13 +1592,6 @@ public class GBDeviceAdapterv2 extends ListAdapter<GBDevice, GBDeviceAdapterv2.V
                 .setIcon(Icon.createWithResource(context, coordinator.getDefaultIconResource()))
                 .build()
         );
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.R)
-    void removeDynamicShortcut(GBDevice device) {
-        final ShortcutManager shortcutManager = (ShortcutManager) context.getApplicationContext().getSystemService(Context.SHORTCUT_SERVICE);
-
-        shortcutManager.removeDynamicShortcuts(Collections.singletonList(device.getAddress()));
     }
 
     /**

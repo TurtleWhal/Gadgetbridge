@@ -1,4 +1,4 @@
-/*  Copyright (C) 2020-2024 Andreas Shimokawa
+/*  Copyright (C) 2020-2026 Andreas Shimokawa, Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -16,6 +16,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -32,7 +35,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.workout.Workout;
 
 public interface ActivitySummaryParser {
     /**
-     * Re-parse an existing {@link BaseActivitySummary}, updating it from the existing binary data.
+     * Reparse an existing {@link BaseActivitySummary}, updating it from the existing binary data.
      *
      * @param summary    the existing {@link BaseActivitySummary}. It's not guaranteed that it
      *                   contains any raw binary data.
@@ -56,14 +59,22 @@ public interface ActivitySummaryParser {
 
     static BaseActivitySummary findOrCreateBaseActivitySummary(final DaoSession session,
                                                                final GBDevice gbDevice,
-                                                               final int timestampSeconds) {
+                                                               final long timestampSeconds) {
         final Device device = DBHelper.getDevice(gbDevice, session);
         return findOrCreateBaseActivitySummary(session, device.getId(), timestampSeconds);
     }
 
-    static BaseActivitySummary findOrCreateBaseActivitySummary(final DaoSession session,
-                                                               final long deviceId,
-                                                               final int timestampSeconds) {
+    static BaseActivitySummary findBaseActivitySummary(@NonNull final DaoSession session,
+                                                       @NonNull final GBDevice gbDevice,
+                                                       final long timestampSeconds) {
+        final Device device = DBHelper.getDevice(gbDevice, session);
+        return findBaseActivitySummary(session, device.getId(), timestampSeconds);
+    }
+
+    @Nullable
+    static BaseActivitySummary findBaseActivitySummary(@NonNull final DaoSession session,
+                                                       final long deviceId,
+                                                       final long timestampSeconds) {
         final User user = DBHelper.getUser(session);
         final BaseActivitySummaryDao summaryDao = session.getBaseActivitySummaryDao();
         final QueryBuilder<BaseActivitySummary> qb = summaryDao.queryBuilder();
@@ -72,18 +83,38 @@ public interface ActivitySummaryParser {
         qb.where(BaseActivitySummaryDao.Properties.UserId.eq(user.getId()));
         final List<BaseActivitySummary> summaries = qb.build().list();
         if (summaries.isEmpty()) {
-            final BaseActivitySummary summary = new BaseActivitySummary();
-            summary.setStartTime(new Date(timestampSeconds * 1000L));
-            summary.setDeviceId(deviceId);
-            summary.setUser(user);
+            return null;
+        }
+        return summaries.get(0);
+    }
 
-            // These will be set later, once we parse the summary
-            summary.setEndTime(new Date(timestampSeconds * 1000L));
-            summary.setActivityKind(ActivityKind.UNKNOWN.getCode());
+    @NonNull
+    static BaseActivitySummary createBaseActivitySummary(@NonNull final DaoSession session,
+                                                               final long deviceId,
+                                                               final long timestampSeconds) {
+        final User user = DBHelper.getUser(session);
+        final BaseActivitySummary summary = new BaseActivitySummary();
+        summary.setStartTime(new Date(timestampSeconds * 1000L));
+        summary.setDeviceId(deviceId);
+        summary.setUser(user);
 
-            return summary;
+        // These will be set later, once we parse the summary
+        summary.setEndTime(new Date(timestampSeconds * 1000L));
+        summary.setActivityKind(ActivityKind.UNKNOWN.getCode());
+
+        return summary;
+    }
+
+    @NonNull
+    static BaseActivitySummary findOrCreateBaseActivitySummary(@NonNull final DaoSession session,
+                                                               final long deviceId,
+                                                               final long timestampSeconds) {
+        final BaseActivitySummary existingSummary = findBaseActivitySummary(session, deviceId, timestampSeconds);
+
+        if (existingSummary != null) {
+            return existingSummary;
         }
 
-        return summaries.get(0);
+        return createBaseActivitySummary(session, deviceId, timestampSeconds);
     }
 }

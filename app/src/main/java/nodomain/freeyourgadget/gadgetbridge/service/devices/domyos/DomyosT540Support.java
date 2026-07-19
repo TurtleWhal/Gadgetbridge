@@ -1,4 +1,4 @@
-/*  Copyright (C) 2020-2024 Andreas Shimokawa, Arjan Schrijver
+/*  Copyright (C) 2020-2026 Andreas Shimokawa, Arjan Schrijver
 
     This file is part of Gadgetbridge.
 
@@ -19,6 +19,9 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.domyos;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
+import android.os.Bundle;
+
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -168,7 +171,7 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
 
     void writeChunked(TransactionBuilder builder, byte[] data) {
         builder.writeChunkedData(getCharacteristic(UUUD_CHARACTERISTICS_WRITE), data, 20)
-                .wait(100);
+                .sleep(100);
     }
 
     private byte getChecksum(byte[] command) {
@@ -246,7 +249,7 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
                         start_time = (int) (System.currentTimeMillis() / 1000);
                     }
                 }
-                builder.wait(200);
+                builder.sleep(200);
                 writeChunked(builder, COMMAND_REQUEST_DATA);
 
                 int time = (int) (System.currentTimeMillis() / 1000);
@@ -283,7 +286,7 @@ public class DomyosT540Support extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onTestNewFunction() {
+    public void onTestNewFunction(@Nullable Bundle options) {
         TransactionBuilder builder = createTransactionBuilder("xxx");
         //setDisplayValues(builder, 1, 10, 10, 10, 10);
         //writeChunked(builder, COMMAND_SET_DISPLAY);

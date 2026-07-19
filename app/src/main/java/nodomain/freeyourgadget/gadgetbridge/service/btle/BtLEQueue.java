@@ -65,8 +65,9 @@ import nodomain.freeyourgadget.gadgetbridge.util.GB;
  */
 @SuppressLint("MissingPermission") // if we're using this, we have bluetooth permissions
 public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
-    private static final Logger LOG = LoggerFactory.getLogger(BtLEQueue.class);
+    private final Logger LOG;
     private static final byte[] EMPTY = new byte[0];
+    private static final AtomicLong QUEUE_COUNTER = new AtomicLong(0L);
     private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
 
     private final Object mGattMonitor;
@@ -97,11 +98,12 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
     private final Thread mDispatchThread;
     private final HandlerThread mReceiverThread;
     private final Handler mReceiverHandler;
+    private final Handler mGattConnectTimeoutHandler;
 
     private class DispatchRunnable implements Runnable {
         @Override
         public void run() {
-            LOG.debug("started thread {}", Thread.currentThread().getName());
+            LOG.debug("started thread {} for {}", Thread.currentThread().getName(), mGbDevice.getAddress());
             boolean crashed = false;
 
             while (!mDisposed.get() && !crashed) {
@@ -213,9 +215,15 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
             }
             LOG.debug("finished thread {}", Thread.currentThread().getName());
         }
-    };
+    }
 
     BtLEQueue(GBDevice gbDevice, Set<? extends BluetoothGattService> supportedServerServices, AbstractBTLEDeviceSupport deviceSupport) {
+        final long threadIdx = THREAD_COUNTER.getAndIncrement();
+
+        LOG = LoggerFactory.getLogger(BtLEQueue.class.getName() + "(" + QUEUE_COUNTER.getAndIncrement() + ")");
+
+        LOG.debug("Initializing queue for {} with threadIdx={}", gbDevice.getAddress(), threadIdx);
+
         // 1) apply all settings
         mBluetoothAdapter = deviceSupport.getBluetoothAdapter();
         mContext = deviceSupport.getContext();
@@ -227,8 +235,7 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         mSupportedServerServices = supportedServerServices;
         // #5414 - some older android versions misbehave with the new constructor
         connectionForceLegacyGatt = deviceSupport.getDevicePrefs().getConnectionForceLegacyGatt();
-
-        long threadIdx = THREAD_COUNTER.getAndIncrement();
+        mGattConnectTimeoutHandler = new Handler(Looper.getMainLooper());
 
         // 2) create new objects
         mDisposed = new AtomicBoolean(false);
@@ -243,12 +250,12 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         mDispatchThread.start();
 
         // 4) handler thread ensure serial processing and informative thread name in the log
-        if(GBApplication.isRunningOreoOrLater() && !connectionForceLegacyGatt){
+        if (GBApplication.isRunningOreoOrLater() && !connectionForceLegacyGatt) {
             mReceiverThread = new HandlerThread("BtLEQueue_" + threadIdx + "_in");
             mReceiverThread.setUncaughtExceptionHandler(this);
             mReceiverThread.start();
             mReceiverHandler = new Handler(mReceiverThread.getLooper());
-            mReceiverHandler.post(() -> LOG.debug("started thread {}", Thread.currentThread().getName()));
+            mReceiverHandler.post(() -> LOG.debug("started thread {} for {}", Thread.currentThread().getName(), gbDevice.getAddress()));
         } else {
             mReceiverThread = null;
             mReceiverHandler = null;
@@ -318,6 +325,16 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         mPauseTransaction = false;
 
         LOG.info("Attempting to connect to {}", mGbDevice.getName());
+
+        final boolean lowPower = GBApplication.getDevicePrefs(mGbDevice).getConnectionPriorityLowPower();
+        // 30 seconds: the longest allowed ATT transaction timeout
+        // 32 seconds: the longest allowed BLE connection timeout for an established  connection (supervision timeout)
+        // => wait a few more seconds for establishing a new connection
+        mGattConnectTimeoutHandler.postDelayed(() -> {
+            LOG.warn("Timed out connecting to GATT for {}", mGbDevice.getName());
+            handleDisconnected(0x93 /* BluetoothGatt.GATT_CONNECTION_TIMEOUT */);
+        }, lowPower ? 45000L : 5000L);
+
         mBluetoothAdapter.cancelDiscovery();
         BluetoothDevice remoteDevice = mBluetoothAdapter.getRemoteDevice(mGbDevice.getAddress());
         if(!mSupportedServerServices.isEmpty()) {
@@ -341,7 +358,7 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         if (GBApplication.isRunningOreoOrLater() && !connectionForceLegacyGatt) {
             mBluetoothGatt = remoteDevice.connectGatt(mContext, false,
                     internalGattCallback, BluetoothDevice.TRANSPORT_LE,
-                    BluetoothDevice.PHY_LE_CODED_MASK, mReceiverHandler);
+                    mGbDevice.getDeviceCoordinator().getBlePhyMask(), mReceiverHandler);
         } else {
             mBluetoothGatt = remoteDevice.connectGatt(mContext, false,
                     internalGattCallback, BluetoothDevice.TRANSPORT_LE);
@@ -357,7 +374,9 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
     }
 
     void disconnect() {
+        LOG.debug("disconnecting");
         synchronized (mGattMonitor) {
+            mGattConnectTimeoutHandler.removeCallbacksAndMessages(null);
             BluetoothGatt gatt = mBluetoothGatt;
             if (gatt != null) {
                 mBluetoothGatt = null;
@@ -387,6 +406,7 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         mPauseTransaction = false;
         mAbortTransaction = true;
         mAbortServerTransaction = true;
+        mGattConnectTimeoutHandler.removeCallbacksAndMessages(null);
         final CountDownLatch clientLatch = mWaitForActionResultLatch;
         if (clientLatch != null) {
             clientLatch.countDown();
@@ -397,16 +417,17 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         }
 
         boolean forceDisconnect;
-        switch(status){
+        //noinspection EnhancedSwitchMigration
+        switch(status) {
             case 0x81: // 0x81 129 GATT_INTERNAL_ERROR
             case 0x85: // 0x85 133 GATT_ERROR
                 // Bluetooth stack has a fundamental problem:
-            case BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION:
+            case 0x8: // BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION only on API 35
             case BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION:
             case BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION:
                 // a Bluetooth bonding / pairing issue
                 // some devices report AUTHORIZATION instead of TIMEOUT during connection setup
-            case BluetoothGatt.GATT_CONNECTION_TIMEOUT:
+            case 0x93: // BluetoothGatt.GATT_CONNECTION_TIMEOUT only on API 35
                 forceDisconnect = true;
                 break;
             default:
@@ -414,7 +435,14 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         }
 
         if (forceDisconnect) {
-            LOG.warn("unhealthy disconnect {} {}", mBluetoothGatt.getDevice().getAddress(),
+            // TODO: There is likely a race condition, the device and the gatt object should not be
+            // null at this point. For multi queue objects, this seems to break, don't remove this
+            // check.
+            BluetoothDevice device = null;
+            if (mBluetoothGatt != null) {
+                device = mBluetoothGatt.getDevice();
+            }
+            LOG.warn("unhealthy disconnect {} {}", device == null ?  "<UNKNOWN>" : device.getAddress(),
                     BleNamesResolver.getStatusString(status));
         } else if (mBluetoothGatt != null) {
             // try to reconnect immediately
@@ -483,8 +511,6 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
 
     /**
      * Adds a transaction to the end of the queue.
-     *
-     * @param transaction
      */
     void add(Transaction transaction) {
         LOG.debug("add: {}", transaction);
@@ -611,6 +637,7 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
             switch (newState) {
                 case BluetoothProfile.STATE_CONNECTED:
                     LOG.info("Connected to GATT server.");
+                    mGattConnectTimeoutHandler.removeCallbacksAndMessages(null);
                     setDeviceConnectionState(State.CONNECTED);
 
                     // discover services in the main thread (appears to fix Samsung connection problems)
@@ -724,7 +751,7 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
 
         @Override
         public void onCharacteristicRead(@NonNull BluetoothGatt gatt,
-                                         BluetoothGattCharacteristic characteristic,
+                                         @NonNull BluetoothGattCharacteristic characteristic,
                                          @NonNull byte[] value, int status) {
             if (LOG.isDebugEnabled()) {
                 String content = GB.hexdump(value);
@@ -756,7 +783,7 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         }
 
         @Override
-        public void onDescriptorRead(@NonNull BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status, @NonNull byte[] value) {
+        public void onDescriptorRead(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattDescriptor descriptor, int status, @NonNull byte[] value) {
             if (LOG.isDebugEnabled()) {
                 String content = GB.hexdump(value);
                 LOG.debug("descriptor read: {} {} - {}", descriptor.getUuid(),

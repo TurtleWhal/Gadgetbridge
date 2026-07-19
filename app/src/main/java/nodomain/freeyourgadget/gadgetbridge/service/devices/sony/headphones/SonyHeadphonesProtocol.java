@@ -1,4 +1,4 @@
-/*  Copyright (C) 2021-2024 José Rebelo
+/*  Copyright (C) 2021-2026 José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -17,11 +17,15 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones;
 
 import android.content.SharedPreferences;
+import android.os.Bundle;
+
+import androidx.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -35,8 +39,10 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePref
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AdaptiveVolumeControl;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AmbientSoundControl;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AmbientSoundControlButtonMode;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AudioLDAC;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AudioUpsampling;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.AutomaticPowerOff;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.ButtonFunctionNcAmbient;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.ButtonModes;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.EqualizerCustomBands;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.EqualizerPreset;
@@ -48,6 +54,10 @@ import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.VoiceN
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.SoundPosition;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.SurroundMode;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.TouchSensor;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.VoiceAssistant;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.CaptureVoiceDuringCall;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.ConnectTwoDevices;
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.ServiceLink;
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.WideAreaTap;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones.protocol.Request;
@@ -57,6 +67,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones.prot
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones.protocol.impl.v1.SonyProtocolImplV1;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones.protocol.impl.v2.SonyProtocolImplV2;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class SonyHeadphonesProtocol extends GBDeviceProtocol {
     private static final Logger LOG = LoggerFactory.getLogger(SonyHeadphonesProtocol.class);
@@ -78,6 +89,7 @@ public class SonyHeadphonesProtocol extends GBDeviceProtocol {
     public GBDeviceEvent[] decodeResponse(byte[] res) {
         final Message message = Message.fromBytes(res);
         if (message == null) {
+            LOG.warn("Failed to decode message from {}", GB.hexdump(res));
             return null;
         }
 
@@ -226,15 +238,53 @@ public class SonyHeadphonesProtocol extends GBDeviceProtocol {
             case DeviceSettingsPreferenceConst.PREF_SONY_EQUALIZER_BASS:
                 configRequest = protocolImpl.setEqualizerCustomBands(EqualizerCustomBands.fromPreferences(prefs));
                 break;
+            case DeviceSettingsPreferenceConst.PREF_SONY_AUDIO_HD:
+                configRequest = protocolImpl.setAudioLDAC(AudioLDAC.fromPreferences(prefs));
+                break;
+            case DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_FUNCTION_NC_AMBIENT:
+                configRequest = protocolImpl.setButtonFunctionNcAmbient(ButtonFunctionNcAmbient.fromPreferences(prefs));
+                    final Request rebootRequest = protocolImpl.reboot();
+                if (rebootRequest != null) {
+                    enqueueRequests(Collections.singletonList(rebootRequest));
+                }
+                break;
             case DeviceSettingsPreferenceConst.PREF_SONY_AUDIO_UPSAMPLING:
                 configRequest = protocolImpl.setAudioUpsampling(AudioUpsampling.fromPreferences(prefs));
                 break;
             case DeviceSettingsPreferenceConst.PREF_VOLUME:
                 configRequest = protocolImpl.setVolume(prefs.getInt(config, 15));
                 break;
-            case DeviceSettingsPreferenceConst.PREF_SONY_TOUCH_SENSOR:
-                configRequest = protocolImpl.setTouchSensor(TouchSensor.fromPreferences(prefs));
+            case DeviceSettingsPreferenceConst.PREF_SONY_TOUCH_SENSOR: {
+                final TouchSensor touchSensor = TouchSensor.fromPreferences(prefs);
+                if (!touchSensor.isEnabled() && protocolImpl instanceof SonyProtocolImplV2) {
+                    // When disabling the touch panel on V2, also disable Voice Assistant if active.
+                    // VA must be cleared first; touch sensor command is enqueued after.
+                    final VoiceAssistant currentVa = VoiceAssistant.fromPreferences(prefs);
+                    if (currentVa.getMode() == VoiceAssistant.Mode.DO_NOT_USE) {
+                        // Voice Assistant already off, send touch sensor command directly
+                        configRequest = protocolImpl.setTouchSensor(touchSensor);
+                        break;
+                    }
+                    configRequest = protocolImpl.setVoiceAssistant(
+                            new VoiceAssistant(VoiceAssistant.Mode.DO_NOT_USE));
+                    final List<Request> followUp = new ArrayList<>();
+                    if (currentVa.getMode() == VoiceAssistant.Mode.DIGITAL_ASSISTANT_GOOGLE
+                            || currentVa.getMode() == VoiceAssistant.Mode.AMAZON_ALEXA) {
+                        final Request vaRebootRequest = protocolImpl.reboot();
+                        if (vaRebootRequest != null) {
+                            followUp.add(vaRebootRequest);
+                        }
+                    }
+                    final Request touchRequest = protocolImpl.setTouchSensor(touchSensor);
+                    if (touchRequest != null) {
+                        followUp.add(touchRequest);
+                    }
+                    enqueueRequests(followUp);
+                } else {
+                    configRequest = protocolImpl.setTouchSensor(touchSensor);
+                }
                 break;
+            }
             case DeviceSettingsPreferenceConst.PREF_SONY_AUTOMATIC_POWER_OFF:
                 configRequest = protocolImpl.setAutomaticPowerOff(AutomaticPowerOff.fromPreferences(prefs));
                 break;
@@ -246,15 +296,37 @@ public class SonyHeadphonesProtocol extends GBDeviceProtocol {
             case DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_TRIPLE_TAP:
                 configRequest = protocolImpl.setQuickAccess(QuickAccess.fromPreferences(prefs));
                 break;
+            case DeviceSettingsPreferenceConst.PREF_SONY_VOICE_ASSISTANT_FUNCTION: {
+                final VoiceAssistant voiceAssistant = VoiceAssistant.fromPreferences(prefs);
+                configRequest = protocolImpl.setVoiceAssistant(voiceAssistant);
+                // A reboot is needed when switching FROM or TO Google/Alexa.
+                // Since the old preference is already overwritten at this point, always send
+                // the reboot to cover all transitions involving Google or Alexa.
+                final Request vaRebootRequest = protocolImpl.reboot();
+                if (vaRebootRequest != null) {
+                    enqueueRequests(Collections.singletonList(vaRebootRequest));
+                }
+                break;
+            }
             case DeviceSettingsPreferenceConst.PREF_SONY_PAUSE_WHEN_TAKEN_OFF:
                 configRequest = protocolImpl.setPauseWhenTakenOff(PauseWhenTakenOff.fromPreferences(prefs));
                 break;
             case DeviceSettingsPreferenceConst.PREF_SONY_NOTIFICATION_VOICE_GUIDE:
                 configRequest = protocolImpl.setVoiceNotifications(VoiceNotifications.fromPreferences(prefs));
                 break;
-            case DeviceSettingsPreferenceConst.PREF_SONY_CONNECT_TWO_DEVICES:
-                LOG.warn("Connection to two devices not implemented ('{}')", config);
-                return super.encodeSendConfiguration(config);
+            case DeviceSettingsPreferenceConst.PREF_SONY_NOTIFICATION_VOICE_GUIDE_VOLUME:
+                configRequest = protocolImpl.setVoiceNotificationsVolume(VoiceNotifications.fromPreferences(prefs));
+                break;
+            case DeviceSettingsPreferenceConst.PREF_SONY_CONNECT_TWO_DEVICES: {
+                final ConnectTwoDevices connectTwoDevices = ConnectTwoDevices.fromPreferences(prefs);
+                // Both ON and OFF: set WAT to same state first, then send fixed apply commit
+                final Request ctdRequest = protocolImpl.setConnectTwoDevices(connectTwoDevices);
+                if (ctdRequest != null) {
+                    enqueueRequests(Collections.singletonList(ctdRequest));
+                }
+                configRequest = protocolImpl.setWideAreaTap(new WideAreaTap(connectTwoDevices.isEnabled()));
+                break;
+            }
             case DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT:
                 configRequest = protocolImpl.setSpeakToChatEnabled(SpeakToChatEnabled.fromPreferences(prefs));
                 break;
@@ -269,6 +341,18 @@ public class SonyHeadphonesProtocol extends GBDeviceProtocol {
             case DeviceSettingsPreferenceConst.PREF_SONY_WIDE_AREA_TAP:
                 configRequest = protocolImpl.setWideAreaTap(WideAreaTap.fromPreferences(prefs));
                 break;
+            case DeviceSettingsPreferenceConst.PREF_SONY_CAPTURE_VOICE_DURING_CALL:
+                configRequest = protocolImpl.setCaptureVoiceDuringCall(CaptureVoiceDuringCall.fromPreferences(prefs));
+                break;
+            case DeviceSettingsPreferenceConst.PREF_SONY_SERVICE_LINK: {
+                final ServiceLink serviceLink = ServiceLink.fromPreferences(prefs);
+                final Request applyRequest = protocolImpl.applyServiceLink(serviceLink);
+                if (applyRequest != null) {
+                    enqueueRequests(Collections.singletonList(applyRequest));
+                }
+                configRequest = protocolImpl.setServiceLink(serviceLink);
+                break;
+            }
             default:
                 LOG.warn("Unknown config '{}'", config);
                 return super.encodeSendConfiguration(config);
@@ -285,7 +369,7 @@ public class SonyHeadphonesProtocol extends GBDeviceProtocol {
     }
 
     @Override
-    public byte[] encodeTestNewFunction() {
+    public byte[] encodeTestNewFunction(@Nullable Bundle options) {
         //return Request.fromHex(MessageType.COMMAND_1, "c40100").encode(sequenceNumber);
 
         return null;
@@ -298,6 +382,45 @@ public class SonyHeadphonesProtocol extends GBDeviceProtocol {
         }
 
         return super.encodePowerOff();
+    }
+
+    @Override
+    public byte[] encodeReset(final int flags) {
+        if ((flags & RESET_FLAGS_FACTORY_RESET) != 0) {
+            if (protocolImpl == null) {
+                LOG.error("No protocol implementation, ignoring factory reset request");
+                return super.encodeReset(flags);
+            }
+
+            final Request factoryResetRequest = protocolImpl.factoryReset();
+            if (factoryResetRequest == null) {
+                LOG.warn("Failed to encode factory reset request");
+                return super.encodeReset(flags);
+            }
+
+            pendingAcks++;
+
+            return factoryResetRequest.encode(sequenceNumber);
+        }
+
+        if ((flags & RESET_FLAGS_REBOOT) == 0) {
+            return super.encodeReset(flags);
+        }
+
+        if (protocolImpl == null) {
+            LOG.error("No protocol implementation, ignoring reboot request");
+            return super.encodeReset(flags);
+        }
+
+        final Request rebootRequest = protocolImpl.reboot();
+        if (rebootRequest == null) {
+            LOG.warn("Failed to encode reboot request");
+            return super.encodeReset(flags);
+        }
+
+        pendingAcks++;
+
+        return rebootRequest.encode(sequenceNumber);
     }
 
     public byte[] encodeAck(byte sequenceNumber) {

@@ -22,6 +22,7 @@ import android.app.Activity;
 import android.bluetooth.le.ScanFilter;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.ParcelUuid;
 
 import androidx.annotation.NonNull;
@@ -47,6 +48,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.HybridHRSpo2SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
@@ -94,7 +96,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return isFossilHybrid(device) && device.getState() == GBDevice.State.INITIALIZED;
     }
 
@@ -104,7 +106,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTracks(final GBDevice device) {
+    public boolean supportsRecordedActivities(final GBDevice device) {
         return isHybridHR(device);
     }
 
@@ -130,7 +132,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public InstallHandler findInstallHandler(Uri uri, Context context) {
+    public InstallHandler findInstallHandler(Uri uri, Bundle options, Context context) {
         if (isHybridHR()) {
             FossilHRInstallHandler installHandler = new FossilHRInstallHandler(uri, context);
             if (!installHandler.isValid()) {
@@ -184,17 +186,17 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public boolean supportsAppsManagement(final GBDevice device) {
-        return true;
+        return isHybridHR(device);
     }
 
     @Override
     public boolean supportsAppListFetching(final GBDevice device) {
-        return true;
+        return isHybridHR(device);
     }
 
     @Override
     public Class<? extends Activity> getAppsManagementActivity(final GBDevice device) {
-        return isHybridHR(device) ? AppManagerActivity.class : QHybridConfigActivity.class;
+        return isHybridHR(device) ? AppManagerActivity.class : null;
     }
 
     @Override
@@ -263,10 +265,18 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public DeviceSpecificSettings getDeviceSpecificSettings(final GBDevice device) {
         final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
+        // Q Hybrid watches, without eInk screen
         if (!isHybridHR(device)) {
-            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_fossilqhybrid_legacy);
+            final List<Integer> generic = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.GENERIC);
+            generic.add(R.xml.devicesettings_qhybrid);
+            generic.add(R.xml.devicesettings_fossilhybridhr_vibration);
+            generic.add(R.xml.devicesettings_fossilhybridhr_calibration);
+            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_qhybrid_notifications);
+            final List<Integer> developer = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
+            developer.add(R.xml.devicesettings_fossilhybrids_dev);
             return deviceSpecificSettings;
         }
+        // Gen 1 and Gen 6 HR Hybrid watches, with eInk screen
         final List<Integer> generic = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.GENERIC);
         // Firmware version specific settings
         final Version firmwareVersion = getFirmwareVersion(device);
@@ -293,6 +303,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
         notifications.add(R.xml.devicesettings_transliteration);
         notifications.add(R.xml.devicesettings_custom_deviceicon);
         final List<Integer> developer = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
+        developer.add(R.xml.devicesettings_fossilhybrids_dev);
         developer.add(R.xml.devicesettings_fossilhybridhr_dev);
         return deviceSpecificSettings;
     }
@@ -310,9 +321,13 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public int[] getSupportedDeviceSpecificAuthenticationSettings() {
-        return new int[]{
-                R.xml.devicesettings_pairingkey
-        };
+        if (isHybridHR()) {
+            return new int[]{
+                    R.xml.devicesettings_pairingkey
+            };
+        } else {
+            return new int[0];
+        }
     }
 
     @Nullable
@@ -332,7 +347,7 @@ public class QHybridCoordinator extends AbstractBLEDeviceCoordinator {
         return false;
     }
 
-    private boolean isHybridHR(GBDevice device){
+    public boolean isHybridHR(GBDevice device){
         if(!isFossilHybrid(device)) return false;
         return device.getName().startsWith("Hybrid HR") || device.getName().equals("Fossil Gen. 6 Hybrid");
     }

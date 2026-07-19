@@ -1,4 +1,4 @@
-/*  Copyright (C) 2015-2025 Andreas Böhler, Arjan Schrijver, Carsten Pfeiffer,
+/*  Copyright (C) 2015-2026 Andreas Böhler, Arjan Schrijver, Carsten Pfeiffer,
     Daniel Dakhno, Daniele Gobbetti, Johannes Krude, JohnnySun, José Rebelo,
     Thomas Kuehne
 
@@ -44,7 +44,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.actions.CheckInitializedAction;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.AbstractBleProfile;
@@ -81,7 +80,9 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
     public AbstractBTLEMultiDeviceSupport(Logger logger, int deviceCount) {
         this.logger = logger;
         this.deviceCount = deviceCount;
+        //noinspection unchecked
         mSupportedServices = new Set[deviceCount];
+        //noinspection unchecked
         mSupportedServerServices = new Set[deviceCount];
         mMTUs = new int[deviceCount];
         for (int i = 0; i < deviceCount; i++) {
@@ -92,14 +93,11 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         mQueues = new BtLEQueue[deviceCount];
         bleApis = new BleIntentApi[deviceCount];
         devices = new GBDevice[deviceCount];
+        //noinspection unchecked
         mAvailableCharacteristics = new Map[deviceCount];
         if (logger == null) {
             throw new IllegalArgumentException("logger must not be null");
         }
-    }
-
-    public AbstractBTLEMultiDeviceSupport(Logger logger) {
-        this(logger, 1);
     }
 
     private void validateDeviceIndex(int deviceIdx) {
@@ -247,7 +245,8 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
      *
      * @return the same builder as passed as the argument
      */
-    protected TransactionBuilder initializeDevice(TransactionBuilder builder, int deviceIdx) {
+    @NonNull
+    protected TransactionBuilder initializeDevice(@NonNull TransactionBuilder builder, int deviceIdx) {
         return builder;
     }
 
@@ -269,7 +268,8 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         }
     }
 
-    public TransactionBuilder createTransactionBuilder(String taskName, int deviceIdx) {
+    @NonNull
+    public TransactionBuilder createTransactionBuilder(@NonNull String taskName, int deviceIdx) {
         return new TransactionBuilder(taskName + "_" + deviceIdx, this, deviceIdx);
     }
 
@@ -292,7 +292,8 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
      * @see TransactionBuilder#queueConnected()
      * @see #initializeDevice(TransactionBuilder, int)
      */
-    public TransactionBuilder performInitialized(String taskName, int deviceIdx)
+    @NonNull
+    public TransactionBuilder performInitialized(@NonNull String taskName, int deviceIdx)
             throws IOException {
         if (devices[deviceIdx] == null) {
             throw new IllegalArgumentException(
@@ -349,7 +350,7 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
      */
     @Override
     @Nullable
-    public BluetoothGattCharacteristic getCharacteristic(UUID uuid, int deviceIdx) {
+    public BluetoothGattCharacteristic getCharacteristic(@Nullable UUID uuid, int deviceIdx) {
         validateDeviceIndex(deviceIdx);
 
         synchronized (characteristicsMonitor) {
@@ -429,14 +430,6 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         return mSupportedServices[deviceIdx];
     }
 
-    /**
-     * Utility method that may be used to log incoming messages when we don't know how to deal with them yet.
-     */
-    public void logMessageContent(byte[] value) {
-        logger.info("RECEIVED DATA WITH LENGTH: {}", (value != null) ? value.length : "(null)");
-        Logging.logBytes(logger, value);
-    }
-
     // default implementations of event handler methods (gatt callbacks)
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -468,10 +461,13 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
 
         initializeDevice(builder, deviceIdx);
 
-        boolean lowPower = getDevicePrefs().getConnectionPriorityLowPower();
-        // have to explicitly request normal ("balanced") as some Android devices remember the last
-        // request. Else low power would become a set once option.
-        builder.requestConnectionPriority(lowPower ? BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER : BluetoothGatt.CONNECTION_PRIORITY_BALANCED);
+        if (getDevice().getDeviceCoordinator().supportsConnectionPriority()) {
+            final boolean lowPower = getDevicePrefs().getConnectionPriorityLowPower();
+            // have to explicitly request normal ("balanced") as some Android devices remember the last
+            // request. Else low power would become a set once option.
+            // #5054 / #5956 - However, on some devices requesting it altogether can make the connection fail
+            builder.requestConnectionPriority(lowPower ? BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER : BluetoothGatt.CONNECTION_PRIORITY_BALANCED);
+        }
 
         builder.queue();
     }

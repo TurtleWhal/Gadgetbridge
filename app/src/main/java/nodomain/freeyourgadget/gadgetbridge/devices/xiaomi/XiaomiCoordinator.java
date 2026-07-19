@@ -22,6 +22,7 @@ import android.app.Activity;
 import android.bluetooth.le.ScanFilter;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.ParcelUuid;
 
 import androidx.annotation.NonNull;
@@ -55,6 +56,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.BaseActivitySummaryDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
+import nodomain.freeyourgadget.gadgetbridge.entities.XiaomiActivityFileDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.XiaomiActivitySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.XiaomiDailySummarySampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.XiaomiManualSampleDao;
@@ -63,6 +65,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.XiaomiSleepTimeSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.model.BodyEnergySample;
 import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
 import nodomain.freeyourgadget.gadgetbridge.model.PaiSample;
@@ -74,6 +77,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiUuids;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiPreferences;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.XiaomiSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.XiaomiActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.impl.WorkoutSummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -115,16 +119,17 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Nullable
     @Override
-    public InstallHandler findInstallHandler(final Uri uri, final Context context) {
+    public InstallHandler findInstallHandler(final Uri uri, final Bundle options, final Context context) {
         final XiaomiInstallHandler handler = new XiaomiInstallHandler(uri, context);
         return handler.isValid() ? handler : null;
     }
 
     @Override
     public Map<AbstractDao<?, ?>, Property> getAllDeviceDao(@NonNull final DaoSession session) {
-        Map<AbstractDao<?, ?>, Property> map = new HashMap<>(6);
+        Map<AbstractDao<?, ?>, Property> map = new HashMap<>(7);
         map.put(session.getBaseActivitySummaryDao(), BaseActivitySummaryDao.Properties.DeviceId);
         map.put(session.getXiaomiActivitySampleDao(), XiaomiActivitySampleDao.Properties.DeviceId);
+        map.put(session.getXiaomiActivityFileDao(), XiaomiActivityFileDao.Properties.DeviceId);
         map.put(session.getXiaomiDailySummarySampleDao(), XiaomiDailySummarySampleDao.Properties.DeviceId);
         map.put(session.getXiaomiManualSampleDao(), XiaomiManualSampleDao.Properties.DeviceId);
         map.put(session.getXiaomiSleepStageSampleDao(), XiaomiSleepStageSampleDao.Properties.DeviceId);
@@ -200,6 +205,12 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
         return new WorkoutSummaryParser();
     }
 
+    @Nullable
+    @Override
+    public ActivityTrackProvider getActivityTrackProvider(@NonNull final GBDevice device, @NonNull final Context context) {
+        return new XiaomiActivityTrackProvider(device, context);
+    }
+
     @Override
     public boolean supportsFlashing(@NonNull GBDevice device) {
         return true;
@@ -227,7 +238,7 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public boolean supportsInstalledAppManagement(@NonNull final GBDevice device) {
-        return false;
+        return true;
     }
 
     @Override
@@ -256,7 +267,7 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityDataFetching(@NonNull final GBDevice device) {
+    public boolean supportsDataFetching(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -266,7 +277,7 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsActivityTracks(@NonNull final GBDevice device) {
+    public boolean supportsRecordedActivities(@NonNull final GBDevice device) {
         return true;
     }
 
@@ -310,6 +321,16 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public boolean supportsPaiTime(@NonNull GBDevice device) {
         return false;
+    }
+
+    @Override
+    public boolean supportsActiveCalories(@NonNull GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsActivityDistance(@NonNull GBDevice device) {
+        return true;
     }
 
     @Override
@@ -380,6 +401,11 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public boolean supportsRemSleep(@NonNull GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsAwakeSleep(@NonNull GBDevice device) {
         return true;
     }
 
@@ -488,7 +514,7 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
         // Notifications
         //
         final List<Integer> notifications = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.NOTIFICATIONS);
-        // TODO not implemented settings.add(R.xml.devicesettings_vibrationpatterns);
+        notifications.add(R.xml.devicesettings_xiaomi_vibration_patterns);
         // TODO not implemented settings.add(R.xml.devicesettings_donotdisturb_withauto_and_always);
         notifications.add(R.xml.devicesettings_send_app_notifications);
         if (supports(device, FEAT_SCREEN_ON_ON_NOTIFICATIONS)) {
@@ -530,6 +556,7 @@ public abstract class XiaomiCoordinator extends AbstractBLEDeviceCoordinator {
         //
         deviceSpecificSettings.addRootScreen(
                 DeviceSpecificSettingsScreen.DEVELOPER,
+                R.xml.devicesettings_reprocess_activity_files,
                 R.xml.devicesettings_keep_activity_data_on_device
         );
 

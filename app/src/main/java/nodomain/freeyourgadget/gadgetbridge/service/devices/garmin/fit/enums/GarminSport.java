@@ -6,27 +6,36 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 
 // Taken from CHANGELOG.fit of a Venu 3,
 // Garmin API doc (https://developer.garmin.com/connect-iq/api-docs/Toybox/Activity.html)
+// Suunto doc (https://aspartnercontent.blob.core.windows.net/apizone/docs/Activities.pdf)
 // and FIT files
 public enum GarminSport {
     GENERIC(0, 0, ActivityKind.ACTIVITY),
+    ELLIPTICAL_TRAINER(0, 15, ActivityKind.ELLIPTICAL_TRAINER),
+    OPENWATER(0, 18, ActivityKind.SWIMMING_OPENWATER),
+    EXERCISE(0, 23, ActivityKind.EXERCISE),
     NAVIGATE(0, 50, ActivityKind.NAVIGATE),
     TRACK_ME(0, 51, ActivityKind.TRACK_ME),
     MAP(0, 52, ActivityKind.MAP),
+    BREATHING(0, 62, ActivityKind.BREATHWORK),
     EXPEDITION(0, 66, ActivityKind.EXPEDITION),
     ADVENTURE_RACE(0, 82, ActivityKind.ADVENTURE_RACE),
     ANCHOR(0, 89, ActivityKind.ANCHOR),
     RUN(1, 0, ActivityKind.RUNNING),
     TREADMILL(1, 1, ActivityKind.TREADMILL),
+    STREET_RUN(1, 2, ActivityKind.STREET_RUNNING),
     TRAIL_RUN(1, 3, ActivityKind.TRAIL_RUN),
     TRACK_RUN(1, 4, ActivityKind.TRACK_RUN),
-    INDOOR_TRACK(1, 45, ActivityKind.INDOOR_TRACK),
+    INDOOR_TRACK(1, 45, ActivityKind.INDOOR_TRACK_RUNNING),
+    ORIENTEERING(1, 50, ActivityKind.ORIENTEERING),
     VIRTUAL_RUN(1, 58, ActivityKind.VIRTUAL_RUN),
     OBSTACLE_RACING(1, 59, ActivityKind.OBSTACLE_RACE),
     ULTRA_RUN(1, 67, ActivityKind.ULTRA_RUN),
     BIKE(2, 0, ActivityKind.CYCLING),
-    BIKE_INDOOR(2, 6, ActivityKind.INDOOR_CYCLING),
+    STREET_CYCLING(2, 2, ActivityKind.OUTDOOR_CYCLING),
+    CYCLING_SPIN(2, 5, ActivityKind.SPINNING),
     ROAD_BIKE(2, 7, ActivityKind.ROAD_BIKE),
     MTB(2, 8, ActivityKind.MOUNTAIN_BIKE),
+    CYCLING_DOWNHILL(2, 9, ActivityKind.CYCLING_DOWNHILL),
     CYCLOCROSS(2, 11, ActivityKind.CYCLO_CROSS),
     HANDCYCLING(2, 12, ActivityKind.HANDCYCLING),
     E_BIKE(2, 28, ActivityKind.E_BIKE),
@@ -35,11 +44,20 @@ public enum GarminSport {
     E_MTB(2, 47, ActivityKind.E_MOUNTAIN_BIKE),
     BIKE_COMMUTE(2, 48, ActivityKind.BIKE_COMMUTE),
     BIKE_TOUR(2, 49, ActivityKind.BIKE_TOUR),
+    VIRTUAL_CYCLING(2, 58, ActivityKind.INDOOR_CYCLING),
+    // Declared after VIRTUAL_CYCLING so reverse-lookup of ActivityKind.INDOOR_CYCLING
+    // resolves to (2, 6) — the canonical indoor-bike code most Garmin devices use —
+    // rather than (2, 58) which is reserved for Zwift/virtual rides.
+    BIKE_INDOOR(2, 6, ActivityKind.INDOOR_CYCLING),
     HANDCYCLING_INDOOR(2, 88, ActivityKind.HANDCYCLING_INDOOR),
     TRANSITION(3, 0, ActivityKind.TRANSITION),
     FITNESS_EQUIPMENT(4, 0, ActivityKind.FITNESS_EQUIPMENT),
+    INDOOR_ROWING(4, 14, ActivityKind.ROWING_MACHINE),
     ELLIPTICAL(4, 15, ActivityKind.ELLIPTICAL_TRAINER),
     STAIR_STEPPER(4, 16, ActivityKind.STAIR_STEPPER),
+    CALISTHENICS(4, 20, ActivityKind.STRENGTH_TRAINING),
+    INDOOR_SKIING(4, 25, ActivityKind.INDOOR_SKIING),
+    YOGA_EQUIPMENT(4, 43, ActivityKind.YOGA),
     PILATES(4, 44, ActivityKind.PILATES),
     SWIMMING(5, 0, ActivityKind.SWIMMING),
     POOL_SWIM(5, 17, ActivityKind.POOL_SWIM),
@@ -51,29 +69,37 @@ public enum GarminSport {
     TABLE_TENNIS(8, 97, ActivityKind.TABLE_TENNIS),
     AMERICAN_FOOTBALL(9, 0, ActivityKind.AMERICAN_FOOTBALL),
     TRAINING(10, 0, ActivityKind.TRAINING),
+    STRETCHING(10, 19, ActivityKind.FLEXIBILITY),
     STRENGTH(10, 20, ActivityKind.STRENGTH_TRAINING),
     CARDIO(10, 26, ActivityKind.CARDIO),
     YOGA(10, 43, ActivityKind.YOGA),
     BREATHWORK(10, 62, ActivityKind.BREATHWORK),
     WALK(11, 0, ActivityKind.WALKING),
+    STREET_WALKING(11, 2, ActivityKind.OUTDOOR_WALKING),
     WALK_INDOOR(11, 27, ActivityKind.INDOOR_WALKING),
     XC_CLASSIC_SKI(12, 0, ActivityKind.XC_CLASSIC_SKI),
     XC_SKATE_SKI(12, 42, ActivityKind.XC_SKATE_SKI),
     SKI(13, 0, ActivityKind.SKIING),
+    // TELEMARK_SKIING formerly aliased XC_CLASSIC_SKI which broke reverse-lookup of
+    // ActivityKind.XC_CLASSIC_SKI to (13, 9) instead of (12, 0). Map to SKIING — the
+    // closest canonical kind — and let dedicated XC entries own XC_CLASSIC_SKI.
+    TELEMARK_SKIING(13, 9, ActivityKind.SKIING),
     BACKCOUNTRY_SKI(13, 37, ActivityKind.BACKCOUNTRY_SKIING),
     SNOWBOARD(14, 0, ActivityKind.SNOWBOARDING),
     BACKCOUNTRY_SNOWBOARD(14, 37, ActivityKind.BACKCOUNTRY_SNOWBOARDING),
     ROWING(15, 0, ActivityKind.ROWING),
     ROW_INDOOR(15, 14, ActivityKind.ROWING_MACHINE),
     MOUNTAINEERING(16, 0, ActivityKind.MOUNTAINEERING),
+    BACKCOUNTRY_MOUNTAINEERING(16, 37, ActivityKind.MOUNTAINEERING),
     HIKE(17, 0, ActivityKind.HIKING),
+    TRAIL_HIKE(17, 3, ActivityKind.TRAIL_HIKE),
     MULTISPORT(18, 0, ActivityKind.MULTISPORT),
     PADDLING(19, 0, ActivityKind.PADDLING),
     FLYING(20, 0, ActivityKind.FLYING),
     E_BIKING(21, 0, ActivityKind.E_BIKE),
     MOTORCYCLING(22, 0, ActivityKind.MOTORCYCLING),
     ATV(22, 35, ActivityKind.ATV),
-    MOTOCROSS(22, 35, ActivityKind.MOTOCROSS),
+    MOTOCROSS(22, 36, ActivityKind.MOTOCROSS),
     BOATING(23, 0, ActivityKind.BOATING),
     DRIVING(24, 0, ActivityKind.DRIVING),
     GOLF(25, 0, ActivityKind.GOLF),
@@ -107,11 +133,18 @@ public enum GarminSport {
     BASEBALL(49, 0, ActivityKind.BASEBALL),
     SOFTBALL(50, 0, ActivityKind.SOFTBALL),
     SOFTBALL_SLOW_PITCH(51, 0, ActivityKind.SOFTBALL_SLOW_PITCH),
-    SINGLE_GAS_DIVING(53, 53, ActivityKind.SCUBA_DIVING),
+    STOPWATCH(52, 0, ActivityKind.STOP_WATCH),
+    DIVING(53, 0, ActivityKind.DIVING),
     MULTI_GAS_DIVING(53, 54, ActivityKind.SCUBA_DIVING),
+    // SINGLE_GAS_DIVING declared after MULTI_GAS so reverse-lookup of SCUBA_DIVING
+    // resolves to (53, 53) — the canonical Garmin code. Order matters here.
+    SINGLE_GAS_DIVING(53, 53, ActivityKind.SCUBA_DIVING),
     GAUGE_DIVING(53, 55, ActivityKind.DIVING),
-    APNEA_DIVING(53, 56, ActivityKind.FREE_DIVING),
     APNEA_HUNTING(53, 57, ActivityKind.FREE_DIVING),
+    // APNEA_DIVING declared after APNEA_HUNTING so reverse-lookup of FREE_DIVING
+    // resolves to (53, 56) — the canonical Garmin code.
+    APNEA_DIVING(53, 56, ActivityKind.FREE_DIVING),
+    CCR_DIVING(53, 63, ActivityKind.CCR_DIVING),
     SHOOTING(56, 0, ActivityKind.SHOOTING),
     AUTO_RACING(57, 0, ActivityKind.AUTO_RACING),
     WINTER_SPORT(58, 0, ActivityKind.WINTER_SPORT),
@@ -120,7 +153,7 @@ public enum GarminSport {
     MARINE(61, 0, ActivityKind.MARINE),
     HIIT(62, 0, ActivityKind.HIIT),
     VIDEO_GAMING(63, 0, ActivityKind.VIDEO_GAMING),
-    GAMING(63, 77, ActivityKind.BOARD_GAME),
+    GAMING(63, 77, ActivityKind.ESPORTS),
     RACKET(64, 0, ActivityKind.RACKET),
     PICKLEBALL(64, 84, ActivityKind.PICKLEBALL),
     PADEL(64, 85, ActivityKind.PADEL),
@@ -145,12 +178,19 @@ public enum GarminSport {
     VOLLEYBALL(75, 0, ActivityKind.VOLLEYBALL),
     WATER_TUBING(76, 0, ActivityKind.WATER_TUBING),
     WAKESURFING(77, 0, ActivityKind.WAKESURFING),
+    WATER_SPORT(78, 0, ActivityKind.OTHER_WATER_SPORTS),
     ARCHERY(79, 0, ActivityKind.ARCHERY),
     MIXED_MARTIAL_ARTS(80, 0, ActivityKind.MIXED_MARTIAL_ARTS), // aka MMA
+    MMA_HIIT(80, 70, ActivityKind.MMA_HIIT),
+    MOTOR_SPORT(81, 0, ActivityKind.MOTOR_SPORT),
     OVERLAND(81, 98, ActivityKind.OVERLANDING),
     SNORKELING(82, 0, ActivityKind.SNORKELING),
     DANCE(83, 0, ActivityKind.DANCE),
     JUMP_ROPE(84, 0, ActivityKind.JUMP_ROPING),
+    POOL_APNEA(85, 0, ActivityKind.APNEA_TRAINING),
+    MOBILITY(86, 0, ActivityKind.MOBILITY),
+    GEOCACHING(87, 0, ActivityKind.GEOCACHING),
+    CANOEING(88, 0, ActivityKind.CANOEING),
     TROLLING_MOTOR(99, 0, ActivityKind.TROLLING_MOTOR),
     ;
 
@@ -184,5 +224,37 @@ public enum GarminSport {
         }
 
         return Optional.empty();
+    }
+
+    public static Optional<GarminSport> fromActivityKind(final ActivityKind activityKind) {
+        if (activityKind == null) {
+            return Optional.empty();
+        }
+        // Traverse last-to-first so more specific (later-declared) entries win over
+        // generic earlier ones — e.g. ELLIPTICAL(4, 15) wins over ELLIPTICAL_TRAINER(0, 15).
+        final GarminSport[] values = GarminSport.values();
+        for (int i = values.length - 1; i >= 0; i--) {
+            if (values[i].getActivityKind() == activityKind) {
+                return Optional.of(values[i]);
+            }
+        }
+        final ActivityKind alias = aliasFor(activityKind);
+        if (alias != activityKind) {
+            return fromActivityKind(alias);
+        }
+        return Optional.empty();
+    }
+
+    // Maps ActivityKinds with no direct GarminSport entry onto a related kind that does.
+    // OUTDOOR_RUNNING is aliased rather than added as a duplicate FIT entry because
+    // STREET_RUN's decode-side ActivityKind must remain STREET_RUNNING.
+    // Unknown kinds fall back to ACTIVITY → GENERIC(0, 0) so exports stay valid.
+    private static ActivityKind aliasFor(final ActivityKind kind) {
+        switch (kind) {
+            case OUTDOOR_RUNNING:
+                return ActivityKind.STREET_RUNNING;
+            default:
+                return ActivityKind.ACTIVITY;
+        }
     }
 }

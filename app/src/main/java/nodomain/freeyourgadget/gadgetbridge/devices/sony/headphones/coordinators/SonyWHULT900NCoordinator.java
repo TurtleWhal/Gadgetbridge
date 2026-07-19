@@ -32,7 +32,7 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 public class SonyWHULT900NCoordinator extends SonyHeadphonesCoordinator {
     @Override
     protected Pattern getSupportedDeviceName() {
-        return Pattern.compile("^Sony ULT|ULT WEAR$");
+        return Pattern.compile("^Sony ULT|ULT WEAR.*$");
     }
 
     @Override
@@ -41,14 +41,30 @@ public class SonyWHULT900NCoordinator extends SonyHeadphonesCoordinator {
     }
 
     @Override
-    public Set<SonyHeadphonesCapabilities> getCapabilities() {
+    public boolean preferServiceV2() {
+        return true;
+    }
+
+    @NonNull
+    @Override
+    public Set<SonyHeadphonesCapabilities> getDefaultCapabilities() {
         return new HashSet<>(Arrays.asList(
                 SonyHeadphonesCapabilities.BatterySingle,
-                SonyHeadphonesCapabilities.AmbientSoundControl,
+                SonyHeadphonesCapabilities.AmbientSoundControl2,
+                SonyHeadphonesCapabilities.AmbientSoundControlButtonMode,
+                SonyHeadphonesCapabilities.EqualizerWithCustomBands, // Not changing
+                SonyHeadphonesCapabilities.AudioUpsampling,
+                SonyHeadphonesCapabilities.AudioLDAC,
                 SonyHeadphonesCapabilities.PowerOffFromPhone,
                 SonyHeadphonesCapabilities.PauseWhenTakenOff,
+                SonyHeadphonesCapabilities.AutomaticPowerOffWhenTakenOff,
                 SonyHeadphonesCapabilities.QuickAccess,
-                SonyHeadphonesCapabilities.VoiceNotifications
+                SonyHeadphonesCapabilities.VoiceNotifications,
+                SonyHeadphonesCapabilities.VoiceAssistantFunction,
+                SonyHeadphonesCapabilities.TouchSensorSingle,
+                SonyHeadphonesCapabilities.ConnectTwoDevices,
+                SonyHeadphonesCapabilities.CaptureVoiceDuringCall,
+                SonyHeadphonesCapabilities.ServiceLink
         ));
     }
 

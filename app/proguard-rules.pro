@@ -73,8 +73,15 @@
   @com.google.gson.annotations.SerializedName <fields>;
 }
 -keep class nodomain.freeyourgadget.gadgetbridge.service.devices.gree.messages.** {*; }
-# Somehow the rule above was not enough for some
 -keep class nodomain.freeyourgadget.gadgetbridge.devices.pinetime.InfiniTimeDFU* { *; }
 
 # Keep generated protobuf classes
--keep class nodomain.freeyourgadget.gadgetbridge.proto.** { *; }
+-keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
+
+# Keep preference fragments that might only be referenced from xml
+-keep class nodomain.freeyourgadget.gadgetbridge.activities.automations.** extends androidx.fragment.app.Fragment { *; }
+-keep class nodomain.freeyourgadget.gadgetbridge.activities.debug.** extends androidx.fragment.app.Fragment { *; }
+
+# jsoup 1.22.1 introduces support for re2j, but falls back to java Regex if not available
+# Since we only use jsoup to clean the html, we do not need the extra dependency
+-dontwarn com.google.re2j.Pattern

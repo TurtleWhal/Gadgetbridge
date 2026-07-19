@@ -19,6 +19,7 @@ package nodomain.freeyourgadget.gadgetbridge.devices.huami.amazfitbip;
 
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 
@@ -40,7 +41,7 @@ public class AmazfitBipLiteCoordinator extends AmazfitBipCoordinator {
     }
 
     @Override
-    public InstallHandler findInstallHandler(final Uri uri, final Context context) {
+    public InstallHandler findInstallHandler(final Uri uri, final Bundle options, final Context context) {
         final AmazfitBipLiteFWInstallHandler handler = new AmazfitBipLiteFWInstallHandler(uri, context);
         return handler.isValid() ? handler : null;
     }
@@ -67,6 +68,9 @@ public class AmazfitBipLiteCoordinator extends AmazfitBipCoordinator {
         health.add(R.xml.devicesettings_heartrate_sleep);
         health.add(R.xml.devicesettings_inactivity_dnd);
         health.add(R.xml.devicesettings_goal_notification);
+        final List<Integer> workout = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.WORKOUT);
+        workout.add(R.xml.devicesettings_workout_start_on_phone);
+        workout.add(R.xml.devicesettings_workout_send_gps_to_band);
         final List<Integer> notifications = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.NOTIFICATIONS);
         notifications.add(R.xml.devicesettings_custom_emoji_font);
         notifications.add(R.xml.devicesettings_vibrationpatterns);
@@ -76,6 +80,7 @@ public class AmazfitBipLiteCoordinator extends AmazfitBipCoordinator {
         //calendar.add(R.xml.devicesettings_reserve_reminders_calendar);
         final List<Integer> connection = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CONNECTION);
         connection.add(R.xml.devicesettings_disconnectnotification);
+        connection.add(R.xml.devicesettings_expose_hr_thirdparty);
         connection.add(R.xml.devicesettings_bt_connected_advertisement);
         connection.add(R.xml.devicesettings_overwrite_settings_on_connection);
         final List<Integer> developer = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DEVELOPER);
