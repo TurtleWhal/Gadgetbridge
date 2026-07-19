@@ -111,6 +111,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NotificationImageSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
@@ -818,14 +819,28 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 connectToDevice(targetDevice, firstTime);
                 break;
             default:
+                // Prune any cached notification matching a delete request so that notifications
+                // dismissed on the phone while disconnected are not sent to the device on reconnect.
+                if (action.equals(ACTION_DELETE_NOTIFICATION)) {
+                    int notifId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
+                    if (targetDevice != null) {
+                        pruneCachedNotification(targetDevice.getAddress(), notifId);
+                    } else {
+                        for (GBDevice device : getGBDevices()) {
+                            pruneCachedNotification(device.getAddress(), notifId);
+                        }
+                    }
+                }
                 ArrayList<GBDevice> targetedDevices = new ArrayList<>();
                 if(targetDevice != null){
-                    targetedDevices.add(targetDevice);
+                    if (isDeviceInitialized(targetDevice) || !action.equals(ACTION_DELETE_NOTIFICATION)) {
+                        targetedDevices.add(targetDevice);
+                    }
                 }else{
                     for(GBDevice device : getGBDevices()){
                         if(isDeviceInitialized(device)){
                             targetedDevices.add(device);
-                        } else if (isDeviceReconnecting(device) && action.equals(ACTION_NOTIFICATION) && GBApplication.getPrefs().getBoolean("notification_cache_while_disconnected", false)) {
+                        } else if (isDeviceReconnecting(device) && (action.equals(ACTION_NOTIFICATION) || action.equals(ACTION_SET_NOTIFICATION_IMAGE)) && GBApplication.getPrefs().getBoolean("notification_cache_while_disconnected", false)) {
                             if (!cachedNotifications.containsKey(device.getAddress())) {
                                 cachedNotifications.put(device.getAddress(), new ArrayList<>());
                             }
@@ -834,18 +849,6 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                             if (notifCache.size() > NOTIFICATIONS_CACHE_MAX) {
                                 // remove the oldest notification if the maximum is reached
                                 notifCache.remove(0);
-                            }
-                        } else if (action.equals(ACTION_DELETE_NOTIFICATION)) {
-                            ArrayList<Intent> notifCache = cachedNotifications.get(device.getAddress());
-                            if (notifCache != null) {
-                                int notifId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
-                                ArrayList<Intent> toRemove = new ArrayList<>();
-                                for (Intent cached : notifCache) {
-                                    if (notifId == cached.getIntExtra(EXTRA_NOTIFICATION_ID, -1)) {
-                                        toRemove.add(cached);
-                                    }
-                                }
-                                notifCache.removeAll(toRemove);
                             }
                         } else if (action.equals(ACTION_DISCONNECT) && device.getState() != GBDevice.State.NOT_CONNECTED) {
                             targetedDevices.add(device);
@@ -951,6 +954,7 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 notificationSpec.sourceName = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SOURCENAME);
                 notificationSpec.type = (NotificationType) intentCopy.getSerializableExtra(EXTRA_NOTIFICATION_TYPE);
                 notificationSpec.attachedActions = (ArrayList<NotificationSpec.Action>) intentCopy.getSerializableExtra(EXTRA_NOTIFICATION_ACTIONS);
+                notificationSpec.suggestedReplies = intentCopy.getStringArrayExtra(EXTRA_NOTIFICATION_SUGGESTED_REPLIES);
                 notificationSpec.flags = intentCopy.getIntExtra(EXTRA_NOTIFICATION_FLAGS, 0);
                 notificationSpec.sourceAppId = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SOURCEAPPID);
                 notificationSpec.iconId = intentCopy.getIntExtra(EXTRA_NOTIFICATION_ICONID, 0);
@@ -1075,7 +1079,18 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
                 musicSpec.duration = intentCopy.getIntExtra(EXTRA_MUSIC_DURATION, 0);
                 musicSpec.trackCount = intentCopy.getIntExtra(EXTRA_MUSIC_TRACKCOUNT, 0);
                 musicSpec.trackNr = intentCopy.getIntExtra(EXTRA_MUSIC_TRACKNR, 0);
+                // Producer side now passes the album art as a Parcelable Bitmap (raw, no
+                // PNG round-trip). It's still optional.
+                musicSpec.albumArt = intentCopy.getParcelableExtra(EXTRA_MUSIC_ALBUMART);
                 deviceSupport.onSetMusicInfo(musicSpec);
+                break;
+            case ACTION_SET_NOTIFICATION_IMAGE:
+                NotificationImageSpec notificationImageSpec = new NotificationImageSpec();
+                notificationImageSpec.notificationId = intentCopy.getIntExtra(EXTRA_NOTIFICATION_IMAGE_ID, -1);
+                notificationImageSpec.width = intentCopy.getIntExtra(EXTRA_NOTIFICATION_IMAGE_WIDTH, 0);
+                notificationImageSpec.height = intentCopy.getIntExtra(EXTRA_NOTIFICATION_IMAGE_HEIGHT, 0);
+                notificationImageSpec.argb = intentCopy.getByteArrayExtra(EXTRA_NOTIFICATION_IMAGE_ARGB);
+                deviceSupport.onSetNotificationImage(notificationImageSpec);
                 break;
             case ACTION_SET_PHONE_VOLUME:
                 float phoneVolume = intentCopy.getFloatExtra(EXTRA_PHONE_VOLUME, 0);
@@ -1607,11 +1622,36 @@ public class DeviceCommunicationService extends Service implements SharedPrefere
         if (notifCache == null) return;
         try {
             while (notifCache.size() > 0) {
-                handleAction(notifCache.remove(0), ACTION_NOTIFICATION, device);
+                Intent cached = notifCache.remove(0);
+                String cachedAction = cached.getAction();
+                handleAction(cached, cachedAction != null ? cachedAction : ACTION_NOTIFICATION, device);
             }
         } catch (DeviceNotFoundException e) {
             LOG.error("Error while sending cached notifications to "+device.getAliasOrName(), e);
         }
+    }
+
+    private void pruneCachedNotification(String deviceAddress, int notifId) {
+        ArrayList<Intent> notifCache = cachedNotifications.get(deviceAddress);
+        if (notifCache == null) {
+            LOG.debug("pruneCachedNotification: no cache for {}, notifId={}", deviceAddress, notifId);
+            return;
+        }
+        ArrayList<Intent> toRemove = new ArrayList<>();
+        for (Intent cached : notifCache) {
+            final String cachedAction = cached.getAction();
+            final int cachedId;
+            if (ACTION_SET_NOTIFICATION_IMAGE.equals(cachedAction)) {
+                cachedId = cached.getIntExtra(EXTRA_NOTIFICATION_IMAGE_ID, -1);
+            } else {
+                cachedId = cached.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
+            }
+            if (notifId == cachedId) {
+                toRemove.add(cached);
+            }
+        }
+        notifCache.removeAll(toRemove);
+        LOG.info("pruneCachedNotification: device={} notifId={} pruned={} remaining={}", deviceAddress, notifId, toRemove.size(), notifCache.size());
     }
 
     @Override

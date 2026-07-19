@@ -34,8 +34,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.Icon;
 import android.media.MediaMetadata;
 import android.media.session.MediaController;
 import android.media.session.MediaSession;
@@ -72,6 +76,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import de.greenrobot.dao.query.Query;
@@ -89,6 +95,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.AppNotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NotificationImageSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceCommunicationService;
@@ -120,11 +127,29 @@ public class NotificationListener extends NotificationListenerService {
 
     private final LimitedQueue<Integer, NotificationAction> mActionLookup = new LimitedQueue<>(128);
     private final LimitedQueue<Integer, String> mPackageLookup = new LimitedQueue<>(64);
+    private final LimitedQueue<Integer, String> mNotificationContentLookup = new LimitedQueue<>(128);
     private final LimitedQueue<Integer, Long> mNotificationHandleLookup = new LimitedQueue<>(128);
     private long lastPictureNotificationTime = 0;
 
     private final HashMap<String, Long> notificationBurstPrevention = new HashMap<>();
     private final HashMap<String, Long> notificationOldRepeatPrevention = new HashMap<>();
+
+    // After we reply to a notification from the watch, some messaging apps (e.g. Google Messages)
+    // re-post the conversation notification with identical content, which would otherwise be
+    // forwarded to the device as a duplicate. Remember what we just replied to and suppress the
+    // next identical notification from the same app within a short window.
+    private static final long REPLY_DUPLICATE_SUPPRESSION_WINDOW_MS = 30_000L;
+    private final HashMap<String, ReplySuppression> mReplySuppression = new HashMap<>();
+
+    private static class ReplySuppression {
+        final String content;
+        final long timestamp;
+
+        ReplySuppression(final String content, final long timestamp) {
+            this.content = content;
+            this.timestamp = timestamp;
+        }
+    }
 
     private static final Set<String> GROUP_SUMMARY_WHITELIST = new HashSet<>() {{
         add("com.microsoft.office.lync15");
@@ -147,6 +172,25 @@ public class NotificationListener extends NotificationListenerService {
     }};
 
     public static final ArrayList<String> notificationStack = new ArrayList<>();
+
+    private static volatile Bitmap latestAlbumArt = null;
+
+    public static Bitmap getLatestAlbumArt() {
+        return latestAlbumArt;
+    }
+
+    private static volatile Drawable latestNotificationIcon = null;
+
+    public static Drawable getLatestNotificationIcon() {
+        return latestNotificationIcon;
+    }
+
+    // PNG compression takes several ms; off-load from the notification listener thread.
+    private static final ExecutorService imageEncodeExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "NotificationImageEncoder");
+        t.setDaemon(true);
+        return t;
+    });
     private static final ArrayList<Integer> notificationsActive = new ArrayList<>();
 
     private static final Set<String> supportedPictureMimeTypes = new HashSet<>() {{
@@ -269,6 +313,15 @@ public class NotificationListener extends NotificationListenerService {
                             break;
                         }
 
+                        // Remember the content of the notification we are replying to, so we can
+                        // suppress the identical notification some apps re-post after a reply.
+                        final int repliedId = handle >> 4;
+                        final String repliedPackage = mPackageLookup.lookup(repliedId);
+                        final String repliedContent = mNotificationContentLookup.lookup(repliedId);
+                        if (repliedPackage != null && repliedContent != null) {
+                            mReplySuppression.put(repliedPackage, new ReplySuppression(repliedContent, System.currentTimeMillis()));
+                        }
+
                         final RemoteInput remoteInput = wearableAction.getRemoteInput();
 
                         try {
@@ -344,6 +397,55 @@ public class NotificationListener extends NotificationListenerService {
     @Override
     public void onNotificationPosted(StatusBarNotification sbn, RankingMap rankingMap) {
         logNotification(sbn, true);
+
+        Drawable resolvedIcon = null;
+        try {
+            final Notification n = sbn.getNotification();
+            Drawable resolved = null;
+
+            // 1. Conversation avatar (most recent sender in MessagingStyle)
+            final NotificationCompat.MessagingStyle style =
+                    NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n);
+            if (style != null && !style.getMessages().isEmpty()) {
+                final androidx.core.app.Person sender = style.getMessages()
+                        .get(style.getMessages().size() - 1)
+                        .getPerson();
+                if (sender != null && sender.getIcon() != null) {
+                    resolved = sender.getIcon().loadDrawable(getApplicationContext());
+                }
+            }
+
+            // 2. Notification large icon
+            if (resolved == null) {
+                final Icon largeIcon = n.getLargeIcon();
+                if (largeIcon != null) {
+                    resolved = largeIcon.loadDrawable(getApplicationContext());
+                }
+            }
+
+            // 3. Source app launcher icon
+            if (resolved == null) {
+                try {
+                    resolved = getPackageManager().getApplicationIcon(sbn.getPackageName());
+                } catch (final PackageManager.NameNotFoundException ignored) {
+                }
+            }
+
+            // 4. Fallback to small (monochrome) icon
+            if (resolved == null) {
+                final Icon smallIcon = n.getSmallIcon();
+                if (smallIcon != null) {
+                    resolved = smallIcon.loadDrawable(getApplicationContext());
+                }
+            }
+
+            if (resolved != null) {
+                latestNotificationIcon = resolved;
+                resolvedIcon = resolved;
+            }
+        } catch (final Exception e) {
+            LOG.warn("Failed to capture notification icon", e);
+        }
 
         notificationStack.remove(sbn.getPackageName());
         notificationStack.add(sbn.getPackageName());
@@ -512,6 +614,22 @@ public class NotificationListener extends NotificationListenerService {
             }
         }
 
+        final String currentContent = notificationContent(notificationSpec);
+        mNotificationContentLookup.add(notificationSpec.getId(), currentContent);
+
+        // Suppress the identical notification that some messaging apps re-post right after we
+        // send a reply from the watch (see mReplySuppression).
+        final ReplySuppression replySuppression = mReplySuppression.get(source);
+        if (replySuppression != null) {
+            if (System.currentTimeMillis() - replySuppression.timestamp > REPLY_DUPLICATE_SUPPRESSION_WINDOW_MS) {
+                mReplySuppression.remove(source);
+            } else if (replySuppression.content.equals(currentContent)) {
+                LOG.info("Not forwarding notification from {}: identical content re-posted after a reply", source);
+                mReplySuppression.remove(source);
+                return;
+            }
+        }
+
         // ignore Gadgetbridge's very own notifications, except for those from the debug screen
         if (getApplicationContext().getPackageName().equals(source)) {
             if (!getApplicationContext().getString(R.string.test_notification).equals(notificationSpec.title)) {
@@ -548,6 +666,12 @@ public class NotificationListener extends NotificationListenerService {
                 if (act.getRemoteInputs() != null && act.getRemoteInputs().length > 0) {
                     wearableAction.type = NotificationSpec.Action.TYPE_WEARABLE_REPLY;
                     remoteInput = act.getRemoteInputs()[0];
+                    // Only forward choices when the app opted into Android's smart-reply
+                    // engine for this action; that filters out static canned replies on
+                    // actions where the app explicitly disabled system suggestions.
+                    if (act.getAllowGeneratedReplies()) {
+                        captureSuggestedReplies(notificationSpec, remoteInput.getChoices());
+                    }
                 } else {
                     wearableAction.type = NotificationSpec.Action.TYPE_WEARABLE_SIMPLE;
                     remoteInput = null;
@@ -576,6 +700,11 @@ public class NotificationListener extends NotificationListenerService {
                             .setAllowFreeFormInput(ri.getAllowFreeFormInput())
                             .addExtras(ri.getExtras())
                             .build();
+                    // See wearable-action branch above — only forward when the app
+                    // opted into Android's smart-reply engine for this action.
+                    if (act.getAllowGeneratedReplies()) {
+                        captureSuggestedReplies(notificationSpec, ri.getChoices());
+                    }
                 } else {
                     customAction.type = NotificationSpec.Action.TYPE_CUSTOM_SIMPLE;
                     remoteInput = null;
@@ -620,6 +749,73 @@ public class NotificationListener extends NotificationListenerService {
         // NOTE for future developers: this call goes to implementations of DeviceService.onNotification(NotificationSpec), like in GBDeviceService
         // this does NOT directly go to implementations of DeviceSupport.onNotification(NotificationSpec)!
         GBApplication.deviceService().onNotification(notificationSpec);
+
+        if (resolvedIcon != null) {
+            final Drawable iconForEncode = resolvedIcon;
+            final int idForEncode = notificationSpec.getId();
+            imageEncodeExecutor.execute(() -> {
+                final int size = 48;
+                final byte[] argb = encodeIconAsArgb(iconForEncode, size);
+                if (argb == null) {
+                    return;
+                }
+                final NotificationImageSpec imageSpec = new NotificationImageSpec();
+                imageSpec.notificationId = idForEncode;
+                imageSpec.width = size;
+                imageSpec.height = size;
+                imageSpec.argb = argb;
+                GBApplication.deviceService().onSetNotificationImage(imageSpec);
+            });
+        }
+    }
+
+    /**
+     * Store the source app's quick-reply suggestions (RemoteInput.choices) on the spec, but
+     * only the first non-empty set we see — multiple reply actions on the same notification
+     * are rare and would just produce duplicates.
+     */
+    private static void captureSuggestedReplies(final NotificationSpec spec,
+                                                final CharSequence[] choices) {
+        if (choices == null || choices.length == 0) return;
+        if (spec.suggestedReplies != null && spec.suggestedReplies.length > 0) return;
+        final String[] out = new String[choices.length];
+        for (int i = 0; i < choices.length; i++) {
+            out[i] = choices[i] == null ? "" : choices[i].toString();
+        }
+        spec.suggestedReplies = out;
+    }
+
+    /**
+     * Render the given drawable into a size x size ARGB_8888 buffer and return its raw
+     * pixel bytes (no compression). Caller owns the array; layout is row-major,
+     * width*height*4 bytes, 4 bytes per pixel in A,R,G,B order.
+     */
+    public static byte[] encodeIconAsArgb(final Drawable drawable, final int size) {
+        try {
+            final Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            try {
+                final Canvas canvas = new Canvas(bitmap);
+                drawable.setBounds(0, 0, size, size);
+                drawable.draw(canvas);
+                final int[] pixels = new int[size * size];
+                bitmap.getPixels(pixels, 0, size, 0, 0, size, size);
+                final byte[] out = new byte[size * size * 4];
+                for (int i = 0; i < pixels.length; i++) {
+                    final int p = pixels[i];
+                    final int idx = i << 2;
+                    out[idx]     = (byte) (p >>> 24);          // A
+                    out[idx + 1] = (byte) ((p >>> 16) & 0xFF); // R
+                    out[idx + 2] = (byte) ((p >>> 8)  & 0xFF); // G
+                    out[idx + 3] = (byte) (p & 0xFF);          // B
+                }
+                return out;
+            } finally {
+                bitmap.recycle();
+            }
+        } catch (final Exception e) {
+            LOG.warn("Failed to encode notification icon", e);
+            return null;
+        }
     }
 
     static boolean isOutsideNotificationTimes(final LocalTime now, final LocalTime start, final LocalTime end) {
@@ -997,6 +1193,10 @@ public class NotificationListener extends NotificationListenerService {
             final MusicStateSpec stateSpec = MediaManager.extractMusicStateSpec(playbackState);
             final MusicSpec musicSpec = MediaManager.extractMusicSpec(metadata);
 
+            if (musicSpec != null && musicSpec.albumArt != null) {
+                latestAlbumArt = musicSpec.albumArt;
+            }
+
             // finally, tell the device about it
             if (mSetMusicInfoRunnable != null) {
                 mHandler.removeCallbacks(mSetMusicInfoRunnable);
@@ -1089,18 +1289,23 @@ public class NotificationListener extends NotificationListenerService {
         notificationsActive.removeAll(notificationsToRemove);
 
         // Send notification remove request to device
+        final boolean cacheWhileDisconnected = prefs.getBoolean("notification_cache_while_disconnected", false);
         List<GBDevice> devices = GBApplication.app().getDeviceManager().getSelectedDevices();
+        LOG.debug("onNotificationRemoved: toRemove={} cacheWhileDisconnected={} devices={}", notificationsToRemove.size(), cacheWhileDisconnected, devices.size());
         for (GBDevice device : devices) {
-            if (!device.isInitialized()) {
+            if (!device.isInitialized() && !cacheWhileDisconnected) {
+                LOG.debug("onNotificationRemoved: skipping uninitialized device {} (cache pref off)", device.getAliasOrName());
                 continue;
             }
 
             Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(device.getAddress()));
             if (devicePrefs.getBoolean("autoremove_notifications", true)) {
                 for (int id : notificationsToRemove) {
-                    LOG.info("Notification {} removed, deleting from {}", id, device.getAliasOrName());
+                    LOG.info("Notification {} removed, deleting from {} (initialized={})", id, device.getAliasOrName(), device.isInitialized());
                     GBApplication.deviceService(device).onDeleteNotification(id);
                 }
+            } else {
+                LOG.debug("onNotificationRemoved: autoremove_notifications disabled for {}", device.getAliasOrName());
             }
         }
     }
@@ -1109,6 +1314,10 @@ public class NotificationListener extends NotificationListenerService {
         File pictureFile = new File(this.notificationPictureCacheDirectory, String.valueOf(notificationId));
         if (pictureFile.exists())
             pictureFile.delete();
+    }
+
+    private static String notificationContent(final NotificationSpec notificationSpec) {
+        return ensureNotNull(notificationSpec.title) + " " + ensureNotNull(notificationSpec.body);
     }
 
     private void cleanUpNotificationPictureProvider() {

@@ -25,6 +25,7 @@ import static nodomain.freeyourgadget.gadgetbridge.util.JavaExtensions.coalesce;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.database.Cursor;
 import android.location.Location;
 import android.net.Uri;
@@ -52,6 +53,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.CannedMessagesSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NotificationImageSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
@@ -180,6 +182,8 @@ public class GBDeviceService implements DeviceService {
                 .putExtra(EXTRA_NOTIFICATION_KEY, notificationSpec.key)
                 .putExtra(EXTRA_NOTIFICATION_TYPE, notificationSpec.type)
                 .putExtra(EXTRA_NOTIFICATION_ACTIONS, notificationSpec.attachedActions)
+                .putExtra(EXTRA_NOTIFICATION_SUGGESTED_REPLIES,
+                        hideMessageDetails || hideMessageBodyOnly ? null : notificationSpec.suggestedReplies)
                 .putExtra(EXTRA_NOTIFICATION_SOURCENAME, notificationSpec.sourceName)
                 .putExtra(EXTRA_NOTIFICATION_SOURCEAPPID, notificationSpec.sourceAppId)
                 .putExtra(EXTRA_NOTIFICATION_ICONID, notificationSpec.iconId)
@@ -313,6 +317,42 @@ public class GBDeviceService implements DeviceService {
                 .putExtra(EXTRA_MUSIC_DURATION, musicSpec.duration)
                 .putExtra(EXTRA_MUSIC_TRACKCOUNT, musicSpec.trackCount)
                 .putExtra(EXTRA_MUSIC_TRACKNR, musicSpec.trackNr);
+        // Pass the bitmap losslessly across the Intent boundary as a Parcelable — no PNG or
+        // JPEG encoding step at all. Android's binder transaction has a ~1 MB ceiling, so
+        // we cap the bitmap to a 360 px max dimension first (proportional, bilinear) to
+        // stay safely under it. Any further scaling to per-device dimensions happens on
+        // the receiving DeviceSupport in the same colour depth as the source.
+        if (musicSpec.albumArt != null) {
+            try {
+                Bitmap art = musicSpec.albumArt;
+                final int maxDim = 360;
+                if (art.getWidth() > maxDim || art.getHeight() > maxDim) {
+                    final float scale = Math.min(
+                            (float) maxDim / art.getWidth(),
+                            (float) maxDim / art.getHeight());
+                    art = Bitmap.createScaledBitmap(art,
+                            Math.max(1, Math.round(art.getWidth() * scale)),
+                            Math.max(1, Math.round(art.getHeight() * scale)),
+                            true);
+                }
+                if (art.getConfig() != Bitmap.Config.ARGB_8888) {
+                    art = art.copy(Bitmap.Config.ARGB_8888, false);
+                }
+                intent.putExtra(EXTRA_MUSIC_ALBUMART, art);
+            } catch (final Exception ignored) {
+                // album art is optional; metadata still gets through
+            }
+        }
+        invokeService(intent);
+    }
+
+    @Override
+    public void onSetNotificationImage(NotificationImageSpec spec) {
+        Intent intent = createIntent().setAction(ACTION_SET_NOTIFICATION_IMAGE)
+                .putExtra(EXTRA_NOTIFICATION_IMAGE_ID, spec.notificationId)
+                .putExtra(EXTRA_NOTIFICATION_IMAGE_WIDTH, spec.width)
+                .putExtra(EXTRA_NOTIFICATION_IMAGE_HEIGHT, spec.height)
+                .putExtra(EXTRA_NOTIFICATION_IMAGE_ARGB, spec.argb);
         invokeService(intent);
     }
 

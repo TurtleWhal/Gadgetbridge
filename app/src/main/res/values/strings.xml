@@ -91,6 +91,12 @@
     <!-- Strings related to battery Info Activity -->
     <string name="battery_detail_activity_title">Battery info</string>
     <string name="battery_level">Battery level</string>
+    <string name="battery_info_export_csv">Export to CSV</string>
+    <string name="battery_info_export_csv_success">Battery data exported</string>
+    <string name="battery_info_export_csv_failed">Failed to export battery data</string>
+    <string name="battery_info_export_csv_empty">No battery data to export</string>
+    <string name="calendar_six_hours">6 hours</string>
+    <string name="calendar_twelve_hours">12 hours</string>
     <string name="calendar_day">Day</string>
     <string name="calendar_week">Week</string>
     <string name="calendar_two_weeks">Two weeks</string>
@@ -318,6 +324,8 @@
     <string name="pref_summary_transliteration">Enable this if your device has no support for your language\'s font</string>
     <string name="pref_title_banglejs_text_bitmap">Text as Bitmaps</string>
     <string name="pref_summary_banglejs_text_bitmap">If a word cannot be rendered with the watch\'s font, render it to a bitmap in Gadgetbridge and display the bitmap on the watch</string>
+    <string name="pref_title_banglejs_text_raw_emoji">Send raw emoji characters</string>
+    <string name="pref_summary_banglejs_text_raw_emoji">Send emoji as raw Unicode characters instead of converting them to :emoji: text. Use this if your watch font (e.g. LVGL) can render emoji glyphs directly</string>
     <string name="pref_title_banglejs_txt_bitmap_size">Text Bitmaps Size</string>
     <string name="pref_summary_banglejs_txt_bitmap_size">Size to use for bitmap text rendering</string>
     <string name="pref_title_banglejs_phone_gps_enbale">Use phone GPS data</string>

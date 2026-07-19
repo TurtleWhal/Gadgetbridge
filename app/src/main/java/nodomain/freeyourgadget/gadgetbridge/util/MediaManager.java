@@ -150,6 +150,12 @@ public class MediaManager {
                 musicSpec.trackCount = (int) d.getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS);
             if (d.containsKey(MediaMetadata.METADATA_KEY_TRACK_NUMBER))
                 musicSpec.trackNr = (int) d.getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER);
+            if (d.containsKey(MediaMetadata.METADATA_KEY_ART))
+                musicSpec.albumArt = d.getBitmap(MediaMetadata.METADATA_KEY_ART);
+            else if (d.containsKey(MediaMetadata.METADATA_KEY_ALBUM_ART))
+                musicSpec.albumArt = d.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+            else if (d.containsKey(MediaMetadata.METADATA_KEY_DISPLAY_ICON))
+                musicSpec.albumArt = d.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
         } catch (final Exception e) {
             LOG.error("Failed to extract music spec", e);
         }

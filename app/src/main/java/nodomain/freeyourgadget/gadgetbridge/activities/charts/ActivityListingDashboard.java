@@ -119,8 +119,10 @@ public class ActivityListingDashboard extends MaterialDialogFragment {
 
         boolean activity_list_debug_extra_time_range_value = GBApplication.getPrefs().getPreferences().getBoolean("activity_list_debug_extra_time_range", false);
 
-        if (!activity_list_debug_extra_time_range_value) {
-            battery_status_time_span_seekbar.setMax(3);
+        if (activity_list_debug_extra_time_range_value) {
+            battery_status_time_span_seekbar.setMax(8);
+        } else {
+            battery_status_time_span_seekbar.setMax(5);
         }
         final TextView battery_status_time_span_text = getView().findViewById(R.id.battery_status_time_span_text);
 
@@ -131,36 +133,44 @@ public class ActivityListingDashboard extends MaterialDialogFragment {
                 String text;
                 switch (i) {
                     case 0:
+                        text = getString(R.string.calendar_six_hours);
+                        timeFrom = DateTimeUtils.shiftHours(timeTo, -6);
+                        break;
+                    case 1:
+                        text = getString(R.string.calendar_twelve_hours);
+                        timeFrom = DateTimeUtils.shiftHours(timeTo, -12);
+                        break;
+                    case 2:
                         text = getString(R.string.calendar_day);
                         timeFrom = DateTimeUtils.shiftDays(timeTo, -1);
                         break;
-                    case 1:
+                    case 3:
                         text = getString(R.string.calendar_week);
                         timeFrom = DateTimeUtils.shiftDays(timeTo, -7);
                         break;
-                    case 2:
+                    case 4:
                         text = getString(R.string.calendar_two_weeks);
                         timeFrom = DateTimeUtils.shiftDays(timeTo, -14);
                         break;
-                    case 3:
+                    case 5:
                         text = getString(R.string.calendar_month);
                         timeFrom = DateTimeUtils.shiftMonths(timeTo, -1);
                         break;
-                    case 4:
+                    case 6:
                         text = getString(R.string.calendar_three_months);
                         timeFrom = DateTimeUtils.shiftMonths(timeTo, -3);
                         break;
-                    case 5:
+                    case 7:
                         text = getString(R.string.calendar_six_months);
                         timeFrom = DateTimeUtils.shiftMonths(timeTo, -6);
                         break;
-                    case 6:
+                    case 8:
                         text = getString(R.string.calendar_year);
                         timeFrom = DateTimeUtils.shiftMonths(timeTo, -12);
                         break;
                     default:
-                        text = getString(R.string.calendar_two_weeks);
-                        timeFrom = DateTimeUtils.shiftDays(timeTo, -14);
+                        text = getString(R.string.calendar_day);
+                        timeFrom = DateTimeUtils.shiftDays(timeTo, -1);
 
                 }
 
@@ -197,7 +207,7 @@ public class ActivityListingDashboard extends MaterialDialogFragment {
 
                 battery_status_date_to_text.setText(DateTimeUtils.formatDate(new Date(timeTo * 1000L)));
                 battery_status_time_span_seekbar.setProgress(0);
-                battery_status_time_span_seekbar.setProgress(1);
+                battery_status_time_span_seekbar.setProgress(2);
             }, currentDate.get(Calendar.YEAR), currentDate.get(Calendar.MONTH), currentDate.get(Calendar.DATE)).show();
         });
         battery_status_time_span_seekbar.setProgress(2);

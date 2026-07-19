@@ -39,6 +39,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NotificationImageSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
@@ -72,6 +73,8 @@ public interface EventHandler {
     void onSetMusicState(@NonNull MusicStateSpec stateSpec);
 
     void onSetMusicInfo(@NonNull MusicSpec musicSpec);
+
+    void onSetNotificationImage(NotificationImageSpec notificationImageSpec);
 
     /**
      * Sets the current phone media volume.

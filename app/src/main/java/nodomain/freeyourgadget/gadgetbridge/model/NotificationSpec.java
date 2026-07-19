@@ -38,6 +38,12 @@ public class NotificationSpec {
     public String category;
     public String[] cannedReplies;
     /**
+     * Reply suggestions provided by the source app (via RemoteInput.getChoices()) — e.g. quick-reply
+     * chips that Android shows above replyable notifications. Distinct from {@link #cannedReplies},
+     * which are user-configured. Null or empty when the notification has no suggestions.
+     */
+    public String[] suggestedReplies;
+    /**
      * Wearable actions that were attached to the incoming notifications and will be passed to the gadget (includes the "reply" action)
      */
     public ArrayList<Action> attachedActions;

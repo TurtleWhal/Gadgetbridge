@@ -106,6 +106,11 @@ public class GBDeviceEventBatteryInfo extends GBDeviceEvent {
 
         final int notificationSignal = shouldHaveNotification(devicePrefs, device, batteryIndex);
 
+        // Always persist the event so voltage/state are captured on every update,
+        // even when the device reports level as UNKNOWN or unchanged.
+        //noinspection unchecked
+        new StoreDataTask(context, device, this).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
         if (this.level == GBDevice.BATTERY_UNKNOWN) {
             // no level available, just "high" or "low"
             if (notificationSignal < 0) {
@@ -123,9 +128,6 @@ public class GBDeviceEventBatteryInfo extends GBDeviceEvent {
                 removeIfNoBatteryNotifying(context, device);
             }
         } else {
-            //noinspection unchecked
-            new StoreDataTask(context, device, this).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
             if (notificationSignal < 0 && isLevelDrop) {
                 updateBatteryLowNotification(context.getString(R.string.notif_battery_low_percent, device.getAliasOrName(), String.valueOf(this.level)),
                         this.extendedInfoAvailable() ?
@@ -292,6 +294,8 @@ public class GBDeviceEventBatteryInfo extends GBDeviceEvent {
             batteryLevel.setBatteryIndex(deviceEvent.batteryIndex);
             batteryLevel.setDevice(device);
             batteryLevel.setLevel(deviceEvent.level);
+            batteryLevel.setVoltage(deviceEvent.voltage);
+            batteryLevel.setBatteryState(deviceEvent.state != null ? deviceEvent.state.ordinal() : BatteryState.UNKNOWN.ordinal());
             handler.getDaoSession().getBatteryLevelDao().insert(batteryLevel);
         }
     }

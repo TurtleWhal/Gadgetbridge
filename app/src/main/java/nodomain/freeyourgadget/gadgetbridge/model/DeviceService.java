@@ -40,6 +40,7 @@ public interface DeviceService extends EventHandler {
     String ACTION_SETTIME = PREFIX + ".action.settime";
     String ACTION_SETMUSICINFO = PREFIX + ".action.setmusicinfo";
     String ACTION_SETMUSICSTATE = PREFIX + ".action.setmusicstate";
+    String ACTION_SET_NOTIFICATION_IMAGE = PREFIX + ".action.set_notification_image";
     String ACTION_SET_PHONE_VOLUME = PREFIX + ".action.set_phone_volume";
     String ACTION_SET_PHONE_SILENT_MODE = PREFIX + ".action.set_phone_silent_mode";
     String ACTION_SETNAVIGATIONINFO = PREFIX + ".action.setnavigationinfo";
@@ -105,7 +106,12 @@ public interface DeviceService extends EventHandler {
     String EXTRA_NOTIFICATION_TITLE = "notification_title";
     String EXTRA_NOTIFICATION_TYPE = "notification_type";
     String EXTRA_NOTIFICATION_ACTIONS = "notification_actions";
+    String EXTRA_NOTIFICATION_SUGGESTED_REPLIES = "notification_suggested_replies";
     String EXTRA_NOTIFICATION_ICONID = "notification_iconid";
+    String EXTRA_NOTIFICATION_IMAGE_ID = "notification_image_id";
+    String EXTRA_NOTIFICATION_IMAGE_WIDTH = "notification_image_width";
+    String EXTRA_NOTIFICATION_IMAGE_HEIGHT = "notification_image_height";
+    String EXTRA_NOTIFICATION_IMAGE_ARGB = "notification_image_argb"; // raw ARGB_8888 bytes, no compression
     String NOTIFICATION_PICTURE_PATH = "notification_picture_path";
     String EXTRA_NOTIFICATION_DNDSUPPRESSED = "notification_dndsuppressed";
     String EXTRA_NOTIFICATION_CHANNEL_ID = "notification_channel_id";
@@ -135,6 +141,7 @@ public interface DeviceService extends EventHandler {
     String EXTRA_MUSIC_REPEAT = "music_repeat";
     String EXTRA_MUSIC_POSITION = "music_position";
     String EXTRA_MUSIC_RATE = "music_rate";
+    String EXTRA_MUSIC_ALBUMART = "music_albumart"; // byte[] of PNG-encoded album art bitmap (optional)
     String EXTRA_PHONE_VOLUME = "phone_volume";
     String EXTRA_PHONE_RINGER_MODE = "ringer_mode";
     String EXTRA_NAVIGATION_INSTRUCTION = "navigation_instruction";

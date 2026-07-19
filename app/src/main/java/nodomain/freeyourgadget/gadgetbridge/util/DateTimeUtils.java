@@ -269,6 +269,27 @@ public class DateTimeUtils {
     }
 
     /**
+     * Calculates new timestamp with an hour offset (positive to add or negative to remove)
+     * from a given time
+     */
+    public static int shiftHours(int time, int hours) {
+        Calendar day = Calendar.getInstance();
+        day.setTimeInMillis(time * 1000L);
+        day.add(Calendar.HOUR_OF_DAY, hours);
+        return (int) (day.getTimeInMillis() / 1000);
+    }
+
+    /**
+     * Calculates difference in days between two timestamps
+     *
+     * @param time1
+     * @param time2
+     */
+    public static int  getDaysBetweenTimes(int time1, int time2) {
+        return (int) TimeUnit.MILLISECONDS.toDays((time2 - time1) * 1000L);
+    }
+
+    /**
      * Determine whether two Calendar instances are on the same day
      *
      * @param calendar1 The first calendar to compare

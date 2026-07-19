@@ -23,6 +23,7 @@ import static java.util.Collections.emptyMap;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_ALLOW_HIGH_MTU;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_BANGLEJS_TEXT_BITMAP;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_BANGLEJS_TEXT_BITMAP_SIZE;
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_BANGLEJS_TEXT_RAW_EMOJI;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_GPS_UPDATE;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_GPS_UPDATE_INTERVAL;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_GPS_USE_NETWORK_ONLY;
@@ -75,6 +76,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -132,6 +135,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NotificationImageSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
@@ -157,6 +161,44 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private BluetoothGattCharacteristic rxCharacteristic = null;
     private BluetoothGattCharacteristic txCharacteristic = null;
+    private BluetoothGattCharacteristic imageCharacteristic = null;
+    private int imageTransferIdCounter = 0;
+    private String lastAlbumArtTrackKey = null;
+
+    // Per-kind preemption rules:
+    //  - album art preempts in-flight or queued album art (newest wins for the *current* song)
+    //  - notification icons are strictly FIFO and never preempt anything
+    //  - neither kind preempts across kinds
+    // Implementation: a single FIFO job queue drained by one worker thread. Album art jobs
+    // carry a token; bumping latestAlbumArtToken on submission both signals the in-flight
+    // album art (if any) to abort on its next per-frame check, and we also strip stale
+    // album-art entries already sitting in the queue at submission time.
+    private static final class ImageJob {
+        final byte[][] frames;
+        final byte kind;
+        final String taskName;
+        final int albumArtToken; // only meaningful when kind == IMAGE_KIND_ALBUM_ART
+        ImageJob(byte[][] frames, byte kind, String taskName, int albumArtToken) {
+            this.frames = frames;
+            this.kind = kind;
+            this.taskName = taskName;
+            this.albumArtToken = albumArtToken;
+        }
+    }
+    private final java.util.concurrent.LinkedBlockingDeque<ImageJob> imageJobs =
+            new java.util.concurrent.LinkedBlockingDeque<>();
+    private final java.util.concurrent.atomic.AtomicInteger latestAlbumArtToken =
+            new java.util.concurrent.atomic.AtomicInteger(0);
+    private final Thread imageWorker;
+
+    // image_kind enum sent in the BEGIN frame at offset 12 (see image transfer spec)
+    private static final byte IMAGE_KIND_NOTIFICATION = 0x00;
+    private static final byte IMAGE_KIND_ALBUM_ART    = 0x01;
+
+    // Pacing for image transfer: one chunk per ~connection-interval, so the BLE queue
+    // stays near-empty and incoming text writes (music/notify JSON) get serviced
+    // promptly rather than waiting behind the whole image.
+    private static final long IMAGE_CHUNK_PACE_MS = 8L;
     private boolean allowHighMTU = false;
     private int mtuSize = 20;
     int bangleCommandSeq = 0; // to attempt to stop duplicate packets when sending Local Intents
@@ -174,6 +216,23 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private boolean isMissedCall = false;
     private final Handler handler = new Handler();
+
+    private static final long HOURLY_TIME_SYNC_INTERVAL_MS = 60L * 60L * 1000L;
+    private final Runnable hourlyTimeSyncRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (GBApplication.getPrefs().syncTime()) {
+                try {
+                    final TransactionBuilder builder = performInitialized("hourlyTimeSync");
+                    transmitTime(builder);
+                    builder.queue();
+                } catch (final Exception e) {
+                    LOG.debug("hourly time sync skipped: {}", e.getMessage());
+                }
+            }
+            handler.postDelayed(this, HOURLY_TIME_SYNC_INTERVAL_MS);
+        }
+    };
 
     private final LimitedQueue<Integer, Long> mNotificationReplyAction = new LimitedQueue<>(16);
 
@@ -200,9 +259,14 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     public BangleJSDeviceSupport() {
         super(LOG);
         addSupportedService(BangleJSConstants.UUID_SERVICE_NORDIC_UART);
+        addSupportedService(BangleJSConstants.UUID_SERVICE_GB_IMAGE);
 
         registerLocalIntents();
         registerGlobalIntents();
+
+        imageWorker = new Thread(this::runImageWorker, "BangleJS-ImageTx");
+        imageWorker.setDaemon(true);
+        imageWorker.start();
     }
 
     @Override
@@ -218,6 +282,13 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             stopGlobalUartReceiver();
             stopLocationUpdate();
             handler.removeCallbacksAndMessages(null);
+            // Abandon any in-progress / queued image transfers and reset state so the next
+            // connection re-sends the current album art fresh. The worker thread itself
+            // is a long-lived daemon — it will simply wait for the next job after the
+            // disconnect causes the in-flight job to fail naturally.
+            imageJobs.clear();
+            latestAlbumArtToken.incrementAndGet();
+            lastAlbumArtTrackKey = null;
         }
     }
 
@@ -346,6 +417,8 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         rxCharacteristic = getCharacteristic(BangleJSConstants.UUID_CHARACTERISTIC_NORDIC_UART_RX);
         txCharacteristic = getCharacteristic(BangleJSConstants.UUID_CHARACTERISTIC_NORDIC_UART_TX);
+        // Optional: firmwares without the image service will simply skip image sends.
+        imageCharacteristic = getCharacteristic(BangleJSConstants.UUID_CHARACTERISTIC_GB_IMAGE_DATA);
         if (rxCharacteristic==null || txCharacteristic==null) {
             // https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/2996 - sometimes we get
             // initializeDevice called but no characteristics have been fetched - try and reconnect in that case
@@ -360,14 +433,25 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         allowHighMTU = devicePrefs.getBoolean(PREF_ALLOW_HIGH_MTU, true);
 
         if (allowHighMTU) {
-            builder.requestMtu(131);
+            // Ask for max; Android will negotiate down to whatever the link supports.
+            // Larger MTU => fewer chunks per image => faster image transfer.
+            builder.requestMtu(517);
         }
+        // Faster connection interval (~7.5 ms) so chunks and small JSON writes both go out quickly.
+        builder.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
         // No need to clear active line with Ctrl-C now - firmwares in 2023 auto-clear on connect
 
         GBPrefs prefs = GBApplication.getPrefs();
         if (prefs.syncTime())
           transmitTime(builder);
         //sendSettings(builder);
+
+        // Re-sync the time to the watch every hour so its RTC doesn't drift over a long
+        // session. Cancel any previous pending fire first in case initializeDevice is
+        // re-entered on a reconnect. dispose() clears all handler callbacks, so this
+        // automatically stops when the device disconnects.
+        handler.removeCallbacks(hourlyTimeSyncRunnable);
+        handler.postDelayed(hourlyTimeSyncRunnable, HOURLY_TIME_SYNC_INTERVAL_MS);
 
         // get version
         builder.setDeviceState(GBDevice.State.INITIALIZED);
@@ -1158,6 +1242,21 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
+    public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+        super.onMtuChanged(gatt, mtu, status);
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            // ATT MTU includes a 3-byte header; the writeable payload is mtu - 3.
+            final int payload = mtu - 3;
+            if (allowHighMTU && payload > mtuSize) {
+                mtuSize = payload;
+                LOG.info("MTU negotiated to {} bytes, write payload size now {}", mtu, mtuSize);
+            }
+        } else {
+            LOG.warn("MTU negotiation failed with status {} (mtu={})", status, mtu);
+        }
+    }
+
+    @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
                                            BluetoothGattCharacteristic characteristic,
                                            byte[] chars) {
@@ -1353,9 +1452,15 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         if (txt==null) return null;
         // Simple conversions
         txt = txt.replaceAll("…", "...");
+        Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
+        // Raw mode: pass the Unicode through untouched (jsonToStringInternal will escape
+        // codepoints > 255 as backslash-uXXXX on the wire). For watches whose font already
+        // has the glyphs (e.g. LVGL with an emoji-capable font), this avoids both the
+        // :emoji: conversion and the bitmap render.
+        if (devicePrefs.getBoolean(PREF_BANGLEJS_TEXT_RAW_EMOJI, false))
+            return txt;
         /* If we're not doing conversion, pass this right back (we use the EmojiConverter
         As we would have done if BangleJSCoordinator.supportsUnicodeEmojis had reported false */
-        Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
         if (!devicePrefs.getBoolean(PREF_BANGLEJS_TEXT_BITMAP, false))
             return EmojiConverter.convertUnicodeEmojiToAscii(txt, GBApplication.getContext());
          // Otherwise split up and check each word
@@ -1465,7 +1570,19 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             o.put("body", renderUnicodeAsImage(cropToLength(notificationSpec.body, 400)));
             o.put("sender", renderUnicodeAsImage(cropToLength(notificationSpec.sender,40)));
             o.put("tel", notificationSpec.phoneNumber);
-            if (canReply) o.put("reply", true);
+            if (canReply) {
+                o.put("reply", true);
+                // Forward Android's app-supplied quick-reply suggestions, so the watch can
+                // offer them as one-tap choices alongside (or instead of) the user's canned
+                // replies. Only sent when the notification is actually replyable.
+                if (notificationSpec.suggestedReplies != null && notificationSpec.suggestedReplies.length > 0) {
+                    final JSONArray suggestions = new JSONArray();
+                    for (final String s : notificationSpec.suggestedReplies) {
+                        suggestions.put(renderUnicodeAsImage(cropToLength(s, 80)));
+                    }
+                    o.put("suggestions", suggestions);
+                }
+            }
             uartTxJSON("onNotification", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -1481,6 +1598,271 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             uartTxJSON("onDeleteNotification", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    @Override
+    public void onSetNotificationImage(NotificationImageSpec spec) {
+        if (!getDevicePrefs().getBoolean(DeviceSettingsPreferenceConst.PREF_SEND_APP_NOTIFICATIONS, true)) {
+            return;
+        }
+        if (spec == null || spec.argb == null || spec.width <= 0 || spec.height <= 0) {
+            return;
+        }
+        if (spec.argb.length != spec.width * spec.height * 4) {
+            LOG.warn("onSetNotificationImage: argb length {} doesn't match {}x{}*4",
+                    spec.argb.length, spec.width, spec.height);
+            return;
+        }
+        if (imageCharacteristic == null) {
+            LOG.debug("onSetNotificationImage: image characteristic not present, dropping image");
+            return;
+        }
+
+        final byte[] rgb565;
+        try {
+            // Rebuild a Bitmap from the raw ARGB bytes (lossless — no PNG/JPEG step)
+            // and run it through the dither + saturation pipeline.
+            final int[] pixels = new int[spec.width * spec.height];
+            final byte[] src = spec.argb;
+            for (int i = 0; i < pixels.length; i++) {
+                final int idx = i << 2;
+                pixels[i] = ((src[idx]     & 0xFF) << 24)
+                          | ((src[idx + 1] & 0xFF) << 16)
+                          | ((src[idx + 2] & 0xFF) << 8)
+                          |  (src[idx + 3] & 0xFF);
+            }
+            final Bitmap bitmap = Bitmap.createBitmap(pixels, spec.width, spec.height, Bitmap.Config.ARGB_8888);
+            try {
+                rgb565 = bitmapToRgb565Bytes(bitmap);
+            } finally {
+                bitmap.recycle();
+            }
+        } catch (final Exception e) {
+            LOG.warn("onSetNotificationImage: failed to convert ARGB to RGB565", e);
+            return;
+        }
+
+        try {
+            sendImageBinary(spec.notificationId, spec.width, spec.height, rgb565, IMAGE_KIND_NOTIFICATION);
+        } catch (final Exception e) {
+            LOG.warn("onSetNotificationImage: failed to send image over GATT", e);
+        }
+    }
+
+    // 8x8 Bayer matrix (values 0..63) used for ordered dithering when quantising from
+    // 24-bit ARGB to 5/6/5 RGB565. Without dithering, gradients on a cheap 16-bit panel
+    // posterize into visible bands; the matrix offsets each pixel by up to half the
+    // destination LSB, which the eye perceives as smooth shading instead of bands.
+    private static final int[] BAYER_8X8 = {
+             0, 32,  8, 40,  2, 34, 10, 42,
+            48, 16, 56, 24, 50, 18, 58, 26,
+            12, 44,  4, 36, 14, 46,  6, 38,
+            60, 28, 52, 20, 62, 30, 54, 22,
+             3, 35, 11, 43,  1, 33,  9, 41,
+            51, 19, 59, 27, 49, 17, 57, 25,
+            15, 47,  7, 39, 13, 45,  5, 37,
+            63, 31, 55, 23, 61, 29, 53, 21,
+    };
+
+    // Saturation boost as a percentage (100 = identity, 120 = +20% saturation).
+    // Cheap RGB565 panels often look washed out because 5/6/5 quantisation truncates
+    // colour information; pulling each channel away from its luma in software
+    // compensates for that and restores the punchiness of the source bitmap.
+    private static final int IMAGE_SATURATION_PERCENT = 120;
+
+    private static int clamp255(final int v) {
+        return v < 0 ? 0 : (v > 255 ? 255 : v);
+    }
+
+    /**
+     * Packed RGB565 pixel data, row-major, width*height*2 bytes, no row padding.
+     * Bytes are native-endian (LE on Android/ESP32) so they drop straight into
+     * an lv_image_dsc_t with cf = LV_COLOR_FORMAT_RGB565.
+     *
+     * Applies a saturation boost and Bayer ordered dither during the per-pixel
+     * 8888 -> 565 quantisation to compensate for what cheap displays do to colour.
+     */
+    public static byte[] bitmapToRgb565Bytes(final Bitmap src) {
+        final int w = src.getWidth();
+        final int h = src.getHeight();
+        final int[] argb = new int[w * h];
+        src.getPixels(argb, 0, w, 0, 0, w, h);
+
+        final byte[] out = new byte[w * h * 2];
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                final int p = argb[y * w + x];
+                int r = (p >> 16) & 0xFF;
+                int g = (p >> 8)  & 0xFF;
+                int b =  p        & 0xFF;
+
+                // Saturation boost: blend each channel away from luma. luma weights are
+                // Rec.601 (close enough for this use; quantisation noise dominates).
+                if (IMAGE_SATURATION_PERCENT != 100) {
+                    final int luma = (r * 299 + g * 587 + b * 114 + 500) / 1000;
+                    r = clamp255(luma + ((r - luma) * IMAGE_SATURATION_PERCENT) / 100);
+                    g = clamp255(luma + ((g - luma) * IMAGE_SATURATION_PERCENT) / 100);
+                    b = clamp255(luma + ((b - luma) * IMAGE_SATURATION_PERCENT) / 100);
+                }
+
+                // Ordered dither: centred Bayer offset, scaled so each channel sees
+                // <= half the LSB of its destination bit-width. Bayer[..]-32 is
+                // -32..+31; shifting by 3 gives -4..+3 (5-bit LSB = 8), by 4 gives
+                // -2..+1 (6-bit LSB = 4).
+                final int bayer = BAYER_8X8[((y & 7) << 3) | (x & 7)] - 32;
+                r = clamp255(r + (bayer >> 3));
+                g = clamp255(g + (bayer >> 4));
+                b = clamp255(b + (bayer >> 3));
+
+                final int rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+
+                // Native-endian (LE) pack to match LV_COLOR_FORMAT_RGB565.
+                final int idx = (y * w + x) * 2;
+                out[idx]     = (byte) (rgb565 & 0xFF);
+                out[idx + 1] = (byte) ((rgb565 >> 8) & 0xFF);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Send an RGB565 image to the watch over the dedicated binary GATT characteristic.
+     * Frames are written sequentially through the BLE transaction queue so they are
+     * delivered in order. See docs/banglejs-image-transfer.md (or the spec returned by
+     * the assistant) for the on-wire format.
+     */
+    private void sendImageBinary(final int correlationId,
+                                 final int width,
+                                 final int height,
+                                 final byte[] rgb565,
+                                 final byte imageKind) throws IOException {
+        if (imageCharacteristic == null) {
+            throw new IOException("image characteristic not bound");
+        }
+        if (rgb565.length != width * height * 2) {
+            throw new IOException("rgb565 length " + rgb565.length + " != width*height*2");
+        }
+
+        final int transferId = (imageTransferIdCounter = (imageTransferIdCounter + 1) & 0xFFFF);
+        final int chunkPayloadSize = Math.max(1, mtuSize - 5);
+        final int totalChunks = (rgb565.length + chunkPayloadSize - 1) / chunkPayloadSize;
+        if (totalChunks > 0xFFFF) {
+            throw new IOException("image too large for u16 chunk count");
+        }
+        LOG.info("sendImageBinary kind={} {}x{} bytes={} mtuSize={} chunks={} estTime~{}ms",
+                imageKind, width, height, rgb565.length, mtuSize, totalChunks,
+                (totalChunks + 2) * IMAGE_CHUNK_PACE_MS);
+
+        final java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        crc.update(rgb565);
+        final long crc32 = crc.getValue();
+
+        // Pre-build every frame so the producer thread can just write them out.
+        final byte[][] frames = new byte[totalChunks + 2][];
+
+        final ByteBuffer begin = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN);
+        begin.put((byte) 0x01);
+        begin.putShort((short) transferId);
+        begin.putInt(correlationId);
+        begin.putShort((short) width);
+        begin.putShort((short) height);
+        begin.put((byte) 0x01);             // pixel_format = RGB565
+        begin.put(imageKind);               // image_kind
+        begin.putInt(rgb565.length);
+        begin.putShort((short) chunkPayloadSize);
+        begin.put((byte) 0x00);             // reserved
+        frames[0] = begin.array();
+
+        for (int seq = 0; seq < totalChunks; seq++) {
+            final int offset = seq * chunkPayloadSize;
+            final int len = Math.min(chunkPayloadSize, rgb565.length - offset);
+            final ByteBuffer data = ByteBuffer.allocate(5 + len).order(ByteOrder.LITTLE_ENDIAN);
+            data.put((byte) 0x02);
+            data.putShort((short) transferId);
+            data.putShort((short) seq);
+            data.put(rgb565, offset, len);
+            frames[1 + seq] = data.array();
+        }
+
+        final ByteBuffer end = ByteBuffer.allocate(7).order(ByteOrder.LITTLE_ENDIAN);
+        end.put((byte) 0x03);
+        end.putShort((short) transferId);
+        end.putInt((int) crc32);
+        frames[frames.length - 1] = end.array();
+
+        final String taskName = "sendImage:" + imageKind + ":" + correlationId;
+        final int albumArtToken;
+        if (imageKind == IMAGE_KIND_ALBUM_ART) {
+            // Bumping signals any in-flight album art to abort on its next per-frame check.
+            albumArtToken = latestAlbumArtToken.incrementAndGet();
+            // Strip any older album-art jobs still waiting in the queue — only the newest
+            // album art is worth sending; intermediate songs that haven't started yet
+            // would just be wasted transfer time.
+            final int removed = removeQueuedAlbumArt();
+            if (removed > 0) {
+                LOG.debug("dropped {} queued album-art job(s) in favor of {}", removed, taskName);
+            }
+        } else {
+            albumArtToken = -1;
+        }
+        imageJobs.add(new ImageJob(frames, imageKind, taskName, albumArtToken));
+    }
+
+    private int removeQueuedAlbumArt() {
+        int removed = 0;
+        for (final java.util.Iterator<ImageJob> it = imageJobs.iterator(); it.hasNext(); ) {
+            if (it.next().kind == IMAGE_KIND_ALBUM_ART) {
+                it.remove();
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    private void runImageWorker() {
+        while (true) {
+            final ImageJob job;
+            try {
+                job = imageJobs.take();
+            } catch (final InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            runImageJob(job);
+        }
+    }
+
+    private void runImageJob(final ImageJob job) {
+        final boolean isAlbumArt = (job.kind == IMAGE_KIND_ALBUM_ART);
+        for (int i = 0; i < job.frames.length; i++) {
+            if (isAlbumArt && latestAlbumArtToken.get() != job.albumArtToken) {
+                LOG.debug("{} preempted at frame {}/{} by newer album art",
+                        job.taskName, i, job.frames.length);
+                return;
+            }
+            if (imageCharacteristic == null) {
+                LOG.debug("{} aborted at frame {}/{}: image characteristic gone",
+                        job.taskName, i, job.frames.length);
+                return;
+            }
+            try {
+                final TransactionBuilder b = performInitialized(job.taskName + ":" + i);
+                b.write(imageCharacteristic, job.frames[i]);
+                b.queue();
+            } catch (final IOException e) {
+                LOG.warn("{} failed to queue frame {}", job.taskName, i, e);
+                return;
+            }
+            // Pace the producer so the BLE queue stays near-empty between chunks.
+            // Music/notify JSON writes queued during this gap get serviced before
+            // the next image chunk lands in the queue.
+            try {
+                Thread.sleep(IMAGE_CHUNK_PACE_MS);
+            } catch (final InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
     }
 
@@ -1645,6 +2027,50 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             } catch (JSONException e) {
                 LOG.info("JSONException: " + e.getLocalizedMessage());
             }
+        }
+
+        sendAlbumArtIfPresent(musicSpec);
+    }
+
+    private static final int ALBUM_ART_SIZE = 120;
+
+    private void sendAlbumArtIfPresent(final MusicSpec musicSpec) {
+        if (musicSpec == null || musicSpec.albumArt == null) {
+            LOG.debug("sendAlbumArt: no album art on MusicSpec, skipping");
+            return;
+        }
+        if (imageCharacteristic == null) {
+            LOG.debug("sendAlbumArt: image characteristic not present on device, skipping");
+            return;
+        }
+        // MusicSpec.equals() ignores albumArt and the same track can trigger multiple
+        // onSetMusicInfo calls (e.g. progress updates on some media apps), so dedupe by
+        // a track-identity key built from the user-visible fields.
+        final String trackKey = (musicSpec.artist == null ? "" : musicSpec.artist) + "\u0000"
+                + (musicSpec.album  == null ? "" : musicSpec.album)  + "\u0000"
+                + (musicSpec.track  == null ? "" : musicSpec.track);
+        if (trackKey.equals(lastAlbumArtTrackKey)) {
+            LOG.debug("sendAlbumArt: track unchanged, skipping resend");
+            return;
+        }
+        lastAlbumArtTrackKey = trackKey;
+        LOG.info("sendAlbumArt: sending {}x{} album art for {}",
+                musicSpec.albumArt.getWidth(), musicSpec.albumArt.getHeight(), trackKey);
+        try {
+            final Bitmap scaled = (musicSpec.albumArt.getWidth() == ALBUM_ART_SIZE
+                    && musicSpec.albumArt.getHeight() == ALBUM_ART_SIZE)
+                    ? musicSpec.albumArt
+                    : Bitmap.createScaledBitmap(musicSpec.albumArt, ALBUM_ART_SIZE, ALBUM_ART_SIZE, true);
+            try {
+                final byte[] rgb565 = bitmapToRgb565Bytes(scaled);
+                sendImageBinary(0, ALBUM_ART_SIZE, ALBUM_ART_SIZE, rgb565, IMAGE_KIND_ALBUM_ART);
+            } finally {
+                if (scaled != musicSpec.albumArt) {
+                    scaled.recycle();
+                }
+            }
+        } catch (final Exception e) {
+            LOG.warn("Failed to send album art", e);
         }
     }
 
