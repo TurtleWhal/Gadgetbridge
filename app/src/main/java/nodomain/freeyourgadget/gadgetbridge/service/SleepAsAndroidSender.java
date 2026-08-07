@@ -13,9 +13,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.devices.SleepAsAndroidFeature;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.sleepasandroid.SleepAsAndroidAction;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
 public class SleepAsAndroidSender {
@@ -31,6 +33,9 @@ public class SleepAsAndroidSender {
     private final String ACTION_DISMISS_FROM_WATCH = "com.urbandroid.sleep.watch.DISMISS_FROM_WATCH";
 
     private final String MAX_RAW_DATA = "MAX_RAW_DATA";
+    private final String MAX_DATA = "MAX_DATA";
+    private final String MIN_DATA = "MIN_DATA";
+    private final String SUM_DATA = "SUM_DATA";
     private final String DATA = "DATA";
     private final String EXTRA_DATA_HR = "com.urbandroid.sleep.EXTRA_DATA_HR";
     private final String EXTRA_DATA_RR = "com.urbandroid.sleep.EXTRA_DATA_RR";
@@ -40,6 +45,10 @@ public class SleepAsAndroidSender {
     private final String EXTRA_DATA_FRAMERATE = "com.urbandroid.sleep.EXTRA_DATA_FRAMERATE";
     private final String EXTRA_DATA_BATCH = "com.urbandroid.sleep.EXTRA_DATA_BATCH";
 
+    static final long ACCEL_AGGREGATE_INTERVAL_MS = 10_000L;
+    static final int HR_BUFFER_MAX = 60;
+    static final float HR_MIN_VALID = 10f;
+    static final float HR_MAX_VALID = 240f;
 
     private GBDevice device;
     private boolean trackingOngoing = false;
@@ -48,17 +57,25 @@ public class SleepAsAndroidSender {
     private ScheduledExecutorService trackingPauseScheduler;
     private long batchSize = 1;
     private long lastRawDataMs = 0;
+    private final Object accelLock = new Object();
     private float maxRawData = 0;
+    private float minRawData = Float.MAX_VALUE;
+    private float sumRawData = 0;
+    private int sampleCount = 0;
     private long lastHrDataMs = 0;
     private ArrayList<Float> hrData = new ArrayList<>();
 
-    private ArrayList<Float> accData = new ArrayList<>();
+    private ArrayList<Float> accDataMaxRaw = new ArrayList<>();
+    private ArrayList<Float> accDataMax = new ArrayList<>();
+    private ArrayList<Float> accDataMin = new ArrayList<>();
+    private ArrayList<Float> accDataSum = new ArrayList<>();
     private ScheduledExecutorService accDataScheduler;
+    private ScheduledExecutorService spo2AutoFetchScheduler;
     private Set<SleepAsAndroidFeature> features;
 
     public SleepAsAndroidSender(GBDevice gbDevice) {
         this.device = gbDevice;
-        this.features = gbDevice.getDeviceCoordinator().getSleepAsAndroidFeatures();
+        this.features = gbDevice.getDeviceCoordinator().getSleepAsAndroidFeatures(gbDevice);
     }
 
     /**
@@ -85,6 +102,9 @@ public class SleepAsAndroidSender {
                     break;
                 case HEART_RATE:
                     enabled = GBApplication.getPrefs().getBoolean("pref_key_sleepasandroid_feat_hr", false);
+                    break;
+                case RR_INTERVALS:
+                    enabled = GBApplication.getPrefs().getBoolean("pref_key_sleepasandroid_feat_rr_intervals", false);
                     break;
                 case SPO2:
                     enabled = GBApplication.getPrefs().getBoolean("pref_key_sleepasandroid_feat_spo2", false);
@@ -128,12 +148,14 @@ public class SleepAsAndroidSender {
             public void run() {
                 aggregateAndSendAccelData();
             }
-        }, 9999, 9999, TimeUnit.MILLISECONDS);
+        }, ACCEL_AGGREGATE_INTERVAL_MS, ACCEL_AGGREGATE_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
         lastRawDataMs = System.currentTimeMillis();
         lastHrDataMs = System.currentTimeMillis();
 
         this.trackingOngoing = true;
+
+        enableSpo2AutoFetch(true);
     }
 
     /**
@@ -145,12 +167,66 @@ public class SleepAsAndroidSender {
             accDataScheduler.shutdownNow();
             accDataScheduler = null;
         }
+        enableSpo2AutoFetch(false);
 
         this.trackingOngoing = false;
-        this.hrData = new ArrayList<>();
-        this.accData = new ArrayList<>();
+        synchronized (accelLock) {
+            this.hrData = new ArrayList<>();
+            this.accDataMaxRaw = new ArrayList<>();
+            this.accDataMax = new ArrayList<>();
+            this.accDataMin = new ArrayList<>();
+            this.accDataSum = new ArrayList<>();
+            this.maxRawData = 0;
+            this.minRawData = Float.MAX_VALUE;
+            this.sumRawData = 0;
+            this.sampleCount = 0;
+        }
         this.lastHrDataMs = 0;
         this.lastRawDataMs = 0;
+    }
+
+    /**
+     * Starts or stops the periodic fetching of recorded SPO2 samples, for devices that can
+     * only deliver SPO2 to Sleep as Android this way instead of pushing live readings.
+     */
+    private void enableSpo2AutoFetch(final boolean enable) {
+        if (spo2AutoFetchScheduler != null) {
+            spo2AutoFetchScheduler.shutdownNow();
+            spo2AutoFetchScheduler = null;
+        }
+
+        if (!enable) {
+            return;
+        }
+
+        if (!hasFeature(SleepAsAndroidFeature.SPO2_AUTOFETCH) || !isFeatureEnabled(SleepAsAndroidFeature.SPO2)) {
+            LOG.debug("Not starting spo2 auto-fetch, feature not supported/enabled: hasFeature={}, isFeatureEnabled={}",
+                    hasFeature(SleepAsAndroidFeature.SPO2_AUTOFETCH), isFeatureEnabled(SleepAsAndroidFeature.SPO2));
+            return;
+        }
+
+        final int intervalSeconds = GBApplication.getPrefs().getInt("pref_key_sleepasandroid_spo2_autofetch_interval", 60);
+        if (intervalSeconds <= 0) {
+            LOG.warn("Invalid spo2 auto-fetch interval {}, not starting", intervalSeconds);
+            return;
+        }
+
+        final boolean allDayMonitoringEnabled = GBApplication.getDevicePrefs(device).getBoolean(DeviceSettingsPreferenceConst.PREF_SPO2_ALL_DAY_MONITORING, false);
+        LOG.debug("Starting spo2 auto-fetch for sleep as android, every {} seconds (spo2_all_day_monitoring_enabled={})", intervalSeconds, allDayMonitoringEnabled);
+        if (!allDayMonitoringEnabled) {
+            LOG.warn("SpO2 all-day monitoring is disabled on the device - the watch will likely not record any new normal spo2 samples for the auto-fetch to pick up");
+        }
+
+        spo2AutoFetchScheduler = Executors.newSingleThreadScheduledExecutor();
+        spo2AutoFetchScheduler.scheduleWithFixedDelay(
+                () -> {
+                    LOG.debug("Spo2 auto-fetch tick, triggering onFetchRecordedData(TYPE_SPO2)");
+                    GBApplication.deviceService(device).onFetchRecordedData(RecordedDataTypes.TYPE_SPO2);
+                },
+                intervalSeconds,
+                intervalSeconds,
+                TimeUnit.SECONDS
+        );
     }
 
     /**
@@ -265,25 +341,47 @@ public class SleepAsAndroidSender {
     /**
      * Aggregate and send the acceleration data
      */
-    private synchronized void aggregateAndSendAccelData() {
+    private void aggregateAndSendAccelData() {
         if (!trackingOngoing || trackingPaused) return;
-        if (maxRawData > 0) {
-            accData.add(maxRawData);
+        final float windowMax;
+        final float windowMin;
+        final float windowSum;
+        final int windowCount;
+        synchronized (accelLock) {
+            if (sampleCount == 0) return;
+            windowMax = maxRawData;
+            windowMin = minRawData;
+            windowSum = sumRawData;
+            windowCount = sampleCount;
             maxRawData = 0;
-            if (accData.size() == batchSize) {
+            minRawData = Float.MAX_VALUE;
+            sumRawData = 0;
+            sampleCount = 0;
+            accDataMaxRaw.add(windowMax);
+            accDataMax.add(windowMax);
+            accDataMin.add(windowMin);
+            accDataSum.add(windowSum);
+            if (accDataMaxRaw.size() >= batchSize) {
                 sendAccelData();
             }
         }
+        LOG.debug("Accel window: max={} min={} sum={} count={}", windowMax, windowMin, windowSum, windowCount);
     }
 
     /**
-     * Send the acceleration data
+     * Send the acceleration data. Caller MUST hold accelLock.
      */
     private void sendAccelData() {
-        LOG.debug("Sending movement data: " + this.accData + " batch size: " + batchSize + " array size: " + accData.size());
+        LOG.debug("Sending movement data: batch size {} array size {}", batchSize, accDataMaxRaw.size());
         Intent intent = new Intent(ACTION_MOVEMENT_DATA_UPDATE);
-        intent.putExtra(MAX_RAW_DATA, convertToFloatArray(this.accData));
-        accData.clear();
+        intent.putExtra(MAX_RAW_DATA, convertToFloatArray(accDataMaxRaw));
+        intent.putExtra(MAX_DATA, convertToFloatArray(accDataMax));
+        intent.putExtra(MIN_DATA, convertToFloatArray(accDataMin));
+        intent.putExtra(SUM_DATA, convertToFloatArray(accDataSum));
+        accDataMaxRaw.clear();
+        accDataMax.clear();
+        accDataMin.clear();
+        accDataSum.clear();
         broadcastToSleepAsAndroid(intent);
     }
 
@@ -294,9 +392,16 @@ public class SleepAsAndroidSender {
      * @param z the z value
      */
     private void updateMaxRawData(float x, float y, float z) {
-        float maxRaw = calculateAccelerationMagnitude(x, y, z);
-        if (maxRaw > maxRawData) {
-            maxRawData = maxRaw;
+        float magnitude = calculateAccelerationMagnitude(x, y, z);
+        synchronized (accelLock) {
+            if (magnitude > maxRawData) {
+                maxRawData = magnitude;
+            }
+            if (magnitude < minRawData) {
+                minRawData = magnitude;
+            }
+            sumRawData += magnitude;
+            sampleCount++;
         }
     }
 
@@ -308,8 +413,26 @@ public class SleepAsAndroidSender {
      * @return
      */
     protected float calculateAccelerationMagnitude(float x, float y, float z) {
-        double sqrt = Math.sqrt((x * x) + (y * y) + (z * z));
-        return (float)sqrt;
+        return computeAccelerationMagnitude(x, y, z);
+    }
+
+    static float computeAccelerationMagnitude(float x, float y, float z) {
+        return (float) Math.sqrt((x * x) + (y * y) + (z * z));
+    }
+
+    /** Test hook: aggregate one (max, min, sum) window into output arrays. */
+    static void aggregateWindow(float[] samples, float[] out) {
+        float max = Float.NEGATIVE_INFINITY;
+        float min = Float.POSITIVE_INFINITY;
+        float sum = 0f;
+        for (float s : samples) {
+            if (s > max) max = s;
+            if (s < min) min = s;
+            sum += s;
+        }
+        out[0] = max;
+        out[1] = min;
+        out[2] = sum;
     }
 
     /**
@@ -322,6 +445,7 @@ public class SleepAsAndroidSender {
         if (!isDeviceDefault() || !isFeatureEnabled(SleepAsAndroidFeature.HEART_RATE) || !hasFeature(SleepAsAndroidFeature.HEART_RATE) || !trackingOngoing)
             return;
         if (trackingPaused) return;
+        if (hr <= HR_MIN_VALID || hr > HR_MAX_VALID) return;
 
         updateLastHrData(hr);
 
@@ -350,8 +474,11 @@ public class SleepAsAndroidSender {
      * Update the last heart rate data
      * @param hr the heart rate
      */
-    private void updateLastHrData(float hr) {
+    private synchronized void updateLastHrData(float hr) {
         this.hrData.add(hr);
+        while (this.hrData.size() > HR_BUFFER_MAX) {
+            this.hrData.remove(0);
+        }
     }
 
     /**
@@ -383,7 +510,7 @@ public class SleepAsAndroidSender {
         }
 
         // RR Intervals
-        if (extraDataRR != null && (hasFeature(SleepAsAndroidFeature.HEART_RATE) && isFeatureEnabled(SleepAsAndroidFeature.HEART_RATE))) {
+        if (extraDataRR != null && (hasFeature(SleepAsAndroidFeature.RR_INTERVALS) && isFeatureEnabled(SleepAsAndroidFeature.RR_INTERVALS))) {
             intent.putExtra(EXTRA_DATA_RR, convertToFloatArray(extraDataRR));
         }
 
@@ -413,8 +540,18 @@ public class SleepAsAndroidSender {
      */
     public void sendExtra(Float hr, Float extraDataRR, Float spo2, Float sdnn, Long sdnnTimestamp) {
 
-        if (!isDeviceDefault() || !trackingOngoing) return;
-        if (trackingPaused) return;
+        if (!isDeviceDefault()) {
+            LOG.debug("Not sending extra data (spo2={}), device is not the default sleep as android device", spo2);
+            return;
+        }
+        if (!trackingOngoing) {
+            LOG.debug("Not sending extra data (spo2={}), tracking is not ongoing", spo2);
+            return;
+        }
+        if (trackingPaused) {
+            LOG.debug("Not sending extra data (spo2={}), tracking is paused", spo2);
+            return;
+        }
         Intent intent = new Intent(ACTION_EXTRA_DATA_UPDATE);
 
         // Heart Rate
@@ -423,8 +560,14 @@ public class SleepAsAndroidSender {
         }
 
         // SpO2
-        if (spo2 != null && (hasFeature(SleepAsAndroidFeature.SPO2) && isFeatureEnabled(SleepAsAndroidFeature.SPO2))) {
-            intent.putExtra(EXTRA_DATA_SPO2, spo2);
+        if (spo2 != null) {
+            if (hasFeature(SleepAsAndroidFeature.SPO2) && isFeatureEnabled(SleepAsAndroidFeature.SPO2)) {
+                LOG.debug("Sending spo2 data: {} at {}", spo2, sdnnTimestamp);
+                intent.putExtra(EXTRA_DATA_SPO2, spo2);
+            } else {
+                LOG.debug("Not sending spo2 data {}, hasFeature={}, isFeatureEnabled={}", spo2,
+                        hasFeature(SleepAsAndroidFeature.SPO2), isFeatureEnabled(SleepAsAndroidFeature.SPO2));
+            }
         }
 
         // SDNN
@@ -432,7 +575,7 @@ public class SleepAsAndroidSender {
             intent.putExtra(EXTRA_DATA_SDNN, sdnn);
         }
 
-        if (extraDataRR != null && (hasFeature(SleepAsAndroidFeature.HEART_RATE) && isFeatureEnabled(SleepAsAndroidFeature.HEART_RATE))) {
+        if (extraDataRR != null && (hasFeature(SleepAsAndroidFeature.RR_INTERVALS) && isFeatureEnabled(SleepAsAndroidFeature.RR_INTERVALS))) {
             intent.putExtra(EXTRA_DATA_RR, extraDataRR);
         }
 
@@ -529,6 +672,15 @@ public class SleepAsAndroidSender {
                     break;
                 case SleepAsAndroidAction.START_TRACKING:
                 case SleepAsAndroidAction.STOP_TRACKING:
+                case SleepAsAndroidAction.SET_PAUSE:
+                case SleepAsAndroidAction.SET_SUSPENDED: {
+                    boolean accel = hasFeature(SleepAsAndroidFeature.ACCELEROMETER) && isFeatureEnabled(SleepAsAndroidFeature.ACCELEROMETER);
+                    boolean hr = hasFeature(SleepAsAndroidFeature.HEART_RATE) && isFeatureEnabled(SleepAsAndroidFeature.HEART_RATE);
+                    if (!accel && !hr) {
+                        throw new UnsupportedOperationException("Action not valid");
+                    }
+                    break;
+                }
                 case SleepAsAndroidAction.SET_BATCH_SIZE:
                     if (!hasFeature(SleepAsAndroidFeature.ACCELEROMETER) || !isFeatureEnabled(SleepAsAndroidFeature.ACCELEROMETER)) {
                         throw new UnsupportedOperationException("Action not valid");

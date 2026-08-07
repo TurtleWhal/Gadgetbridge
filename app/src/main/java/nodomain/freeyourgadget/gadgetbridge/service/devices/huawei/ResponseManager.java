@@ -22,9 +22,12 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import nodomain.freeyourgadget.gadgetbridge.devices.huawei.HuaweiPacket;
+import nodomain.freeyourgadget.gadgetbridge.service.btbr.AbstractBTBRDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.Request;
 
 /**
@@ -33,8 +36,17 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.Requ
 public class ResponseManager {
     private static final Logger LOG = LoggerFactory.getLogger(ResponseManager.class);
 
+    /// Reassembly key of the primary transport (BLE, or an RFCOMM socket opened through SDP).
+    /// Negative, so it can never collide with a negotiated aux RFCOMM channel.
+    public static final int MAIN_CHANNEL = AbstractBTBRDeviceSupport.RFCOMM_CHANNEL_UNSPECIFIED;
+
     private final List<Request> handlers = Collections.synchronizedList(new ArrayList<>());
-    private HuaweiPacket receivedPacket;
+    // Reassembly state is per transport channel: the main socket and each aux (dual channel)
+    // socket run on their own read thread and deliver independent byte streams. Sharing a single
+    // partial-packet buffer between them lets one stream's fragment corrupt the other's in-progress
+    // (possibly sliced) packet, which throws it away silently. Keying by channel keeps each stream's
+    // reassembly isolated. Access is guarded by handleData being synchronized.
+    private final Map<Integer, HuaweiPacket> receivedPackets = new HashMap<>();
     private final AsynchronousResponse asynchronousResponse;
     private final HuaweiSupportProvider support;
 
@@ -81,6 +93,21 @@ public class ResponseManager {
      * @param data The received data
      */
     public void handleData(byte[] data) {
+        handleData(data, MAIN_CHANNEL);
+    }
+
+    /**
+     * Parses the data into a Huawei Packet.
+     * If the packet is complete, it will be handled by the first request that accepts it,
+     * or as an asynchronous request otherwise.
+     *
+     * @param data    The received data
+     * @param channel The transport channel the data arrived on ({@link #MAIN_CHANNEL} for BLE and
+     *                for a primary socket resolved through SDP, otherwise the RFCOMM channel the
+     *                socket was opened on). Reassembly state is kept per channel so the
+     *                independent socket streams never corrupt each other.
+     */
+    public synchronized void handleData(byte[] data, int channel) {
         //NOTE: This is a quick fix issue with concatenated packets.
         //TODO: Extract transport related code from packet.
         int left = 0;
@@ -88,18 +115,20 @@ public class ResponseManager {
             if(left > 0)
                 data = Arrays.copyOfRange(data, data.length - left, data.length);
 
+            HuaweiPacket receivedPacket = receivedPackets.get(channel);
             try {
                 if (receivedPacket == null)
                     receivedPacket = new HuaweiPacket(support.getParamsProvider()).parse(data);
                 else
                     receivedPacket = receivedPacket.parse(data);
 
+                receivedPackets.put(channel, receivedPacket);
                 left = receivedPacket.getLeft();
             } catch (HuaweiPacket.ParseException e) {
                 LOG.error("Packet parse exception", e);
 
                 // Clean up so the next message may be parsed correctly
-                this.receivedPacket = null;
+                receivedPackets.remove(channel);
                 return;
             }
 
@@ -130,7 +159,7 @@ public class ResponseManager {
 
                     handler.handleResponse();
                 }
-                receivedPacket = null;
+                receivedPackets.remove(channel);
             }
         } while (left > 0);
     }

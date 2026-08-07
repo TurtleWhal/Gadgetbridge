@@ -28,6 +28,12 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class HonorBand7Coordinator extends HuaweiLECoordinator {
     @Override
+    public boolean isExperimental() {
+        // #6027
+        return true;
+    }
+
+    @Override
     public String getManufacturer() {
         return "Honor";
     }
@@ -45,6 +51,11 @@ public class HonorBand7Coordinator extends HuaweiLECoordinator {
     @Override
     public DeviceCoordinator.DeviceKind getDeviceKind(@NonNull GBDevice device) {
         return DeviceCoordinator.DeviceKind.FITNESS_BAND;
+    }
+
+    @Override
+    public boolean isNewHonorProtocol() {
+        return true;
     }
 
     @Override

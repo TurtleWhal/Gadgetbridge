@@ -368,6 +368,7 @@
     <string name="pref_title_canned_messages_set">Update on device</string>
     <string name="pref_header_development">Developer options</string>
     <string name="pref_header_intent_api">Intent API</string>
+    <string name="authentication_settings">Authentication settings</string>
     <string name="pref_header_authentication">Authentication</string>
     <string name="pref_title_development_miaddr">Mi Band address</string>
     <string name="pref_title_pebble_settings">Pebble settings</string>
@@ -400,6 +401,16 @@
     <string name="pref_summary_casio_alert_sms">Alert (vibrate/beep) for SMS (text message) notifications</string>
     <string name="pref_title_casio_alert_other">Alert for \"other\" notifications</string>
     <string name="pref_summary_casio_alert_other">Alert (vibrate/beep) for notifications in the \"other\" category</string>
+    <string name="pref_casio_interval_timer_title">Interval timer</string>
+    <string name="casio_interval_timer_add">Add timer</string>
+    <string name="casio_interval_timer_empty">No interval timers yet. Tap + to add one.</string>
+    <string name="casio_interval_timer_limit_reached">Maximum of 50 timers reached</string>
+    <string name="casio_interval_timer_active">Active on watch</string>
+    <string name="casio_interval_timer_slot">Step %1$d</string>
+    <string name="casio_interval_timer_skip">Skip</string>
+    <string name="casio_interval_timer_repeat">Auto-repeat</string>
+    <string name="casio_interval_timer_default_label">Timer %1$d</string>
+    <string name="casio_interval_timer_total">Total: %1$s × %2$d = %3$s</string>
     <string name="pref_title_autoremove_notifications">Autoremove dismissed notifications</string>
     <string name="pref_summary_autoremove_notifications">Notifications are automatically removed from the device when dismissed from the phone</string>
     <string name="pref_title_screen_on_on_notifications">Screen On on Notifications</string>
@@ -975,7 +986,7 @@
     <string name="prefs_relaxation_reminder_description">Vibrate the band to notify you if the stress value is higher than 80</string>
     <string name="prefs_spo2_monitoring_title">Blood Oxygen Monitoring</string>
     <string name="prefs_spo2_monitoring_description">Automatically monitor the blood oxygen levels throughout the day</string>
-    <string name="prefs_spo2_alert_threshold">SPO2 alert threshold</string>
+    <string name="prefs_spo2_alert_threshold">SpO2 alert threshold</string>
     <string name="prefs_activity_monitoring_title">Activity monitoring</string>
     <string name="prefs_activity_monitoring_description">Automatically increase the heart rate detection frequency when the band detects physical exercise, to increase heart rate capture accuracy.</string>
     <string name="dbaccess_error_executing">Error executing \"%1$s\"</string>
@@ -1404,6 +1415,13 @@
     <string name="authentication_required">Authentication required</string>
     <string name="authentication_failed_check_key">Authentication failed, please check auth key</string>
     <string name="authentication_failed_negotiation">Authentication key negotiation failed</string>
+    <string name="click_here_for_more_information">Click here for more information.</string>
+    <string name="authentication_expired">Authentication expired</string>
+    <string name="expiration_notifications_title">Expiration notification</string>
+    <string name="auth_expiration_notifications_summary">Display a notification when authentication is expired.</string>
+    <string name="garmin_oauth_expired_description">Authentication for %1$s has expired, some functions may not work. Click here for more information.</string>
+    <string name="garmin_auth_expired_activity_description">The authentication token for \'%1$s\' has expired, so some functions (such as weather and AGPS updates) may stop working until it is re-authenticated with the official Garmin Connect app.\n\nAs a workaround, Gadgetbridge can send fake authentication responses to the watch instead. Do not enable this if you plan to use the official Garmin Connect app or connect the watch to the internet, as you may need to factory reset the watch afterwards to authenticate again.</string>
+    <string name="dont_show_again">Don\'t show again</string>
     <string name="activity_prefs_sleep_duration_minutes">Preferred sleep duration in minutes</string>
     <string name="device_hw">Hardware revision: %1$s</string>
     <string name="device_fw">Firmware version: %1$s</string>
@@ -1694,6 +1712,7 @@
     <string name="activity_type_indoor_track">Indoor Track</string>
     <string name="activity_type_handcycling">Handcycling</string>
     <string name="activity_type_e_bike">E-Bike</string>
+    <string name="activity_type_e_scooter">E-Scooter</string>
     <string name="activity_type_bike_commute">Bike Commute</string>
     <string name="activity_type_handcycling_indoor">Handcycling Indoor</string>
     <string name="activity_type_transition">Transition</string>
@@ -2019,6 +2038,7 @@
     <string name="devicetype_garmin_venu_3s" translatable="false">Garmin Venu 3S</string>
     <string name="devicetype_garmin_venu_4" translatable="false">Garmin Venu 4</string>
     <string name="devicetype_garmin_venu_x1" translatable="false">Garmin Venu X1</string>
+    <string name="devicetype_garmin_cirqa" translatable="false">Garmin CIRQA</string>
     <string name="devicetype_garmin_edge_25" translatable="false">Garmin Edge 25</string>
     <string name="devicetype_garmin_edge_130" translatable="false">Garmin Edge 130</string>
     <string name="devicetype_garmin_edge_130_plus" translatable="false">Garmin Edge 130 Plus</string>
@@ -2044,6 +2064,7 @@
     <string name="devicetype_garmin_fenix_6" translatable="false">Garmin Fenix 6</string>
     <string name="devicetype_garmin_fenix_6_pro" translatable="false">Garmin Fenix 6 Pro</string>
     <string name="devicetype_garmin_fenix_6_sapphire" translatable="false">Garmin Fenix 6 Sapphire</string>
+    <string name="devicetype_garmin_fenix_6s" translatable="false">Garmin Fenix 6S</string>
     <string name="devicetype_garmin_fenix_6s_pro" translatable="false">Garmin Fenix 6S Pro</string>
     <string name="devicetype_garmin_fenix_6s_pro_solar" translatable="false">Garmin Fenix 6S Pro Solar</string>
     <string name="devicetype_garmin_fenix_6s_sapphire" translatable="false">Garmin Fenix 6S Sapphire</string>
@@ -2168,6 +2189,8 @@
     <string name="devicetype_colacao21" translatable="false">ColaCao 2021</string>
     <string name="devicetype_colacao23" translatable="false">ColaCao 2023</string>
     <string name="devicetype_ak102" translatable="false">AK102</string>
+    <string name="devicetype_ak75_pro" translatable="false">AK75 PRO</string>
+    <string name="devicetype_ak86" translatable="false">AK86</string>
     <string name="devicetype_domyos_t540" translatable="false">Domyos T540</string>
     <string name="devicetype_even_realities_g1" translatable="false">Even Realities G1</string>
     <string name="devicetype_laxasfit" translatable="false">LaxasFit</string>
@@ -2210,6 +2233,8 @@
     <string name="devicetype_honor_band5" translatable="false">Honor Band 5</string>
     <string name="devicetype_honor_band6" translatable="false">Honor Band 6</string>
     <string name="devicetype_honor_band7" translatable="false">Honor Band 7</string>
+    <string name="devicetype_honor_band9" translatable="false">Honor Band 9</string>
+    <string name="devicetype_honor_band10" translatable="false">Honor Band 10</string>
     <string name="devicetype_honor_magicwatch" translatable="false">Honor Magic Watch</string>
     <string name="devicetype_honor_magicwatch2" translatable="false">Honor MagicWatch 2</string>
     <string name="devicetype_honor_watchgs3" translatable="false">Honor Watch GS 3</string>
@@ -2300,6 +2325,7 @@
     <string name="devicetype_blackview_r60" translatable="false">Blackview R60</string>
     <string name="devicetype_misirun_c17" translatable="false">Misirun C17</string>
     <string name="devicetype_c20" translatable="false">C20</string>
+    <string name="devicetype_l70" translatable="false">L 70</string>
     <string name="devicetype_kt80" translatable="false">KT80</string>
     <string name="devicetype_hc96" translatable="false">HC96</string>
     <string name="devicetype_ksix_venture" translatable="false">KSIX Venture</string>
@@ -2317,10 +2343,12 @@
     <string name="devicetype_igpsport_bsc200" translatable="false">iGPSPORT BSC200</string>
     <string name="devicetype_igpsport_bsc200s" translatable="false">iGPSPORT BSC200S</string>
     <string name="devicetype_igpsport_bsc300" translatable="false">iGPSPORT BSC300</string>
+    <string name="devicetype_igpsport_bsc500" translatable="false">iGPSPORT BSC500</string>
     <string name="devicetype_igpsport_igs630" translatable="false">iGPSPORT iGS630</string>
     <string name="devicetype_igpsport_igs630s" translatable="false">iGPSPORT iGS630S</string>
     <string name="devicetype_igpsport_igs800" translatable="false">iGPSPORT iGS800</string>
     <string name="devicetype_igpsport_binavi_air" translatable="false">iGPSPORT BiNavi Air</string>
+    <string name="devicetype_igpsport_binavi" translatable="false">iGPSPORT BiNavi</string>
     <string name="task_installing_route">Installing route</string>
     <string name="route_upload_completed">Route upload completed</string>
     <string name="route_upload_failed">Route upload failed</string>
@@ -2705,6 +2733,7 @@
     <string name="permission_notification_policy_access">%1$s needs access to Do Not Disturb settings in order to honor them on your watch when your phone\'s screen is off.\n\nPlease tap \"%2$s\" then \"%1$s\" and enable \"Allow Do Not Disturb\", then tap \"Back\" to return to %1$s.</string>
     <string name="permission_location">%1$s needs access to your location in the background to allow it to stay connected to your watch even when your screen is off.\n\nPlease choose \"%2$s\" in the following screen, then tap \"Back\" to return to %1$s.</string>
     <string name="permission_display_over_other_apps">%1$s needs permission to display over other apps in order to let Bangle.js watches start activities via intents when %1$s is in the background.\n\nThis can be used to start a music app and play a song, and many other things.\n\nPlease tap \"%2$s\" then \"%1$s\" and enable \"Allow display over other apps\", then tap \"Back\" to return to %1$s.\n\nTo stop %1$s asking for permissions go to \"Settings\" and uncheck \"Check permission status\".\n\nMake sure to grant %1$s the permissions needed to function as you expect.</string>
+    <string name="permission_navigation_comaps">%1$s needs permission to read CoMaps navigation data. Please tap \"%2$s\" to be directed to system app settings and enable the permission, then return here to toggle the option again.</string>
     <string name="error_version_check_extreme_caution">CAUTION: Error when checking version information! You should not continue! Saw version name \"%s\"</string>
     <string name="require_location_provider">Location must be enabled</string>
     <string name="companiondevice_pairing">CompanionDevice Pairing</string>
@@ -2964,6 +2993,7 @@
     <string name="unit_revolutions_per_minute">revs/min</string>
     <string name="unit_rpm">rpm</string>
     <string name="unit_millimeter">mm</string>
+    <string name="unit_inch">in</string>
     <string name="unit_watt">Watt</string>
     <string name="unit_joule">Joule</string>
     <string name="unit_ampere">A</string>
@@ -3507,6 +3537,8 @@
     <string name="sony_surround_mode_concert_hall">Concert Hall</string>
     <string name="sony_warn_sbc_codec">Warning: The equalizer, audio position and surround settings only work for the SBC audio codec.</string>
     <string name="sony_equalizer">Equalizer</string>
+    <string name="sony_equalizer_bluetooth">Equalizer (Bluetooth)</string>
+    <string name="sony_equalizer_mp3">Equalizer (MP3)</string>
     <string name="sony_anc_optimizer_status_starting">Starting…</string>
     <string name="sony_anc_optimizer_status_not_running">Not Running</string>
     <string name="sony_anc_optimizer_status_wearing_condition">Measuring wearing condition…</string>
@@ -3917,6 +3949,53 @@
     <string name="pref_title_debug">Debug request</string>
     <string name="devicetype_asteroidos" translatable="false">AsteroidOS</string>
     <string name="devicetype_soflow_s06" translatable="false">SoFlow SO6</string>
+    <string name="devicetype_xiaomi_scooter_5_max" translatable="false">Xiaomi Scooter 5 Max</string>
+    <string name="scooter_lock_motor_title">Lock motor</string>
+    <string name="scooter_lock_motor_summary">After 24h, the scooter will automatically turn off and won\'t remain locked when it is off. This function cannot protect the scooter from being stolen.</string>
+    <string name="xiaomi_scooter_category_assisted_driving">Assisted driving</string>
+    <string name="category_info">Info</string>
+    <string name="xiaomi_scooter_ride_mode">Ride mode</string>
+    <string name="xiaomi_scooter_ride_mode_standard">Standard</string>
+    <string name="xiaomi_scooter_ride_mode_sport">Sport</string>
+    <string name="xiaomi_scooter_ride_mode_walk">Walk</string>
+    <string name="xiaomi_scooter_taillight_always_on">Tail light always on</string>
+    <string name="xiaomi_scooter_auto_lights_title">Auto lights</string>
+    <string name="xiaomi_scooter_auto_lights_summary">Turn on the front and tail light automatically, depending on the ambient light. If the lights are adjusted manually, the feature will be temporarily disabled until the scooter is turned off and on again.</string>
+    <string name="xiaomi_scooter_ambient_light_title">Ambient light</string>
+    <string name="xiaomi_scooter_ambient_light_summary">Turn on ambient light with the front and tail light.</string>
+    <string name="xiaomi_scooter_smart_energy_recovery_title">Smart energy recovery</string>
+    <string name="xiaomi_scooter_smart_energy_recovery_summary">When the scooter is moving on a slope, automatically adjusts the energy recovery intensity to "low". After leaving the slope, it will be automatically restored to the previous setting.</string>
+    <string name="xiaomi_scooter_slope_parking_title">Slope parking</string>
+    <string name="xiaomi_scooter_slope_parking_summary">When stopping on a slope, squeeze the brake for 3s to lock the motor. Press the accelerator to unlock the motor.</string>
+    <string name="xiaomi_scooter_tcs_anti_slip_title">Traction Control System</string>
+    <string name="xiaomi_scooter_tcs_anti_slip_summary">Prevent the wheel from slipping, especially on slippery surfaces.</string>
+    <string name="xiaomi_scooter_energy_recovery_level">Energy recovery level</string>
+    <string name="xiaomi_scooter_energy_recovery_low">Low</string>
+    <string name="xiaomi_scooter_energy_recovery_medium">Medium</string>
+    <string name="xiaomi_scooter_energy_recovery_high">High</string>
+    <string name="xiaomi_scooter_voltage">Voltage</string>
+    <string name="xiaomi_scooter_power">Power</string>
+    <string name="xiaomi_scooter_battery_temp">Battery temperature</string>
+    <string name="xiaomi_scooter_scooter_temp">Scooter temperature</string>
+    <string name="xiaomi_scooter_battery_cycles">Battery cycles</string>
+    <string name="xiaomi_scooter_battery_mfg_date">Battery manufacture date</string>
+    <string name="xiaomi_scooter_battery_serial">Battery serial number</string>
+    <string name="xiaomi_scooter_bms_fw_version">BMS firmware version</string>
+    <string name="xiaomi_scooter_keep_bluetooth_on_title">Bluetooth always on</string>
+    <string name="xiaomi_scooter_keep_bluetooth_on_summary">Allows to find scooter while turned off. Increases power usage. This function is automatically disabled if battery is under 10%. If the scooter is not used for a long time, please disable this function.
+</string>
+    <string name="xiaomi_scooter_tire_pressure_title">Tire pressure maintenance</string>
+    <string name="xiaomi_scooter_tire_pressure_enabled_title">Reminder enabled</string>
+    <string name="xiaomi_scooter_tire_pressure_enabled_summary">Display an icon on the scooter\'s control panel to remind of tire pressure maintenance.</string>
+    <string name="xiaomi_scooter_tire_pressure_interval_title">Reminder interval</string>
+    <string name="xiaomi_scooter_tire_pressure_interval_14">14 days</string>
+    <string name="xiaomi_scooter_tire_pressure_interval_30">30 days</string>
+    <string name="xiaomi_scooter_tire_pressure_interval_60">60 days</string>
+    <string name="xiaomi_scooter_tire_pressure_interval_180">180 days</string>
+    <string name="xiaomi_scooter_tire_pressure_remaining_title">Days remaining</string>
+    <string name="xiaomi_scooter_tire_pressure_reset_title">Reset reminder</string>
+    <string name="xiaomi_scooter_tire_pressure_reset_summary">Click this button to restart the tire pressure maintenance timer.</string>
+    <string name="xiaomi_scooter_tire_pressure_reset_confirmation">Reset the tire pressure maintenance reminder?</string>
     <string name="pref_title_lock_unlock">Lock</string>
     <string name="wifi_hotspot">Wi-Fi Hotspot</string>
     <string name="wifi_hotspot_summary">Control the Wi-Fi hotspot on the watch</string>
@@ -4122,6 +4201,7 @@
     <string name="pref_title_navigation_apps">Navigation apps</string>
     <string name="pref_navigation_app_osmand">OsmAnd(+)</string>
     <string name="pref_navigation_app_gmaps">Google Maps</string>
+    <string name="pref_navigation_app_comaps">CoMaps</string>
     <string name="serial_number">Serial Number</string>
     <string name="menuitem_stats">Stats</string>
     <string name="menuitem_running">Running</string>
@@ -4295,8 +4375,11 @@
     <string name="pref_sleepasandroid_feat_notifications">Notifications</string>
     <string name="pref_sleepasandroid_feat_movement">Accelerometer</string>
     <string name="pref_sleepasandroid_feat_heartrate">Heart rate</string>
+    <string name="pref_sleepasandroid_feat_heart_rr_intervals">R-R Intervals</string>
     <string name="pref_sleepasandroid_feat_oximetry">Oximetry</string>
-    <string name="pref_sleepasandroid_feat_spo2">SPO2</string>
+    <string name="pref_sleepasandroid_feat_spo2_autofetch_only_summary">This device only provides SpO2 via periodic auto-fetch, not live readings</string>
+    <string name="pref_sleepasandroid_spo2_autofetch">SpO2 Auto-fetch Settings</string>
+    <string name="pref_sleepasandroid_spo2_autofetch_interval">Fetch interval (seconds)</string>
     <string name="pref_title_huawei_account">Huawei Account</string>
     <string name="pref_summary_huawei_account">Huawei account used in pairing process. Setting it allows to pair without factory reset.</string>
     <string name="watchface_resolution_doesnt_match">Watchface resolution doesn\'t match device screen. Watchface is %1$s device screen is %2$s</string>
@@ -4623,6 +4706,10 @@
     <string name="huawei_voice_boost">Voice Boost</string>
     <string name="huawei_better_audio_quality_title">Prioritise better audio quality.</string>
     <string name="huawei_better_audio_quality_summary">Enable better audio codecs (LDAC). This should improve sound quality, but it increases power consumption and can cause delays.</string>
+    <string name="huawei_adaptive_volume_title">Adaptive Volume</string>
+    <string name="huawei_adaptive_volume_summary">Automatically adjust volume based on your environment. (Increases power usage)</string>
+    <string name="huawei_extra_media_volume_title">Extra media volume</string>
+    <string name="huawei_extra_media_volume_summary">Increase the maximum media volume. This may affect audio quality. May damage hearing.</string>
     <string name="maps">Maps</string>
     <string name="workout_charts">Workout Charts</string>
     <string name="maps_settings">Maps settings</string>
@@ -4721,6 +4808,8 @@
     <string name="single_click">Single click</string>
     <string name="switch_to_phone">Switch to %1$s</string>
     <string name="wifi_channel">Wi-Fi Channel</string>
+    <string name="wifi_channel_2_4_ghz">Wi-Fi Channel (2.4 GHz)</string>
+    <string name="wifi_channel_5_ghz">Wi-Fi Channel (5 GHz)</string>
     <string name="wifi_frequency_2_4_ghz">2.4 GHz</string>
     <string name="wifi_frequency_5_ghz">5 GHz</string>
     <string name="wifi_frequency">Wi-Fi Frequency</string>
@@ -4741,7 +4830,10 @@
     <string name="service_notification_collector_service_title">Gadgetbridge Notification Monitor</string>
     <string name="service_notification_collector_service_text">Monitoring notifications in background</string>
     <string name="devicetype_imiki_frame_2" translatable="false">IMIKI Frame 2</string>
+    <string name="devicetype_ollee_watch_one" translatable="false">Ollee Watch One</string>
     <string name="devicetype_oukitel_bt103" translatable="false">Oukitel BT103</string>
+    <string name="devicetype_una_watch" translatable="false">UNA Watch</string>
+    <string name="devicetype_dm58" translatable="false">DM58</string>
     <string name="devicetype_y6" translatable="false">Y6</string>
     <string name="devicetype_y66" translatable="false">Y66</string>
     <string name="devicetype_d3" translatable="false">D3</string>
@@ -4771,6 +4863,7 @@
     <string name="devicetype_shokz_openswim_pro" translatable="false">Shokz OpenSwim Pro</string>
     <string name="devicetype_battery_monitor" translatable="false">Battery Monitor</string>
     <string name="devicetype_victron_smartshunt" translatable="false">Victron SmartShunt</string>
+    <string name="devicetype_dji_osmo_action_4" translatable="false">DJI Osmo Action 4</string>
     <string name="devicetype_sinilink" translatable="false">Sinilink</string>
     <string name="devicetype_onetouch" translatable="false">OneTouch Glucose Meter</string>
     <string name="equalizer_preset_standard">Standard</string>
@@ -4898,6 +4991,17 @@
     <string name="notification_pebble_js_service_text">Running Pebble app/watchface JavaScript</string>
     <string name="internet_helper_banglejs_permission_missing_title">Permission missing</string>
     <string name="internet_helper_banglejs_permission_missing_text">Access to the Bangle.js app loader is currently not allowed by your settings. Please go to the internet helper settings in the external integrations settings to enable it.</string>
+    <!-- Generic internet/connectivity error reasons (shared by any feature that needs the network) -->
+    <string name="toast_error_could_not_reach_server">Could not reach %1$s.</string>
+    <string name="toast_error_server_unreachable">Server unreachable</string>
+    <string name="toast_error_could_not_resolve_host">Could not resolve server address. Check the URL and your connection.</string>
+    <string name="toast_error_connection_refused">Connection refused by the server. Check the address and port.</string>
+    <string name="toast_error_connection_timed_out">Connection timed out. The server took too long to respond.</string>
+    <string name="toast_error_tls">Secure connection failed. Check the server certificate.</string>
+    <string name="toast_error_unexpected_response">Unexpected response from server.</string>
+    <string name="internet_helper_error_no_internet_helper">This feature requires the Internet Helper</string>
+    <string name="internet_helper_error_permission">Internet Helper doesn\'t have internet permission</string>
+    <string name="toast_error_invalid_api_key">Invalid API key</string>
     <string name="eco">Eco</string>
     <string name="prefs_title_offgrid_mode">Off-grid mode</string>
     <string name="solar_panel1_peak_w">Solar panel 1 peak W</string>
@@ -4983,6 +5087,7 @@
     <string name="health_connect_finished_with_errors">Health Connect Sync experienced errors, some data will not be available.</string>
     <string name="health_connect_syncing">Syncing…</string>
     <string name="notification_channel_health_connect_sync_name">Health Connect Sync</string>
+    <string name="notification_channel_device_warnings">Device Warnings</string>
     <string name="health_connect_sync_status_title">Sync Status</string>
     <string name="pref_health_connect_detailed_workout_sync_title">Detailed workout sync</string>
     <string name="pref_health_connect_detailed_workout_sync_summary">Sync GPS routes and per-second metrics (heart rate, speed, power) for workouts. Provides richer data but may take longer.</string>

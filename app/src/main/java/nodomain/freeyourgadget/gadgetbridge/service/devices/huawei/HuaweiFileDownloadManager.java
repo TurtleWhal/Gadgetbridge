@@ -549,7 +549,20 @@ public class HuaweiFileDownloadManager {
             return;
         }
 
+        sendFileDownloadInit();
+    }
+
+    /**
+     * Sends the FileDownloadInit for {@link #currentFileRequest}. With dual channel active the
+     * request gets a short timeout: the Watch 4 firmware silently ignores 0x2C on the main socket
+     * while dual channel is up (but answers immediately on aux), so on timeout the init is retried
+     * once with 0x2C rerouted to the aux socket for the rest of the connection
+     * (see {@link HuaweiDualChannelHelper#setFileDownloadViaAux}).
+     */
+    private void sendFileDownloadInit() {
         GetFileDownloadInitRequest getFileDownloadInitRequest = new GetFileDownloadInitRequest(supportProvider, currentFileRequest);
+        if (currentFileRequest.newSync && supportProvider.getDualChannelHelper().isActive())
+            getFileDownloadInitRequest.setupTimeoutUntilNext(5000);
         getFileDownloadInitRequest.setFinalizeReq(new Request.RequestCallback() {
             @Override
             public void call(Request request) {
@@ -623,6 +636,25 @@ public class HuaweiFileDownloadManager {
             @Override
             public void handleException(Request.ResponseParseException e) {
                 currentFileRequest.fileDownloadCallback.downloadException(new HuaweiFileDownloadRequestException(currentFileRequest, this.getClass(), e));
+            }
+
+            @Override
+            public void timeout(Request request) {
+                // Watch never answered the init — drop the stale handler so a late or retried
+                // response cannot be delivered to this dead request.
+                supportProvider.removeInProgressRequests(request);
+                HuaweiDualChannelHelper dualHelper = supportProvider.getDualChannelHelper();
+                if (dualHelper.isActive() && !dualHelper.isFileDownloadViaAux()) {
+                    // Watch 4 firmware: FileDownloadInit is silently ignored on the main socket
+                    // while dual channel is active, but answered immediately on the aux socket.
+                    // Move 0x2C to aux for the rest of this connection and retry once.
+                    LOG.warn("FileDownloadInit got no answer on the main socket, retrying with 0x2C on aux");
+                    dualHelper.setFileDownloadViaAux(true);
+                    sendFileDownloadInit();
+                } else {
+                    currentFileRequest.fileDownloadCallback.downloadException(new HuaweiFileDownloadTimeoutException(currentFileRequest));
+                    reset();
+                }
             }
         });
         try {
@@ -752,8 +784,19 @@ public class HuaweiFileDownloadManager {
     }
 
     private void downloadNextFileBlock() {
-        if (currentFileRequest.buffer == null) // New file
+        if (currentFileRequest.buffer == null) { // New file
+            if (currentFileRequest.fileSize < 0) {
+                // The watch reported an invalid/negative file size (seen as 0xFFFFFFFF, together with
+                // an error status TLV, for a sequence_data file it has no data for). Fail this file
+                // gracefully instead of ByteBuffer.allocate(-1), which throws and kills the socket
+                // read thread, stalling the whole sync.
+                currentFileRequest.fileDownloadCallback.downloadException(new HuaweiFileDownloadException(
+                        currentFileRequest, "Invalid file size reported by device: " + currentFileRequest.fileSize));
+                reset();
+                return;
+            }
             currentFileRequest.buffer = ByteBuffer.allocate(currentFileRequest.fileSize);
+        }
         currentFileRequest.lastPacketNumber = -1; // Counts per block
         currentFileRequest.startOfBlockOffset = currentFileRequest.buffer.position();
         currentFileRequest.currentBlockSize = Math.min(

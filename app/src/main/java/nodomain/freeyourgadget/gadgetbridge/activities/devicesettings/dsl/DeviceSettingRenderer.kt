@@ -29,6 +29,8 @@ import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceGroup
 import androidx.preference.SeekBarPreference
 import androidx.preference.SwitchPreferenceCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsHandler
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.GBSimpleSummaryProvider
@@ -219,10 +221,27 @@ object DeviceSettingRenderer {
                         }
                         if (setting.icon != 0) setIcon(setting.icon)
                         setDefaultValue(setting.defaultValue)
-                        setOnPreferenceChangeListener { _, _ ->
-                            handler.notifyPreferenceChanged(setting.key)
-                            postRefresh()
-                            true
+                        disableDependentsState = setting.disableDependentsState
+                        if (setting.confirmationMessage != 0) {
+                            setOnPreferenceChangeListener { preference, newValue ->
+                                MaterialAlertDialogBuilder(context)
+                                    .setTitle(context.getString(R.string.earfun_change_confirm_title, preference.title))
+                                    .setMessage(setting.confirmationMessage)
+                                    .setPositiveButton(R.string.ok) { _, _ ->
+                                        (preference as SwitchPreferenceCompat).isChecked = newValue as Boolean
+                                        handler.notifyPreferenceChanged(setting.key)
+                                        postRefresh()
+                                    }
+                                    .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.dismiss() }
+                                    .show()
+                                false
+                            }
+                        } else {
+                            setOnPreferenceChangeListener { _, _ ->
+                                handler.notifyPreferenceChanged(setting.key)
+                                postRefresh()
+                                true
+                            }
                         }
                     }
                 }
@@ -330,9 +349,45 @@ object DeviceSettingRenderer {
                         if (setting.summary != 0) setSummary(setting.summary)
                         if (setting.icon != 0) setIcon(setting.icon)
                         isPersistent = false
-                        setOnPreferenceClickListener {
-                            setting.onClick?.invoke(handler) ?: false
+                        isEnabled = setting.enabled
+                        if (setting.confirmationMessage != 0) {
+                            setOnPreferenceClickListener { preference ->
+                                MaterialAlertDialogBuilder(context)
+                                    .setTitle(preference.title)
+                                    .setMessage(setting.confirmationMessage)
+                                    .setPositiveButton(R.string.ok) { _, _ ->
+                                        setting.onClick?.invoke(handler)
+                                    }
+                                    .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.dismiss() }
+                                    .show()
+                                true
+                            }
+                        } else {
+                            setOnPreferenceClickListener {
+                                setting.onClick?.invoke(handler) ?: false
+                            }
                         }
+                    }
+                }
+
+                is InfoSetting -> {
+                    Preference(context).apply {
+                        key = setting.key
+                        setTitle(setting.title)
+                        if (setting.icon != 0) setIcon(setting.icon)
+                        isPersistent = false
+                        val pref = this
+                        pref.summary = prefs.getString(setting.key, setting.defaultValue)
+                        val listener =
+                            SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, changedKey ->
+                                if (changedKey == setting.key) {
+                                    val newValue = sharedPrefs.getString(changedKey, setting.defaultValue)
+                                        ?: setting.defaultValue
+                                    mainHandler.post { pref.summary = newValue }
+                                }
+                            }
+                        spListeners.add(listener)
+                        sp.registerOnSharedPreferenceChangeListener(listener)
                     }
                 }
 
@@ -352,7 +407,8 @@ object DeviceSettingRenderer {
                 is ListSetting -> setting.dependency
                 is SeekBarSetting -> setting.dependency
                 is TextSetting -> setting.dependency
-                else -> null
+                is ActionSetting -> setting.dependency
+                is InfoSetting -> setting.dependency
             }
             if (dependency != null) pref.dependency = dependency
 

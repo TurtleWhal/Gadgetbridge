@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -69,6 +70,7 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
     private static final byte[] EMPTY = new byte[0];
     private static final AtomicLong QUEUE_COUNTER = new AtomicLong(0L);
     private static final AtomicLong THREAD_COUNTER = new AtomicLong(0L);
+    private static final long SERVER_ACTION_RESULT_TIMEOUT_SECONDS = 30L;
 
     private final Object mGattMonitor;
     private final GBDevice mGbDevice;
@@ -137,11 +139,19 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("execute server: {}", action);
                             }
+                            // Create latch BEFORE running the action, because the
+                            // callback (e.g. onNotificationSent) may fire immediately
+                            // on the same thread or a different one.
+                            mWaitForServerActionResultLatch = new CountDownLatch(1);
                             if (action.run(mBluetoothGattServer)) {
                                 // check again, maybe due to some condition, action did not need to write, so we can't wait
                                 boolean waitForResult = action.expectsResult();
                                 if (waitForResult) {
-                                    mWaitForServerActionResultLatch.await();
+                                    if (!mWaitForServerActionResultLatch.await(SERVER_ACTION_RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                                        LOG.error("Timed out waiting for server action result: {}", action);
+                                        mAbortServerTransaction = true;
+                                        handleDisconnected(0x93 /* BluetoothGatt.GATT_CONNECTION_TIMEOUT */);
+                                    }
                                     mWaitForServerActionResultLatch = null;
                                     if (mAbortServerTransaction) {
                                         break;
@@ -149,6 +159,7 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
                                 }
                             } else {
                                 LOG.error("Server action returned false: {}", action);
+                                mWaitForServerActionResultLatch = null;
                                 break; // abort the transaction
                             }
                         }
@@ -1139,6 +1150,10 @@ public final class BtLEQueue implements Thread.UncaughtExceptionHandler {
         public void onNotificationSent(BluetoothDevice device, int status) {
             LOG.debug("server.onNotificationSent {}",
                     BleNamesResolver.getStatusString(status));
+            final CountDownLatch latch = mWaitForServerActionResultLatch;
+            if (latch != null) {
+                latch.countDown();
+            }
         }
 
         @Override

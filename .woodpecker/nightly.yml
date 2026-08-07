@@ -5,29 +5,8 @@ clone:
        partial: false
 
 steps:
-  check-if-released:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
-    environment:
-      HC_URL_NIGHTLY_DEPLOY:
-        from_secret: hc_url_nightly_deploy
-    commands: |
-      curl -fsS -m 10 --retry 5 "$${HC_URL_NIGHTLY_DEPLOY}/start"
-
-      RELEASED_VERSION_CODE=$(curl https://freeyourgadget.codeberg.page/fdroid/repo/index-v1.json | jq '.packages."nodomain.freeyourgadget.gadgetbridge.nightly"[0].versionCode')
-      CURRENT_VERSION_CODE=$(git rev-list HEAD --count)
-
-      echo $CURRENT_VERSION_CODE
-      echo $RELEASED_VERSION_CODE
-      if [ "$RELEASED_VERSION_CODE" = "$CURRENT_VERSION_CODE" ]
-      then
-        echo "This version is already released, we quit!"
-        touch .do_not_build
-        curl -fsS -m 10 --retry 5 "$${HC_URL_NIGHTLY_DEPLOY}"
-      fi
-
-
   build-apks:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
+    image: codeberg.org/freeyourgadget/android-fdroid-tools:37.0.0-0
     commands:
       - if [ -f .do_not_build ]; then return 0; fi
       # build the apks
@@ -36,6 +15,9 @@ steps:
       - ./gradlew assembleMainlineNopebble -Dnightly_store_file="keystore.p12" -Dnightly_store_password="$${KEYSTOREPASS}" -Dnightly_key_alias="gadgetbridge" -Dnightly_key_password="$${KEYPASS}"
       - ./gradlew assembleBanglejsNightly -Dnightly_store_file="keystore.p12" -Dnightly_store_password="$${KEYSTOREPASS}" -Dnightly_key_alias="gadgetbridge" -Dnightly_key_password="$${KEYPASS}"
     environment:
+      # Explicitly enable filesystem watch, reduces build time by 1m30s
+      # https://stackoverflow.com/questions/71559269/why-does-gradle-initializing-sometimes-take-very-long
+      GRADLE_OPTS: "-Dorg.gradle.vfs.watch=true"
       SIGNING_KEY:
         from_secret: signing_key
       KEYSTOREPASS:
@@ -44,7 +26,7 @@ steps:
         from_secret: keypass
 
   pull-repo-config:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
+    image: codeberg.org/freeyourgadget/android-fdroid-tools:37.0.0-0
     commands:
       - if [ -f .do_not_build ]; then return 0; fi
       - cd ..
@@ -59,7 +41,7 @@ steps:
         from_secret: commit_token
 
   pull-pages:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
+    image: codeberg.org/freeyourgadget/android-fdroid-tools:37.0.0-0
     commands:
       - if [ -f .do_not_build ]; then return 0; fi
       # prepare the pages repo, so fdroidclient can push files into it later
@@ -72,7 +54,7 @@ steps:
       - rm -rf pages/.git
 
   update-fdroid-data:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
+    image: codeberg.org/freeyourgadget/android-fdroid-tools:37.0.0-0
     commands:
       - if [ -f .do_not_build ]; then return 0; fi
       - pwd
@@ -98,7 +80,7 @@ steps:
         from_secret: keypass
 
   push-pages-update-repo:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
+    image: codeberg.org/freeyourgadget/android-fdroid-tools:37.0.0-0
     commands:
       - if [ -f .do_not_build ]; then return 0; fi
       # We can't use the git-pages-cli docker image as it does not contain sh and we can't check if we built or not
@@ -110,7 +92,7 @@ steps:
         from_secret: commit_token
 
   on-success:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
+    image: codeberg.org/freeyourgadget/android-fdroid-tools:37.0.0-0
     commands:
       - curl -fsS -m 10 --retry 5 "$${HC_URL_NIGHTLY_DEPLOY}"
     when:
@@ -120,7 +102,7 @@ steps:
         from_secret: hc_url_nightly_deploy
 
   on-error:
-    image: codeberg.org/freeyourgadget/android-fdroid-tools:36.0.0-androguard-4.1.2-java-21
+    image: codeberg.org/freeyourgadget/android-fdroid-tools:37.0.0-0
     commands:
       - curl -fsS -m 10 --retry 5 "$${HC_URL_NIGHTLY_DEPLOY}/fail"
       - cd ..

@@ -206,6 +206,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetB
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetConnectStatusRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetDeviceStatusRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetDndLiftWristTypeRequest;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetDualChannelRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetLinkParamsRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetPincodeRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests.GetProductInformationRequest;
@@ -279,6 +280,7 @@ public class HuaweiSupportProvider {
     private final HuaweiPacket.ParamsProvider paramsProvider = new HuaweiPacket.ParamsProvider();
 
     protected ResponseManager responseManager = new ResponseManager(this);
+    protected HuaweiDualChannelHelper dualChannelHelper = new HuaweiDualChannelHelper();
     protected HuaweiUploadManager huaweiUploadManager = new HuaweiUploadManager(this);
 
     protected HuaweiWatchfaceManager huaweiWatchfaceManager = new HuaweiWatchfaceManager(this);
@@ -330,6 +332,21 @@ public class HuaweiSupportProvider {
 
     public HuaweiState getDeviceState() {
         return HuaweiDeviceStateManager.get(getDevice());
+    }
+
+    public HuaweiDualChannelHelper getDualChannelHelper() {
+        return dualChannelHelper;
+    }
+
+    /**
+     * Opens the secondary RFCOMM socket negotiated by the 0x3C command. No-op on BLE or when no
+     * channel was negotiated. Once connected, packets whose (service, command) is flagged by
+     * {@link HuaweiDualChannelHelper} are routed there; until then they use the primary socket.
+     */
+    public void openDualChannel(int channel) {
+        if (isBLE() || channel <= 0)
+            return;
+        brSupport.openAuxChannel(channel);
     }
 
     public HuaweiUploadManager getUploadManager() {
@@ -473,7 +490,9 @@ public class HuaweiSupportProvider {
 
     protected nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder initializeDevice(nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder builder) {
         builder.setCallback(leSupport);
-        final BluetoothGattCharacteristic characteristicRead = leSupport.getCharacteristic(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_READ);
+        final BluetoothGattCharacteristic characteristicRead = leSupport.getCharacteristic(
+                getCoordinator().isNewHonorProtocol() ? HuaweiConstants.UUID_CHARACTERISTIC_HONOR_READ : HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_READ
+        );
         if (characteristicRead == null) {
             LOG.warn("Read characteristic is null, will attempt to reconnect");
             builder.setDeviceState(GBDevice.State.WAITING_FOR_RECONNECT);
@@ -709,8 +728,13 @@ public class HuaweiSupportProvider {
         if (isBLE()) {
             nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder leBuilder = createLeTransactionBuilder("Initializing");
             leBuilder.setCallback(leSupport);
-            if (!GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean("force_new_protocol", false))
-                leBuilder.notify(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_READ, true);
+            if (!GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean("force_new_protocol", false)) {
+                if (getCoordinator().isNewHonorProtocol()) {
+                    leBuilder.notify(HuaweiConstants.UUID_CHARACTERISTIC_HONOR_READ, true);
+                } else {
+                    leBuilder.notify(HuaweiConstants.UUID_CHARACTERISTIC_HUAWEI_READ, true);
+                }
+            }
             leBuilder.setDeviceState(GBDevice.State.INITIALIZING);
         } else {
             nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder brBuilder = createBrTransactionBuilder("Initializing");
@@ -904,6 +928,9 @@ public class HuaweiSupportProvider {
 
             // All of the below check that they are supported and otherwise they skip themselves
             final List<Request> initRequestQueue = new ArrayList<>();
+            // Negotiate the dual RFCOMM channel before the rest, so its routing tables are known
+            // early. Skips itself unless the device is BR and advertises dual-socket support.
+            initRequestQueue.add(new GetDualChannelRequest(this));
             initRequestQueue.add(new SendExtendedAccountRequest(this));
             initRequestQueue.add(new GetSettingRelatedRequest(this));
             initRequestQueue.add(new AcceptAgreementsRequest(this));
@@ -1153,6 +1180,13 @@ public class HuaweiSupportProvider {
 
     public void onSocketRead(byte[] data) {
         responseManager.handleData(data);
+    }
+
+    public void onSocketRead(byte[] data, int channel) {
+        if (channel != ResponseManager.MAIN_CHANNEL)
+            LOG.debug("Dual channel: received {} bytes on aux socket (channel {}): {}",
+                    data.length, channel, GB.hexdump(data));
+        responseManager.handleData(data, channel);
     }
 
     public void removeInProgressRequests(Request req) {
@@ -1566,7 +1600,12 @@ public class HuaweiSupportProvider {
             getSleepDataCountRequest = new GetSleepDataCountRequest(this, leBuilder, sleepStart, end);
         } else {
             nodomain.freeyourgadget.gadgetbridge.service.btbr.TransactionBuilder brBuilder = createBrTransactionBuilder("FetchRecordedData");
-            brBuilder.setBusyTask(R.string.busy_task_fetch_activity_data);
+            // When the dual channel is active this fetch rides the aux socket. Marking the whole
+            // device busy would block the main channel (notifications/commands) for the entire
+            // background sync — which can be minutes on a first sync — defeating the purpose of the
+            // second socket. So only take the busy flag when everything runs on the primary socket.
+            if (!getDualChannelHelper().isActive())
+                brBuilder.setBusyTask(R.string.busy_task_fetch_activity_data);
             getSleepDataCountRequest = new GetSleepDataCountRequest(this, brBuilder, sleepStart, end);
         }
 
@@ -2945,7 +2984,7 @@ public class HuaweiSupportProvider {
 
                         LOG.debug("Parsing PDR file");
                         HuaweiPdrParser.PdrPoint[] points = HuaweiPdrParser.parseHuaweiPdr(fileRequest.getData());
-                        LOG.info("Points: {}", points);
+                        LOG.info("Points: {}", points.length);
                         //TODO: postprocess and combine with Gps data
                     }
 

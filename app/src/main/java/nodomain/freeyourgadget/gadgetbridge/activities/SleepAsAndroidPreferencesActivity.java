@@ -24,10 +24,13 @@ import androidx.annotation.Nullable;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.SwitchPreferenceCompat;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -64,14 +67,20 @@ public class SleepAsAndroidPreferencesActivity extends AbstractSettingsActivityV
 
                             GBApplication.getPrefs().getPreferences().edit().putString("sleepasandroid_device", device.getAddress()).apply();
 
-                            Set<SleepAsAndroidFeature> supportedFeatures = device.getDeviceCoordinator().getSleepAsAndroidFeatures();
+                            Set<SleepAsAndroidFeature> supportedFeatures = device.getDeviceCoordinator().getSleepAsAndroidFeatures(device);
                             findPreference("sleepasandroid_alarm_slot").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.ALARMS));
                             findPreference("pref_key_sleepasandroid_feat_alarms").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.ALARMS));
                             findPreference("pref_key_sleepasandroid_feat_notifications").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.NOTIFICATIONS));
                             findPreference("pref_key_sleepasandroid_feat_movement").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.ACCELEROMETER));
                             findPreference("pref_key_sleepasandroid_feat_hr").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.HEART_RATE));
+                            findPreference("pref_key_sleepasandroid_feat_rr_intervals").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.RR_INTERVALS));
                             findPreference("pref_key_sleepasandroid_feat_oximetry").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.OXIMETRY));
-                            findPreference("pref_key_sleepasandroid_feat_spo2").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.SPO2));
+                            final boolean spo2Supported = supportedFeatures.contains(SleepAsAndroidFeature.SPO2);
+                            final boolean spo2AutofetchSupported = supportedFeatures.contains(SleepAsAndroidFeature.SPO2_AUTOFETCH);
+                            final SwitchPreferenceCompat spo2Pref = findPreference("pref_key_sleepasandroid_feat_spo2");
+                            spo2Pref.setEnabled(spo2Supported);
+                            spo2Pref.setSummary(spo2AutofetchSupported ? getString(R.string.pref_sleepasandroid_feat_spo2_autofetch_only_summary) : null);
+                            findPreference("pref_key_sleepasandroid_spo2_autofetch_interval").setEnabled(spo2AutofetchSupported && spo2Supported && spo2Pref.isChecked());
 
                             ListPreference alarmSlots = findPreference("sleepasandroid_alarm_slot");
                             if (alarmSlots != null)
@@ -95,14 +104,20 @@ public class SleepAsAndroidPreferencesActivity extends AbstractSettingsActivityV
                 GBDevice device = GBApplication.app().getDeviceManager().getDeviceByAddress(defaultDeviceAddr);
                 if (device != null) {
 
-                    Set<SleepAsAndroidFeature> supportedFeatures = device.getDeviceCoordinator().getSleepAsAndroidFeatures();
+                    Set<SleepAsAndroidFeature> supportedFeatures = device.getDeviceCoordinator().getSleepAsAndroidFeatures(device);
                     findPreference("sleepasandroid_alarm_slot").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.ALARMS));
                     findPreference("pref_key_sleepasandroid_feat_alarms").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.ALARMS));
                     findPreference("pref_key_sleepasandroid_feat_notifications").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.NOTIFICATIONS));
                     findPreference("pref_key_sleepasandroid_feat_movement").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.ACCELEROMETER));
                     findPreference("pref_key_sleepasandroid_feat_hr").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.HEART_RATE));
+                    findPreference("pref_key_sleepasandroid_feat_rr_intervals").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.RR_INTERVALS));
                     findPreference("pref_key_sleepasandroid_feat_oximetry").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.OXIMETRY));
-                    findPreference("pref_key_sleepasandroid_feat_spo2").setEnabled(supportedFeatures.contains(SleepAsAndroidFeature.SPO2));
+                    final boolean spo2Supported = supportedFeatures.contains(SleepAsAndroidFeature.SPO2);
+                    final boolean spo2AutofetchSupported = supportedFeatures.contains(SleepAsAndroidFeature.SPO2_AUTOFETCH);
+                    final SwitchPreferenceCompat spo2Pref = findPreference("pref_key_sleepasandroid_feat_spo2");
+                    spo2Pref.setEnabled(spo2Supported);
+                    spo2Pref.setSummary(spo2AutofetchSupported ? getString(R.string.pref_sleepasandroid_feat_spo2_autofetch_only_summary) : null);
+                    findPreference("pref_key_sleepasandroid_spo2_autofetch_interval").setEnabled(spo2AutofetchSupported && spo2Supported && spo2Pref.isChecked());
                 }
             }
         }
@@ -130,7 +145,11 @@ public class SleepAsAndroidPreferencesActivity extends AbstractSettingsActivityV
     }
 
     private static void loadDevicesList(ListPreference sleepAsAndroidDevices) {
-        List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
+        List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices()
+                .stream()
+                .sorted(Comparator.comparing(GBDevice::getAliasOrName))
+                .collect(Collectors.toList());
+
         List<String> deviceMACs = new ArrayList<>();
         List<String> deviceNames = new ArrayList<>();
         for (GBDevice dev : devices) {

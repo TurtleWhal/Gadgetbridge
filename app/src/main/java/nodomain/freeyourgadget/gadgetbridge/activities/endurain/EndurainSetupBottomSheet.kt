@@ -36,6 +36,7 @@ import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import nodomain.freeyourgadget.gadgetbridge.GBApplication
+import nodomain.freeyourgadget.gadgetbridge.util.InternetUtils
 import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.util.GB
 import org.slf4j.LoggerFactory
@@ -237,11 +238,17 @@ class EndurainSetupBottomSheet : BottomSheetDialogFragment() {
         prefs.edit { putString("endurain_server", server) }
 
         showProgress(true)
-        vm.fetchServerCapabilities(server) { ok ->
+        vm.fetchServerCapabilities(server) { ok, reason ->
             activity?.runOnUiThread {
                 showProgress(false)
                 if (!ok) {
-                    GB.toast(getString(R.string.endurain_failed_to_connect_to_server), Toast.LENGTH_SHORT, GB.INFO)
+                    // Prefer the specific network reason (could-not-resolve / refused / timed-out /
+                    // TLS) from the request helper; fall back to the generic could-not-reach message.
+                    GB.toast(
+                        reason ?: InternetUtils.connectFailureReason(requireContext(), server),
+                        Toast.LENGTH_LONG,
+                        GB.ERROR
+                    )
                     return@runOnUiThread
                 }
                 vm.step = EndurainSetupViewModel.Step.LOGIN_TYPE

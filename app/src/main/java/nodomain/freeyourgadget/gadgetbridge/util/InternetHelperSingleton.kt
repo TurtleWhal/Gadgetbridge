@@ -37,17 +37,23 @@ import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.charset.Charset
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 object InternetHelperSingleton {
     private val LOG: Logger = LoggerFactory.getLogger(InternetHelperSingleton::class.java)
     private var internetHelperBound = false
     private var internetHelper: IHttpService? = null
 
+    // Signalled when the (asynchronous) service connection completes, so callers can wait for it.
+    @Volatile
+    private var bindLatch: CountDownLatch? = null
+
     private val internetHelperConnection: ServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName?, service: IBinder?) {
             LOG.info("Internet helper service successfully bound")
             internetHelperBound = true
             internetHelper = IHttpService.Stub.asInterface(service)
+            bindLatch?.countDown()
         }
 
         override fun onServiceDisconnected(className: ComponentName?) {
@@ -84,6 +90,28 @@ object InternetHelperSingleton {
         return internetHelperBound
     }
 
+    /**
+     * Ensures the helper service is bound and waits (up to [timeoutMs]) for the asynchronous
+     * connection to complete. Without this, the first request after process start races the bind
+     * and fails even though the helper is installed and permitted. Returns true once usable.
+     */
+    fun ensureInternetHelperBoundBlocking(timeoutMs: Long = 3000): Boolean {
+        if (internetHelper != null) return true
+        if (!AndroidUtils.isPackageInstalled(PermissionsUtils.PACKAGE_INTERNET_HELPER)
+            || !PermissionsUtils.checkPermission(GBApplication.getContext(), PermissionsUtils.CUSTOM_PERM_INTERNET_HELPER)
+        ) return false
+        val latch = CountDownLatch(1)
+        bindLatch = latch
+        ensureInternetHelperBound()
+        if (internetHelper != null) return true
+        try {
+            latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+        return internetHelper != null
+    }
+
     @Throws(RemoteException::class, InterruptedException::class)
     fun send(
         webRequest: Uri,
@@ -92,6 +120,10 @@ object InternetHelperSingleton {
         body: ByteArray?,
         allowInsecure: Boolean = false,
     ): WebResourceResponse? {
+        if (internetHelper == null) {
+            // The bind is asynchronous — give it a moment to connect before giving up.
+            ensureInternetHelperBoundBlocking()
+        }
         if (internetHelper == null) {
             LOG.error("Internet helper is not available")
             return null

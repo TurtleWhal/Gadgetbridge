@@ -43,6 +43,9 @@ public class TransactionBuilder {
     private final AbstractBTBRDeviceSupport mDeviceSupport;
     private final Transaction mTransaction;
     private boolean mQueued;
+    /// Target RFCOMM channel: {@link AbstractBTBRDeviceSupport#RFCOMM_CHANNEL_UNSPECIFIED} (default)
+    /// or the primary socket's own channel = primary socket, any other channel = an aux socket if open.
+    private int mChannel = AbstractBTBRDeviceSupport.RFCOMM_CHANNEL_UNSPECIFIED;
 
     TransactionBuilder(String taskName, @NonNull AbstractBTBRDeviceSupport deviceSupport) {
         mTransaction = new Transaction(taskName);
@@ -143,6 +146,22 @@ public class TransactionBuilder {
     }
 
     /**
+     * Routes this transaction to a secondary ("aux") RFCOMM socket (see
+     * {@link AbstractBTBRDeviceSupport#openAuxChannel(int)}).
+     * {@link AbstractBTBRDeviceSupport#RFCOMM_CHANNEL_UNSPECIFIED} (the default) and the primary
+     * socket's own {@link AbstractBTBRDeviceSupport#getRfcommChannel()} both select the primary
+     * socket. If the requested aux channel is not open, the transaction falls back to the primary
+     * socket.
+     *
+     * @param channel the target RFCOMM channel
+     */
+    @NonNull
+    public TransactionBuilder setChannel(final int channel) {
+        mChannel = channel;
+        return this;
+    }
+
+    /**
      * To be used as the final step to execute the transaction by the queue.
      * @throws IllegalStateException if this builder has already been queued
      */
@@ -151,7 +170,7 @@ public class TransactionBuilder {
             throw new IllegalStateException("This builder had already been queued. You must not reuse it.");
         }
         mQueued = true;
-        BtBRQueue queue = mDeviceSupport.getQueue();
+        BtBRQueue queue = mDeviceSupport.getQueue(mChannel);
         queue.add(mTransaction);
     }
 

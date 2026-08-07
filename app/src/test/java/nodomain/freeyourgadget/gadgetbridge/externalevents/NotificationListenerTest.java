@@ -1,6 +1,11 @@
 package nodomain.freeyourgadget.gadgetbridge.externalevents;
 
+import android.app.Notification;
+import android.graphics.drawable.Icon;
+import android.os.Build;
+
 import org.junit.Test;
+import org.robolectric.util.ReflectionHelpers;
 
 import java.time.LocalTime;
 import java.util.Arrays;
@@ -8,16 +13,17 @@ import java.util.List;
 
 import nodomain.freeyourgadget.gadgetbridge.activities.NotificationFilterActivity;
 import nodomain.freeyourgadget.gadgetbridge.entities.NotificationFilter;
+import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.test.TestBase;
 
-import static nodomain.freeyourgadget.gadgetbridge.util.GB.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class NotificationListenerTest extends TestBase {
 
     private NotificationListener mNotificationListener;
-    private List<String> wordList = Arrays.asList("Hello", "world", "test");
+    private final List<String> wordList = Arrays.asList("Hello", "world", "test");
 
     @Override
     public void setUp() throws Exception {
@@ -168,5 +174,37 @@ public class NotificationListenerTest extends TestBase {
             /* start= */ LocalTime.of(20, 0),
             /* end= */ LocalTime.of(7, 0)
         ));
+    }
+
+    @Test
+    public void populateNotificationIcon_preservesResourceOwner() {
+        final Object previousVersion = ReflectionHelpers.getStaticField(Build.VERSION.class, "SDK_INT");
+        try {
+            ReflectionHelpers.setStaticField(Build.VERSION.class, "SDK_INT", 28);
+
+            final Notification notification = new Notification.Builder(getContext())
+                    .setSmallIcon(Icon.createWithResource("com.example.owner", android.R.drawable.ic_dialog_info))
+                    .build();
+            final NotificationSpec spec = new NotificationSpec();
+
+            NotificationListener.populateNotificationIcon(notification, "com.example.source", spec);
+
+            assertEquals(android.R.drawable.ic_dialog_info, spec.iconId);
+            assertEquals("com.example.owner", spec.iconPackageId);
+        } finally {
+            ReflectionHelpers.setStaticField(Build.VERSION.class, "SDK_INT", previousVersion);
+        }
+    }
+
+    @Test
+    public void populateNotificationIcon_usesSourceForLegacyResource() {
+        final Notification notification = new Notification();
+        notification.icon = android.R.drawable.ic_dialog_alert;
+        final NotificationSpec spec = new NotificationSpec();
+
+        NotificationListener.populateNotificationIcon(notification, "com.example.source", spec);
+
+        assertEquals(android.R.drawable.ic_dialog_alert, spec.iconId);
+        assertEquals("com.example.source", spec.iconPackageId);
     }
 }

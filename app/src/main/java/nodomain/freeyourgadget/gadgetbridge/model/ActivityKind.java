@@ -348,6 +348,7 @@ public enum ActivityKind {
     MOTOR_SPORT(0x0400013B, R.string.activity_type_motor_sport, R.drawable.ic_sports_motorsports),
     CYCLING_DOWNHILL(0x0400013C, R.string.activity_type_cycling_downhill, R.drawable.ic_landscape),
     INDOOR_SKIING(0x0400013D, R.string.activity_type_indoor_skiing, R.drawable.ic_activity_skiing),
+    E_SCOOTER(0x0400013E, R.string.activity_type_e_scooter, R.drawable.ic_electric_scooter),
     ;
 
     private final int code;
@@ -424,6 +425,24 @@ public enum ActivityKind {
 
     public static boolean isSwimActivity(final ActivityKind activityKind) {
         return activityKind.name().contains("SWIM");
+    }
+
+    /**
+     * Rowing and paddle sports, whose pace is conventionally reported per 500 m (always metric,
+     * regardless of the distance unit setting) rather than per km/mile.
+     */
+    public static boolean isRowingActivity(final ActivityKind activityKind) {
+        switch (activityKind) {
+            case ROWING:
+            case ROWING_MACHINE:
+            case KAYAKING:
+            case PADDLING:
+            case RAFTING:
+            case STAND_UP_PADDLEBOARDING:
+                return true;
+            default:
+                return false;
+        }
     }
 
     public static boolean isDiving(final ActivityKind activityKind) {

@@ -235,6 +235,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     };
 
     private final LimitedQueue<Integer, Long> mNotificationReplyAction = new LimitedQueue<>(16);
+    private final LimitedQueue<Integer, ArrayList<Long>> mNotificationActions = new LimitedQueue<>(16);
 
     private boolean gpsUpdateSetup = false;
 
@@ -759,7 +760,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             case SleepAsAndroidAction.SHOW_NOTIFICATION:
                 NotificationSpec notificationSpec = new NotificationSpec();
                 notificationSpec.title = extras.getString("TITLE");
-                notificationSpec.body = extras.getString("BODY");
+                notificationSpec.body = extras.getString("TEXT");
                 this.onNotification(notificationSpec);
                 break;
             case SleepAsAndroidAction.UPDATE_ALARM:
@@ -869,6 +870,32 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
         if (devicePrefs.getBoolean(PREF_NOTIFICATION_WAKE_ON_OPEN, false) && response.equals("OPEN")) {
             WakeActivity.start(getContext());
+        }
+
+        // Handle INVOKE_ACTION: invoke a custom notification action button by index.
+        if (response.equals("INVOKE_ACTION")) {
+            if (!json.has("id") || !json.has("action")) {
+                LOG.warn("INVOKE_ACTION: missing required field 'id' or 'action'");
+                return;
+            }
+            final int notifId = json.optInt("id", 0);
+            final int actIdx = json.optInt("action", -1);
+            if (actIdx < 0) {
+                LOG.warn("INVOKE_ACTION: invalid action index {}", actIdx);
+                return;
+            }
+            final ArrayList<Long> handles = mNotificationActions.lookup(notifId);
+            if (handles != null && actIdx < handles.size()) {
+                final long actionHandle = handles.get(actIdx);
+                final GBDeviceEventNotificationControl evt = new GBDeviceEventNotificationControl();
+                evt.event = GBDeviceEventNotificationControl.Event.REPLY;
+                evt.handle = actionHandle;
+                evaluateGBDeviceEvent(evt);
+            } else {
+                LOG.warn("INVOKE_ACTION: action index {} not found for notification {} (handles: {})",
+                        actIdx, notifId, handles != null ? handles.size() : "null");
+            }
+            return;
         }
 
         GBDeviceEventNotificationControl deviceEvtNotificationControl = new GBDeviceEventNotificationControl();
@@ -1546,15 +1573,29 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             return;
         }
 
+        final ArrayList<Long> actionHandles = new ArrayList<Long>();
+        final JSONArray actionsArray = new JSONArray();
         boolean canReply = false;
-        if (notificationSpec.attachedActions!=null)
+        if (notificationSpec.attachedActions!=null) {
             for (int i=0;i<notificationSpec.attachedActions.size();i++) {
                 NotificationSpec.Action action = notificationSpec.attachedActions.get(i);
                 if (action.type==NotificationSpec.Action.TYPE_WEARABLE_REPLY) {
                     mNotificationReplyAction.add(notificationSpec.getId(), action.handle);
                     canReply = true;
                 }
+
+                if (action.type==NotificationSpec.Action.TYPE_WEARABLE_SIMPLE ||
+                    action.type==NotificationSpec.Action.TYPE_CUSTOM_SIMPLE) {
+                    try {
+                        final JSONObject actionJson = new JSONObject();
+                        actionJson.put("title", renderUnicodeAsImage(cropToLength(action.title, 40)));
+                        actionsArray.put(actionJson);
+                        actionHandles.add(action.handle);
+                    } catch (JSONException ignored) {}
+                }
             }
+        }
+
         // sourceName isn't set for SMS messages
         String src = notificationSpec.sourceName;
         if (notificationSpec.type == NotificationType.GENERIC_SMS)
@@ -1583,6 +1624,11 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     o.put("suggestions", suggestions);
                 }
             }
+            if (!actionHandles.isEmpty()) {
+                mNotificationActions.remove(notificationSpec.getId());
+                mNotificationActions.add(notificationSpec.getId(), actionHandles);
+                o.put("actions", actionsArray);
+            }
             uartTxJSON("onNotification", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -1591,6 +1637,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onDeleteNotification(int id) {
+        mNotificationActions.remove(id); // remove action handles for deleted notification
         try {
             JSONObject o = new JSONObject();
             o.put("t", "notify-");

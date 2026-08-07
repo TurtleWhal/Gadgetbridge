@@ -56,6 +56,11 @@ public class NotificationSpec {
      */
     public int iconId;
 
+    /**
+     * The package that owns the notification icon resource.
+     */
+    public String iconPackageId;
+
     public String picturePath;
 
     public int dndSuppressed;

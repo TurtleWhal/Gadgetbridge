@@ -572,8 +572,7 @@ public class NotificationListener extends NotificationListenerService {
         // Get the app ID that generated this notification. For now only used by pebble color, but may be more useful later.
         notificationSpec.sourceAppId = source;
 
-        // Get the icon of the notification
-        notificationSpec.iconId = notification.icon;
+        populateNotificationIcon(notification, source, notificationSpec);
 
         notificationSpec.type = AppNotificationType.getInstance().get(source);
 
@@ -1170,6 +1169,35 @@ public class NotificationListener extends NotificationListenerService {
         }
     }
 
+    static void populateNotificationIcon(final Notification notification,
+                                         final String sourcePackage,
+                                         final NotificationSpec notificationSpec) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            final Icon smallIcon = notification.getSmallIcon();
+            if (smallIcon != null) {
+                try {
+                    final int resourceId = smallIcon.getResId();
+                    if (resourceId != 0) {
+                        notificationSpec.iconId = resourceId;
+                        final String resourcePackage = smallIcon.getResPackage();
+                        notificationSpec.iconPackageId = StringUtils.isBlank(resourcePackage)
+                                ? sourcePackage
+                                : resourcePackage;
+                        return;
+                    }
+                } catch (final IllegalStateException e) {
+                    LOG.debug("Notification small icon is not a resource icon");
+                }
+            }
+        }
+
+        //noinspection deprecation
+        notificationSpec.iconId = notification.icon;
+        if (notificationSpec.iconId != 0) {
+            notificationSpec.iconPackageId = sourcePackage;
+        }
+    }
+
     private boolean handleMediaSessionNotification(final StatusBarNotification sbn) {
         final MediaSession.Token token = sbn.getNotification().extras.getParcelable(Notification.EXTRA_MEDIA_SESSION);
         return token != null && handleMediaSessionNotification(token);
@@ -1397,6 +1425,7 @@ public class NotificationListener extends NotificationListenerService {
                 source.equals("com.android.mms") ||
                 source.equals("com.sonyericsson.conversations") ||
                 source.equals("com.android.messaging") ||
+                source.equals("com.google.android.apps.messaging") ||
                 source.equals("org.smssecure.smssecure") ||
                 source.equals("org.fossify.messages") ||
                 source.equals("com.goodwy.smsmessenger") ||

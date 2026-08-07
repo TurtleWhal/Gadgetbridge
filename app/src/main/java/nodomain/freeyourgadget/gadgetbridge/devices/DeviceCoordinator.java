@@ -111,7 +111,9 @@ public interface DeviceCoordinator {
 
     /**
      * A secret key has to be entered before connecting
+     * @deprecated override {@link #requiresAuthKey} instead
      */
+    @Deprecated
     int BONDING_STYLE_REQUIRE_KEY = 3;
 
     /**
@@ -161,6 +163,8 @@ public interface DeviceCoordinator {
         GLUCOSE_METER,
         BLOOD_PRESSURE_METER,
         BATTERY_MONITOR,
+        SCOOTER,
+        CAMERA,
     }
 
     /**
@@ -582,6 +586,19 @@ public interface DeviceCoordinator {
     boolean supportsSmartWakeupInterval(@NonNull final GBDevice device, int alarmPosition);
 
     /**
+     * Returns the maximum smart wakeup interval in minutes supported by this device.
+     * Defaults to 255. Override to restrict (e.g. Scanwatch supports 0-60).
+     */
+    int getSmartWakeupMaxInterval(@NonNull GBDevice device);
+
+    /**
+     * Returns an optional human-readable description explaining how smart wakeup works on this
+     * device, or {@code null} if no description should be shown.
+     */
+    @Nullable
+    String getSmartWakeupDescription(@NonNull GBDevice device);
+
+    /**
      * Returns true if the alarm at the specified position *must* be a smart alarm for this device/coordinator
      * @param alarmPosition Position of the alarm
      * @return True if it must be a smart alarm, false otherwise
@@ -632,6 +649,13 @@ public interface DeviceCoordinator {
      * Returns true if the device supports triggering manual one-shot heart rate measurements.
      */
     boolean supportsManualHeartRateMeasurement(@NonNull final GBDevice device);
+
+    /**
+     * Returns true if the heart rate display should only show live realtime values
+     * (non-clickable, auto-hiding when stale) rather than supporting manual on-demand
+     * measurement via the heart rate dialog.
+     */
+    boolean supportsLiveOnlyHeartRateDisplay(@NonNull GBDevice device);
 
     /**
      * Returns the readable name of the manufacturer.
@@ -714,6 +738,11 @@ public interface DeviceCoordinator {
      * Returns how/if the given device should be bonded before connecting to it.
      */
     int getBondingStyle();
+
+    /**
+     * Whether the given device requires the user to input an auth key before connecting to it.
+     */
+    boolean requiresAuthKey();
 
     /**
      * Returns the preferred BLE PHY mask for GATT connections, as passed to
@@ -861,7 +890,7 @@ public interface DeviceCoordinator {
      * Returns the set of supported sleep as Android features
       * @return Set
      */
-    Set<SleepAsAndroidFeature> getSleepAsAndroidFeatures();
+    Set<SleepAsAndroidFeature> getSleepAsAndroidFeatures(@NonNull final GBDevice device);
 
     /**
      * Returns device specific settings related to connection
@@ -1026,6 +1055,10 @@ public interface DeviceCoordinator {
 
     boolean validateAuthKey(String authKey);
 
+    /**
+     * Returns a url to the authentication help page, if necessary, to instruct the user on how to
+     * obtain an auth key for the device.
+     */
     @Nullable
     String getAuthHelp();
 

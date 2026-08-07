@@ -108,6 +108,7 @@ public interface DeviceService extends EventHandler {
     String EXTRA_NOTIFICATION_ACTIONS = "notification_actions";
     String EXTRA_NOTIFICATION_SUGGESTED_REPLIES = "notification_suggested_replies";
     String EXTRA_NOTIFICATION_ICONID = "notification_iconid";
+    String EXTRA_NOTIFICATION_ICONPACKAGEID = "notification_iconpackageid";
     String EXTRA_NOTIFICATION_IMAGE_ID = "notification_image_id";
     String EXTRA_NOTIFICATION_IMAGE_WIDTH = "notification_image_width";
     String EXTRA_NOTIFICATION_IMAGE_HEIGHT = "notification_image_height";
@@ -148,6 +149,7 @@ public interface DeviceService extends EventHandler {
     String EXTRA_NAVIGATION_DISTANCE_TO_TURN = "navigation_distance_to_turn";
     String EXTRA_NAVIGATION_NEXT_ACTION = "navigation_next_action";
     String EXTRA_NAVIGATION_ETA = "navigation_eta";
+    String EXTRA_NAVIGATION_COMPLETION_PERCENT = "navigation_completion_percent";
     String EXTRA_APP_UUID = "app_uuid";
     String EXTRA_APP_START = "app_start";
     String EXTRA_APP_CONFIG = "app_config";

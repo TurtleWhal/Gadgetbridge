@@ -22,7 +22,9 @@ import android.os.ParcelUuid;
 
 import org.slf4j.Logger;
 
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
@@ -40,10 +42,21 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.BleNamesResolver;
  */
 public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport implements SocketCallback {
 
+    /**
+     * "No explicit RFCOMM channel". Matches what
+     * {@link BluetoothDevice#createRfcommSocketToServiceRecord} uses internally, and is the default
+     * of both {@link #getRfcommChannel()} (primary socket resolved through SDP) and
+     * {@link TransactionBuilder#setChannel(int)} (transaction goes to the primary socket).
+     */
+    public static final int RFCOMM_CHANNEL_UNSPECIFIED = -1;
+
     /// used to guard {@link #connect()}, {@link #disconnect()} and {@link #dispose()}
     protected final Object ConnectionMonitor = new Object();
 
     private BtBRQueue mQueue;
+    /// Secondary ("aux") RFCOMM sockets keyed by channel number, opened on demand via
+    /// {@link #openAuxChannel(int)}. Empty for the common single-socket case.
+    private final Map<Integer, BtBRQueue> mAuxQueues = new ConcurrentHashMap<>();
     private UUID mSupportedService = null;
     private final int mBufferSize;
     private final Logger logger;
@@ -105,9 +118,71 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
 
     public void disconnect() {
         synchronized (ConnectionMonitor) {
+            closeAllAuxChannels();
             if (mQueue != null) {
                 mQueue.disconnect();
             }
+        }
+    }
+
+    /**
+     * Opens a secondary ("aux") RFCOMM socket on the given channel, in addition to the primary
+     * connection. Aux sockets share this support's {@link #onSocketRead(byte[])} sink but never
+     * affect the primary device connection state or re-run device initialization. Writes are
+     * routed to an aux socket by setting the target channel on the transaction
+     * ({@link TransactionBuilder#setChannel(int)}); {@link #RFCOMM_CHANNEL_UNSPECIFIED} and the
+     * primary socket's own {@link #getRfcommChannel()} both mean the primary socket.
+     *
+     * @return true if the aux connection attempt was successfully triggered
+     */
+    public boolean openAuxChannel(final int channel) {
+        synchronized (ConnectionMonitor) {
+            if (channel <= 0 || channel == getRfcommChannel()) {
+                logger.warn("openAuxChannel - ignored, invalid aux channel {} (primary channel is {})",
+                        channel, getRfcommChannel());
+                return false;
+            }
+            final UUID supportedService = getSupportedService();
+            if (supportedService == null) {
+                logger.warn("openAuxChannel - ignored, no supported service UUID");
+                return false;
+            }
+            if (mAuxQueues.containsKey(channel)) {
+                logger.debug("openAuxChannel - channel {} already open", channel);
+                return true;
+            }
+            final BtBRQueue auxQueue = new BtBRQueue(
+                    getBluetoothAdapter(),
+                    getDevice(),
+                    getContext(),
+                    this,
+                    supportedService,
+                    getBufferSize(),
+                    getConnectDelayMillis(),
+                    channel,
+                    true
+            );
+            mAuxQueues.put(channel, auxQueue);
+            return auxQueue.connect();
+        }
+    }
+
+    /// Closes and disposes the aux socket previously opened on the given channel, if any.
+    public void closeAuxChannel(final int channel) {
+        synchronized (ConnectionMonitor) {
+            final BtBRQueue auxQueue = mAuxQueues.remove(channel);
+            if (auxQueue != null) {
+                auxQueue.dispose();
+            }
+        }
+    }
+
+    private void closeAllAuxChannels() {
+        synchronized (ConnectionMonitor) {
+            for (final BtBRQueue auxQueue : mAuxQueues.values()) {
+                auxQueue.dispose();
+            }
+            mAuxQueues.clear();
         }
     }
 
@@ -125,6 +200,7 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
     @Override
     public void dispose() {
         synchronized (ConnectionMonitor) {
+            closeAllAuxChannels();
             if (mQueue != null) {
                 mQueue.dispose();
                 mQueue = null;
@@ -147,6 +223,24 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
         return mQueue;
     }
 
+    /// Returns the queue for the given RFCOMM channel: an aux queue when the channel is an explicit
+    /// one that is not the primary socket's ({@link #getRfcommChannel()}) and that aux socket is
+    /// open, otherwise the primary queue. Callers can route unconditionally; an unavailable aux
+    /// channel transparently falls back to the primary socket.
+    BtBRQueue getQueue(final int channel) {
+        // A negative channel is "unspecified" and always means the primary socket, as does the
+        // primary socket's own channel for devices that pin it to a fixed number.
+        if (channel >= 0 && channel != getRfcommChannel()) {
+            final BtBRQueue auxQueue = mAuxQueues.get(channel);
+            // Only route to the aux socket once it is actually connected; until then transactions
+            // transparently use the primary socket so nothing is dropped while it comes up.
+            if (auxQueue != null && auxQueue.isConnected()) {
+                return auxQueue;
+            }
+        }
+        return mQueue;
+    }
+
     /**
      * Subclasses should call this method to add services they support.
      * Only supported services will be queried for characteristics.
@@ -162,11 +256,12 @@ public abstract class AbstractBTBRDeviceSupport extends AbstractDeviceSupport im
     }
 
     /**
-     * Subclasses can override this to specify a fixed RFCOMM channel number.
-     * If -1 (default), the service UUID is used for SDP resolution.
+     * Subclasses can override this to specify a fixed RFCOMM channel number for the primary
+     * socket. If {@link #RFCOMM_CHANNEL_UNSPECIFIED} (default), the service UUID is used for SDP
+     * resolution.
      */
     protected int getRfcommChannel() {
-        return -1;
+        return RFCOMM_CHANNEL_UNSPECIFIED;
     }
 
 

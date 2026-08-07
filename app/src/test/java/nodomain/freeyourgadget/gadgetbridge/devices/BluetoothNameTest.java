@@ -17,6 +17,9 @@ public class BluetoothNameTest extends TestBase {
     @Test
     public void deviceMatchingByNameTest() {
         final Map<String, DeviceType> bluetoothNameToExpectedType = new HashMap<>() {{
+            put("AAWireless-xUkL1YH0", DeviceType.AAWIRELESS);
+            put("AAWireless-12345abc", DeviceType.AAWIRELESS);
+            put("AndroidAuto-AAW12345abc", DeviceType.AAWIRELESS);
             put("Active 2 NFC (Round)", DeviceType.AMAZFITACTIVE2NFC);
             put("Amazfit Band 7", DeviceType.AMAZFITBAND7); // #2945
             put("Amazfit GTR 3 Pro", DeviceType.AMAZFITGTR3PRO); // #2442
@@ -29,6 +32,7 @@ public class BluetoothNameTest extends TestBase {
             put("Mi Smart Band 4C_D77E", DeviceType.MIBAND4C);
             put("Xiaomi Band 9 Active AB01", DeviceType.MIBAND9ACTIVE);
             put("vívoactive 6", DeviceType.GARMIN_VIVOACTIVE_6);
+            put("CIRQA Smart Band", DeviceType.GARMIN_CIRQA); // matrix
             put("CMF Buds 2", DeviceType.NOTHING_CMF_BUDS_2); // #5579
             put("CMF Buds 2a", DeviceType.NOTHING_CMF_BUDS_2A); // #6028
             put("HC96", DeviceType.HC96);
@@ -38,6 +42,7 @@ public class BluetoothNameTest extends TestBase {
             put("P8", DeviceType.WASPOS); // from wasp-os source
             put("P8DFU", DeviceType.WASPOS); // from wasp-os source
             put("P80", DeviceType.COLMI_P80);
+            put("L 70", DeviceType.L70);
             put("V73", DeviceType.COLMI_V73); // #5715
             put("R05_9805", DeviceType.YAWELL_R05); // #3896
             put("BT103(ID-AB01)", DeviceType.OUKITEL_BT103);
@@ -95,6 +100,8 @@ public class BluetoothNameTest extends TestBase {
             put("fenix 6X Pro", DeviceType.GARMIN_FENIX_6X_PRO);
             put("fenix 6X Sapphire", DeviceType.GARMIN_FENIX_6X_SAPPHIRE); // #5496
             put("fenix 6S Pro Solar", DeviceType.GARMIN_FENIX_6S_PRO_SOLAR); // #5568
+            put("fenix 6S", DeviceType.GARMIN_FENIX_6S);
+            put("xiaomi.scooter.5max", DeviceType.XIAOMI_SCOOTER_5_MAX);
             put("R50Pro", DeviceType.R50PRO);
             put("P22B1", DeviceType.P22B1);
             put("SBM67", DeviceType.SILVERCREST_SBM_67);
@@ -127,6 +134,7 @@ public class BluetoothNameTest extends TestBase {
             put("quatix 8 - 51mm", DeviceType.GARMIN_QUATIX_8); // #5575
             put("tactix 7", DeviceType.GARMIN_TACTIX_7); // #5782
             put("tactix 8 - 51mm", DeviceType.GARMIN_TACTIX_8); // #5772
+            put("AK75 PRO", DeviceType.AK75_PRO); // #6446
             put("Forerunner 265S", DeviceType.GARMIN_FORERUNNER_265S);
             put("Forerunner 935", DeviceType.GARMIN_FORERUNNER_935); // #5870
             put("Forerunner 955", DeviceType.GARMIN_FORERUNNER_955); // #4124
@@ -136,6 +144,7 @@ public class BluetoothNameTest extends TestBase {
             put("Redmi Watch 5 Active E7B7", DeviceType.REDMIWATCH5ACTIVE);
             put("Move", DeviceType.REDMIWATCHMOVE); // matrix
             put("BSC300", DeviceType.IGPSPORT_BSC300); // matrix
+            put("BiNavi", DeviceType.IGPSPORT_BiNavi); // matrix
             put("Forerunner 165", DeviceType.GARMIN_FORERUNNER_165);
             put("Xiaomi Smart Band 9 7E1E", DeviceType.MIBAND9);
             put("Venu 2S", DeviceType.GARMIN_VENU_2S); // #4010
@@ -205,6 +214,7 @@ public class BluetoothNameTest extends TestBase {
             put("Galaxy Buds Pro (B352)", DeviceType.GALAXY_BUDS_PRO); // #2642
             put("Redmi Watch 2 Lite 31A5", DeviceType.REDMIWATCH2LITE); // #2637
             put("honor Watch-7EE", DeviceType.HONORMAGICWATCH); // #5816
+            put("HONOR Band 10-DEO", DeviceType.HONORBAND10); // #6027
             put("HUAWEI Band 6-A47", DeviceType.HUAWEIBAND6); // #2569
             put("WATCH Ultimate 2-D96", DeviceType.HUAWEIWATCHULTIMATE2); // matrix
             put("716", DeviceType.FITPRO);
@@ -221,11 +231,19 @@ public class BluetoothNameTest extends TestBase {
             put("BPW4500", DeviceType.BRAUN_BPW4500); // #5886
             put("MATSON Monitor", DeviceType.BM2_BATTERY_MONITOR); // #6212
             put("BM6", DeviceType.BM6_BATTERY_MONITOR); // #6236
+            put("Ollee Watch", DeviceType.OLLEE_WATCH_ONE); // #6411
+            put("UNA Watch 403795", DeviceType.UNA_WATCH); // #6504
+            put("UNA Watch 1", DeviceType.UNA_WATCH); // #6504
+            put("UNA Watch 12345678", DeviceType.UNA_WATCH); // #6504
+            put("una watch 403795", null); // #6504
+            put("UNA Watch403795", null); // #6504
+            put("UNA Watch ", null); // #6504
             put("Xiaomi Smart Band 10 Pro AB01", DeviceType.MIBAND10PRO); // #6248
             put("SmartShunt HQ2303UCHFV", DeviceType.VICTRON_SMARTSHUNT); // #6263
             put("Soundcore Q30", DeviceType.SOUNDCORE_Q30); // #6396
             put("Soundcore Life Tune", DeviceType.SOUNDCORE_LIFE_TUNE); // #6396
             put("Soundcore Life Tune XR", DeviceType.SOUNDCORE_LIFE_TUNE_XR); // #6396
+            put("OsmoAction4-ABCD", DeviceType.DJI_OSMO_ACTION_4);
         }};
 
         for (Map.Entry<String, DeviceType> e : bluetoothNameToExpectedType.entrySet()) {

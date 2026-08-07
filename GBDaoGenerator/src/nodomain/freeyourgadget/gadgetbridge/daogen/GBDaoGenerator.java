@@ -19,6 +19,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,10 +28,15 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import freemarker.template.Configuration;
+import freemarker.template.Template;
 
 import de.greenrobot.daogenerator.DaoGenerator;
 import de.greenrobot.daogenerator.Entity;
@@ -103,9 +109,10 @@ public class GBDaoGenerator {
             outputDir.mkdirs();
         }
 
-        final Schema schema = new Schema(137, MAIN_PACKAGE + ".entities");
+        final Schema schema = new Schema(139, MAIN_PACKAGE + ".entities");
 
         final List<Entity> sampleProvidersToGenerate = new LinkedList<>();
+        final List<Entity> batterySampleProvidersToGenerate = new LinkedList<>();
 
         Entity userAttributes = addUserAttributes(schema);
         Entity user = addUserInfo(schema, userAttributes);
@@ -240,6 +247,9 @@ public class GBDaoGenerator {
         addUltrahumanActivitySample(schema, user, device);
         sampleProvidersToGenerate.add(addUltrahumanDeviceStateSample(schema, user, device));
 
+        addOlleeActivitySample(schema, user, device);
+        addUnaDailySample(schema, user, device);
+
         Entity huaweiWorkoutSummary = addHuaweiWorkoutSummarySample(schema, user, device);
         addHuaweiWorkoutSummaryAdditionalValuesSample(schema, huaweiWorkoutSummary);
         addHuaweiWorkoutDataSample(schema, huaweiWorkoutSummary);
@@ -269,7 +279,12 @@ public class GBDaoGenerator {
         addNotificationFilterEntry(schema, notificationFilter);
 
         addActivitySummary(schema, user, device);
+        // FIXME: BatteryLevel timestamp is in seconds, maybe migrate it once #6177 is merged
         addBatteryLevel(schema, device);
+        batterySampleProvidersToGenerate.add(addBatteryVoltageSample(schema, device));
+        batterySampleProvidersToGenerate.add(addBatteryCurrentSample(schema, device));
+        batterySampleProvidersToGenerate.add(addBatteryPowerSample(schema, device));
+        batterySampleProvidersToGenerate.add(addBatteryTemperatureSample(schema, device));
 
         sampleProvidersToGenerate.add(addGenericHeartRateSample(schema, user, device));
         sampleProvidersToGenerate.add(addGenericSpo2Sample(schema, user, device));
@@ -294,8 +309,14 @@ public class GBDaoGenerator {
 
         final long start = System.currentTimeMillis();
 
+        final Template timeSampleProviderTemplate = loadTemplate("gadgetbridge/time-sample-provider.ftl");
         for (Entity entity : sampleProvidersToGenerate) {
-            generateSampleProvider(entity);
+            generateSampleProvider(timeSampleProviderTemplate, entity);
+        }
+
+        final Template batterySampleProviderTemplate = loadTemplate("gadgetbridge/battery-sample-provider.ftl");
+        for (Entity entity : batterySampleProvidersToGenerate) {
+            generateSampleProvider(batterySampleProviderTemplate, entity);
         }
 
         long time = System.currentTimeMillis() - start;
@@ -1324,6 +1345,27 @@ public class GBDaoGenerator {
         return activitySample;
     }
 
+    private static Entity addOlleeActivitySample(Schema schema, Entity user, Entity device) {
+        Entity activitySample = addEntity(schema, "OlleeActivitySample");
+        activitySample.implementsSerializable();
+        addCommonActivitySampleProperties("AbstractActivitySample", activitySample, user, device);
+        activitySample.addIntProperty(SAMPLE_RAW_KIND).notNull().codeBeforeGetterAndSetter(OVERRIDE);
+        activitySample.addIntProperty(SAMPLE_STEPS).notNull().codeBeforeGetterAndSetter(OVERRIDE);
+        return activitySample;
+    }
+
+    private static Entity addUnaDailySample(Schema schema, Entity user, Entity device) {
+        Entity activitySample = addEntity(schema, "UnaDailySample");
+        activitySample.implementsSerializable();
+        addCommonActivitySampleProperties("AbstractActivitySample", activitySample, user, device);
+        activitySample.addIntProperty(SAMPLE_RAW_KIND).notNull().codeBeforeGetterAndSetter(OVERRIDE);
+        activitySample.addIntProperty(SAMPLE_STEPS).notNull().codeBeforeGetterAndSetter(OVERRIDE);
+        activitySample.addIntProperty("floorsClimbed");
+        activitySample.addIntProperty("restingHeartRate").notNull();
+        addHeartRateProperties(activitySample);
+        return activitySample;
+    }
+
     private static Entity addLefunActivitySample(Schema schema, Entity user, Entity device) {
         Entity activitySample = addEntity(schema, "LefunActivitySample");
         activitySample.implementsSerializable();
@@ -1754,6 +1796,54 @@ public class GBDaoGenerator {
         batteryLevel.addFloatProperty("voltage").notNull();
         batteryLevel.addIntProperty("batteryState").notNull();
         return batteryLevel;
+    }
+
+    private static Entity addBatteryVoltageSample(Schema schema, Entity device) {
+        Entity batteryVoltage = addEntity(schema, "BatteryVoltageSample");
+        batteryVoltage.setSuperclass("AbstractBatterySample");
+        batteryVoltage.implementsSerializable();
+        batteryVoltage.addLongProperty("timestamp").notNull().primaryKey().codeBeforeGetterAndSetter(OVERRIDE);
+        Property deviceId = batteryVoltage.addLongProperty("deviceId").primaryKey().notNull().codeBeforeGetterAndSetter(OVERRIDE).getProperty();
+        batteryVoltage.addToOne(device, deviceId);
+        batteryVoltage.addIntProperty("batteryIndex").notNull().primaryKey().codeBeforeGetterAndSetter(OVERRIDE);
+        batteryVoltage.addFloatProperty("voltage").notNull();
+        return batteryVoltage;
+    }
+
+    private static Entity addBatteryCurrentSample(Schema schema, Entity device) {
+        Entity batteryCurrent = addEntity(schema, "BatteryCurrentSample");
+        batteryCurrent.setSuperclass("AbstractBatterySample");
+        batteryCurrent.implementsSerializable();
+        batteryCurrent.addLongProperty("timestamp").notNull().primaryKey().codeBeforeGetterAndSetter(OVERRIDE);
+        Property deviceId = batteryCurrent.addLongProperty("deviceId").primaryKey().notNull().codeBeforeGetterAndSetter(OVERRIDE).getProperty();
+        batteryCurrent.addToOne(device, deviceId);
+        batteryCurrent.addIntProperty("batteryIndex").notNull().primaryKey().codeBeforeGetterAndSetter(OVERRIDE);
+        batteryCurrent.addFloatProperty("current").notNull();
+        return batteryCurrent;
+    }
+
+    private static Entity addBatteryPowerSample(Schema schema, Entity device) {
+        Entity batteryPower = addEntity(schema, "BatteryPowerSample");
+        batteryPower.setSuperclass("AbstractBatterySample");
+        batteryPower.implementsSerializable();
+        batteryPower.addLongProperty("timestamp").notNull().primaryKey().codeBeforeGetterAndSetter(OVERRIDE);
+        Property deviceId = batteryPower.addLongProperty("deviceId").primaryKey().notNull().codeBeforeGetterAndSetter(OVERRIDE).getProperty();
+        batteryPower.addToOne(device, deviceId);
+        batteryPower.addIntProperty("batteryIndex").notNull().primaryKey().codeBeforeGetterAndSetter(OVERRIDE);
+        batteryPower.addFloatProperty("power").notNull();
+        return batteryPower;
+    }
+
+    private static Entity addBatteryTemperatureSample(Schema schema, Entity device) {
+        Entity batteryTemperature = addEntity(schema, "BatteryTemperatureSample");
+        batteryTemperature.setSuperclass("AbstractBatterySample");
+        batteryTemperature.implementsSerializable();
+        batteryTemperature.addLongProperty("timestamp").notNull().primaryKey().codeBeforeGetterAndSetter(OVERRIDE);
+        Property deviceId = batteryTemperature.addLongProperty("deviceId").primaryKey().notNull().codeBeforeGetterAndSetter(OVERRIDE).getProperty();
+        batteryTemperature.addToOne(device, deviceId);
+        batteryTemperature.addIntProperty("batteryIndex").notNull().primaryKey().codeBeforeGetterAndSetter(OVERRIDE);
+        batteryTemperature.addFloatProperty(SAMPLE_TEMPERATURE).notNull();
+        return batteryTemperature;
     }
 
     private static Entity addFitProActivitySample(Schema schema, Entity user, Entity device) {
@@ -2496,73 +2586,21 @@ public class GBDaoGenerator {
         return sample;
     }
 
-    private static final String SAMPLE_PROVIDER_TEMPLATE = """
-            /*  Copyright (C) 2026 Freeyourgadget
-            
-                This file is part of Gadgetbridge.
-            
-                Gadgetbridge is free software: you can redistribute it and/or modify
-                it under the terms of the GNU Affero General Public License as published
-                by the Free Software Foundation, either version 3 of the License, or
-                (at your option) any later version.
-            
-                Gadgetbridge is distributed in the hope that it will be useful,
-                but WITHOUT ANY WARRANTY; without even the implied warranty of
-                MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-                GNU Affero General Public License for more details.
-            
-                You should have received a copy of the GNU Affero General Public License
-                along with this program.  If not, see <https://www.gnu.org/licenses/>. */
-            package nodomain.freeyourgadget.gadgetbridge.devices;
-            
-            import androidx.annotation.NonNull;
-            
-            import de.greenrobot.dao.AbstractDao;
-            import de.greenrobot.dao.Property;
-            import nodomain.freeyourgadget.gadgetbridge.entities.${classNameSample};
-            import nodomain.freeyourgadget.gadgetbridge.entities.${classNameDao};
-            import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
-            import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-            
-            public class ${classNameSample}Provider extends AbstractTimeSampleProvider<${classNameSample}> {
-                public ${classNameSample}Provider(@NonNull final GBDevice device, @NonNull final DaoSession session) {
-                    super(device, session);
-                }
-            
-                @NonNull
-                @Override
-                public AbstractDao<${classNameSample}, ?> getSampleDao() {
-                    return getSession().get${classNameDao}();
-                }
-            
-                @NonNull
-                @Override
-                protected Property getTimestampSampleProperty() {
-                    return ${classNameDao}.Properties.Timestamp;
-                }
-            
-                @NonNull
-                @Override
-                protected Property getDeviceIdentifierSampleProperty() {
-                    return ${classNameDao}.Properties.DeviceId;
-                }
-            
-                @NonNull
-                @Override
-                public ${classNameSample} createSample() {
-                    return new ${classNameSample}();
-                }
-            }
-            """;
+    private static Template loadTemplate(final String name) throws IOException {
+        final Configuration config = new Configuration(Configuration.VERSION_2_3_23);
+        config.setClassForTemplateLoading(GBDaoGenerator.class, "/");
+        return config.getTemplate(name);
+    }
 
-    private static void generateSampleProvider(final Entity entity) throws IOException {
+    private static void generateSampleProvider(final Template template, final Entity entity) throws Exception {
         final File outputDir = new File(OUTPUT_DIR + "/nodomain/freeyourgadget/gadgetbridge/devices");
         //noinspection ResultOfMethodCallIgnored
         outputDir.mkdirs();
-        final String generatedCode = SAMPLE_PROVIDER_TEMPLATE
-                .replace("${classNameSample}", entity.getClassName())
-                .replace("${classNameDao}", entity.getClassNameDao())
-                .replaceAll("\\R", System.lineSeparator());
+        final Map<String, Object> root = new HashMap<>();
+        root.put("entity", entity);
+        final StringWriter rendered = new StringWriter();
+        template.process(root, rendered);
+        final String generatedCode = rendered.toString().replaceAll("\\R", System.lineSeparator());
         final File file = new File(outputDir, entity.getClassName() + "Provider.java");
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, false))) {
             writer.write(generatedCode);

@@ -48,7 +48,12 @@ public class NotifyCharacteristicChangedAction extends BtLEServerAction {
 
     @Override
     public boolean expectsResult() {
-        return false;
+        // We MUST wait for the onNotificationSent callback before sending the next
+        // notification. The Android BLE documentation states: "The application should
+        // wait for onNotificationSent before sending more notifications."
+        // Failing to do so can overflow the BLE stack and silently drop packets,
+        // stalling packetized transfers.
+        return true;
     }
 
     @SuppressLint("MissingPermission")

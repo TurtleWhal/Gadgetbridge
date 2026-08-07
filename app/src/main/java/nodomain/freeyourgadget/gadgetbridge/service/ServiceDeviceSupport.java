@@ -579,4 +579,9 @@ public class ServiceDeviceSupport implements DeviceSupport {
     public boolean canReconnect() {
         return delegate.canReconnect();
     }
+
+    @Override
+    public SleepAsAndroidSender getSleepAsAndroidSender() {
+        return delegate.getSleepAsAndroidSender();
+    }
 }

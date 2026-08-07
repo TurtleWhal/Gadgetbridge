@@ -69,7 +69,11 @@ import nodomain.freeyourgadget.gadgetbridge.capabilities.widgets.WidgetManager;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.entities.AlarmDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.BatteryCurrentSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.BatteryLevelDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.BatteryPowerSampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.BatteryTemperatureSampleDao;
+import nodomain.freeyourgadget.gadgetbridge.entities.BatteryVoltageSampleDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.CyclingSample;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
@@ -231,6 +235,10 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
                 deleteDevice(gbDevice, device, session);
                 deleteBy(session.getDeviceAttributesDao(), DeviceAttributesDao.Properties.DeviceId, device.getId());
                 deleteBy(session.getBatteryLevelDao(), BatteryLevelDao.Properties.DeviceId, device.getId());
+                deleteBy(session.getBatteryVoltageSampleDao(), BatteryVoltageSampleDao.Properties.DeviceId, device.getId());
+                deleteBy(session.getBatteryCurrentSampleDao(), BatteryCurrentSampleDao.Properties.DeviceId, device.getId());
+                deleteBy(session.getBatteryPowerSampleDao(), BatteryPowerSampleDao.Properties.DeviceId, device.getId());
+                deleteBy(session.getBatteryTemperatureSampleDao(), BatteryTemperatureSampleDao.Properties.DeviceId, device.getId());
                 deleteBy(session.getAlarmDao(), AlarmDao.Properties.DeviceId, device.getId());
                 deleteBy(session.getHealthConnectSyncStateDao(), HealthConnectSyncStateDao.Properties.DeviceId, device.getId());
                 deleteBy(session.getHealthConnectSleepSessionDao(), HealthConnectSleepSessionDao.Properties.DeviceId, device.getId());
@@ -447,7 +455,7 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     @Override
     @Nullable
     public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
-        return null;
+        return new ActivitySummaryParser.NoopActivitySummaryParser();
     }
 
     @Override
@@ -551,6 +559,16 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    public int getSmartWakeupMaxInterval(@NonNull GBDevice device) {
+        return 255;
+    }
+
+    @Override
+    public String getSmartWakeupDescription(@NonNull GBDevice device) {
+        return null;
+    }
+
+    @Override
     public boolean forcedSmartWakeup(GBDevice device, int alarmPosition) {
         return false;
     }
@@ -613,6 +631,11 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     @Override
     public int getBondingStyle() {
         return BONDING_STYLE_ASK;
+    }
+
+    @Override
+    public boolean requiresAuthKey() {
+        return getBondingStyle() == BONDING_STYLE_REQUIRE_KEY;
     }
 
     @Override
@@ -945,6 +968,11 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
+    public boolean supportsLiveOnlyHeartRateDisplay(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
     public boolean supportsRealtimeData(@NonNull GBDevice device) {
         return false;
     }
@@ -990,7 +1018,7 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
-    public Set<SleepAsAndroidFeature> getSleepAsAndroidFeatures() {
+    public Set<SleepAsAndroidFeature> getSleepAsAndroidFeatures(@NonNull final GBDevice device) {
         return Collections.emptySet();
     }
 
@@ -1200,14 +1228,14 @@ public abstract class AbstractDeviceCoordinator implements DeviceCoordinator {
     }
 
     @Override
-    public boolean validateAuthKey(final String authKey) {
+    public boolean validateAuthKey(@NonNull final String authKey) {
         return !(authKey.getBytes().length < 34 || !authKey.startsWith("0x"));
     }
 
     @Override
     @Nullable
     public String getAuthHelp() {
-        return null;
+        return "https://gadgetbridge.org/basics/pairing/#authentication-key";
     }
 
     @Override

@@ -223,10 +223,11 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
 
         LOG.debug("onCreatePreferences: {}", rootKey);
 
+        final DeviceSettingsSpec modelSpec = device.getDeviceCoordinator().getDeviceSettings(device);
+
         if (rootKey != null) {
             // Check whether rootKey belongs to a model-defined ScreenSetting and, if so, render
             // the screen programmatically, bypassing the XML inflation path entirely.
-            final DeviceSettingsSpec modelSpec = device.getDeviceCoordinator().getDeviceSettings(device);
             if (modelSpec != null) {
                 final ScreenSetting modelScreen = modelSpec.findScreen(rootKey);
                 if (modelScreen != null) {
@@ -241,6 +242,29 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                             prefs,
                             this
                     );
+                    // A model ScreenSetting can share a key with a DeviceSpecificSettingsScreen
+                    // enum entry (e.g. CONNECTION) that also has legacy XML sub-screens registered
+                    // against it (e.g. the generic reconnect/connection-priority settings added
+                    // unconditionally for every coordinator) - append those after the model's own
+                    // children rather than losing them.
+                    final List<Integer> legacySubScreens = deviceSpecificSettings.getScreen(rootKey);
+                    if (legacySubScreens != null) {
+                        // addRootScreen() registers the enum's own folder placeholder XML (an
+                        // empty, title-only PreferenceScreen) as a "sub-screen" of itself - skip
+                        // it, only inline the actual additional content.
+                        int enumPlaceholderXml = 0;
+                        for (final DeviceSpecificSettingsScreen enumScreen : DeviceSpecificSettingsScreen.values()) {
+                            if (enumScreen.getKey().equals(rootKey)) {
+                                enumPlaceholderXml = enumScreen.getXml();
+                                break;
+                            }
+                        }
+                        for (final int subScreen : legacySubScreens) {
+                            if (subScreen != enumPlaceholderXml) {
+                                addPreferencesFromResource(subScreen);
+                            }
+                        }
+                    }
                     reloadEnabledPreferences();
                     return;
                 }
@@ -249,7 +273,6 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
 
         if (rootKey == null) {
             // we are the main preference screen
-            final DeviceSettingsSpec modelSpec = device.getDeviceCoordinator().getDeviceSettings(device);
             if (modelSpec != null) {
                 modelManagedKeys = modelSpec.collectAllKeys();
                 setPreferenceScreen(getPreferenceManager().createPreferenceScreen(requireContext()));
@@ -269,9 +292,17 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                     }
                 }
                 for (final int screen : deviceSpecificSettings.getRootScreens()) {
-                    if (!modelXmlScreens.contains(screen)) {
-                        addPreferencesFromResource(screen);
+                    if (modelXmlScreens.contains(screen)) {
+                        continue;
                     }
+                    // A model ScreenSetting can claim the same key as a DeviceSpecificSettingsScreen
+                    // enum entry (e.g. CONNECTION, which is unconditionally added above) to provide
+                    // its root entry programmatically instead of via the enum's generic XML.
+                    final DeviceSpecificSettingsScreen enumScreen = DeviceSpecificSettingsScreen.fromXml(screen);
+                    if (enumScreen != null && modelSpec.findScreen(enumScreen.getKey()) != null) {
+                        continue;
+                    }
+                    addPreferencesFromResource(screen);
                 }
             } else {
                 boolean first = true;
@@ -320,6 +351,13 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         for (final DeviceSpecificSettingsScreen value : DeviceSpecificSettingsScreen.values()) {
             final PreferenceScreen prefScreen = findPreference(value.getKey());
             if (prefScreen != null) {
+                if (modelSpec != null && modelSpec.findScreen(value.getKey()) != null) {
+                    // This screen is a model ScreenSetting rendered in-memory by
+                    // DeviceSettingRenderer; it already navigates via the default nested
+                    // PreferenceScreen click handling, so wiring this listener too would push a
+                    // second, redundant navigation onto the back stack.
+                    continue;
+                }
                 prefScreen.setOnPreferenceClickListener(p -> {
                     onNavigateToScreen(prefScreen);
                     return true;
@@ -831,6 +869,9 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         addPreferenceHandlerFor(PREF_HUAWEI_FREEBUDS_ANC_MODE);
         addPreferenceHandlerFor(PREF_HUAWEI_FREEBUDS_VOICE_BOOST);
         addPreferenceHandlerFor(PREF_HUAWEI_FREEBUDS_BETTER_AUDIO_QUALITY);
+        addPreferenceHandlerFor(PREF_HUAWEI_FREEBUDS_ADAPTIVE_VOLUME);
+        addPreferenceHandlerFor(PREF_HUAWEI_FREEBUDS_EXTRA_MEDIA_VOLUME);
+        addPreferenceHandlerFor(PREF_HUAWEI_FREEBUDS_FIND_HEADPHONES);
 
 
         addPreferenceHandlerFor(PREF_GALAXY_BUDS_AMBIENT_VOICE_FOCUS);
@@ -1667,7 +1708,6 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
         final DeviceSpecificSettings deviceSpecificSettings = new DeviceSpecificSettings();
 
         if (applicationSpecificSettings.equals(DeviceSettingsActivity.MENU_ENTRY_POINTS.AUTH_SETTINGS)) { //auth settings screen
-            deviceSpecificSettings.addRootScreen(R.xml.devicesettings_pairingkey_explanation);
             for (final int s : coordinator.getSupportedDeviceSpecificAuthenticationSettings()) {
                 deviceSpecificSettings.addRootScreen(s);
             }
