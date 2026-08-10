@@ -25,11 +25,6 @@ public final class BangleJSConstants {
     public static final UUID UUID_CHARACTERISTIC_NORDIC_UART_TX = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
     public static final UUID UUID_CHARACTERISTIC_NORDIC_UART_RX = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
 
-    // Gadgetbridge image transfer (custom, used by ESP32-S3 + LVGL firmware emulating Bangle.js).
-    // Separate service so it can be enumerated/handled independently of the Nordic UART path.
-    public static final UUID UUID_SERVICE_GB_IMAGE = UUID.fromString("6e500001-b5a3-f393-e0a9-e50e24dcca9e");
-    public static final UUID UUID_CHARACTERISTIC_GB_IMAGE_DATA = UUID.fromString("6e500002-b5a3-f393-e0a9-e50e24dcca9e");
-
     public static final String PREF_BANGLEJS_ACTIVITY_FULL_SYNC_TRIGGER = "pref_banglejs_activity_full_sync_trigger";
     public static final String PREF_BANGLEJS_ACTIVITY_FULL_SYNC_STATUS = "pref_banglejs_activity_full_sync_status";
     public static final String PREF_BANGLEJS_ACTIVITY_FULL_SYNC_START = "pref_banglejs_activity_full_sync_start";

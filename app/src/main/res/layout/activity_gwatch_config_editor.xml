@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".devices.gwatch.GWatchConfigEditorActivity">
+
+    <TextView
+        android:id="@+id/gwatch_config_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/gwatch_config_requesting"
+        android:textAppearance="@style/TextAppearance.AppCompat.Small" />
+
+    <ProgressBar
+        android:id="@+id/gwatch_config_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:indeterminate="true" />
+
+    <!-- The EditText is sized to its content and the ScrollView does the scrolling, so
+         we get fling momentum and overscroll. TextView's own drag-scrolling has neither. -->
+    <ScrollView
+        android:id="@+id/gwatch_config_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="vertical">
+
+        <EditText
+            android:id="@+id/gwatch_config_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:fontFamily="monospace"
+            android:gravity="top|start"
+            android:hint="@string/loading"
+            android:importantForAutofill="no"
+            android:inputType="textMultiLine|textNoSuggestions"
+            android:isScrollContainer="false"
+            android:textSize="13sp"
+            tools:ignore="LabelFor" />
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/gwatch_config_reload"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:text="@string/gwatch_config_reload" />
+
+        <Button
+            android:id="@+id/gwatch_config_send"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="@string/gwatch_config_send" />
+    </LinearLayout>
+
+</LinearLayout>

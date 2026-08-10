@@ -324,8 +324,25 @@
     <string name="pref_summary_transliteration">Enable this if your device has no support for your language\'s font</string>
     <string name="pref_title_banglejs_text_bitmap">Text as Bitmaps</string>
     <string name="pref_summary_banglejs_text_bitmap">If a word cannot be rendered with the watch\'s font, render it to a bitmap in Gadgetbridge and display the bitmap on the watch</string>
-    <string name="pref_title_banglejs_text_raw_emoji">Send raw emoji characters</string>
-    <string name="pref_summary_banglejs_text_raw_emoji">Send emoji as raw Unicode characters instead of converting them to :emoji: text. Use this if your watch font (e.g. LVGL) can render emoji glyphs directly</string>
+    <string name="pref_title_gwatch_text_raw_emoji">Send raw emoji characters</string>
+    <string name="pref_summary_gwatch_text_raw_emoji">Send emoji as raw Unicode characters instead of converting them to :emoji: text. Use this if your watch font (e.g. LVGL) can render emoji glyphs directly</string>
+    <string name="gwatch_config_editor_title">Watch config file</string>
+    <string name="gwatch_config_requesting">Requesting config file from the watch…</string>
+    <string name="gwatch_config_loaded">Loaded %1$s from the watch</string>
+    <string name="gwatch_config_timeout">The watch did not send a config file</string>
+    <string name="gwatch_config_stale">Showing the %1$s last received from the watch</string>
+    <string name="gwatch_config_read_failed">Could not read the config file received from the watch</string>
+    <string name="gwatch_config_superseded">A newer config file arrived from the watch. Your edits are kept — reload to discard them.</string>
+    <string name="gwatch_config_reload">Reload</string>
+    <string name="gwatch_config_send">Send to watch</string>
+    <string name="gwatch_config_sending">Sending config file to the watch…</string>
+    <string name="gwatch_config_sent">No reply from the watch — the config file may not have arrived</string>
+    <string name="gwatch_config_saved">The watch accepted the new config file</string>
+    <string name="gwatch_config_parse_failed">The watch could not parse the config file</string>
+    <string name="gwatch_config_save_failed">Could not send the config file: %1$s</string>
+    <string name="gwatch_config_discard_title">Discard changes?</string>
+    <string name="gwatch_config_discard_message">The config file has been edited but not sent to the watch.</string>
+    <string name="gwatch_config_discard">Discard</string>
     <string name="pref_title_banglejs_txt_bitmap_size">Text Bitmaps Size</string>
     <string name="pref_summary_banglejs_txt_bitmap_size">Size to use for bitmap text rendering</string>
     <string name="pref_title_banglejs_phone_gps_enbale">Use phone GPS data</string>
@@ -2178,6 +2195,7 @@
     <string name="devicetype_makibes_hr3" translatable="false">Makibes HR3</string>
     <string name="devicetype_ovtouch_26" translatable="false">Overmax Touch 2.6</string>
     <string name="devicetype_banglejs" translatable="false">Bangle.js</string>
+    <string name="devicetype_gwatch" translatable="false">G-Watch</string>
     <string name="devicetype_tlw64" translatable="false">TLW64</string>
     <string name="devicetype_pinetime_jf" translatable="false">PineTime (JF Firmware)</string>
     <string name="devicetype_polarh9" translatable="false">Polar H9</string>

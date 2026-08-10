@@ -17,12 +17,13 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
-package nodomain.freeyourgadget.gadgetbridge.service.devices.banglejs;
+package nodomain.freeyourgadget.gadgetbridge.service.devices.gwatch;
 
 import static java.util.Collections.emptyMap;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_ALLOW_HIGH_MTU;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_BANGLEJS_TEXT_BITMAP;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_BANGLEJS_TEXT_BITMAP_SIZE;
+import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_GWATCH_TEXT_RAW_EMOJI;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_GPS_UPDATE;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_GPS_UPDATE_INTERVAL;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_GPS_USE_NETWORK_ONLY;
@@ -30,9 +31,9 @@ import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.Dev
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_DEVICE_INTERNET_ACCESS;
 import static nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst.PREF_NOTIFICATION_WAKE_ON_OPEN;
 import static nodomain.freeyourgadget.gadgetbridge.database.DBHelper.getUser;
-import static nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants.PREF_BANGLEJS_ACTIVITY_FULL_SYNC_START;
-import static nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants.PREF_BANGLEJS_ACTIVITY_FULL_SYNC_STATUS;
-import static nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants.PREF_BANGLEJS_NOTIFICATION_MISSED_CALL_ENABLE;
+import static nodomain.freeyourgadget.gadgetbridge.devices.gwatch.GWatchConstants.PREF_BANGLEJS_ACTIVITY_FULL_SYNC_START;
+import static nodomain.freeyourgadget.gadgetbridge.devices.gwatch.GWatchConstants.PREF_BANGLEJS_ACTIVITY_FULL_SYNC_STATUS;
+import static nodomain.freeyourgadget.gadgetbridge.devices.gwatch.GWatchConstants.PREF_BANGLEJS_NOTIFICATION_MISSED_CALL_ENABLE;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
@@ -72,9 +73,13 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -109,8 +114,8 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventNotificati
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventScreenshot;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
-import nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSConstants;
-import nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSSampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.gwatch.GWatchConstants;
+import nodomain.freeyourgadget.gadgetbridge.devices.gwatch.GWatchSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.entities.BangleJSActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.entities.CalendarSyncState;
 import nodomain.freeyourgadget.gadgetbridge.entities.CalendarSyncStateDao;
@@ -132,6 +137,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NotificationImageSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
@@ -152,11 +158,52 @@ import nodomain.freeyourgadget.gadgetbridge.util.LimitedQueue;
 import nodomain.freeyourgadget.gadgetbridge.util.MediaManager;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
-public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
-    private static final Logger LOG = LoggerFactory.getLogger(BangleJSDeviceSupport.class);
+public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
+    private static final Logger LOG = LoggerFactory.getLogger(GWatchDeviceSupport.class);
 
     private BluetoothGattCharacteristic rxCharacteristic = null;
     private BluetoothGattCharacteristic txCharacteristic = null;
+    private BluetoothGattCharacteristic imageCharacteristic = null;
+    private int imageTransferIdCounter = 0;
+    private String lastAlbumArtTrackKey = null;
+
+    // Per-kind preemption rules:
+    //  - album art preempts in-flight or queued album art (newest wins for the *current* song)
+    //  - notification icons are strictly FIFO and never preempt anything
+    //  - neither kind preempts across kinds
+    // Implementation: a single FIFO job queue drained by one worker thread. Album art jobs
+    // carry a token; bumping latestAlbumArtToken on submission both signals the in-flight
+    // album art (if any) to abort on its next per-frame check, and we also strip stale
+    // album-art entries already sitting in the queue at submission time.
+    private static final class ImageJob {
+        final byte[][] frames;
+        final byte kind;
+        final String taskName;
+        final int albumArtToken; // only meaningful when kind == IMAGE_KIND_ALBUM_ART
+        ImageJob(byte[][] frames, byte kind, String taskName, int albumArtToken) {
+            this.frames = frames;
+            this.kind = kind;
+            this.taskName = taskName;
+            this.albumArtToken = albumArtToken;
+        }
+    }
+    private final java.util.concurrent.LinkedBlockingDeque<ImageJob> imageJobs =
+            new java.util.concurrent.LinkedBlockingDeque<>();
+    private final java.util.concurrent.atomic.AtomicInteger latestAlbumArtToken =
+            new java.util.concurrent.atomic.AtomicInteger(0);
+    private final Thread imageWorker;
+
+    // image_kind enum sent in the BEGIN frame at offset 12 (see image transfer spec)
+    private static final byte IMAGE_KIND_NOTIFICATION = 0x00;
+    private static final byte IMAGE_KIND_ALBUM_ART    = 0x01;
+
+    // Pacing for image transfer: one chunk per ~connection-interval, so the BLE queue
+    // stays near-empty and incoming text writes (music/notify JSON) get serviced
+    // promptly rather than waiting behind the whole image.
+    private static final long IMAGE_CHUNK_PACE_MS = 8L;
+
+    // Data-URI prefix the watch may use when returning a screenshot.
+    private static final String SCREENSHOT_BMP_PREFIX = "data:image/bmp;base64,";
     private boolean allowHighMTU = false;
     private int mtuSize = 20;
     int bangleCommandSeq = 0; // to attempt to stop duplicate packets when sending Local Intents
@@ -175,6 +222,23 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private boolean isMissedCall = false;
     private final Handler handler = new Handler();
 
+    private static final long HOURLY_TIME_SYNC_INTERVAL_MS = 60L * 60L * 1000L;
+    private final Runnable hourlyTimeSyncRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (GBApplication.getPrefs().syncTime()) {
+                try {
+                    final TransactionBuilder builder = performInitialized("hourlyTimeSync");
+                    transmitTime(builder);
+                    builder.queue();
+                } catch (final Exception e) {
+                    LOG.debug("hourly time sync skipped: {}", e.getMessage());
+                }
+            }
+            handler.postDelayed(this, HOURLY_TIME_SYNC_INTERVAL_MS);
+        }
+    };
+
     private final LimitedQueue<Integer, Long> mNotificationReplyAction = new LimitedQueue<>(16);
     private final LimitedQueue<Integer, ArrayList<Long>> mNotificationActions = new LimitedQueue<>(16);
 
@@ -191,19 +255,39 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     static String lastStateString;
 
     // Local Intents - for app manager communication
-    public static final String BANGLEJS_COMMAND_TX = "banglejs_command_tx";
-    public static final String BANGLEJS_COMMAND_RX = "banglejs_command_rx";
+    public static final String GWATCH_COMMAND_TX = "gwatch_command_tx";
+    public static final String GWATCH_COMMAND_RX = "gwatch_command_rx";
+    // Local Intents - for GWatchConfigEditorActivity communication
+    /// Editor -> us: ask the watch for its config file.
+    public static final String GWATCH_CONFIG_REQUEST = "gwatch_config_request";
+    /// Editor -> us: write an edited config file back to the watch.
+    public static final String GWATCH_CONFIG_SEND = "gwatch_config_send";
+    /// Us -> editor: a {"t":"file"} packet was written to disk. Fires per chunk.
+    public static final String GWATCH_FILE_WRITTEN = "gwatch_file_written";
+    /// Us -> editor: the watch acknowledged (or rejected) a config we sent.
+    public static final String GWATCH_CONFIG_ACK = "gwatch_config_ack";
+    /// MAC address of the device an intent is meant for. Null means "any G-Watch".
+    public static final String EXTRA_CONFIG_ADDRESS = "ADDRESS";
+    public static final String EXTRA_CONFIG_NAME = "NAME";
+    public static final String EXTRA_CONFIG_DATA = "DATA";
+    public static final String EXTRA_CONFIG_OK = "OK";
+    public static final String EXTRA_CONFIG_ERROR = "ERROR";
     // Global Intents
-    private static final String BANGLE_ACTION_UART_TX = "com.banglejs.uart.tx";
+    private static final String GWATCH_ACTION_UART_TX = "com.gwatch.uart.tx";
 
     private SleepAsAndroidSender sleepAsAndroidSender;
 
-    public BangleJSDeviceSupport() {
+    public GWatchDeviceSupport() {
         super(LOG);
-        addSupportedService(BangleJSConstants.UUID_SERVICE_NORDIC_UART);
+        addSupportedService(GWatchConstants.UUID_SERVICE_NORDIC_UART);
+        addSupportedService(GWatchConstants.UUID_SERVICE_GB_IMAGE);
 
         registerLocalIntents();
         registerGlobalIntents();
+
+        imageWorker = new Thread(this::runImageWorker, "GWatch-ImageTx");
+        imageWorker.setDaemon(true);
+        imageWorker.start();
     }
 
     @Override
@@ -219,6 +303,13 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             stopGlobalUartReceiver();
             stopLocationUpdate();
             handler.removeCallbacksAndMessages(null);
+            // Abandon any in-progress / queued image transfers and reset state so the next
+            // connection re-sends the current album art fresh. The worker thread itself
+            // is a long-lived daemon — it will simply wait for the next job after the
+            // disconnect causes the in-flight job to fail naturally.
+            imageJobs.clear();
+            latestAlbumArtToken.incrementAndGet();
+            lastAlbumArtTrackKey = null;
         }
     }
 
@@ -246,16 +337,28 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private void registerLocalIntents() {
         IntentFilter commandFilter = new IntentFilter();
         commandFilter.addAction(GBDevice.ACTION_DEVICE_CHANGED);
-        commandFilter.addAction(BANGLEJS_COMMAND_TX);
+        commandFilter.addAction(GWATCH_COMMAND_TX);
+        commandFilter.addAction(GWATCH_CONFIG_REQUEST);
+        commandFilter.addAction(GWATCH_CONFIG_SEND);
         BroadcastReceiver commandReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 switch (intent.getAction()) {
-                    case BANGLEJS_COMMAND_TX: {
+                    case GWATCH_CONFIG_REQUEST: {
+                        if (isIntentForThisDevice(intent)) requestConfigFile();
+                        break;
+                    }
+                    case GWATCH_CONFIG_SEND: {
+                        if (isIntentForThisDevice(intent)) {
+                            sendConfigFile(intent.getStringExtra(EXTRA_CONFIG_DATA));
+                        }
+                        break;
+                    }
+                    case GWATCH_COMMAND_TX: {
                         String data = String.valueOf(intent.getExtras().get("DATA"));
                         BtLEQueue queue = getQueue();
                         if (queue==null) {
-                            LOG.warn("BANGLEJS_COMMAND_TX received, but getQueue()==null (state=" + gbDevice.getStateString(context) + ")");
+                            LOG.warn("GWATCH_COMMAND_TX received, but getQueue()==null (state=" + gbDevice.getStateString(context) + ")");
                         } else {
                             try {
                                 TransactionBuilder builder = performInitialized("TX");
@@ -286,14 +389,14 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private void registerGlobalIntents() {
         IntentFilter commandFilter = new IntentFilter();
-        commandFilter.addAction(BANGLE_ACTION_UART_TX);
+        commandFilter.addAction(GWATCH_ACTION_UART_TX);
         globalUartReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 switch (intent.getAction()) {
-                    case BANGLE_ACTION_UART_TX: {
+                    case GWATCH_ACTION_UART_TX: {
                         /* In Tasker:
-                          Action: com.banglejs.uart.tx
+                          Action: com.gwatch.uart.tx
                           Cat: None
                           Extra: line:Terminal.println(%avariable)
                           Extra: device:00:1A:2B:3C:4D:5E  - optional, MAC address of target gadget
@@ -304,13 +407,13 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                         final String address = intent.getStringExtra(IntentApiReceiver.EXTRA_DEVICE);
                         if (address != null && address.compareToIgnoreCase(gbDevice.getAddress()) != 0) {
                             LOG.debug("ignoring intent {} for {} because this is {}",
-                                    BANGLE_ACTION_UART_TX, address, gbDevice.getAddress());
+                                    GWATCH_ACTION_UART_TX, address, gbDevice.getAddress());
                             return;
                         }
                         final Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
                         if (!devicePrefs.getBoolean(PREF_DEVICE_INTENTS, false)) {
                             LOG.debug("ignoring intent {} for {} because device preference {} is not true",
-                                    BANGLE_ACTION_UART_TX, address, PREF_DEVICE_INTENTS);
+                                    GWATCH_ACTION_UART_TX, address, PREF_DEVICE_INTENTS);
                             return;
                         }
                         String data = intent.getStringExtra("line");
@@ -345,8 +448,10 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         builder.setDeviceState(GBDevice.State.INITIALIZING);
 
-        rxCharacteristic = getCharacteristic(BangleJSConstants.UUID_CHARACTERISTIC_NORDIC_UART_RX);
-        txCharacteristic = getCharacteristic(BangleJSConstants.UUID_CHARACTERISTIC_NORDIC_UART_TX);
+        rxCharacteristic = getCharacteristic(GWatchConstants.UUID_CHARACTERISTIC_NORDIC_UART_RX);
+        txCharacteristic = getCharacteristic(GWatchConstants.UUID_CHARACTERISTIC_NORDIC_UART_TX);
+        // Optional: firmwares without the image service will simply skip image sends.
+        imageCharacteristic = getCharacteristic(GWatchConstants.UUID_CHARACTERISTIC_GB_IMAGE_DATA);
         if (rxCharacteristic==null || txCharacteristic==null) {
             // https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/2996 - sometimes we get
             // initializeDevice called but no characteristics have been fetched - try and reconnect in that case
@@ -361,14 +466,25 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         allowHighMTU = devicePrefs.getBoolean(PREF_ALLOW_HIGH_MTU, true);
 
         if (allowHighMTU) {
-            builder.requestMtu(131);
+            // Ask for max; Android will negotiate down to whatever the link supports.
+            // Larger MTU => fewer chunks per image => faster image transfer.
+            builder.requestMtu(517);
         }
+        // Faster connection interval (~7.5 ms) so chunks and small JSON writes both go out quickly.
+        builder.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
         // No need to clear active line with Ctrl-C now - firmwares in 2023 auto-clear on connect
 
         GBPrefs prefs = GBApplication.getPrefs();
         if (prefs.syncTime())
           transmitTime(builder);
         //sendSettings(builder);
+
+        // Re-sync the time to the watch every hour so its RTC doesn't drift over a long
+        // session. Cancel any previous pending fire first in case initializeDevice is
+        // re-entered on a reconnect. dispose() clears all handler callbacks, so this
+        // automatically stops when the device disconnects.
+        handler.removeCallbacks(hourlyTimeSyncRunnable);
+        handler.postDelayed(hourlyTimeSyncRunnable, HOURLY_TIME_SYNC_INTERVAL_MS);
 
         // get version
         builder.setDeviceState(GBDevice.State.INITIALIZED);
@@ -400,11 +516,42 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         }
     }
 
+    /**
+     * Escape a string as a strict JSON string literal - no atob(...) substitution and
+     * none of the \xNN, \v or octal escapes that Espruino accepts but JSON does not, so
+     * the watch can parse it with a stock JSON parser. Everything outside printable
+     * ASCII goes out as backslash-uXXXX, keeping the wire 7-bit and round-tripping exactly.
+     */
+    private static String jsonStringStrict(final String s) {
+        final StringBuilder json = new StringBuilder("\"");
+        for (int i = 0; i < s.length(); i++) {
+            final char ch = s.charAt(i);
+            switch (ch) {
+                case '"':  json.append("\\\""); break;
+                case '\\': json.append("\\\\"); break;
+                case '\b': json.append("\\b"); break;
+                case '\f': json.append("\\f"); break;
+                case '\n': json.append("\\n"); break;
+                case '\r': json.append("\\r"); break;
+                case '\t': json.append("\\t"); break;
+                default:
+                    // Also escapes DEL and up, which the UART path cannot carry raw
+                    if (ch < 0x20 || ch >= 0x7F) {
+                        json.append(String.format(Locale.US, "\\u%04x", (int) ch));
+                    } else {
+                        json.append(ch);
+                    }
+            }
+        }
+        return json.append('"').toString();
+    }
+
     /// Converts an object to a JSON string. see jsonToString
-    private String jsonToStringInternal(Object v) {
+    private String jsonToStringInternal(Object v, boolean strict) {
         if (v instanceof String) {
             /* Convert a string, escaping chars we can't send over out UART connection */
             String s = (String)v;
+            if (strict) return jsonStringStrict(s);
             StringBuilder json = new StringBuilder("\"");
             boolean hasUnicode = false;
             //String rawString = "";
@@ -452,7 +599,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 } catch (JSONException e) {
                     LOG.warn("jsonToString array error: " + e.getLocalizedMessage());
                 }
-                json.append(jsonToStringInternal(o));
+                json.append(jsonToStringInternal(o, strict));
             }
             return json.append("]").toString();
         } else if (v instanceof JSONObject) {
@@ -467,7 +614,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 } catch (JSONException e) {
                     LOG.warn("jsonToString object error: " + e.getLocalizedMessage());
                 }
-                json.append("\"").append(key).append("\":").append(jsonToStringInternal(o));
+                json.append("\"").append(key).append("\":").append(jsonToStringInternal(o, strict));
                 if (iter.hasNext()) json.append(",");
             }
             return json.append("}").toString();
@@ -486,7 +633,16 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         So we do it manually, which can be more compact anyway.
         This is JSON-ish, so not exactly as per JSON1 spec but good enough for Espruino.
         */
-        return jsonToStringInternal(jsonObj);
+        return jsonToStringInternal(jsonObj, false);
+    }
+
+    /**
+     * Convert a JSON object to a strict JSON string - valid JSON, 7-bit ASCII, and never
+     * abbreviated to atob(...). Used for the config packets, which the watch parses with
+     * a stock JSON parser. See {@link #jsonStringStrict(String)}.
+     */
+    public String jsonToStringStrict(JSONObject jsonObj) {
+        return jsonToStringInternal(jsonObj, true);
     }
 
     /// Write a JSON object of data
@@ -502,6 +658,26 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private void uartTxJSON(TransactionBuilder builder, JSONObject json) {
         uartTx(builder, "\u0010GB("+jsonToString(json)+")\n");
+    }
+
+    /// Espruino's "discard anything already typed on this line" prefix (DLE), as used
+    /// by uartTxJSON above
+    private static final char UART_LINE_PREFIX = 0x10;
+
+    /// As uartTxJSON, but encoded as strict JSON. See jsonToStringStrict
+    private void uartTxJSONStrict(TransactionBuilder builder, JSONObject json) {
+        uartTx(builder, UART_LINE_PREFIX + "GB(" + jsonToStringStrict(json) + ")\n");
+    }
+
+    /// As uartTxJSON, but encoded as strict JSON. See jsonToStringStrict
+    private void uartTxJSONStrict(String taskName, JSONObject json) {
+        try {
+            TransactionBuilder builder = performInitialized(taskName);
+            uartTxJSONStrict(builder, json);
+            builder.queue();
+        } catch (IOException e) {
+            GB.toast(getContext(), "Error in "+taskName+": " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+        }
     }
 
     private void uartTxJSONError(String taskName, String message, String id) {
@@ -537,9 +713,11 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 LOG.error("UART RX JSON parse failure: "+ e.getLocalizedMessage());
                 GB.toast(getContext(), "Malformed JSON from Bangle.js: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
             }
-        } else if (line.startsWith("data:image/bmp;base64,")) {
+        } else if (line.startsWith(SCREENSHOT_BMP_PREFIX)) {
             LOG.debug("Got screenshot bmp");
-            final byte[] screenshotBytes = Base64.decode(line.substring(21), Base64.DEFAULT);
+            // NB: skip the full prefix - the inherited Bangle.js code used a hardcoded
+            // 21, one short of the 22-char prefix, which left the "," in the payload.
+            final byte[] screenshotBytes = Base64.decode(line.substring(SCREENSHOT_BMP_PREFIX.length()), Base64.DEFAULT);
             final GBDeviceEventScreenshot gbDeviceEventScreenshot = new GBDeviceEventScreenshot(screenshotBytes);
             evaluateGBDeviceEvent(gbDeviceEventScreenshot);
         } else {
@@ -566,6 +744,24 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 if (json.has("hw"))
                     gbDeviceEventVersionInfo.hwVersion = json.getString("hw");
                 evaluateGBDeviceEvent(gbDeviceEventVersionInfo);
+            } break;
+            case "screenshot": {
+                // Reply to onScreenshotReq: base64-encoded BMP in "data".
+                final String b64 = json.optString("data", "");
+                if (b64.isEmpty()) {
+                    LOG.warn("screenshot packet without data");
+                    break;
+                }
+                try {
+                    final byte[] bytes = Base64.decode(
+                            b64.startsWith(SCREENSHOT_BMP_PREFIX)
+                                    ? b64.substring(SCREENSHOT_BMP_PREFIX.length())
+                                    : b64,
+                            Base64.DEFAULT);
+                    evaluateGBDeviceEvent(new GBDeviceEventScreenshot(bytes));
+                } catch (final IllegalArgumentException e) {
+                    LOG.warn("screenshot packet has malformed base64", e);
+                }
             } break;
             case "findPhone": {
                 boolean start = json.has("n") && json.getBoolean("n");
@@ -595,14 +791,6 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             case "act":
                 handleActivity(json);
                 break;
-            case "actTrksList": {
-                JSONObject requestTrackObj = BangleJSActivityTrack.handleActTrksList(json, getDevice(), getContext());
-                if (requestTrackObj!=null) uartTxJSON("requestActivityTrackLog", requestTrackObj);
-            } break;
-            case "actTrk": {
-                JSONObject requestTrackObj = BangleJSActivityTrack.handleActTrk(json, getDevice(), getContext());
-                if (requestTrackObj!=null) uartTxJSON("requestActivityTrackLog", requestTrackObj);
-            } break;
             case "http":
                 handleHttp(json);
                 break;
@@ -614,6 +802,9 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 break;
             case "file":
                 handleFile(json);
+                break;
+            case GWatchConstants.CONFIG_PACKET:
+                handleConfigReply(json);
                 break;
             case "gps_power": {
                 boolean status = json.getBoolean("status");
@@ -885,7 +1076,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             try (DBHandler dbHandler = GBApplication.acquireDB()) {
                 final Long userId = getUser(dbHandler.getDaoSession()).getId();
                 final Long deviceId = DBHelper.getDevice(getDevice(), dbHandler.getDaoSession()).getId();
-                BangleJSSampleProvider provider = new BangleJSSampleProvider(getDevice(), dbHandler.getDaoSession());
+                GWatchSampleProvider provider = new GWatchSampleProvider(getDevice(), dbHandler.getDaoSession());
                 sample.setDeviceId(deviceId);
                 sample.setUserId(userId);
                 provider.upsertSample(sample);
@@ -1144,14 +1335,17 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private void handleFile(JSONObject json) throws JSONException {
 
+        // Only "n" is genuinely required - a packet with no name is nothing we can act on.
+        // Reading the rest with getString() would surface a missing field as a "Malformed
+        // JSON" toast from handleUartRxLine, which is misleading: the JSON parsed fine.
+        if (!json.has("n")) {
+            LOG.warn("file packet without a filename - ignoring");
+            return;
+        }
+
         File dir;
         try {
-            dir = new File(FileUtils.getExternalFilesDir() + "/" + FileUtils.makeValidFileName(getDevice().getName()));
-            if (!dir.isDirectory()) {
-                if (!dir.mkdir()) {
-                    throw new IOException("Cannot create device specific directory for " + getDevice().getName());
-                }
-            }
+            dir = GWatchConstants.getDeviceStorageDir(getDevice());
         } catch (IOException e) {
             LOG.error("Could not get directory to write to with error: " + e);
             return;
@@ -1161,16 +1355,181 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         LOG.debug("Compare filename and filenameThatCantEscapeDir:\n" + filename + "\n" + filenameThatCantEscapeDir);
         File outputFile = new File(dir, filenameThatCantEscapeDir);
-        String mode = "append";
-        if (json.getString("m").equals("w")) {
-            mode = "write";
+        if (!json.has("m")) {
+            LOG.warn("file packet for {} has no mode - assuming \"w\"", outputFile);
         }
+        // Anything that is not "w" appends, as upstream has always done
+        final boolean append = !json.optString("m", "w").equals("w");
+
+        if (json.has(GWatchConstants.BASE64_DATA_KEY)) {
+            // "d" is base64 of the raw bytes - the only encoding that survives the trip
+            // intact, so this is what the config transfer uses
+            if (!writeBase64File(json.getString(GWatchConstants.BASE64_DATA_KEY), outputFile, append)) return;
+        } else if (json.has("c")) {
+            if (!writeVerbatimFile(json.getString("c"), outputFile, append)) return;
+        } else {
+            // Leave the file alone rather than truncating it, so the watch can send a
+            // contentless packet as an end-of-transfer marker without wiping what it just
+            // sent. Use an explicit "c":"" to blank a file.
+            LOG.info("file packet for {} has no content - not writing", outputFile);
+        }
+
+        // Let anything watching a file - currently GWatchConfigEditorActivity - know it
+        // changed. Chunked transfers fire this once per chunk, so receivers need to
+        // settle before reading.
+        final Intent intent = new Intent(GWATCH_FILE_WRITTEN);
+        intent.putExtra(EXTRA_CONFIG_ADDRESS, gbDevice.getAddress());
+        intent.putExtra(EXTRA_CONFIG_NAME, filenameThatCantEscapeDir);
+        LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
+    }
+
+    /**
+     * Write an untagged (not base64) chunk out byte for byte.
+     *
+     * <p>The UART stream is decoded as ISO-8859-1 in onCharacteristicChanged - one byte
+     * per char - so encoding it back the same way puts exactly the bytes the watch sent on
+     * disk, and a file the watch wrote as UTF-8 stays valid UTF-8. Writing with the
+     * platform default instead, as {@link FileUtils#copyStringToFile} does, re-encodes
+     * every byte above 0x7F into two and turns multi-byte characters into mojibake.
+     *
+     * <p>A char above 0xFF can only have come from a backslash-u escape in the JSON, which
+     * no single byte can represent, so those fall back to UTF-8 rather than losing data.
+     *
+     * @return true if the bytes were written
+     */
+    private boolean writeVerbatimFile(final String chunk, final File outputFile, final boolean append) {
+        Charset charset = StandardCharsets.ISO_8859_1;
+        for (int i = 0; i < chunk.length(); i++) {
+            if (chunk.charAt(i) > 0xFF) {
+                charset = StandardCharsets.UTF_8;
+                break;
+            }
+        }
+        try (FileOutputStream out = new FileOutputStream(outputFile, append)) {
+            out.write(chunk.getBytes(charset));
+        } catch (final IOException e) {
+            LOG.warn("Could not write to " + outputFile, e);
+            return false;
+        }
+        LOG.info("Writing {} characters to {} as {}", chunk.length(), outputFile, charset);
+        return true;
+    }
+
+    /**
+     * Decode one base64 chunk and write the raw bytes out, so binary files survive a
+     * transfer that the text path would mangle on the Latin-1 to UTF-8 round trip.
+     *
+     * @return true if the bytes were written
+     */
+    private boolean writeBase64File(final String chunk, final File outputFile, final boolean append) {
+        final String b64 = chunk.trim();
+        // Chunks are decoded independently, which only lines up on 4-character groups
+        if (b64.length() % 4 != 0) {
+            LOG.warn("base64 chunk for {} is {} characters, not a multiple of 4 - the file "
+                    + "will be corrupt if this is not the final chunk", outputFile, b64.length());
+        }
+        final byte[] bytes;
         try {
-            FileUtils.copyStringToFile(json.getString("c"), outputFile, mode);
-            LOG.info("Writing to "+outputFile);
-        } catch (IOException e) {
-            LOG.warn("Could not write to " + outputFile + "with error: " + e);
+            bytes = Base64.decode(b64, Base64.DEFAULT);
+        } catch (final IllegalArgumentException e) {
+            LOG.warn("Could not base64 decode the chunk for " + outputFile, e);
+            return false;
         }
+        try (FileOutputStream out = new FileOutputStream(outputFile, append)) {
+            out.write(bytes);
+        } catch (final IOException e) {
+            LOG.warn("Could not write to " + outputFile, e);
+            return false;
+        }
+        LOG.info("Writing {} decoded bytes to {}", bytes.length, outputFile);
+        return true;
+    }
+
+    /**
+     * Is this locally broadcast intent addressed to us? Intents without an
+     * {@link #EXTRA_CONFIG_ADDRESS} are accepted by every connected G-Watch.
+     */
+    private boolean isIntentForThisDevice(final Intent intent) {
+        if (gbDevice == null) return false;
+        final String address = intent.getStringExtra(EXTRA_CONFIG_ADDRESS);
+        return address == null || address.equalsIgnoreCase(gbDevice.getAddress());
+    }
+
+    /**
+     * Ask the watch to send us its config file. It replies with ordinary
+     * {@code {"t":"file"}} packets, which {@link #handleFile(JSONObject)} writes to
+     * {@link GWatchConstants#getDeviceStorageDir(GBDevice)} like any other file.
+     */
+    void requestConfigFile() {
+        try {
+            final JSONObject o = new JSONObject();
+            o.put("t", GWatchConstants.CONFIG_PACKET);
+            o.put("n", GWatchConstants.CONFIG_OP_FETCH);
+            uartTxJSONStrict("requestConfigFile", o);
+        } catch (JSONException e) {
+            LOG.error("Could not build config request", e);
+        }
+    }
+
+    /**
+     * Write an edited config file back to the watch, chunked so that no single line
+     * exceeds the watch's input buffer. "m" works as it does for {"t":"file"} - the
+     * first chunk is "w", the rest are "a".
+     *
+     * <p>The base64 goes in "d" and there is no "c" on these packets. The file is encoded
+     * as a whole and the base64 is what gets split, so the watch can concatenate every "d"
+     * and decode once. Encoding each chunk separately would strand padding mid-stream.
+     */
+    void sendConfigFile(final String content) {
+        final String data = content != null ? content : "";
+        final String encoded = Base64.encodeToString(data.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
+        try {
+            final TransactionBuilder builder = performInitialized("sendConfigFile");
+            final int chunkSize = GWatchConstants.CONFIG_CHUNK_SIZE;
+            // "i == 0" so an emptied config still sends one packet, truncating the file
+            for (int i = 0; i < encoded.length() || i == 0; i += chunkSize) {
+                final int end = Math.min(i + chunkSize, encoded.length());
+                final JSONObject o = new JSONObject();
+                o.put("t", GWatchConstants.CONFIG_PACKET);
+                o.put("n", GWatchConstants.CONFIG_OP_POST);
+                o.put("m", i == 0 ? "w" : "a");
+                o.put(GWatchConstants.BASE64_DATA_KEY, encoded.substring(i, end));
+                uartTxJSONStrict(builder, o);
+            }
+            LOG.info("Sent config as {} base64 characters ({} bytes)", encoded.length(), data.length());
+            builder.queue();
+        } catch (IOException | JSONException e) {
+            GB.toast(getContext(), "Error sending config: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+            broadcastConfigAck(false, e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * The watch tells us whether the config we posted parsed. Only "success" and "fail"
+     * are ever sent our way - "fetch" and "post" are phone-to-watch operations.
+     */
+    private void handleConfigReply(final JSONObject json) {
+        final String op = json.optString("n", "");
+        switch (op) {
+            case GWatchConstants.CONFIG_OP_SUCCESS:
+                LOG.info("Watch parsed the posted config");
+                broadcastConfigAck(true, null);
+                break;
+            case GWatchConstants.CONFIG_OP_FAIL:
+                LOG.warn("Watch could not parse the posted config");
+                broadcastConfigAck(false, null);
+                break;
+            default:
+                LOG.info("Config packet with n='{}' not understood", op);
+        }
+    }
+
+    private void broadcastConfigAck(final boolean ok, final String error) {
+        final Intent intent = new Intent(GWATCH_CONFIG_ACK);
+        intent.putExtra(EXTRA_CONFIG_ADDRESS, gbDevice.getAddress());
+        intent.putExtra(EXTRA_CONFIG_OK, ok);
+        intent.putExtra(EXTRA_CONFIG_ERROR, error);
+        LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
     }
 
     @Override
@@ -1185,13 +1544,28 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
+    public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+        super.onMtuChanged(gatt, mtu, status);
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            // ATT MTU includes a 3-byte header; the writeable payload is mtu - 3.
+            final int payload = mtu - 3;
+            if (allowHighMTU && payload > mtuSize) {
+                mtuSize = payload;
+                LOG.info("MTU negotiated to {} bytes, write payload size now {}", mtu, mtuSize);
+            }
+        } else {
+            LOG.warn("MTU negotiation failed with status {} (mtu={})", status, mtu);
+        }
+    }
+
+    @Override
     public boolean onCharacteristicChanged(BluetoothGatt gatt,
                                            BluetoothGattCharacteristic characteristic,
                                            byte[] chars) {
         if (super.onCharacteristicChanged(gatt, characteristic, chars)) {
             return true;
         }
-        if (BangleJSConstants.UUID_CHARACTERISTIC_NORDIC_UART_RX.equals(characteristic.getUuid())) {
+        if (GWatchConstants.UUID_CHARACTERISTIC_NORDIC_UART_RX.equals(characteristic.getUuid())) {
             // check to see if we get more data - if so, increase out MTU for sending
             if (allowHighMTU && chars.length > mtuSize)
                 mtuSize = chars.length;
@@ -1230,7 +1604,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 handleUartRxLine(line);
             }
             // Send an intent with new data
-            Intent intent = new Intent(BangleJSDeviceSupport.BANGLEJS_COMMAND_RX);
+            Intent intent = new Intent(GWatchDeviceSupport.GWATCH_COMMAND_RX);
             intent.putExtra("DATA", packetStr);
             intent.putExtra("SEQ", bangleCommandSeq++);
             LocalBroadcastManager.getInstance(getContext()).sendBroadcast(intent);
@@ -1333,7 +1707,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         final EmojiManager emojiManager = EmojiConverter.getEmojiManager(getContext());
         final boolean hasEmoji = !EmojiParserKt.extractEmojis(emojiManager, word).isEmpty();
         // if we had emoji, ensure we create 3 bit color (not 1 bit B&W)
-        final BangleJSBitmapStyle style = hasEmoji ? BangleJSBitmapStyle.RGB_3BPP_TRANSPARENT : BangleJSBitmapStyle.MONOCHROME_TRANSPARENT;
+        final GWatchBitmapStyle style = hasEmoji ? GWatchBitmapStyle.RGB_3BPP_TRANSPARENT : GWatchBitmapStyle.MONOCHROME_TRANSPARENT;
         return "\0"+bitmapToEspruinoString(textToBitmap(word), style);
     }
 
@@ -1380,9 +1754,15 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         if (txt==null) return null;
         // Simple conversions
         txt = txt.replaceAll("…", "...");
-        /* If we're not doing conversion, pass this right back (we use the EmojiConverter
-        As we would have done if BangleJSCoordinator.supportsUnicodeEmojis had reported false */
         Prefs devicePrefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()));
+        // Raw mode: pass the Unicode through untouched (jsonToStringInternal will escape
+        // codepoints > 255 as backslash-uXXXX on the wire). For watches whose font already
+        // has the glyphs (e.g. LVGL with an emoji-capable font), this avoids both the
+        // :emoji: conversion and the bitmap render.
+        if (devicePrefs.getBoolean(PREF_GWATCH_TEXT_RAW_EMOJI, false))
+            return txt;
+        /* If we're not doing conversion, pass this right back (we use the EmojiConverter
+        As we would have done if GWatchCoordinator.supportsUnicodeEmojis had reported false */
         if (!devicePrefs.getBoolean(PREF_BANGLEJS_TEXT_BITMAP, false))
             return EmojiConverter.convertUnicodeEmojiToAscii(txt, GBApplication.getContext());
          // Otherwise split up and check each word
@@ -1506,7 +1886,19 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             o.put("body", renderUnicodeAsImage(cropToLength(notificationSpec.body, 400)));
             o.put("sender", renderUnicodeAsImage(cropToLength(notificationSpec.sender,40)));
             o.put("tel", notificationSpec.phoneNumber);
-            if (canReply) o.put("reply", true);
+            if (canReply) {
+                o.put("reply", true);
+                // Forward Android's app-supplied quick-reply suggestions, so the watch can
+                // offer them as one-tap choices alongside (or instead of) the user's canned
+                // replies. Only sent when the notification is actually replyable.
+                if (notificationSpec.suggestedReplies != null && notificationSpec.suggestedReplies.length > 0) {
+                    final JSONArray suggestions = new JSONArray();
+                    for (final String s : notificationSpec.suggestedReplies) {
+                        suggestions.put(renderUnicodeAsImage(cropToLength(s, 80)));
+                    }
+                    o.put("suggestions", suggestions);
+                }
+            }
             if (!actionHandles.isEmpty()) {
                 mNotificationActions.remove(notificationSpec.getId());
                 mNotificationActions.add(notificationSpec.getId(), actionHandles);
@@ -1528,6 +1920,271 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             uartTxJSON("onDeleteNotification", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    @Override
+    public void onSetNotificationImage(NotificationImageSpec spec) {
+        if (!getDevicePrefs().getBoolean(DeviceSettingsPreferenceConst.PREF_SEND_APP_NOTIFICATIONS, true)) {
+            return;
+        }
+        if (spec == null || spec.argb == null || spec.width <= 0 || spec.height <= 0) {
+            return;
+        }
+        if (spec.argb.length != spec.width * spec.height * 4) {
+            LOG.warn("onSetNotificationImage: argb length {} doesn't match {}x{}*4",
+                    spec.argb.length, spec.width, spec.height);
+            return;
+        }
+        if (imageCharacteristic == null) {
+            LOG.debug("onSetNotificationImage: image characteristic not present, dropping image");
+            return;
+        }
+
+        final byte[] rgb565;
+        try {
+            // Rebuild a Bitmap from the raw ARGB bytes (lossless — no PNG/JPEG step)
+            // and run it through the dither + saturation pipeline.
+            final int[] pixels = new int[spec.width * spec.height];
+            final byte[] src = spec.argb;
+            for (int i = 0; i < pixels.length; i++) {
+                final int idx = i << 2;
+                pixels[i] = ((src[idx]     & 0xFF) << 24)
+                          | ((src[idx + 1] & 0xFF) << 16)
+                          | ((src[idx + 2] & 0xFF) << 8)
+                          |  (src[idx + 3] & 0xFF);
+            }
+            final Bitmap bitmap = Bitmap.createBitmap(pixels, spec.width, spec.height, Bitmap.Config.ARGB_8888);
+            try {
+                rgb565 = bitmapToRgb565Bytes(bitmap);
+            } finally {
+                bitmap.recycle();
+            }
+        } catch (final Exception e) {
+            LOG.warn("onSetNotificationImage: failed to convert ARGB to RGB565", e);
+            return;
+        }
+
+        try {
+            sendImageBinary(spec.notificationId, spec.width, spec.height, rgb565, IMAGE_KIND_NOTIFICATION);
+        } catch (final Exception e) {
+            LOG.warn("onSetNotificationImage: failed to send image over GATT", e);
+        }
+    }
+
+    // 8x8 Bayer matrix (values 0..63) used for ordered dithering when quantising from
+    // 24-bit ARGB to 5/6/5 RGB565. Without dithering, gradients on a cheap 16-bit panel
+    // posterize into visible bands; the matrix offsets each pixel by up to half the
+    // destination LSB, which the eye perceives as smooth shading instead of bands.
+    private static final int[] BAYER_8X8 = {
+             0, 32,  8, 40,  2, 34, 10, 42,
+            48, 16, 56, 24, 50, 18, 58, 26,
+            12, 44,  4, 36, 14, 46,  6, 38,
+            60, 28, 52, 20, 62, 30, 54, 22,
+             3, 35, 11, 43,  1, 33,  9, 41,
+            51, 19, 59, 27, 49, 17, 57, 25,
+            15, 47,  7, 39, 13, 45,  5, 37,
+            63, 31, 55, 23, 61, 29, 53, 21,
+    };
+
+    // Saturation boost as a percentage (100 = identity, 120 = +20% saturation).
+    // Cheap RGB565 panels often look washed out because 5/6/5 quantisation truncates
+    // colour information; pulling each channel away from its luma in software
+    // compensates for that and restores the punchiness of the source bitmap.
+    private static final int IMAGE_SATURATION_PERCENT = 120;
+
+    private static int clamp255(final int v) {
+        return v < 0 ? 0 : (v > 255 ? 255 : v);
+    }
+
+    /**
+     * Packed RGB565 pixel data, row-major, width*height*2 bytes, no row padding.
+     * Bytes are native-endian (LE on Android/ESP32) so they drop straight into
+     * an lv_image_dsc_t with cf = LV_COLOR_FORMAT_RGB565.
+     *
+     * Applies a saturation boost and Bayer ordered dither during the per-pixel
+     * 8888 -> 565 quantisation to compensate for what cheap displays do to colour.
+     */
+    public static byte[] bitmapToRgb565Bytes(final Bitmap src) {
+        final int w = src.getWidth();
+        final int h = src.getHeight();
+        final int[] argb = new int[w * h];
+        src.getPixels(argb, 0, w, 0, 0, w, h);
+
+        final byte[] out = new byte[w * h * 2];
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                final int p = argb[y * w + x];
+                int r = (p >> 16) & 0xFF;
+                int g = (p >> 8)  & 0xFF;
+                int b =  p        & 0xFF;
+
+                // Saturation boost: blend each channel away from luma. luma weights are
+                // Rec.601 (close enough for this use; quantisation noise dominates).
+                if (IMAGE_SATURATION_PERCENT != 100) {
+                    final int luma = (r * 299 + g * 587 + b * 114 + 500) / 1000;
+                    r = clamp255(luma + ((r - luma) * IMAGE_SATURATION_PERCENT) / 100);
+                    g = clamp255(luma + ((g - luma) * IMAGE_SATURATION_PERCENT) / 100);
+                    b = clamp255(luma + ((b - luma) * IMAGE_SATURATION_PERCENT) / 100);
+                }
+
+                // Ordered dither: centred Bayer offset, scaled so each channel sees
+                // <= half the LSB of its destination bit-width. Bayer[..]-32 is
+                // -32..+31; shifting by 3 gives -4..+3 (5-bit LSB = 8), by 4 gives
+                // -2..+1 (6-bit LSB = 4).
+                final int bayer = BAYER_8X8[((y & 7) << 3) | (x & 7)] - 32;
+                r = clamp255(r + (bayer >> 3));
+                g = clamp255(g + (bayer >> 4));
+                b = clamp255(b + (bayer >> 3));
+
+                final int rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+
+                // Native-endian (LE) pack to match LV_COLOR_FORMAT_RGB565.
+                final int idx = (y * w + x) * 2;
+                out[idx]     = (byte) (rgb565 & 0xFF);
+                out[idx + 1] = (byte) ((rgb565 >> 8) & 0xFF);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Send an RGB565 image to the watch over the dedicated binary GATT characteristic.
+     * Frames are written sequentially through the BLE transaction queue so they are
+     * delivered in order. See docs/banglejs-image-transfer.md (or the spec returned by
+     * the assistant) for the on-wire format.
+     */
+    private void sendImageBinary(final int correlationId,
+                                 final int width,
+                                 final int height,
+                                 final byte[] rgb565,
+                                 final byte imageKind) throws IOException {
+        if (imageCharacteristic == null) {
+            throw new IOException("image characteristic not bound");
+        }
+        if (rgb565.length != width * height * 2) {
+            throw new IOException("rgb565 length " + rgb565.length + " != width*height*2");
+        }
+
+        final int transferId = (imageTransferIdCounter = (imageTransferIdCounter + 1) & 0xFFFF);
+        final int chunkPayloadSize = Math.max(1, mtuSize - 5);
+        final int totalChunks = (rgb565.length + chunkPayloadSize - 1) / chunkPayloadSize;
+        if (totalChunks > 0xFFFF) {
+            throw new IOException("image too large for u16 chunk count");
+        }
+        LOG.info("sendImageBinary kind={} {}x{} bytes={} mtuSize={} chunks={} estTime~{}ms",
+                imageKind, width, height, rgb565.length, mtuSize, totalChunks,
+                (totalChunks + 2) * IMAGE_CHUNK_PACE_MS);
+
+        final java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        crc.update(rgb565);
+        final long crc32 = crc.getValue();
+
+        // Pre-build every frame so the producer thread can just write them out.
+        final byte[][] frames = new byte[totalChunks + 2][];
+
+        final ByteBuffer begin = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN);
+        begin.put((byte) 0x01);
+        begin.putShort((short) transferId);
+        begin.putInt(correlationId);
+        begin.putShort((short) width);
+        begin.putShort((short) height);
+        begin.put((byte) 0x01);             // pixel_format = RGB565
+        begin.put(imageKind);               // image_kind
+        begin.putInt(rgb565.length);
+        begin.putShort((short) chunkPayloadSize);
+        begin.put((byte) 0x00);             // reserved
+        frames[0] = begin.array();
+
+        for (int seq = 0; seq < totalChunks; seq++) {
+            final int offset = seq * chunkPayloadSize;
+            final int len = Math.min(chunkPayloadSize, rgb565.length - offset);
+            final ByteBuffer data = ByteBuffer.allocate(5 + len).order(ByteOrder.LITTLE_ENDIAN);
+            data.put((byte) 0x02);
+            data.putShort((short) transferId);
+            data.putShort((short) seq);
+            data.put(rgb565, offset, len);
+            frames[1 + seq] = data.array();
+        }
+
+        final ByteBuffer end = ByteBuffer.allocate(7).order(ByteOrder.LITTLE_ENDIAN);
+        end.put((byte) 0x03);
+        end.putShort((short) transferId);
+        end.putInt((int) crc32);
+        frames[frames.length - 1] = end.array();
+
+        final String taskName = "sendImage:" + imageKind + ":" + correlationId;
+        final int albumArtToken;
+        if (imageKind == IMAGE_KIND_ALBUM_ART) {
+            // Bumping signals any in-flight album art to abort on its next per-frame check.
+            albumArtToken = latestAlbumArtToken.incrementAndGet();
+            // Strip any older album-art jobs still waiting in the queue — only the newest
+            // album art is worth sending; intermediate songs that haven't started yet
+            // would just be wasted transfer time.
+            final int removed = removeQueuedAlbumArt();
+            if (removed > 0) {
+                LOG.debug("dropped {} queued album-art job(s) in favor of {}", removed, taskName);
+            }
+        } else {
+            albumArtToken = -1;
+        }
+        imageJobs.add(new ImageJob(frames, imageKind, taskName, albumArtToken));
+    }
+
+    private int removeQueuedAlbumArt() {
+        int removed = 0;
+        for (final java.util.Iterator<ImageJob> it = imageJobs.iterator(); it.hasNext(); ) {
+            if (it.next().kind == IMAGE_KIND_ALBUM_ART) {
+                it.remove();
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    private void runImageWorker() {
+        while (true) {
+            final ImageJob job;
+            try {
+                job = imageJobs.take();
+            } catch (final InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            runImageJob(job);
+        }
+    }
+
+    private void runImageJob(final ImageJob job) {
+        final boolean isAlbumArt = (job.kind == IMAGE_KIND_ALBUM_ART);
+        for (int i = 0; i < job.frames.length; i++) {
+            if (isAlbumArt && latestAlbumArtToken.get() != job.albumArtToken) {
+                LOG.debug("{} preempted at frame {}/{} by newer album art",
+                        job.taskName, i, job.frames.length);
+                return;
+            }
+            if (imageCharacteristic == null) {
+                LOG.debug("{} aborted at frame {}/{}: image characteristic gone",
+                        job.taskName, i, job.frames.length);
+                return;
+            }
+            try {
+                final TransactionBuilder b = performInitialized(job.taskName + ":" + i);
+                b.write(imageCharacteristic, job.frames[i]);
+                b.queue();
+            } catch (final IOException e) {
+                LOG.warn("{} failed to queue frame {}", job.taskName, i, e);
+                return;
+            }
+            // Pace the producer so the BLE queue stays near-empty between chunks.
+            // Music/notify JSON writes queued during this gap get serviced before
+            // the next image chunk lands in the queue.
+            try {
+                Thread.sleep(IMAGE_CHUNK_PACE_MS);
+            } catch (final InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
     }
 
@@ -1556,7 +2213,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             for (String message : cannedMessagesSpec.cannedMessages) {
                 JSONObject jsonMessage = new JSONObject();
                 jsonMessages.put(jsonMessage);
-                // Render Unicode (emojis etc.) as an image for BangleJS to display
+                // Render Unicode (emojis etc.) as an image for the watch to display
                 String unicodeRenderedAsImage = renderUnicodeAsImage(message);
                 // If the initial and rendered messages are not the same, include the rendered message as "disp(lay)" text so unicode is rendered on device
                 if (!unicodeRenderedAsImage.equals(message)) {
@@ -1693,11 +2350,55 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 LOG.info("JSONException: " + e.getLocalizedMessage());
             }
         }
+
+        sendAlbumArtIfPresent(musicSpec);
+    }
+
+    private static final int ALBUM_ART_SIZE = 120;
+
+    private void sendAlbumArtIfPresent(final MusicSpec musicSpec) {
+        if (musicSpec == null || musicSpec.albumArt == null) {
+            LOG.debug("sendAlbumArt: no album art on MusicSpec, skipping");
+            return;
+        }
+        if (imageCharacteristic == null) {
+            LOG.debug("sendAlbumArt: image characteristic not present on device, skipping");
+            return;
+        }
+        // MusicSpec.equals() ignores albumArt and the same track can trigger multiple
+        // onSetMusicInfo calls (e.g. progress updates on some media apps), so dedupe by
+        // a track-identity key built from the user-visible fields.
+        final String trackKey = (musicSpec.artist == null ? "" : musicSpec.artist) + "\u0000"
+                + (musicSpec.album  == null ? "" : musicSpec.album)  + "\u0000"
+                + (musicSpec.track  == null ? "" : musicSpec.track);
+        if (trackKey.equals(lastAlbumArtTrackKey)) {
+            LOG.debug("sendAlbumArt: track unchanged, skipping resend");
+            return;
+        }
+        lastAlbumArtTrackKey = trackKey;
+        LOG.info("sendAlbumArt: sending {}x{} album art for {}",
+                musicSpec.albumArt.getWidth(), musicSpec.albumArt.getHeight(), trackKey);
+        try {
+            final Bitmap scaled = (musicSpec.albumArt.getWidth() == ALBUM_ART_SIZE
+                    && musicSpec.albumArt.getHeight() == ALBUM_ART_SIZE)
+                    ? musicSpec.albumArt
+                    : Bitmap.createScaledBitmap(musicSpec.albumArt, ALBUM_ART_SIZE, ALBUM_ART_SIZE, true);
+            try {
+                final byte[] rgb565 = bitmapToRgb565Bytes(scaled);
+                sendImageBinary(0, ALBUM_ART_SIZE, ALBUM_ART_SIZE, rgb565, IMAGE_KIND_ALBUM_ART);
+            } finally {
+                if (scaled != musicSpec.albumArt) {
+                    scaled.recycle();
+                }
+            }
+        } catch (final Exception e) {
+            LOG.warn("Failed to send album art", e);
+        }
     }
 
     @Override
     public void onSetPhoneVolume(float volume) {
-        LOG.info("BangleJSDeviceSupport.onSetPhoneVolume volume:\n" + volume);
+        LOG.info("GWatchDeviceSupport.onSetPhoneVolume volume:\n" + volume);
         try {
             JSONObject o = new JSONObject();
             o.put("t", "audio");
@@ -1734,9 +2435,6 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         // interrupt one-another
         if ((dataTypes & RecordedDataTypes.TYPE_ACTIVITY) != 0)  {
             fetchActivityData(getLastSuccessfulSyncTime());
-        } else if ((dataTypes & RecordedDataTypes.TYPE_GPS_TRACKS) !=0) {
-            JSONObject requestTracksListObj = BangleJSActivityTrack.compileTracksListRequest(getDevice(), getContext());
-            uartTxJSON("requestActivityTracksList", requestTracksListObj);
         } else if ((dataTypes & RecordedDataTypes.TYPE_DEBUGLOGS) !=0) {
             File dir;
             try {
@@ -1811,6 +2509,17 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
+    public void onReset(int flags) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("t", "reboot");
+            uartTxJSON("onReset", o);
+        } catch (JSONException e) {
+            LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    @Override
     public void onSetConstantVibration(int integer) {
         try {
             JSONObject o = new JSONObject();
@@ -1824,12 +2533,27 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onScreenshotReq() {
+        // Bangle.js grabbed a screenshot by evaluating "g.dump()" in the Espruino REPL.
+        // G-Watch firmware is not an Espruino interpreter, so ask over the JSON protocol
+        // instead. The watch replies with either a {"t":"screenshot","data":"<base64 BMP>"}
+        // packet or a bare "data:image/bmp;base64,..." line; both are handled on RX.
         try {
-            final TransactionBuilder builder = performInitialized("screenshot");
-            uartTx(builder, "\u0010g.dump()\n");
-            builder.queue();
-        } catch (final IOException e) {
-            GB.toast(getContext(), "Failed to get screenshot: " + e.getLocalizedMessage(), Toast.LENGTH_LONG, GB.ERROR, e);
+            JSONObject o = new JSONObject();
+            o.put("t", "screenshot");
+            uartTxJSON("onScreenshotReq", o);
+        } catch (JSONException e) {
+            LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    @Override
+    public void onPowerOff() {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("t", "poweroff");
+            uartTxJSON("onPowerOff", o);
+        } catch (JSONException e) {
+            LOG.info("JSONException: " + e.getLocalizedMessage());
         }
     }
 
@@ -2189,7 +2913,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
         return false;
     }
 
-    public enum BangleJSBitmapStyle {
+    public enum GWatchBitmapStyle {
         MONOCHROME, // 1bpp
         MONOCHROME_TRANSPARENT, // 1bpp, black = transparent
         RGB_3BPP, // 3bpp
@@ -2224,7 +2948,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     /** Convert an Android bitmap to a base64 string for use in Espruino.
      * Currently only 1bpp, no scaling */
-    public static byte[] bitmapToEspruinoArray(Bitmap bitmap, BangleJSBitmapStyle style) {
+    public static byte[] bitmapToEspruinoArray(Bitmap bitmap, GWatchBitmapStyle style) {
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
         if (width>255) {
@@ -2235,14 +2959,14 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
             LOG.warn("bitmapToEspruinoArray height of "+height+" > 255 (Espruino max) - cropping");
             height = 255;
         }
-        int bpp = (style==BangleJSBitmapStyle.RGB_3BPP ||
-                   style==BangleJSBitmapStyle.RGB_3BPP_TRANSPARENT) ? 3 : 1;
+        int bpp = (style==GWatchBitmapStyle.RGB_3BPP ||
+                   style==GWatchBitmapStyle.RGB_3BPP_TRANSPARENT) ? 3 : 1;
         byte[] pixels = new byte[width * height];
         final byte PIXELCOL_TRANSPARENT = -1;
         final int[] ditherMatrix = {1*16,5*16,7*16,3*16}; // for bayer dithering
         // if doing RGB_3BPP_TRANSPARENT, check image to see if it's transparent
         // MONOCHROME_TRANSPARENT is handled later on...
-        boolean allowTransparency = (style == BangleJSBitmapStyle.RGB_3BPP_TRANSPARENT);
+        boolean allowTransparency = (style == GWatchBitmapStyle.RGB_3BPP_TRANSPARENT);
         boolean isTransparent = false;
         byte transparentColorIndex = 0;
         /* Work out what colour index each pixel should be and write to pixels.
@@ -2292,7 +3016,7 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
                     pixels[n] = transparentColorIndex;
         }
         // if we're MONOCHROME_TRANSPARENT, force transparency on bg color
-        if (style == BangleJSBitmapStyle.MONOCHROME_TRANSPARENT) {
+        if (style == GWatchBitmapStyle.MONOCHROME_TRANSPARENT) {
             isTransparent = true;
             transparentColorIndex = 0;
         }
@@ -2319,13 +3043,13 @@ public class BangleJSDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     /** Convert an Android bitmap to a base64 string for use in Espruino.
      * Currently only 1bpp, no scaling */
-    public static String bitmapToEspruinoString(Bitmap bitmap, BangleJSBitmapStyle style) {
+    public static String bitmapToEspruinoString(Bitmap bitmap, GWatchBitmapStyle style) {
         return new String(bitmapToEspruinoArray(bitmap, style), StandardCharsets.ISO_8859_1);
     }
 
     /** Convert an Android bitmap to a base64 string for use in Espruino.
      * Currently only 1bpp, no scaling */
-    public static String bitmapToEspruinoBase64(Bitmap bitmap, BangleJSBitmapStyle style) {
+    public static String bitmapToEspruinoBase64(Bitmap bitmap, GWatchBitmapStyle style) {
         return Base64.encodeToString(bitmapToEspruinoArray(bitmap, style), Base64.DEFAULT).replaceAll("\n","");
     }
 

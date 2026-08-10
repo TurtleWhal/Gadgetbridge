@@ -3,6 +3,13 @@
     <SwitchPreferenceCompat
         android:defaultValue="false"
         android:icon="@drawable/ic_translate"
+        android:key="gwatch_text_raw_emoji"
+        android:layout="@layout/preference_checkbox"
+        android:summary="@string/pref_summary_gwatch_text_raw_emoji"
+        android:title="@string/pref_title_gwatch_text_raw_emoji" />
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:icon="@drawable/ic_translate"
         android:key="banglejs_text_bitmap"
         android:layout="@layout/preference_checkbox"
         android:summary="@string/pref_summary_banglejs_text_bitmap"

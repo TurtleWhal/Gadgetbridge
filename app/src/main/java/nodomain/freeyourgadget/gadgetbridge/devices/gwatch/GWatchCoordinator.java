@@ -16,7 +16,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
-package nodomain.freeyourgadget.gadgetbridge.devices.banglejs;
+package nodomain.freeyourgadget.gadgetbridge.devices.gwatch;
 
 import android.app.Activity;
 import android.bluetooth.le.ScanFilter;
@@ -45,6 +45,7 @@ import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsCustomizer;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.BarcodeFormat;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCardAction;
 import nodomain.freeyourgadget.gadgetbridge.devices.SampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.SleepAsAndroidFeature;
 import nodomain.freeyourgadget.gadgetbridge.entities.BangleJSActivitySampleDao;
@@ -56,13 +57,13 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.banglejs.BangleJSDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.gwatch.GWatchDeviceSupport;
 
-public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
+public class GWatchCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public String getManufacturer() {
-        return "Espruino";
+        return "Garrett Jordan";
     }
 
     @NonNull
@@ -70,14 +71,16 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     public Collection<? extends ScanFilter> createBLEScanFilters() {
         // TODO: filter on name beginning Bangle.js? Doesn't appear to be built-in :(
         // https://developer.android.com/reference/android/bluetooth/le/ScanFilter.Builder.html#setDeviceName(java.lang.String)
-        ParcelUuid hpService = new ParcelUuid(BangleJSConstants.UUID_SERVICE_NORDIC_UART);
+        ParcelUuid hpService = new ParcelUuid(GWatchConstants.UUID_SERVICE_NORDIC_UART);
         ScanFilter filter = new ScanFilter.Builder().setServiceUuid(hpService).build();
         return Collections.singletonList(filter);
     }
 
     @Override
     protected Pattern getSupportedDeviceName() {
-        return Pattern.compile("Bangle\\.js.*|Pixl\\.js.*|Puck\\.js.*|MDBT42Q.*|Espruino.*");
+        // Only G-Watch. The Bangle.js/Pixl.js/Puck.js/Espruino names stay with
+        // BangleJSCoordinator so the two coordinators never both claim a device.
+        return Pattern.compile(".*G-Watch");
     }
 
     @Override
@@ -92,13 +95,18 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     }
 
     @Override
+    public boolean supportsCharts(final GBDevice device) {
+        return false;
+    }
+
+    @Override
     public int getCannedRepliesSlotCount(final GBDevice device) {
         return 16;
     }
 
     @Override
     public boolean supportsSleepAsAndroid(@NonNull GBDevice device) {
-        return true;
+        return false;
     }
 
     @Override
@@ -111,21 +119,9 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
         );
     }
 
-    @Nullable
-    @Override
-    public ActivitySummaryParser getActivitySummaryParser(final GBDevice device, final Context context) {
-        return new BangleJSWorkoutParser();
-    }
-
-    @Nullable
-    @Override
-    public ActivityTrackProvider getActivityTrackProvider(@NonNull final GBDevice device, @NonNull final Context context) {
-        return new BangleJSWorkoutParser();
-    }
-
     @Override
     public boolean supportsRealtimeData(@NonNull GBDevice device)  {
-        return true;
+        return false;
     }
 
     @Override
@@ -140,27 +136,29 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public boolean supportsDataFetching(@NonNull final GBDevice device) {
-        return true;
+        // Drives the "fetch activity data" button on the device card
+        // (GBDeviceAdapterv2), independently of supportsActivityTracking.
+        return false;
     }
 
     @Override
     public boolean supportsActivityTracking(@NonNull GBDevice device) {
-        return true;
+        return false;
     }
 
     @Override
     public boolean supportsRecordedActivities(final GBDevice device) {
-        return true;
+        return false;
     }
 
     @Override
     public boolean supportsScreenshots(final GBDevice device) {
-        return device.getModel() != null && device.getModel().equals("2");
+        return true;
     }
 
     @Override
     public boolean supportsHeartRateMeasurement(GBDevice device) {
-        return true;
+        return false;
     }
 
     @Override
@@ -176,18 +174,19 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public int getAlarmSlotCount(GBDevice device) {
-        return 10;
+        return 4;
     }
 
     @Override
     public boolean supportsAppsManagement(final GBDevice device) {
-        return GBApplication.hasInternetAccess();
+//        return GBApplication.hasInternetAccess();
+          return false;
     }
 
-    @Override
-    public Class<? extends Activity> getAppsManagementActivity(final GBDevice device) {
-        return supportsAppsManagement(device) ? AppsManagementActivity.class : null;
-    }
+//    @Override
+//    public Class<? extends Activity> getAppsManagementActivity(final GBDevice device) {
+//        return supportsAppsManagement(device) ? GWatchAppsManagementActivity.class : null;
+//    }
 
     @Override
     public boolean suggestUnbindBeforePair() {
@@ -201,7 +200,7 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public SampleProvider<? extends ActivitySample> getSampleProvider(GBDevice device, DaoSession session) {
-        return new BangleJSSampleProvider(device, session);
+        return new GWatchSampleProvider(device, session);
     }
 
     @Override
@@ -230,12 +229,12 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
     public int[] getSupportedDeviceSpecificSettings(final GBDevice device) {
         final List<Integer> settings = new ArrayList<>();
 
-        settings.add(R.xml.devicesettings_banglejs_location);
+//        settings.add(R.xml.devicesettings_banglejs_location);
 
         settings.add(R.xml.devicesettings_header_notifications);
         settings.add(R.xml.devicesettings_send_app_notifications);
         settings.add(R.xml.devicesettings_notification_wake_on_open);
-        settings.add(R.xml.devicesettings_text_bitmaps);
+        settings.add(R.xml.devicesettings_gwatch_text_bitmaps);
         settings.add(R.xml.devicesettings_transliteration);
         settings.add(R.xml.devicesettings_canned_reply_16);
         settings.add(R.xml.devicesettings_banglejs_notifications);
@@ -250,11 +249,11 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
 
         settings.add(R.xml.devicesettings_banglejs_activity);
 
-        settings.add(R.xml.devicesettings_header_apps);
-        settings.add(R.xml.devicesettings_loyalty_cards);
+//        settings.add(R.xml.devicesettings_header_apps);
+//        settings.add(R.xml.devicesettings_loyalty_cards);
 
         settings.add(R.xml.devicesettings_header_developer);
-        settings.add(R.xml.devicesettings_banglejs_apploader);
+//        settings.add(R.xml.devicesettings_banglejs_apploader);
         settings.add(R.xml.devicesettings_device_intents);
 
         return ArrayUtils.toPrimitive(settings.toArray(new Integer[0]));
@@ -262,7 +261,17 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
 
     @Override
     public DeviceSpecificSettingsCustomizer getDeviceSpecificSettingsCustomizer(final GBDevice device) {
-        return new BangleJSSettingsCustomizer(device);
+        return new GWatchSettingsCustomizer(device);
+    }
+
+    @Override
+    public List<DeviceCardAction> getCustomActions() {
+        // Fetch the watch's config file, edit it on the phone, write it back
+        return Collections.singletonList(DeviceCardAction.forActivity(
+                R.drawable.ic_file_cog,
+                R.string.gwatch_config_editor_title,
+                GWatchConfigEditorActivity.class
+        ));
     }
 
     @Override
@@ -275,20 +284,40 @@ public class BangleJSCoordinator extends AbstractBLEDeviceCoordinator {
         return true;
     }
 
+    @Override
+    public boolean supportsOSBatteryLevel(@NonNull GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsPowerOff(@NonNull final GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsWatchfaceManagement(@NonNull final GBDevice device) {
+        return true;
+    }
+
+    @Override
+    public boolean supportsWidgets(@NonNull final GBDevice device) {
+        return true;
+    }
+
     @NonNull
     @Override
     public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
-        return BangleJSDeviceSupport.class;
+        return GWatchDeviceSupport.class;
     }
 
     @Override
     public int getDeviceNameResource() {
-        return R.string.devicetype_banglejs;
+        return R.string.devicetype_gwatch;
     }
 
     @Override
     public int getDefaultIconResource() {
-        return R.drawable.ic_device_banglejs;
+        return R.drawable.ic_device_gwatch;
     }
 
     @Override

@@ -132,7 +132,7 @@ public class DeviceSettingsPreferenceConst {
 
     public static final String PREF_BANGLEJS_TEXT_BITMAP = "banglejs_text_bitmap";
     public static final String PREF_BANGLEJS_TEXT_BITMAP_SIZE = "banglejs_txt_bitmap_size";
-    public static final String PREF_BANGLEJS_TEXT_RAW_EMOJI = "banglejs_text_raw_emoji";
+    public static final String PREF_GWATCH_TEXT_RAW_EMOJI = "gwatch_text_raw_emoji";
     public static final String PREF_BANGLEJS_WEBVIEW_URL = "banglejs_webview_url";
 
     public static final String PREF_DISCONNECT_NOTIFICATION = "disconnect_notification";

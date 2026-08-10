@@ -786,6 +786,18 @@
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|layoutDirection|uiMode"
             android:parentActivityName=".activities.ControlCenterv2" />
         <activity
+            android:name=".devices.gwatch.GWatchAppsManagementActivity"
+            android:label="@string/title_activity_appmanager"
+            android:launchMode="singleTop"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|layoutDirection|uiMode"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".devices.gwatch.GWatchConfigEditorActivity"
+            android:label="@string/gwatch_config_editor_title"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
+            android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
             android:name=".activities.multipoint.MultipointPairingActivity"
             android:label="@string/bluetooth_multipoint_pairing"
             android:launchMode="singleTop"

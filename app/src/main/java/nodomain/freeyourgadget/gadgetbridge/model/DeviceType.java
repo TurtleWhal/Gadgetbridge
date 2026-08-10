@@ -34,6 +34,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.asteroidos.AsteroidOSDeviceC
 import nodomain.freeyourgadget.gadgetbridge.devices.atcbleoepl.ATCBLEOEPLCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.bandwpseries.BandWPSeriesDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.banglejs.BangleJSCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.gwatch.GWatchCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.binary_sensor.coordinator.BinarySensorCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.bm2.Bm2Coordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.bm6.Bm6Coordinator;
@@ -689,6 +690,7 @@ public enum DeviceType {
     MAKIBESHR3(MakibesHR3Coordinator.class),
     OVTOUCH26(OVTouch26Coordinator.class),
     BANGLEJS(BangleJSCoordinator.class),
+    GWATCH(GWatchCoordinator.class),
     FOSSILQHYBRID(QHybridCoordinator.class),
     TLW64(TLW64Coordinator.class),
     PINETIME_JF(PineTimeJFCoordinator.class),
