@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -21,6 +22,29 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:indeterminate="true" />
+
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/gwatch_config_mode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        app:selectionRequired="true"
+        app:singleSelection="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/gwatch_config_mode_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/gwatch_config_mode_text" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/gwatch_config_mode_tree"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/gwatch_config_mode_tree" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
 
     <!-- The EditText is sized to its content and the ScrollView does the scrolling, so
          we get fling momentum and overscroll. TextView's own drag-scrolling has neither. -->
@@ -47,6 +71,16 @@
             android:textSize="13sp"
             tools:ignore="LabelFor" />
     </ScrollView>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/gwatch_config_tree"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:scrollbars="vertical"
+        android:visibility="gone" />
 
     <LinearLayout
         android:layout_width="match_parent"

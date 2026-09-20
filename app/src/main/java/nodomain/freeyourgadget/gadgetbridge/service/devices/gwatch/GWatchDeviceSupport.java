@@ -39,6 +39,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -49,6 +50,9 @@ import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.media.session.MediaController;
+import android.media.session.MediaSessionManager;
+import android.media.session.PlaybackState;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -94,6 +98,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SimpleTimeZone;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import de.greenrobot.dao.query.QueryBuilder;
 import io.wax911.emojify.EmojiManager;
@@ -122,6 +130,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.CalendarSyncStateDao;
 import nodomain.freeyourgadget.gadgetbridge.entities.DaoSession;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.CalendarReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.IntentApiReceiver;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.NotificationListener;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationProviderType;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.sleepasandroid.SleepAsAndroidAction;
@@ -164,43 +173,56 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private BluetoothGattCharacteristic rxCharacteristic = null;
     private BluetoothGattCharacteristic txCharacteristic = null;
     private BluetoothGattCharacteristic imageCharacteristic = null;
-    private int imageTransferIdCounter = 0;
-    private String lastAlbumArtTrackKey = null;
+    private final AtomicInteger imageTransferIdCounter = new AtomicInteger(0);
+    /// Track whose album art we last handed to the image worker, to dedupe repeat musicinfo updates.
+    private volatile String lastAlbumArtTrackKey = null;
+    /// Most recent track reported by onSetMusicInfo, with or without art. A change cancels art in flight.
+    private volatile String currentTrackKey = null;
+    /// True while the ignored media source is the one reporting and nothing else is available.
+    private volatile boolean musicSuppressed = false;
+    /// True while the watch is showing a media session other than the one Android reported to us.
+    private volatile boolean showingFallbackSession = false;
 
     // Per-kind preemption rules:
-    //  - album art preempts in-flight or queued album art (newest wins for the *current* song)
+    //  - album art is only worth sending for the song playing *now*: newer album art, or simply
+    //    skipping to another song, cancels whatever art is in flight or still queued
     //  - notification icons are strictly FIFO and never preempt anything
     //  - neither kind preempts across kinds
-    // Implementation: a single FIFO job queue drained by one worker thread. Album art jobs
-    // carry a token; bumping latestAlbumArtToken on submission both signals the in-flight
-    // album art (if any) to abort on its next per-frame check, and we also strip stale
-    // album-art entries already sitting in the queue at submission time.
+    // Implementation: a single FIFO job queue drained by one worker thread. Album art jobs carry
+    // a token; bumping latestAlbumArtToken both signals the in-flight album art (if any) to abort
+    // on its next per-chunk check and marks queued album-art jobs as stale. Encoding is deferred
+    // to the worker thread, so skipping through a dozen songs doesn't scale and convert a dozen
+    // bitmaps on the caller's thread.
+    private interface FrameSource {
+        byte[][] build() throws IOException;
+    }
     private static final class ImageJob {
-        final byte[][] frames;
+        final FrameSource frames;
         final byte kind;
         final String taskName;
         final int albumArtToken; // only meaningful when kind == IMAGE_KIND_ALBUM_ART
-        ImageJob(byte[][] frames, byte kind, String taskName, int albumArtToken) {
+        ImageJob(FrameSource frames, byte kind, String taskName, int albumArtToken) {
             this.frames = frames;
             this.kind = kind;
             this.taskName = taskName;
             this.albumArtToken = albumArtToken;
         }
     }
-    private final java.util.concurrent.LinkedBlockingDeque<ImageJob> imageJobs =
-            new java.util.concurrent.LinkedBlockingDeque<>();
-    private final java.util.concurrent.atomic.AtomicInteger latestAlbumArtToken =
-            new java.util.concurrent.atomic.AtomicInteger(0);
+    private final LinkedBlockingDeque<ImageJob> imageJobs = new LinkedBlockingDeque<>();
+    private final AtomicInteger latestAlbumArtToken = new AtomicInteger(0);
     private final Thread imageWorker;
 
     // image_kind enum sent in the BEGIN frame at offset 12 (see image transfer spec)
     private static final byte IMAGE_KIND_NOTIFICATION = 0x00;
     private static final byte IMAGE_KIND_ALBUM_ART    = 0x01;
 
-    // Pacing for image transfer: one chunk per ~connection-interval, so the BLE queue
-    // stays near-empty and incoming text writes (music/notify JSON) get serviced
-    // promptly rather than waiting behind the whole image.
-    private static final long IMAGE_CHUNK_PACE_MS = 8L;
+    // Image chunks are handed to the BLE queue through a small fixed window rather than all at
+    // once: the radio stays busy, but a music/notify JSON write arriving mid-image only ever
+    // waits behind this many chunks instead of behind the whole image.
+    private static final int IMAGE_PIPELINE_DEPTH = 2;
+    // How long to wait for a chunk to actually go out before abandoning the transfer. Without it
+    // a disconnect mid-image would park the worker thread until the next connection.
+    private static final long IMAGE_CHUNK_TIMEOUT_MS = 5000L;
 
     // Data-URI prefix the watch may use when returning a screenshot.
     private static final String SCREENSHOT_BMP_PREFIX = "data:image/bmp;base64,";
@@ -310,6 +332,7 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             imageJobs.clear();
             latestAlbumArtToken.incrementAndGet();
             lastAlbumArtTrackKey = null;
+            currentTrackKey = null;
         }
     }
 
@@ -497,6 +520,11 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
         LOG.info("Initialization Done");
 
         requestBangleGPSPowerStatus(builder);
+
+        // Runs once the actions above have marked the device INITIALIZED, so the resends can
+        // queue transactions of their own without re-entering initialization. Handed to the
+        // handler so the BLE dispatch thread isn't held up while we look up the media session.
+        builder.run(() -> handler.post(this::resendStateAfterConnect));
 
         return builder;
     }
@@ -2049,38 +2077,32 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     /**
-     * Send an RGB565 image to the watch over the dedicated binary GATT characteristic.
-     * Frames are written sequentially through the BLE transaction queue so they are
-     * delivered in order. See docs/banglejs-image-transfer.md (or the spec returned by
-     * the assistant) for the on-wire format.
+     * Build the on-wire frames for an RGB565 image: a BEGIN frame, N DATA chunks, and an END
+     * frame carrying the CRC32. See docs/banglejs-image-transfer.md (or the spec returned by
+     * the assistant) for the format.
      */
-    private void sendImageBinary(final int correlationId,
-                                 final int width,
-                                 final int height,
-                                 final byte[] rgb565,
-                                 final byte imageKind) throws IOException {
-        if (imageCharacteristic == null) {
-            throw new IOException("image characteristic not bound");
-        }
+    private byte[][] buildImageFrames(final int correlationId,
+                                      final int width,
+                                      final int height,
+                                      final byte[] rgb565,
+                                      final byte imageKind) throws IOException {
         if (rgb565.length != width * height * 2) {
             throw new IOException("rgb565 length " + rgb565.length + " != width*height*2");
         }
 
-        final int transferId = (imageTransferIdCounter = (imageTransferIdCounter + 1) & 0xFFFF);
+        final int transferId = imageTransferIdCounter.incrementAndGet() & 0xFFFF;
         final int chunkPayloadSize = Math.max(1, mtuSize - 5);
         final int totalChunks = (rgb565.length + chunkPayloadSize - 1) / chunkPayloadSize;
         if (totalChunks > 0xFFFF) {
             throw new IOException("image too large for u16 chunk count");
         }
-        LOG.info("sendImageBinary kind={} {}x{} bytes={} mtuSize={} chunks={} estTime~{}ms",
-                imageKind, width, height, rgb565.length, mtuSize, totalChunks,
-                (totalChunks + 2) * IMAGE_CHUNK_PACE_MS);
+        LOG.info("buildImageFrames kind={} {}x{} bytes={} mtuSize={} chunks={}",
+                imageKind, width, height, rgb565.length, mtuSize, totalChunks);
 
         final java.util.zip.CRC32 crc = new java.util.zip.CRC32();
         crc.update(rgb565);
         final long crc32 = crc.getValue();
 
-        // Pre-build every frame so the producer thread can just write them out.
         final byte[][] frames = new byte[totalChunks + 2][];
 
         final ByteBuffer begin = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN);
@@ -2113,27 +2135,56 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
         end.putInt((int) crc32);
         frames[frames.length - 1] = end.array();
 
-        final String taskName = "sendImage:" + imageKind + ":" + correlationId;
+        return frames;
+    }
+
+    /**
+     * Send an RGB565 image to the watch over the dedicated binary GATT characteristic. The frames
+     * are built up front here; see {@link #submitImageJob} for the deferred variant.
+     */
+    private void sendImageBinary(final int correlationId,
+                                 final int width,
+                                 final int height,
+                                 final byte[] rgb565,
+                                 final byte imageKind) throws IOException {
+        if (imageCharacteristic == null) {
+            throw new IOException("image characteristic not bound");
+        }
+        final byte[][] frames = buildImageFrames(correlationId, width, height, rgb565, imageKind);
+        submitImageJob(imageKind, "sendImage:" + imageKind + ":" + correlationId, () -> frames);
+    }
+
+    /**
+     * Hand an image to the worker thread. {@code frames} is only built once the job is picked up,
+     * so a job preempted before it starts costs nothing.
+     */
+    private void submitImageJob(final byte imageKind, final String taskName, final FrameSource frames) {
         final int albumArtToken;
         if (imageKind == IMAGE_KIND_ALBUM_ART) {
-            // Bumping signals any in-flight album art to abort on its next per-frame check.
-            albumArtToken = latestAlbumArtToken.incrementAndGet();
-            // Strip any older album-art jobs still waiting in the queue — only the newest
-            // album art is worth sending; intermediate songs that haven't started yet
-            // would just be wasted transfer time.
-            final int removed = removeQueuedAlbumArt();
-            if (removed > 0) {
-                LOG.debug("dropped {} queued album-art job(s) in favor of {}", removed, taskName);
-            }
+            // Newest album art wins: drop whatever art is in flight or still queued.
+            albumArtToken = cancelAlbumArt();
         } else {
             albumArtToken = -1;
         }
         imageJobs.add(new ImageJob(frames, imageKind, taskName, albumArtToken));
     }
 
+    /**
+     * Abandon the album art being sent and anything queued behind it - the song it belongs to is
+     * no longer the one playing. Returns the token identifying whatever art comes next.
+     */
+    private int cancelAlbumArt() {
+        final int token = latestAlbumArtToken.incrementAndGet();
+        final int removed = removeQueuedAlbumArt();
+        if (removed > 0) {
+            LOG.debug("dropped {} queued album-art job(s)", removed);
+        }
+        return token;
+    }
+
     private int removeQueuedAlbumArt() {
         int removed = 0;
-        for (final java.util.Iterator<ImageJob> it = imageJobs.iterator(); it.hasNext(); ) {
+        for (final Iterator<ImageJob> it = imageJobs.iterator(); it.hasNext(); ) {
             if (it.next().kind == IMAGE_KIND_ALBUM_ART) {
                 it.remove();
                 removed++;
@@ -2157,35 +2208,70 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private void runImageJob(final ImageJob job) {
         final boolean isAlbumArt = (job.kind == IMAGE_KIND_ALBUM_ART);
-        for (int i = 0; i < job.frames.length; i++) {
-            if (isAlbumArt && latestAlbumArtToken.get() != job.albumArtToken) {
-                LOG.debug("{} preempted at frame {}/{} by newer album art",
-                        job.taskName, i, job.frames.length);
-                return;
-            }
-            if (imageCharacteristic == null) {
-                LOG.debug("{} aborted at frame {}/{}: image characteristic gone",
-                        job.taskName, i, job.frames.length);
-                return;
-            }
-            try {
-                final TransactionBuilder b = performInitialized(job.taskName + ":" + i);
-                b.write(imageCharacteristic, job.frames[i]);
-                b.queue();
-            } catch (final IOException e) {
-                LOG.warn("{} failed to queue frame {}", job.taskName, i, e);
-                return;
-            }
-            // Pace the producer so the BLE queue stays near-empty between chunks.
-            // Music/notify JSON writes queued during this gap get serviced before
-            // the next image chunk lands in the queue.
-            try {
-                Thread.sleep(IMAGE_CHUNK_PACE_MS);
-            } catch (final InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                return;
-            }
+        if (isAlbumArt && latestAlbumArtToken.get() != job.albumArtToken) {
+            LOG.debug("{} dropped before encoding, the song already moved on", job.taskName);
+            return;
         }
+        final byte[][] frames;
+        try {
+            frames = job.frames.build();
+        } catch (final Exception e) {
+            LOG.warn("{} failed to encode image", job.taskName, e);
+            return;
+        }
+        // Permits bound how many chunks may sit in the BLE queue, so JSON writes queued while an
+        // image is going out are serviced after at most IMAGE_PIPELINE_DEPTH chunks.
+        final Semaphore inFlight = new Semaphore(IMAGE_PIPELINE_DEPTH);
+        try {
+            for (int i = 0; i < frames.length; i++) {
+                if (isAlbumArt && latestAlbumArtToken.get() != job.albumArtToken) {
+                    LOG.debug("{} preempted at chunk {}/{}, the song changed",
+                            job.taskName, i, frames.length);
+                    return;
+                }
+                final BluetoothGattCharacteristic characteristic = imageCharacteristic;
+                if (characteristic == null) {
+                    LOG.debug("{} aborted at chunk {}/{}: image characteristic gone",
+                            job.taskName, i, frames.length);
+                    return;
+                }
+                if (!awaitChunks(inFlight, 1, job.taskName)) {
+                    return;
+                }
+                boolean queued = false;
+                try {
+                    final TransactionBuilder b = performInitialized(job.taskName + ":" + i);
+                    b.write(characteristic, frames[i]);
+                    b.run(() -> inFlight.release());
+                    b.queue();
+                    queued = true;
+                } catch (final IOException e) {
+                    LOG.warn("{} failed to queue chunk {}", job.taskName, i, e);
+                    return;
+                } finally {
+                    if (!queued) {
+                        inFlight.release();
+                    }
+                }
+            }
+        } finally {
+            // Don't start the next image until this one has drained out of the BLE queue,
+            // otherwise the tail of an aborted transfer would interleave with the next one.
+            awaitChunks(inFlight, IMAGE_PIPELINE_DEPTH, job.taskName);
+        }
+    }
+
+    /// Waits for that many chunk slots, i.e. for that many queued chunks to have been written out.
+    private boolean awaitChunks(final Semaphore inFlight, final int permits, final String taskName) {
+        try {
+            if (inFlight.tryAcquire(permits, IMAGE_CHUNK_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                return true;
+            }
+            LOG.warn("{} timed out waiting for chunks to be written", taskName);
+        } catch (final InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+        return false;
     }
 
     @Override
@@ -2314,49 +2400,188 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetMusicState(MusicStateSpec stateSpec) {
-        if (mediaManager.onSetMusicState(stateSpec)) {
-            try {
-                JSONObject o = new JSONObject();
-                o.put("t", "musicstate");
-                int musicState = stateSpec.state;
-                String[] musicStates = {"play", "pause", "stop", ""};
-                if (musicState<0) musicState=3;
-                if (musicState>=musicStates.length) musicState = musicStates.length-1;
-                o.put("state", musicStates[musicState]);
-                o.put("position", stateSpec.position);
-                o.put("shuffle", stateSpec.shuffle);
-                o.put("repeat", stateSpec.repeat);
-                uartTxJSON("onSetMusicState", o);
-            } catch (JSONException e) {
-                LOG.info("JSONException: " + e.getLocalizedMessage());
-            }
+        if (musicSuppressed) {
+            LOG.debug("Not sending music state, the only track playing is from {}", IGNORED_MUSIC_ARTIST);
+            return;
         }
+        if (showingFallbackSession) {
+            // A state update carries no hint of which session it came from, and while the ignored
+            // source is active most of them are its own. Take the state from the session the watch
+            // is actually showing instead of applying someone else's play/pause and position.
+            final MediaController controller = findOtherMediaController();
+            final MusicStateSpec fallbackState = controller == null
+                    ? null
+                    : MediaManager.extractMusicStateSpec(controller.getPlaybackState());
+            if (fallbackState == null) {
+                LOG.debug("Not sending music state, the session we're showing is gone");
+                return;
+            }
+            stateSpec = fallbackState;
+        }
+        if (mediaManager.onSetMusicState(stateSpec)) {
+            sendMusicState(stateSpec);
+        }
+    }
+
+    private void sendMusicState(final MusicStateSpec stateSpec) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("t", "musicstate");
+            int musicState = stateSpec.state;
+            String[] musicStates = {"play", "pause", "stop", ""};
+            if (musicState<0) musicState=3;
+            if (musicState>=musicStates.length) musicState = musicStates.length-1;
+            o.put("state", musicStates[musicState]);
+            o.put("position", stateSpec.position);
+            o.put("shuffle", stateSpec.shuffle);
+            o.put("repeat", stateSpec.repeat);
+            uartTxJSON("onSetMusicState", o);
+        } catch (JSONException e) {
+            LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * Media sessions reporting exactly this artist are never shown on the watch: no music info, no
+     * state, no album art. Other apps playing at the same time are unaffected - when this one
+     * reports, the watch is switched to one of them rather than left showing it.
+     */
+    private static final String IGNORED_MUSIC_ARTIST = "SHIELD";
+
+    private static boolean isIgnoredArtist(final MusicSpec musicSpec) {
+        return musicSpec != null && IGNORED_MUSIC_ARTIST.equals(musicSpec.artist);
     }
 
     @Override
     public void onSetMusicInfo(MusicSpec musicSpec) {
-        if (mediaManager.onSetMusicInfo(musicSpec)) {
-            try {
-                JSONObject o = new JSONObject();
-                o.put("t", "musicinfo");
-                o.put("artist", renderUnicodeAsImage(musicSpec.artist));
-                o.put("album", renderUnicodeAsImage(musicSpec.album));
-                o.put("track", renderUnicodeAsImage(musicSpec.track));
-                o.put("dur", musicSpec.duration);
-                o.put("c", musicSpec.trackCount);
-                o.put("n", musicSpec.trackNr);
-                uartTxJSON("onSetMusicInfo", o);
-            } catch (JSONException e) {
-                LOG.info("JSONException: " + e.getLocalizedMessage());
+        if (isIgnoredArtist(musicSpec)) {
+            // Several apps can hold a media session at once, and the last one to update its
+            // notification is the one we hear about. When that's the ignored source, show whatever
+            // else is playing instead of handing it the watch's music screen.
+            showingFallbackSession = sendOtherMediaSession();
+            musicSuppressed = !showingFallbackSession;
+            if (musicSuppressed) {
+                LOG.debug("Not sending music info from {}, nothing else is playing", IGNORED_MUSIC_ARTIST);
             }
+            return;
+        }
+        musicSuppressed = false;
+        showingFallbackSession = false;
+
+        handleMusicInfo(musicSpec);
+    }
+
+    private void handleMusicInfo(final MusicSpec musicSpec) {
+        // Any change of song makes album art still going out for the previous one useless: drop it
+        // right away instead of making the new song's art wait behind it (fast skipping).
+        final String trackKey = trackKey(musicSpec);
+        if (!trackKey.equals(currentTrackKey)) {
+            currentTrackKey = trackKey;
+            cancelAlbumArt();
         }
 
-        sendAlbumArtIfPresent(musicSpec);
+        if (mediaManager.onSetMusicInfo(musicSpec)) {
+            sendMusicInfo(musicSpec);
+        }
+
+        sendAlbumArtIfPresent(musicSpec, trackKey);
+    }
+
+    /**
+     * Send track and state from an active media session that isn't the ignored one. Returns false
+     * if the ignored source is the only session there is, leaving the caller to send nothing.
+     */
+    private boolean sendOtherMediaSession() {
+        final MediaController controller = findOtherMediaController();
+        if (controller == null) {
+            return false;
+        }
+        final MusicSpec musicSpec = MediaManager.extractMusicSpec(controller.getMetadata());
+        if (musicSpec == null || isIgnoredArtist(musicSpec)) {
+            return false;
+        }
+        LOG.debug("Showing {} from another media session instead of {}",
+                musicSpec.track, IGNORED_MUSIC_ARTIST);
+        handleMusicInfo(musicSpec);
+        final MusicStateSpec stateSpec = MediaManager.extractMusicStateSpec(controller.getPlaybackState());
+        if (stateSpec != null && mediaManager.onSetMusicState(stateSpec)) {
+            sendMusicState(stateSpec);
+        }
+        return true;
+    }
+
+    /**
+     * The highest-priority active media session that isn't the ignored one, preferring one that is
+     * actually playing over one that is merely present. Null if there is no such session, or if
+     * notification access - which is how music reaches us in the first place - has been revoked.
+     */
+    @Nullable
+    private MediaController findOtherMediaController() {
+        final MediaSessionManager manager =
+                (MediaSessionManager) getContext().getSystemService(Context.MEDIA_SESSION_SERVICE);
+        if (manager == null) {
+            return null;
+        }
+        try {
+            final List<MediaController> controllers = manager.getActiveSessions(
+                    new ComponentName(getContext(), NotificationListener.class));
+            MediaController firstOther = null;
+            for (final MediaController controller : controllers) {
+                final MusicSpec musicSpec = MediaManager.extractMusicSpec(controller.getMetadata());
+                if (musicSpec == null || isIgnoredArtist(musicSpec)) {
+                    // No metadata means nothing worth showing, so it can't stand in either.
+                    continue;
+                }
+                final PlaybackState playbackState = controller.getPlaybackState();
+                if (playbackState != null && playbackState.getState() == PlaybackState.STATE_PLAYING) {
+                    return controller;
+                }
+                if (firstOther == null) {
+                    firstOther = controller;
+                }
+            }
+            return firstOther;
+        } catch (final SecurityException e) {
+            LOG.warn("No permission to list media sessions - notification access not granted?", e);
+        } catch (final Exception e) {
+            LOG.error("Failed to look for another media session", e);
+        }
+        return null;
+    }
+
+    private void sendMusicInfo(final MusicSpec musicSpec) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("t", "musicinfo");
+            o.put("artist", renderUnicodeAsImage(musicSpec.artist));
+            o.put("album", renderUnicodeAsImage(musicSpec.album));
+            o.put("track", renderUnicodeAsImage(musicSpec.track));
+            o.put("dur", musicSpec.duration);
+            o.put("c", musicSpec.trackCount);
+            o.put("n", musicSpec.trackNr);
+            uartTxJSON("onSetMusicInfo", o);
+        } catch (JSONException e) {
+            LOG.info("JSONException: " + e.getLocalizedMessage());
+        }
+    }
+
+    /**
+     * Identity of a track for album art purposes. MusicSpec.equals() ignores albumArt and the same
+     * track can trigger several onSetMusicInfo calls (progress updates on some media apps), so
+     * tracks are told apart by their user-visible fields.
+     */
+    private static String trackKey(final MusicSpec musicSpec) {
+        if (musicSpec == null) {
+            return "";
+        }
+        return (musicSpec.artist == null ? "" : musicSpec.artist) + " | "
+                + (musicSpec.album == null ? "" : musicSpec.album) + " | "
+                + (musicSpec.track == null ? "" : musicSpec.track);
     }
 
     private static final int ALBUM_ART_SIZE = 120;
 
-    private void sendAlbumArtIfPresent(final MusicSpec musicSpec) {
+    private void sendAlbumArtIfPresent(final MusicSpec musicSpec, final String trackKey) {
         if (musicSpec == null || musicSpec.albumArt == null) {
             LOG.debug("sendAlbumArt: no album art on MusicSpec, skipping");
             return;
@@ -2365,35 +2590,103 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             LOG.debug("sendAlbumArt: image characteristic not present on device, skipping");
             return;
         }
-        // MusicSpec.equals() ignores albumArt and the same track can trigger multiple
-        // onSetMusicInfo calls (e.g. progress updates on some media apps), so dedupe by
-        // a track-identity key built from the user-visible fields.
-        final String trackKey = (musicSpec.artist == null ? "" : musicSpec.artist) + "\u0000"
-                + (musicSpec.album  == null ? "" : musicSpec.album)  + "\u0000"
-                + (musicSpec.track  == null ? "" : musicSpec.track);
+        // Only updated once art is actually submitted, so a track whose art arrives in a later
+        // MusicSpec than its metadata still gets sent.
         if (trackKey.equals(lastAlbumArtTrackKey)) {
             LOG.debug("sendAlbumArt: track unchanged, skipping resend");
             return;
         }
         lastAlbumArtTrackKey = trackKey;
+        final Bitmap albumArt = musicSpec.albumArt;
         LOG.info("sendAlbumArt: sending {}x{} album art for {}",
-                musicSpec.albumArt.getWidth(), musicSpec.albumArt.getHeight(), trackKey);
-        try {
-            final Bitmap scaled = (musicSpec.albumArt.getWidth() == ALBUM_ART_SIZE
-                    && musicSpec.albumArt.getHeight() == ALBUM_ART_SIZE)
-                    ? musicSpec.albumArt
-                    : Bitmap.createScaledBitmap(musicSpec.albumArt, ALBUM_ART_SIZE, ALBUM_ART_SIZE, true);
+                albumArt.getWidth(), albumArt.getHeight(), trackKey);
+        // Scaling and RGB565 conversion run on the image worker, after the preemption check, so
+        // art for a song that has already been skipped past is never converted at all.
+        submitImageJob(IMAGE_KIND_ALBUM_ART, "sendAlbumArt:" + musicSpec.track, () -> {
+            final Bitmap scaled = (albumArt.getWidth() == ALBUM_ART_SIZE
+                    && albumArt.getHeight() == ALBUM_ART_SIZE)
+                    ? albumArt
+                    : Bitmap.createScaledBitmap(albumArt, ALBUM_ART_SIZE, ALBUM_ART_SIZE, true);
             try {
-                final byte[] rgb565 = bitmapToRgb565Bytes(scaled);
-                sendImageBinary(0, ALBUM_ART_SIZE, ALBUM_ART_SIZE, rgb565, IMAGE_KIND_ALBUM_ART);
+                return buildImageFrames(0, ALBUM_ART_SIZE, ALBUM_ART_SIZE,
+                        bitmapToRgb565Bytes(scaled), IMAGE_KIND_ALBUM_ART);
             } finally {
-                if (scaled != musicSpec.albumArt) {
+                if (scaled != albumArt) {
                     scaled.recycle();
                 }
             }
-        } catch (final Exception e) {
-            LOG.warn("Failed to send album art", e);
+        });
+    }
+
+    /**
+     * A reconnect leaves the watch with nothing on its weather and music screens until the next
+     * update comes in, which can be a long while. Push what we already know instead.
+     */
+    private void resendStateAfterConnect() {
+        if (!isInitialized()) {
+            // Posted from the init transaction, so the link may have dropped in the meantime -
+            // don't let a stale resend drag the device back into a connection attempt.
+            LOG.debug("resend after connect: no longer initialized, skipping");
+            return;
         }
+        resendCachedWeather();
+        resendCachedMusic();
+    }
+
+    private void resendCachedWeather() {
+        if (Weather.getWeatherSpec() == null) {
+            LOG.debug("resend after connect: no cached weather yet");
+            return;
+        }
+        LOG.info("resend after connect: sending cached weather");
+        onSendWeather();
+    }
+
+    private void resendCachedMusic() {
+        if (mediaManager == null) {
+            return;
+        }
+        // The track may well have changed while we were disconnected, so go back to the media
+        // session rather than trusting what we last sent.
+        mediaManager.refresh();
+        MusicStateSpec stateSpec = mediaManager.getBufferMusicStateSpec();
+        MusicSpec musicSpec = mediaManager.getBufferMusicSpec();
+        // Whatever we decided before the disconnect no longer applies - work it out again.
+        musicSuppressed = false;
+        showingFallbackSession = false;
+        if (isIgnoredArtist(musicSpec)) {
+            // Same as during normal playback: the ignored source never gets the music screen, but
+            // another app playing alongside it does.
+            final MediaController controller = findOtherMediaController();
+            musicSpec = controller == null
+                    ? null
+                    : MediaManager.extractMusicSpec(controller.getMetadata());
+            if (musicSpec == null || isIgnoredArtist(musicSpec)) {
+                musicSuppressed = true;
+                showingFallbackSession = false;
+                LOG.debug("resend after connect: only {} is playing, not sending music",
+                        IGNORED_MUSIC_ARTIST);
+                return;
+            }
+            stateSpec = MediaManager.extractMusicStateSpec(controller.getPlaybackState());
+            showingFallbackSession = true;
+        }
+        if (stateSpec == null || stateSpec.state != MusicStateSpec.STATE_PLAYING) {
+            LOG.debug("resend after connect: nothing playing, not sending music");
+            return;
+        }
+        if (musicSpec == null) {
+            LOG.debug("resend after connect: playing, but no track info to send");
+            return;
+        }
+        LOG.info("resend after connect: sending music info for {}", musicSpec.track);
+        // The watch lost everything we sent it before the disconnect, so bypass the "only if it
+        // changed" checks that would otherwise suppress a resend of the very same track.
+        currentTrackKey = trackKey(musicSpec);
+        lastAlbumArtTrackKey = null;
+        sendMusicInfo(musicSpec);
+        sendMusicState(stateSpec);
+        sendAlbumArtIfPresent(musicSpec, currentTrackKey);
     }
 
     @Override
