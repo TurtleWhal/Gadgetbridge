@@ -150,6 +150,47 @@ public class DBHelper {
         return list.get(0);
     }
 
+    /**
+     * Returns the attributes (height, weight, goals) that were in effect at the given time, so
+     * that values derived from a historical measurement use the profile of that time rather
+     * than the current one. Timestamps before the first recorded attributes fall back to the
+     * earliest known ones.
+     *
+     * @return the matching attributes, or null when the user has none at all
+     */
+    @Nullable
+    public static UserAttributes getUserAttributesAt(@NonNull final User user, final long timestampMillis) {
+        return selectAttributesAt(user.getUserAttributesList(), new Date(timestampMillis));
+    }
+
+    @Nullable
+    static UserAttributes selectAttributesAt(@Nullable final List<UserAttributes> attributes, @NonNull final Date when) {
+        if (attributes == null || attributes.isEmpty()) {
+            return null;
+        }
+        UserAttributes latestBefore = null;
+        UserAttributes earliest = null;
+        for (final UserAttributes attr : attributes) {
+            final Date from = attr.getValidFromUTC();
+            if (from == null || !when.before(from)) {
+                if (isValid(attr, when)) {
+                    return attr;
+                }
+                // In effect before "when" but already superseded: the closest earlier record
+                // covers the minute between one record ending and the next one starting.
+                if (latestBefore == null || from == null || latestBefore.getValidFromUTC() == null
+                        || from.after(latestBefore.getValidFromUTC())) {
+                    latestBefore = attr;
+                }
+            }
+            if (earliest == null || from == null || earliest.getValidFromUTC() == null
+                    || from.before(earliest.getValidFromUTC())) {
+                earliest = attr;
+            }
+        }
+        return latestBefore != null ? latestBefore : earliest;
+    }
+
     @NonNull
     private static User createUser(ActivityUser prefsUser, DaoSession session) {
         User user = new User();
@@ -244,7 +285,7 @@ public class DBHelper {
     private static boolean isValid(ValidByDate element, Date nowUTC) {
         Date validFromUTC = element.getValidFromUTC();
         Date validToUTC = element.getValidToUTC();
-        if (nowUTC.before(validFromUTC)) {
+        if (validFromUTC != null && nowUTC.before(validFromUTC)) {
             return false;
         }
         if (validToUTC != null && nowUTC.after(validToUTC)) {

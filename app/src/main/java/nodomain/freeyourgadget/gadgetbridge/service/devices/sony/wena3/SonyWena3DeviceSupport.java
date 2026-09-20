@@ -207,7 +207,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
             NotificationServiceStatusRequest request = new NotificationServiceStatusRequest(value);
             if(request.requestType == StatusRequestType.MUSIC_INFO_FETCH.value) {
                 LOG.debug("Request for music info received");
-                if(lastMusicState != null && lastMusicState.state == MusicStateSpec.STATE_PLAYING && lastMusicInfo != null) {
+                if(lastMusicState != null && lastMusicState.getState() == MusicStateSpec.STATE_PLAYING && lastMusicInfo != null) {
                     sendMusicInfo(lastMusicInfo);
                 }
                 return true;
@@ -408,17 +408,17 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
     @Override
     public void onSetMusicInfo(MusicSpec musicSpec) {
         StringBuilder sb = new StringBuilder();
-        boolean hasTrackName = musicSpec.track != null && musicSpec.track.trim().length() > 0;
-        boolean hasArtistName = musicSpec.artist != null && musicSpec.artist.trim().length() > 0;
+        boolean hasTrackName = musicSpec.getTrack() != null && musicSpec.getTrack().trim().length() > 0;
+        boolean hasArtistName = musicSpec.getArtist() != null && musicSpec.getArtist().trim().length() > 0;
 
         if(hasTrackName) {
-            sb.append(musicSpec.track.trim());
+            sb.append(musicSpec.getTrack().trim());
         }
         if(hasArtistName && hasTrackName) {
             sb.append(" / ");
         }
         if(hasArtistName) {
-            sb.append(musicSpec.artist.trim());
+            sb.append(musicSpec.getArtist().trim());
         }
 
         lastMusicInfo = sb.toString();
@@ -427,9 +427,9 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetMusicState(MusicStateSpec stateSpec) {
-        if(stateSpec.state == MusicStateSpec.STATE_PLAYING && lastMusicInfo != null) {
+        if(stateSpec.getState() == MusicStateSpec.STATE_PLAYING && lastMusicInfo != null) {
             sendMusicInfo(lastMusicInfo);
-        } else if (stateSpec.state == MusicStateSpec.STATE_STOPPED || stateSpec.state == MusicStateSpec.STATE_PAUSED) {
+        } else if (stateSpec.getState() == MusicStateSpec.STATE_STOPPED || stateSpec.getState() == MusicStateSpec.STATE_PAUSED) {
             sendMusicInfo("");
         }
         lastMusicState = stateSpec;
@@ -448,9 +448,9 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             TransactionBuilder builder = performInitialized("sendCall");
 
-            if(callSpec.command == CallSpec.CALL_INCOMING) {
-                LedColor led = LedColor.valueOf(prefs.getString(SonyWena3SettingKeys.DEFAULT_CALL_LED_COLOR, LedColor.WHITE.name()).toUpperCase());
-                VibrationKind vibra = VibrationKind.valueOf(prefs.getString(SonyWena3SettingKeys.DEFAULT_CALL_VIBRATION_PATTERN, VibrationKind.CONTINUOUS.name()).toUpperCase());
+            if(callSpec.getCommand() == CallSpec.CALL_INCOMING) {
+                LedColor led = LedColor.valueOf(prefs.getString(SonyWena3SettingKeys.DEFAULT_CALL_LED_COLOR, LedColor.WHITE.name()).toUpperCase(Locale.ROOT));
+                VibrationKind vibra = VibrationKind.valueOf(prefs.getString(SonyWena3SettingKeys.DEFAULT_CALL_VIBRATION_PATTERN, VibrationKind.CONTINUOUS.name()).toUpperCase(Locale.ROOT));
                 boolean vibraContinuous = false;
                 int vibraRepeats = prefs.getInt(SonyWena3SettingKeys.DEFAULT_CALL_VIBRATION_REPETITION, 0);
                 if(vibraRepeats == 0) {
@@ -462,8 +462,8 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                         new NotificationArrival(
                                 NotificationKind.CALL,
                                 INCOMING_CALL_ID,
-                                callSpec.number,
-                                callSpec.name,
+                                callSpec.getNumber(),
+                                callSpec.getName(),
                                 "",
                                 new Date(),
                                 new VibrationOptions(vibra, vibraRepeats, vibraContinuous),
@@ -495,56 +495,56 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
             StringBuilder bodyBuilder = new StringBuilder();
 
-            if(notificationSpec.sender != null && notificationSpec.sender.length() > 0) {
-                bodyBuilder.append(notificationSpec.sender);
+            if(notificationSpec.getSender() != null && notificationSpec.getSender().length() > 0) {
+                bodyBuilder.append(notificationSpec.getSender());
                 bodyBuilder.append(":");
             }
 
-            if(notificationSpec.title != null && notificationSpec.title.length() > 0) {
+            if(notificationSpec.getTitle() != null && notificationSpec.getTitle().length() > 0) {
                 if(bodyBuilder.length() > 0) {
                     bodyBuilder.append("\n");
                 }
-                bodyBuilder.append(notificationSpec.title);
+                bodyBuilder.append(notificationSpec.getTitle());
                 bodyBuilder.append(":");
             }
 
-            if(notificationSpec.subject != null && notificationSpec.subject.length() > 0) {
+            if(notificationSpec.getSubject() != null && notificationSpec.getSubject().length() > 0) {
                 if(bodyBuilder.length() > 0) {
                     bodyBuilder.append("\n");
                 }
                 bodyBuilder.append("- ");
-                bodyBuilder.append(notificationSpec.subject);
+                bodyBuilder.append(notificationSpec.getSubject());
             }
 
-            if(notificationSpec.body != null) {
+            if(notificationSpec.getBody() != null) {
                 if(bodyBuilder.length() > 0) {
                     bodyBuilder.append("\n");
                 }
-                bodyBuilder.append(notificationSpec.body);
+                bodyBuilder.append(notificationSpec.getBody());
             }
 
-            String actionLabel = notificationSpec.attachedActions.isEmpty() ? "" :
-                    notificationSpec.attachedActions.get(0).title;
+            String actionLabel = notificationSpec.getAttachedActions().isEmpty() ? "" :
+                    notificationSpec.getAttachedActions().get(0).getTitle();
 
-            boolean hasAction = !notificationSpec.attachedActions.isEmpty();
+            boolean hasAction = !notificationSpec.getAttachedActions().isEmpty();
 
             NotificationFlags flags = NotificationFlags.NONE;
             // TODO: Figure out how actions work
 
-            LedColor led = LedColor.valueOf(prefs.getString(SonyWena3SettingKeys.DEFAULT_LED_COLOR, LedColor.BLUE.name()).toUpperCase());
-            VibrationKind vibra = VibrationKind.valueOf(prefs.getString(SonyWena3SettingKeys.DEFAULT_VIBRATION_PATTERN, VibrationKind.BASIC.name()).toUpperCase());
+            LedColor led = LedColor.valueOf(prefs.getString(SonyWena3SettingKeys.DEFAULT_LED_COLOR, LedColor.BLUE.name()).toUpperCase(Locale.ROOT));
+            VibrationKind vibra = VibrationKind.valueOf(prefs.getString(SonyWena3SettingKeys.DEFAULT_VIBRATION_PATTERN, VibrationKind.BASIC.name()).toUpperCase(Locale.ROOT));
             boolean vibraContinuous = false;
             int vibraRepeats = prefs.getInt(SonyWena3SettingKeys.DEFAULT_VIBRATION_REPETITION, 1);
 
-            if(notificationSpec.sourceAppId != null) {
-                AppSpecificNotificationSetting appSpecificSetting = perAppNotificationSettingsRepository.getSettingsForAppId(notificationSpec.sourceAppId);
+            if(notificationSpec.getSourceAppId() != null) {
+                AppSpecificNotificationSetting appSpecificSetting = perAppNotificationSettingsRepository.getSettingsForAppId(notificationSpec.getSourceAppId());
                 if(appSpecificSetting != null) {
                     if(appSpecificSetting.getLedPattern() != null) {
-                        led = LedColor.valueOf(appSpecificSetting.getLedPattern().toUpperCase());
+                        led = LedColor.valueOf(appSpecificSetting.getLedPattern().toUpperCase(Locale.ROOT));
                     }
 
                     if(appSpecificSetting.getVibrationPattern() != null) {
-                        vibra = VibrationKind.valueOf(appSpecificSetting.getVibrationPattern().toUpperCase());
+                        vibra = VibrationKind.valueOf(appSpecificSetting.getVibrationPattern().toUpperCase(Locale.ROOT));
                     }
 
                     if(appSpecificSetting.getVibrationRepetition() != null) {
@@ -562,10 +562,10 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                     new NotificationArrival(
                             NotificationKind.APP,
                             notificationSpec.getId(),
-                            notificationSpec.sourceName,
+                            notificationSpec.getSourceName(),
                             bodyBuilder.toString(),
                             actionLabel,
-                            new Date(notificationSpec.when),
+                            new Date(notificationSpec.getWhen()),
                             new VibrationOptions(vibra, vibraRepeats, vibraContinuous),
                             led,
                             flags
@@ -779,7 +779,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
     private void sendVibrationSettings(TransactionBuilder b) {
         Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress()));
         boolean smartVibration = prefs.getBoolean(SonyWena3SettingKeys.SMART_VIBRATION, true);
-        VibrationStrength strength = VibrationStrength.valueOf(prefs.getString(SonyWena3SettingKeys.VIBRATION_STRENGTH, VibrationStrength.NORMAL.name()).toUpperCase());
+        VibrationStrength strength = VibrationStrength.valueOf(prefs.getString(SonyWena3SettingKeys.VIBRATION_STRENGTH, VibrationStrength.NORMAL.name()).toUpperCase(Locale.ROOT));
         VibrationSetting pkt = new VibrationSetting(smartVibration, strength);
 
         b.write(
@@ -790,9 +790,9 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private void sendHomeScreenSettings(TransactionBuilder b) {
         Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress()));
-        String leftIdName = prefs.getString(SonyWena3SettingKeys.LEFT_HOME_ICON, HomeIconId.MUSIC.name()).toUpperCase();
-        String centerIdName = prefs.getString(SonyWena3SettingKeys.CENTER_HOME_ICON, HomeIconId.PEDOMETER.name()).toUpperCase();
-        String rightIdName = prefs.getString(SonyWena3SettingKeys.RIGHT_HOME_ICON, HomeIconId.CALORIES.name()).toUpperCase();
+        String leftIdName = prefs.getString(SonyWena3SettingKeys.LEFT_HOME_ICON, HomeIconId.MUSIC.name()).toUpperCase(Locale.ROOT);
+        String centerIdName = prefs.getString(SonyWena3SettingKeys.CENTER_HOME_ICON, HomeIconId.PEDOMETER.name()).toUpperCase(Locale.ROOT);
+        String rightIdName = prefs.getString(SonyWena3SettingKeys.RIGHT_HOME_ICON, HomeIconId.CALORIES.name()).toUpperCase(Locale.ROOT);
 
         b.write(
                 SonyWena3Constants.COMMON_SERVICE_CHARACTERISTIC_CONTROL_UUID,
@@ -808,7 +808,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress()));
         String[] csv = prefs.getString(SonyWena3SettingKeys.MENU_ICON_CSV_KEY,
                         TextUtils.join(",", getContext().getResources().getStringArray(R.array.prefs_wena3_menu_icons_default_list)))
-                .toUpperCase()
+                .toUpperCase(Locale.ROOT)
                 .split(",");
 
         MenuIconSetting menu = new MenuIconSetting();
@@ -830,7 +830,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
         StatusPageOrderSetting pageOrderSetting = new StatusPageOrderSetting();
         String[] csv = prefs.getString(SonyWena3SettingKeys.STATUS_PAGE_CSV_KEY,
                         TextUtils.join(",", getContext().getResources().getStringArray(R.array.prefs_wena3_status_page_default_list)))
-                .toUpperCase()
+                .toUpperCase(Locale.ROOT)
                 .split(",");
         for(String idName: csv) {
             if(!idName.equals(StatusPageId.NONE.name())) {
@@ -891,8 +891,8 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private void sendButtonActions(TransactionBuilder b) {
         Prefs prefs = new Prefs(GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress()));
-        String doubleIdName = prefs.getString(SonyWena3SettingKeys.BUTTON_DOUBLE_PRESS_ACTION, DeviceButtonActionId.NONE.name()).toUpperCase();
-        String longIdName = prefs.getString(SonyWena3SettingKeys.BUTTON_LONG_PRESS_ACTION, DeviceButtonActionId.NONE.name()).toUpperCase();
+        String doubleIdName = prefs.getString(SonyWena3SettingKeys.BUTTON_DOUBLE_PRESS_ACTION, DeviceButtonActionId.NONE.name()).toUpperCase(Locale.ROOT);
+        String longIdName = prefs.getString(SonyWena3SettingKeys.BUTTON_LONG_PRESS_ACTION, DeviceButtonActionId.NONE.name()).toUpperCase(Locale.ROOT);
         DeviceButtonActionSetting setting = new DeviceButtonActionSetting(
                 DeviceButtonActionId.valueOf(longIdName),
                 DeviceButtonActionId.valueOf(doubleIdName)
@@ -955,11 +955,11 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
                     builder.write(
                             SonyWena3Constants.NOTIFICATION_SERVICE_CHARACTERISTIC_UUID,
                             new CalendarEntry(
-                                    new Date(evt.timestamp * 1000L),
-                                    new Date((evt.timestamp * 1000L) + (evt.durationInSeconds * 1000L)),
-                                    evt.allDay,
-                                    (evt.title == null ? "" : evt.title),
-                                    (evt.location == null ? "" : evt.location),
+                                    new Date(evt.getTimestamp() * 1000L),
+                                    new Date((evt.getTimestamp() * 1000L) + (evt.getDurationInSeconds() * 1000L)),
+                                    evt.getAllDay(),
+                                    (evt.getTitle() == null ? "" : evt.getTitle()),
+                                    (evt.getLocation() == null ? "" : evt.getLocation()),
                                     (byte) i,
                                     (byte) total
                             ).toByteArray()
@@ -989,7 +989,7 @@ public class SonyWena3DeviceSupport extends AbstractBTLESingleDeviceSupport {
     @Override
     public void onDeleteCalendarEvent(byte type, long id) {
         for(CalendarEventSpec evt : calendarEvents) {
-            if(evt.type == type && evt.id == id) {
+            if(evt.getType() == type && evt.getId() == id) {
                 calendarEvents.remove(evt);
             }
         }

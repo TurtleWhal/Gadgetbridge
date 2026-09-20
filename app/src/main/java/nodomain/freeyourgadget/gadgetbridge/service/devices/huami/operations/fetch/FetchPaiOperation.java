@@ -133,19 +133,10 @@ public class FetchPaiOperation extends AbstractRepeatingFetchOperation {
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
 
-            final Device device = DBHelper.getDevice(getDevice(), session);
-            final User user = DBHelper.getUser(session);
-
             final HuamiCoordinator coordinator = (HuamiCoordinator) getDevice().getDeviceCoordinator();
             final HuamiPaiSampleProvider sampleProvider = coordinator.getPaiSampleProvider(getDevice(), session);
 
-            for (final HuamiPaiSample sample : samples) {
-                sample.setDevice(device);
-                sample.setUser(user);
-            }
-
-            LOG.debug("Will persist {} pai samples", samples.size());
-            sampleProvider.addSamples(samples);
+            sampleProvider.persistSamples(samples, getContext());
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving pai samples", Toast.LENGTH_LONG, GB.ERROR, e);
             return false;

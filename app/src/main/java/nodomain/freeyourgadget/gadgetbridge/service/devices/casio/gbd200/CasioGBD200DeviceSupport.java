@@ -586,7 +586,7 @@ public class CasioGBD200DeviceSupport extends Casio2C2DSupport
     public void onNotification(final NotificationSpec spec) {
         byte icon;
         boolean autoremove = false;
-        switch (spec.type) {
+        switch (spec.getType()) {
             case GENERIC_CALENDAR:
                 icon = CasioConstants.CATEGORY_SCHEDULE_AND_ALARM; break;
             case GENERIC_EMAIL:
@@ -603,7 +603,7 @@ public class CasioGBD200DeviceSupport extends Casio2C2DSupport
             default:
                 icon = CasioConstants.CATEGORY_OTHER; break;
         }
-        showNotification(icon, spec.sender, spec.title, spec.body, spec.getId(), false);
+        showNotification(icon, spec.getSender(), spec.getTitle(), spec.getBody(), spec.getId(), false);
         mSyncedNotificationIDs.add(spec.getId());
         if (autoremove) {
             mAutoRemoveMessageHandler.postDelayed(
@@ -625,10 +625,10 @@ public class CasioGBD200DeviceSupport extends Casio2C2DSupport
 
     @Override
     public void onSetCallState(final CallSpec callSpec) {
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING:
                 showNotification(CasioConstants.CATEGORY_INCOMING_CALL,
-                        callSpec.name, callSpec.number, "Phone Call", mLastCallId, false);
+                        callSpec.getName(), callSpec.getNumber(), "Phone Call", mLastCallId, false);
                 SharedPreferences p = GBApplication.getDeviceSpecificSharedPrefs(
                         getDevice().getAddress());
                 if (p.getBoolean(PREF_FAKE_RING_DURATION, false)

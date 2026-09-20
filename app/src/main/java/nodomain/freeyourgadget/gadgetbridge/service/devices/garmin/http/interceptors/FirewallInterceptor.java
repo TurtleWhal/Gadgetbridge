@@ -1,3 +1,20 @@
+/*  Copyright (C) 2026 José Rebelo, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.http.interceptors;
 
 import android.os.ParcelFileDescriptor;
@@ -16,7 +33,7 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.internet.InternetFirewall;
 import nodomain.freeyourgadget.gadgetbridge.internet.InternetRequestType;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiHttpService;
-import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto;
+import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto.Smart;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.deviceevents.ProtobufResponseEvent;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.http.GarminHttpRequest;
@@ -58,7 +75,7 @@ public class FirewallInterceptor implements HttpInterceptor {
             return null;
         }
 
-        if (request.getDomain().endsWith("garmin.com") || request.getDomain().endsWith("dciwx.com")) {
+        if (request.getDomain().endsWith("garmin.com") || request.getDomain().endsWith("garmin.cn") || request.getDomain().endsWith("dciwx.com")) {
             // For now, we explicitly block all requests to Garmin domains, even if the user whitelists them.
             // Due to fake OAuth, most of these will include invalid authentication credentials, and needs
             // further investigation
@@ -102,7 +119,7 @@ public class FirewallInterceptor implements HttpInterceptor {
             });
 
             try (ParcelFileDescriptor.AutoCloseOutputStream out = new ParcelFileDescriptor.AutoCloseOutputStream(pipeWrite)) {
-                out.write(request.getBody());
+                out.write(request.getBodyToSend());
             }
         } catch (final Exception e) {
             LOG.error("Failed to send request to InternetHelper", e);
@@ -144,7 +161,7 @@ public class FirewallInterceptor implements HttpInterceptor {
 
     private void sendHttpServiceRequest(@NonNull final GarminHttpRequest request,
                                         @NonNull final GdiHttpService.HttpService httpService) {
-        final GdiSmartProto.Smart smart = GdiSmartProto.Smart.newBuilder().setHttpService(httpService).build();
+        final Smart smart = Smart.newBuilder().setHttpService(httpService).build();
         deviceSupport.evaluateGBDeviceEvent(new ProtobufResponseEvent(
                 smart, request.getMessageRequestId()
         ));

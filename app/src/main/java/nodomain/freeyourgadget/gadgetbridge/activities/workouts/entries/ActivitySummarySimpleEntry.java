@@ -1,3 +1,19 @@
+/*  Copyright (C) 2024-2026 José Rebelo, a0z, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries;
 
 import android.content.Context;
@@ -8,31 +24,50 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.WorkoutValueFormatter;
+import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries;
 
 public class ActivitySummarySimpleEntry extends ActivitySummaryEntry {
     public static final ActivitySummarySimpleEntry EMPTY = new ActivitySummarySimpleEntry("-", "string");
 
+    @Nullable
     private final Object value;
+    @NonNull
     private final String unit;
 
-    public ActivitySummarySimpleEntry(final Object value, final String unit) {
+    public ActivitySummarySimpleEntry(@Nullable final Object value, @NonNull final String unit) {
         this(null, value, unit);
     }
 
-    public ActivitySummarySimpleEntry(final String group, final Object value, final String unit) {
+    public ActivitySummarySimpleEntry(@Nullable final String group, @Nullable final Object value, @NonNull final String unit) {
         super(group);
         this.value = value;
         this.unit = unit;
     }
 
+    @Nullable
     public Object getValue() {
         return value;
     }
 
+    @NonNull
     public String getUnit() {
         return unit;
+    }
+
+    private static boolean isCountUnit(@NonNull final String unit) {
+        return switch (unit) {
+            case ActivitySummaryEntries.UNIT_STEPS,
+                 ActivitySummaryEntries.UNIT_STROKES,
+                 ActivitySummaryEntries.UNIT_JUMPS,
+                 ActivitySummaryEntries.UNIT_REPS,
+                 ActivitySummaryEntries.UNIT_REVS -> true;
+            default -> false;
+        };
     }
 
     @Override
@@ -48,7 +83,8 @@ public class ActivitySummarySimpleEntry extends ActivitySummaryEntry {
         final TextView valueTextView = new TextView(context);
         valueTextView.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         valueTextView.setTextSize(20);
-        valueTextView.setText(workoutValueFormatter.formatValue(value, unit));
+        // Plain counts (steps, strokes...) already have their name as the label next to the value
+        valueTextView.setText(workoutValueFormatter.formatValue(value, unit, !isCountUnit(unit)));
         valueTextView.setTextColor(GBApplication.getTextColor(context));
 
         // Label

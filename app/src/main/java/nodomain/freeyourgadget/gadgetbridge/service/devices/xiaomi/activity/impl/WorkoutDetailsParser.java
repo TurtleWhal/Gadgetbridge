@@ -36,10 +36,22 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivityPoint;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrack;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.XiaomiActivityFileId;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.xiaomi.activity.XiaomiActivityParser;
+import nodomain.freeyourgadget.gadgetbridge.util.ArrayUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 public class WorkoutDetailsParser extends XiaomiActivityParser {
     private static final Logger LOG = LoggerFactory.getLogger(WorkoutDetailsParser.class);
+
+    /** Known v8 data-valid bitmaps. The bitmap is not a fixed signature - it varies with the
+     *  workout type (one nibble per field group) - but every known value shares the same
+     *  27-byte header and 21-byte records, decoded as layout 108, verified against the
+     *  paired SUMMARY files. */
+    private static final byte[][] V8_SIGNATURES = {
+            // walking
+            {(byte) 0xFF, (byte) 0xCF, (byte) 0xF8, (byte) 0xBF, (byte) 0xFB, (byte) 0xBB, (byte) 0xBF},
+            // outdoor running, which populates more field groups than walking
+            {(byte) 0xFF, (byte) 0xCF, (byte) 0xFA, (byte) 0xBF, (byte) 0xFB, (byte) 0xBF, (byte) 0xFF},
+    };
 
     /** Per-record output of {@link #parseBytes}. Fields are nullable when the version
      *  format does not encode them. Decoupled from {@link XiaomiActivitySample} so parsed
@@ -199,6 +211,17 @@ public class WorkoutDetailsParser extends XiaomiActivityParser {
                     + "from this workout's export. fileId={} sig@8={}", fileId, sig);
         }
         return records;
+    }
+
+    /** Returns whichever of {@code known} matches the payload signature at offset 8, or null. */
+    @Nullable
+    private static byte[] findSignature(final byte[] bytes, final byte[][] known) {
+        for (final byte[] sig : known) {
+            if (ArrayUtils.equals(bytes, sig, 8)) {
+                return sig;
+            }
+        }
+        return null;
     }
 
     @Nullable
@@ -406,8 +429,8 @@ public class WorkoutDetailsParser extends XiaomiActivityParser {
                 }
                 break;
             case 8:
-                // SPORTS_OUTDOOR_WALKING_V2 v8: extended walking layout.
-                //   7-byte data-valid bitmap: FF CF F8 BF FB BB BF (one nibble per field group).
+                // SPORTS_OUTDOOR_WALKING_V2 v8: extended walking / outdoor running layout.
+                //   7-byte data-valid bitmap, matched against V8_SIGNATURES (see there).
                 //   27-byte segment header:
                 //     offset  0- 3: int32 initHeight  (always 0 in captured data)
                 //     offset  4- 7: int32 recordCount
@@ -418,15 +441,31 @@ public class WorkoutDetailsParser extends XiaomiActivityParser {
                 //     offset 21-22: int16 itTotalPaces
                 //     offset 23-26: int32 itTotalDuration
                 //   21-byte records — layout decoded below in case 108.
-                expectedSignature = new byte[]{
-                        (byte) 0xFF, (byte) 0xCF, (byte) 0xF8, (byte) 0xBF,
-                        (byte) 0xFB, (byte) 0xBB, (byte) 0xBF
-                };
+                expectedSignature = findSignature(bytes, V8_SIGNATURES);
+                if (expectedSignature == null) {
+                    LOG.warn("Unknown v8 DETAILS bitmap: {}",
+                            GB.hexdump(bytes, 8, Math.min(7, bytes.length - 8)));
+                    return null;
+                }
                 segmentHeaderSize = 27;
                 recordSize = 21;
                 tsPosition = 8;
                 nrPosition = 4;
                 layoutCode = 108;
+                break;
+            case 9:
+                // SPORTS_OUTDOOR_WALKING_V2 v9: as v8 above, but the records are 25 bytes and
+                // the second byte of the data-valid bitmap is FF instead of CF, i.e. one more
+                // field group is present.
+                expectedSignature = new byte[]{
+                        (byte) 0xFF, (byte) 0xFF, (byte) 0xF8, (byte) 0xBF,
+                        (byte) 0xFB, (byte) 0xBB, (byte) 0xBF
+                };
+                segmentHeaderSize = 27;
+                recordSize = 25;
+                tsPosition = 8;
+                nrPosition = 4;
+                layoutCode = 109;
                 break;
             default:
                 LOG.warn("Unable to parse workout details version {}", version);
@@ -629,6 +668,20 @@ public class WorkoutDetailsParser extends XiaomiActivityParser {
                         buf.getShort();
                         buf.getShort();
                         buf.getShort();
+                        break;
+                    }
+                    case 109:
+                        // SPORTS_OUTDOOR_WALKING_V2 v9: 25-byte record sharing its first two
+                        // bytes with the v8 layout above. Verified on a real walk: summing the
+                        // step nibbles reproduces the step count the watch reports in its own
+                        // summary, and the heart rate column reproduces its minimum and maximum.
+                        // The remaining bytes are not identified - notably cadence is no longer
+                        // where v8 keeps it.
+                    {
+                        final int caloriesAndSteps = buf.get() & 0xFF;
+                        r.steps = caloriesAndSteps & 0x0F;
+                        r.hr = buf.get() & 0xFF;
+                        buf.get(new byte[23]); // 23 unidentified bytes
                         break;
                     }
                 }

@@ -15,6 +15,7 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType
 import nodomain.freeyourgadget.gadgetbridge.util.DeviceTypeDialog
 import nodomain.freeyourgadget.gadgetbridge.util.GB
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.MacAddressTextWatcher
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -26,12 +27,7 @@ class DeviceDebugFragment : AbstractDebugFragment() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.debug_preferences_device, rootKey)
 
-        @Suppress("DEPRECATION")
-        gbDevice = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            arguments?.getParcelable(GBDevice.EXTRA_DEVICE, GBDevice::class.java)!!
-        } else {
-            arguments?.getParcelable(GBDevice.EXTRA_DEVICE)!!
-        }
+        gbDevice = arguments?.getParcelableCompat<GBDevice>(GBDevice.EXTRA_DEVICE)!!
 
         preferenceScreen?.title = gbDevice.aliasOrName
 

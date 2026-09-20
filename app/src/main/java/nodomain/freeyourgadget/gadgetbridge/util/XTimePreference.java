@@ -23,6 +23,8 @@ import android.util.AttributeSet;
 
 import androidx.preference.DialogPreference;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 public class XTimePreference extends DialogPreference {
@@ -72,14 +74,11 @@ public class XTimePreference extends DialogPreference {
     }
 
     String getTime24h() {
-        return String.format(Locale.ROOT, "%02d:%02d", hour, minute);
+        return LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT));
     }
 
     private String getTime12h() {
-        final String suffix = hour < 12 ? "AM" : "PM";
-        final int h = hour > 12 ? hour - 12 : hour;
-
-        return String.format(Locale.ROOT, "%d:%02d %s",h, minute, suffix);
+        return LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("h:mm a", Locale.ROOT));
     }
 
     public void setFormat(final Format format) {

@@ -50,18 +50,18 @@ public enum CmfNotificationIcon {
     }
 
     public static CmfNotificationIcon forNotification(final NotificationSpec notificationSpec) {
-        if (notificationSpec.type == null) {
+        if (notificationSpec.getType() == null) {
             return UNKNOWN;
         }
 
         try {
             // If there's a matching enum, just return it
-            return CmfNotificationIcon.valueOf(notificationSpec.type.name());
+            return CmfNotificationIcon.valueOf(notificationSpec.getType().name());
         } catch (final IllegalArgumentException ignored) {
             // ignored
         }
 
-        switch (notificationSpec.type.getGenericType()) {
+        switch (notificationSpec.getType().getGenericType()) {
             case "generic_chat":
                 return GENERIC_SMS;
             case "generic_email":

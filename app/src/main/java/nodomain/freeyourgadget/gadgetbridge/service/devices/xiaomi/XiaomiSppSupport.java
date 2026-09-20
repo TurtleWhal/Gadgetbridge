@@ -235,18 +235,19 @@ public class XiaomiSppSupport extends XiaomiConnectionSupport {
     }
 
     public void sendCommand(final TransactionBuilder builder, final XiaomiProto.Command command) {
-        LOG.debug("sendCommand(): encoded command for task '{}': {}", builder.getTaskName(), GB.hexdump(command.toByteArray()));
+        final byte[] commandBytes = command.toByteArray();
+        LOG.debug("sendCommand(): encoded command for task '{}': {}", builder.getTaskName(), GB.lazyHexdump(commandBytes));
         if (command.getType() == XiaomiAuthService.COMMAND_TYPE) {
-            builder.write(mProtocol.encodePacket(Channel.Authentication, command.toByteArray()));
+            builder.write(mProtocol.encodePacket(Channel.Authentication, commandBytes));
         } else {
-            builder.write(mProtocol.encodePacket(Channel.ProtobufCommand, command.toByteArray()));
+            builder.write(mProtocol.encodePacket(Channel.ProtobufCommand, commandBytes));
         }
         // do not queue here, that's the job of the caller
     }
 
     @Override
     public void sendDataChunk(final String taskName, final byte[] chunk, @Nullable final XiaomiSendCallback callback) {
-        LOG.debug("sendDataChunk(): encoded data chunk for task '{}': {}", taskName, GB.hexdump(chunk));
+        LOG.debug("sendDataChunk(): encoded data chunk for task '{}': {}", taskName, GB.lazyHexdump(chunk));
         this.commsSupport.createTransactionBuilder("send " + taskName)
             .write(mProtocol.encodePacket(Channel.Data, chunk))
             .queue();

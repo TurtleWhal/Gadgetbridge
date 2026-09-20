@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.Toast
 import androidx.core.content.edit
 import androidx.core.net.toUri
@@ -16,23 +17,20 @@ import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceCandidate
 import nodomain.freeyourgadget.gadgetbridge.util.DeviceHelper
 import nodomain.freeyourgadget.gadgetbridge.util.GB
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 
 class AuthKeyActivity : AbstractGBActivity() {
     private lateinit var binding: ActivityAuthKeyBinding
     private var deviceCandidate: GBDeviceCandidate? = null
     private var coordinator: DeviceCoordinator? = null
+    private var secondaryAuthKeyPref: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAuthKeyBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        @Suppress("DEPRECATION")
-        deviceCandidate = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(EXTRA_DEVICE_CANDIDATE, GBDeviceCandidate::class.java)
-        } else {
-            intent.getParcelableExtra(EXTRA_DEVICE_CANDIDATE)
-        }
+        deviceCandidate = intent.getParcelableCompat<GBDeviceCandidate>(EXTRA_DEVICE_CANDIDATE)
 
         deviceCandidate?.let { candidate ->
             coordinator = DeviceHelper.getInstance().resolveDeviceType(candidate).deviceCoordinator
@@ -49,11 +47,29 @@ class AuthKeyActivity : AbstractGBActivity() {
             deviceCandidate?.name ?: getString(R.string.devicetype_unknown)
         )
 
+        // Some devices need a second credential alongside the auth key - eg. Wear OS watches,
+        // which will not complete the handshake without the identity of the paired phone.
+        secondaryAuthKeyPref = coordinator?.secondaryAuthKeyPref
+        secondaryAuthKeyPref?.let {
+            binding.secondaryAuthKeyInputLayout.visibility = View.VISIBLE
+            // The hint belongs on the layout, not on the edit text: that is what gives the
+            // floating label, matching the auth key field above.
+            coordinator?.secondaryAuthKeyHint?.takeIf { hint -> hint != 0 }?.let { hint ->
+                binding.secondaryAuthKeyInputLayout.hint = getString(hint)
+            }
+        }
+
         deviceCandidate?.macAddress?.let { macAddress ->
             val sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(macAddress)
             val authKey = sharedPrefs.getString(DeviceSettingsPreferenceConst.PREF_AUTH_KEY, "")
             if (authKey?.isNotEmpty() == true) {
                 binding.authKeyEditText.setText(authKey)
+            }
+            secondaryAuthKeyPref?.let { pref ->
+                val secondary = sharedPrefs.getString(pref, "")
+                if (secondary?.isNotEmpty() == true) {
+                    binding.secondaryAuthKeyEditText.setText(secondary)
+                }
             }
         }
 
@@ -68,11 +84,23 @@ class AuthKeyActivity : AbstractGBActivity() {
                 binding.authKeyInputLayout.error = null
             }
 
+            val secondaryAuthKey = binding.secondaryAuthKeyEditText.text.toString().trim()
+
+            if (secondaryAuthKeyPref != null && secondaryAuthKey.isEmpty()) {
+                binding.secondaryAuthKeyInputLayout.error = getString(R.string.auth_key_required_message)
+                return@setOnClickListener
+            } else {
+                binding.secondaryAuthKeyInputLayout.error = null
+            }
+
             if (coordinator?.validateAuthKey(authKey) == true) {
                 // Save the auth key
                 deviceCandidate?.macAddress?.let { macAddress ->
                     val sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(macAddress)
                     sharedPrefs.edit { putString(DeviceSettingsPreferenceConst.PREF_AUTH_KEY, authKey) }
+                    secondaryAuthKeyPref?.let { pref ->
+                        sharedPrefs.edit { putString(pref, secondaryAuthKey) }
+                    }
                 }
 
                 // Return the auth key and candidate to the calling activity

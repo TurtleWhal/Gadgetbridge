@@ -331,11 +331,11 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
 
         String message;
         String source = null;
-        String bodyOrSubject = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.getFirstOf(notificationSpec.body, notificationSpec.subject);
-        String senderOrTitle = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
-        if (!nodomain.freeyourgadget.gadgetbridge.util.StringUtils.isNullOrEmpty(notificationSpec.sourceName)) {
-            source = notificationSpec.sourceName;
-        } else if (notificationSpec.type == NotificationType.GENERIC_SMS) {
+        String bodyOrSubject = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.getFirstOf(notificationSpec.getBody(), notificationSpec.getSubject());
+        String senderOrTitle = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
+        if (!nodomain.freeyourgadget.gadgetbridge.util.StringUtils.isNullOrEmpty(notificationSpec.getSourceName())) {
+            source = notificationSpec.getSourceName();
+        } else if (notificationSpec.getType() == NotificationType.GENERIC_SMS) {
             source = getContext().getString(R.string.pref_title_notifications_sms);
         }
 
@@ -371,17 +371,17 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
     @Override
     public void onSetNavigationInfo(NavigationInfoSpec navigationInfoSpec) {
         TransactionBuilder builder = createTransactionBuilder("navigation info");
-        if (navigationInfoSpec.instruction == null) {
-            navigationInfoSpec.instruction = "";
+        if (navigationInfoSpec.getInstruction() == null) {
+            navigationInfoSpec.setInstruction("");
         }
-        if (navigationInfoSpec.distanceToTurn == null) {
-            navigationInfoSpec.distanceToTurn = "";
+        if (navigationInfoSpec.getDistanceToTurn() == null) {
+            navigationInfoSpec.setDistanceToTurn("");
         }
-        safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_NAVIGATION_NARRATIVE, navigationInfoSpec.instruction.getBytes(StandardCharsets.UTF_8));
-        safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_NAVIGATION_MAN_DISTANCE, navigationInfoSpec.distanceToTurn.getBytes(StandardCharsets.UTF_8));
-        safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_NAVIGATION_PROGRESS, ByteBuffer.allocate(1).put((byte) navigationInfoSpec.completionPercent).array());
+        safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_NAVIGATION_NARRATIVE, navigationInfoSpec.getInstruction().getBytes(StandardCharsets.UTF_8));
+        safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_NAVIGATION_MAN_DISTANCE, navigationInfoSpec.getDistanceToTurn().getBytes(StandardCharsets.UTF_8));
+        safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_NAVIGATION_PROGRESS, ByteBuffer.allocate(1).put((byte) navigationInfoSpec.getCompletionPercent()).array());
         String iconname;
-        switch (navigationInfoSpec.nextAction) {
+        switch (navigationInfoSpec.getNextAction()) {
             case NavigationInfoSpec.ACTION_CONTINUE:
                 iconname = "continue";
                 break;
@@ -460,14 +460,14 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             TransactionBuilder builder = createTransactionBuilder("incomingcall");
 
             String message;
-            if (isFirmwareAtLeastVersion0_15() && callSpec.sourceName != null) {
-                message = (byte) 0x01 + callSpec.sourceName + "\0" + callSpec.name;
+            if (isFirmwareAtLeastVersion0_15() && callSpec.getSourceName() != null) {
+                message = (byte) 0x01 + callSpec.getSourceName() + "\0" + callSpec.getName();
             } else {
-                message = (byte) 0x01 + callSpec.name;
+                message = (byte) 0x01 + callSpec.getName();
             }
 
             NewAlert alert = new NewAlert(AlertCategory.IncomingCall, 1, message);
@@ -551,8 +551,8 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
     @Override
     public void onFindDevice(boolean start) {
         CallSpec callSpec = new CallSpec();
-        callSpec.command = start ? CallSpec.CALL_INCOMING : CallSpec.CALL_END;
-        callSpec.name = "Gadgetbridge";
+        callSpec.setCommand(start ? CallSpec.CALL_INCOMING : CallSpec.CALL_END);
+        callSpec.setName("Gadgetbridge");
         onSetCallState(callSpec);
     }
 
@@ -591,27 +591,27 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
         try {
             TransactionBuilder builder = performInitialized("send playback info");
 
-            if (musicSpec.album != null && !musicSpec.album.equals(lastAlbum)) {
-                lastAlbum = musicSpec.album;
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_ALBUM, musicSpec.album.getBytes());
+            if (musicSpec.getAlbum() != null && !musicSpec.getAlbum().equals(lastAlbum)) {
+                lastAlbum = musicSpec.getAlbum();
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_ALBUM, musicSpec.getAlbum().getBytes());
             }
-            if (musicSpec.track != null && !musicSpec.track.equals(lastTrack)) {
-                lastTrack = musicSpec.track;
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_TRACK, musicSpec.track.getBytes());
+            if (musicSpec.getTrack() != null && !musicSpec.getTrack().equals(lastTrack)) {
+                lastTrack = musicSpec.getTrack();
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_TRACK, musicSpec.getTrack().getBytes());
             }
-            if (musicSpec.artist != null && !musicSpec.artist.equals(lastArtist)) {
-                lastArtist = musicSpec.artist;
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_ARTIST, musicSpec.artist.getBytes());
+            if (musicSpec.getArtist() != null && !musicSpec.getArtist().equals(lastArtist)) {
+                lastArtist = musicSpec.getArtist();
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_ARTIST, musicSpec.getArtist().getBytes());
             }
 
-            if (musicSpec.duration != MusicSpec.MUSIC_UNKNOWN) {
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_LENGTH_TOTAL, intToBytes(musicSpec.duration));
+            if (musicSpec.getDuration() != MusicSpec.MUSIC_UNKNOWN) {
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_LENGTH_TOTAL, intToBytes(musicSpec.getDuration()));
             }
-            if (musicSpec.trackNr != MusicSpec.MUSIC_UNKNOWN) {
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_TRACK_NUMBER, intToBytes(musicSpec.trackNr));
+            if (musicSpec.getTrackNr() != MusicSpec.MUSIC_UNKNOWN) {
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_TRACK_NUMBER, intToBytes(musicSpec.getTrackNr()));
             }
-            if (musicSpec.trackCount != MusicSpec.MUSIC_UNKNOWN) {
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_TRACK_TOTAL, intToBytes(musicSpec.trackCount));
+            if (musicSpec.getTrackCount() != MusicSpec.MUSIC_UNKNOWN) {
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_TRACK_TOTAL, intToBytes(musicSpec.getTrackCount()));
             }
 
             builder.queue();
@@ -625,28 +625,28 @@ public class PineTimeJFSupport extends AbstractBTLESingleDeviceSupport implement
         try {
             TransactionBuilder builder = performInitialized("send playback state");
 
-            if (stateSpec.state != MusicStateSpec.STATE_UNKNOWN) {
+            if (stateSpec.getState() != MusicStateSpec.STATE_UNKNOWN) {
                 byte[] state = new byte[1];
-                if (stateSpec.state == MusicStateSpec.STATE_PLAYING) {
+                if (stateSpec.getState() == MusicStateSpec.STATE_PLAYING) {
                     state[0] = 0x01;
                 }
                 safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_STATUS, state);
             }
 
-            if (stateSpec.playRate != MusicStateSpec.STATE_UNKNOWN) {
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_PLAYBACK_SPEED, intToBytes(stateSpec.playRate));
+            if (stateSpec.getPlayRate() != MusicStateSpec.STATE_UNKNOWN) {
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_PLAYBACK_SPEED, intToBytes(stateSpec.getPlayRate()));
             }
 
-            if (stateSpec.position != MusicStateSpec.STATE_UNKNOWN) {
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_POSITION, intToBytes(stateSpec.position));
+            if (stateSpec.getPosition() != MusicStateSpec.STATE_UNKNOWN) {
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_POSITION, intToBytes(stateSpec.getPosition()));
             }
 
-            if (stateSpec.repeat != MusicStateSpec.STATE_UNKNOWN) {
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_REPEAT, intToBytes(stateSpec.repeat));
+            if (stateSpec.getRepeat() != MusicStateSpec.STATE_UNKNOWN) {
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_REPEAT, intToBytes(stateSpec.getRepeat()));
             }
 
-            if (stateSpec.shuffle != MusicStateSpec.STATE_UNKNOWN) {
-                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_SHUFFLE, intToBytes(stateSpec.repeat));
+            if (stateSpec.getShuffle() != MusicStateSpec.STATE_UNKNOWN) {
+                safeWriteToCharacteristic(builder, PineTimeJFConstants.UUID_CHARACTERISTICS_MUSIC_SHUFFLE, intToBytes(stateSpec.getRepeat()));
             }
 
             builder.queue();

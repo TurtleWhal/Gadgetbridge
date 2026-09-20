@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.view.MenuProvider
 import androidx.core.view.children
+import com.github.mikephil.charting.components.LegendEntry
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.CombinedData
@@ -47,6 +48,7 @@ class WorkoutChartsActivity : AbstractGBActivity(), MenuProvider {
         binding = WorkoutChartsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         addMenuProvider(this)
+        intent.getStringExtra(EXTRA_TITLE)?.let { supportActionBar?.title = it }
         chartData = ChartDataRepository.chartData
 
         if (chartData == null) {
@@ -138,26 +140,42 @@ class WorkoutChartsActivity : AbstractGBActivity(), MenuProvider {
         val combinedData = CombinedData()
         val lineData = LineData()
         val scatterData = ScatterData()
-        val lineDataSetsMarkerFormatters = mutableListOf<ValueFormatter?>()
-        val lineDataSetsMarkerUnits = mutableListOf<String?>()
+        // Keyed by dataset label rather than position: a metric split into several
+        // segments contributes multiple datasets that all share one label.
+        val markerFormatters = mutableMapOf<String, ValueFormatter?>()
+        val markerUnits = mutableMapOf<String, String?>()
+        val legendEntries = mutableListOf<LegendEntry>()
         var leftY = true
         selectedCharts.forEach { selectedChart ->
             val workoutChart = chartData?.find { it.id == selectedChart } ?: return@forEach
-            val dataSet = workoutChart.chartData.getDataSetByIndex(0) as? LineScatterCandleRadarDataSet<Entry> ?: return@forEach
-            dataSet.highLightColor = ContextCompat.getColor(context, R.color.chart_highline_dolor)
-            dataSet.highlightLineWidth = 1f
-            dataSet.axisDependency = if(leftY) YAxis.AxisDependency.LEFT else YAxis.AxisDependency.RIGHT
-            when (dataSet) {
-                is LineDataSet -> {
-                    lineData.addDataSet(dataSet)
+            val axisDependency = if (leftY) YAxis.AxisDependency.LEFT else YAxis.AxisDependency.RIGHT
+            var legendAdded = false
+            workoutChart.chartData.dataSets.forEach { rawDataSet ->
+                val dataSet = rawDataSet as? LineScatterCandleRadarDataSet<Entry> ?: return@forEach
+                dataSet.highLightColor = ContextCompat.getColor(context, R.color.chart_highline_dolor)
+                dataSet.highlightLineWidth = 1f
+                dataSet.axisDependency = axisDependency
+                when (dataSet) {
+                    is LineDataSet -> lineData.addDataSet(dataSet)
+                    is ScatterDataSet -> scatterData.addDataSet(dataSet)
+                    else -> return@forEach
                 }
-                is ScatterDataSet -> {
-                    scatterData.addDataSet(dataSet)
+                markerFormatters[dataSet.label] = workoutChart.chartYLabelFormatter
+                markerUnits[dataSet.label] = workoutChart.unitString
+                if (!legendAdded) {
+                    legendEntries.add(
+                        LegendEntry(
+                            dataSet.label,
+                            dataSet.form,
+                            dataSet.formSize,
+                            dataSet.formLineWidth,
+                            dataSet.formLineDashEffect,
+                            dataSet.color
+                        )
+                    )
+                    legendAdded = true
                 }
-                else -> {}
             }
-            lineDataSetsMarkerFormatters.add(workoutChart.chartYLabelFormatter)
-            lineDataSetsMarkerUnits.add(workoutChart.unitString)
             val axis = if (leftY) binding.workoutDataChart.axisLeft else binding.workoutDataChart.axisRight
             axis.valueFormatter = workoutChart.chartYLabelFormatter ?: DefaultAxisValueFormatter(0)
             leftY = false
@@ -167,10 +185,11 @@ class WorkoutChartsActivity : AbstractGBActivity(), MenuProvider {
             val workoutChart = chartData?.find { it.id == selectedChartId } ?: return
             binding.workoutDataChart.axisRight.valueFormatter = workoutChart.chartYLabelFormatter ?: DefaultAxisValueFormatter(0)
         }
+        binding.workoutDataChart.legend.setCustom(legendEntries)
         combinedData.setData(lineData)
         combinedData.setData(scatterData)
         binding.workoutDataChart.data = combinedData
-        binding.workoutDataChart.marker = ValueMarker(this, combinedData, lineDataSetsMarkerFormatters, lineDataSetsMarkerUnits)
+        binding.workoutDataChart.marker = ValueMarker(this, combinedData, markerFormatters, markerUnits)
         binding.workoutDataChart.highlightValues(null)
         binding.workoutDataChart.invalidate()
     }
@@ -255,5 +274,6 @@ class WorkoutChartsActivity : AbstractGBActivity(), MenuProvider {
 
     companion object {
         const val INIT_CHART_ID = "INIT_CHART_ID"
+        const val EXTRA_TITLE = "EXTRA_TITLE"
     }
 }

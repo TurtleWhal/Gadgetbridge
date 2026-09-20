@@ -240,9 +240,9 @@ public class BFH16DeviceSupport extends AbstractBTLESingleDeviceSupport {
     //TODO: checked + rework
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        String notificationTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        String notificationTitle = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
         byte icon;
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case GENERIC_SMS:
                 icon = BFH16Constants.ICON_SMS;
                 break;
@@ -260,15 +260,15 @@ public class BFH16DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 icon = BFH16Constants.ICON_LINE;
                 break;
         }
-        showNotification(icon, notificationTitle, notificationSpec.body);
+        showNotification(icon, notificationTitle, notificationSpec.getBody());
     }
 
     //TODO: check
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING:
-                showNotification(BFH16Constants.ICON_CALL, callSpec.name, callSpec.number);
+                showNotification(BFH16Constants.ICON_CALL, callSpec.getName(), callSpec.getNumber());
                 break;
         }
     }
@@ -281,7 +281,7 @@ public class BFH16DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     //TODO: check
     @Override
-    public void onReset(int flags) {
+    public void onReboot() {
         try {
             TransactionBuilder builder = performInitialized("Reboot");
             builder.write(ctrlCharacteristic, commandWithChecksum(

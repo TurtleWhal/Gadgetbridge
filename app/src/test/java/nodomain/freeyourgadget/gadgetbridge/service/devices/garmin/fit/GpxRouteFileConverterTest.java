@@ -48,10 +48,10 @@ public class GpxRouteFileConverterTest extends TestBase {
     private void GpxToFitCourse(String gpxResource, String expectedFitResource) throws IOException {
         final byte[] gpxRaw = readBinaryResource(gpxResource);
         final GpxFile gpx = GpxParser.parseGpx(gpxRaw);
-        final GpxRouteFileConverter converter = new GpxRouteFileConverter(gpx, gpx.getName(), gpx.getTime());
+        final GpxRouteFileConverter converter = new GpxRouteFileConverter(gpx, gpx.getName(), true, true, gpx.getTime());
         final FitFile fit = converter.getConvertedFile();
         final byte[] generatedFit = fit.getOutgoingMessage();
-        //Files.write(Path.of("a.fit"), generatedFit);
+        //java.nio.file.Files.write(java.nio.file.Path.of("src/test/resources" + expectedFitResource), generatedFit);
         final byte[] expectedFit = readBinaryResource(expectedFitResource);
         Assert.assertArrayEquals(expectedFit, generatedFit);
     }

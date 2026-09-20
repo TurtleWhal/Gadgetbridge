@@ -138,9 +138,9 @@ public class PhoneCallReceiver extends BroadcastReceiver {
                 return;
             }
             CallSpec callSpec = new CallSpec();
-            callSpec.number = mSavedNumber;
-            callSpec.command = callCommand;
-            callSpec.dndSuppressed = dndSuppressed;
+            callSpec.setNumber(mSavedNumber);
+            callSpec.setCommand(callCommand);
+            callSpec.setDndSuppressed(dndSuppressed);
 
             int callDelay = prefs.getInt("notification_delay_calls", 0);
             if (callCommand == CallSpec.CALL_INCOMING) {

@@ -105,6 +105,7 @@ class PebbleJsService : Service() {
                 WebView.setWebContentsDebuggingEnabled(true)
                 val uiContext = applicationContext.createConfigurationContext(resources.configuration)
                 val gbWebClient = GBWebClient(InternetRequestType.PEBBLE_BACKGROUND_JS, device)
+                @Suppress("DEPRECATION") // FIXME replace with non-deprecated code
                 val wv = WebView(uiContext).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
@@ -154,6 +155,7 @@ class PebbleJsService : Service() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                 } else {
+                    @Suppress("DEPRECATION")
                     stopForeground(true)
                 }
                 stopSelf()

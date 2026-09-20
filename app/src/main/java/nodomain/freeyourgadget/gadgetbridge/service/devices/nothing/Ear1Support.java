@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
@@ -39,7 +38,9 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdateDevi
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
 import nodomain.freeyourgadget.gadgetbridge.devices.nothing.AbstractEarCoordinator;
-import nodomain.freeyourgadget.gadgetbridge.devices.nothing.NothingEqualizer;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingEqualizer;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingAudioMode;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingTapAction;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryState;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractHeadphoneBTBRDeviceSupport;
@@ -89,7 +90,7 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
         if (getCoordinator().supportsLowLatency()) {
             sendCommand(builder, nothingProtocol.encodeLowLatencyReq());
         }
-        if (getCoordinator().supportsTouchOptions()) {
+        if (!getCoordinator().getTouchGestures().isEmpty()) {
             sendCommand(builder, nothingProtocol.encodeTouchOptionsRequest());
         }
         if (getCoordinator().supportsSpatialAudio()) {
@@ -99,7 +100,8 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
         return builder;
     }
 
-    private AbstractEarCoordinator getCoordinator() {
+    @Override
+    protected AbstractEarCoordinator getCoordinator() {
         return (AbstractEarCoordinator) getDevice().getDeviceCoordinator();
     }
 
@@ -146,7 +148,7 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
                 // response: 55 20 01 04 70 00 00 00
                 break;
             case DeviceSettingsPreferenceConst.PREF_NOTHING_EAR1_AUDIOMODE:
-                sendCommand("set audio mode", nothingProtocol.encodeAudioMode(prefs.getString(DeviceSettingsPreferenceConst.PREF_NOTHING_EAR1_AUDIOMODE, "off")));
+                sendCommand("set audio mode", nothingProtocol.encodeAudioMode(prefs));
                 // response: 55 20 01 0F 70 00 00 00
                 break;
             case DeviceSettingsPreferenceConst.PREF_HEADPHONES_LOW_LATENCY:
@@ -157,7 +159,7 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
                 // OFF Response: 55 6001 4070 0000 5C FF FF95
                 break;
             case DeviceSettingsPreferenceConst.PREF_HEADPHONES_EQUALIZER:
-                sendCommand("set equalizer", nothingProtocol.encodeEqualizer(prefs.getString(DeviceSettingsPreferenceConst.PREF_HEADPHONES_EQUALIZER, NothingEqualizer.DIRAC.name())));
+                sendCommand("set equalizer", nothingProtocol.encodeEqualizer(prefs));
                 break;
             case DeviceSettingsPreferenceConst.PREF_NOTHING_EAR1_ULTRA_BASS_ENABLED:
             case DeviceSettingsPreferenceConst.PREF_NOTHING_EAR1_ULTRA_BASS_LEVEL:
@@ -243,36 +245,6 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
         private static final byte battery_earphone_left = 0x02;
         private static final byte battery_earphone_right = 0x03;
         private static final byte battery_case = 0x04;
-
-        private enum NothingAudioMode {
-            anc(0x01),
-            ancmedium(0x02),
-            anclight(0x03),
-            ancadaptive(0x04),
-            off(0x05),
-            transparency(0x07),
-            ;
-
-            private final int bitmask;
-
-            NothingAudioMode(int bitmask) {
-                this.bitmask = bitmask;
-            }
-
-            public int getBitmask() {
-                return bitmask;
-            }
-
-            public static NothingAudioMode fromBitmask(int bitmask) {
-                for (NothingAudioMode flag : values()) {
-                    if (flag.bitmask == bitmask) {
-                        return flag;
-                    }
-                }
-                throw new IllegalArgumentException("Unknown NothingAudioMode: 0x" +
-                        Integer.toHexString(bitmask));
-            }
-        }
 
         public GBDeviceEvent[] decodeResponse(byte[] responseData) {
             List<GBDeviceEvent> devEvts = new ArrayList<>();
@@ -441,9 +413,9 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
 
             if (payload.length >= 3 && payload[0] == 0x01 && payload[2] == 0x00) {
                 try {
-                    NothingAudioMode mode = NothingAudioMode.fromBitmask(payload[1]);
+                    NothingAudioMode mode = NothingAudioMode.fromCode(payload[1]);
                     LOG.info("Audio mode: " + mode.name());
-                    preferencesEvent.withPreference(DeviceSettingsPreferenceConst.PREF_NOTHING_EAR1_AUDIOMODE, mode.name());
+                    preferencesEvent.withPreferences(mode.toPreferences());
                 } catch (IllegalArgumentException e) {
                     LOG.warn("Unknown audio mode. Payload: " + hexdump(payload));
                 }
@@ -471,7 +443,7 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
                 return preferencesEvent;
             }
 
-            preferencesEvent.withPreference(DeviceSettingsPreferenceConst.PREF_HEADPHONES_EQUALIZER, equalizerPreset.name());
+            preferencesEvent.withPreferences(equalizerPreset.toPreferences());
             return preferencesEvent;
         }
 
@@ -513,7 +485,7 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
                 final byte tapTypeByte = buf.get();
                 final byte tapActionByte = buf.get();
 
-                final NothingTapType tapType = NothingTapType.fromCode(tapTypeByte);
+                final NothingTapAction.NothingTapType tapType = NothingTapAction.NothingTapType.fromCode(tapTypeByte);
                 if (tapType == null) {
                     LOG.warn("Unknown tap type 0x{}", Integer.toHexString(tapTypeByte));
                     continue;
@@ -544,7 +516,7 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
                 };
 
                 if (preferenceKey != null) {
-                    preferencesEvent.withPreference(preferenceKey, tapAction.name().toLowerCase(Locale.ROOT));
+                    preferencesEvent.withPreferences(tapAction.toPreferences(preferenceKey));
                 }
             }
             return preferencesEvent;
@@ -558,10 +530,10 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
             return encodeMessage((short) 0x120, spatial_audio, new byte[]{enabled});
         }
 
-        byte[] encodeAudioMode(String desired) {
-            int modeBitmask = NothingAudioMode.valueOf("off").getBitmask();
+        byte[] encodeAudioMode(SharedPreferences desired) {
+            int modeBitmask = NothingAudioMode.OFF.getCode();
             try {
-                modeBitmask = NothingAudioMode.valueOf(desired).getBitmask();
+                modeBitmask = NothingAudioMode.fromPreferences(desired).getCode();
             } catch (IllegalArgumentException e) {
                 LOG.warn("Illegal audio mode requested: {} , using default", desired);
             }
@@ -575,17 +547,21 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
             return encodeMessage((short) 0x120, low_latency, new byte[]{payload});
         }
 
-        byte[] encodeEqualizer(final String desired) {
+        byte[] encodeEqualizer(final NothingEqualizer requested) {
+            return encodeMessage((short) 0x120, equalizer, new byte[]{requested.getCode(), 0x00});
+        }
+
+        byte[] encodeEqualizer(final SharedPreferences desired) {
             NothingEqualizer preset = NothingEqualizer.DIRAC;
 
-            final NothingEqualizer requested = NothingEqualizer.fromPreferenceValue(desired);
+            final NothingEqualizer requested = NothingEqualizer.fromPreferences(desired);
             if (requested != null) {
                 preset = requested;
             } else {
                 LOG.warn("Unknown equalizer preset: {}, using default", desired);
             }
 
-            return encodeMessage((short) 0x120, equalizer, new byte[]{preset.getCode(), 0x00});
+            return encodeEqualizer(preset);
         }
 
         byte[] encodeUltraBass(final boolean enabled, final int level) {
@@ -608,42 +584,41 @@ public class Ear1Support extends AbstractHeadphoneBTBRDeviceSupport {
         }
 
         public byte[] encodeTouchOptions(final String key, SharedPreferences prefs) {
-            final String actionString = prefs.getString(key, NothingTapAction.OFF.name());
-            final NothingTapAction action = NothingTapAction.valueOf(actionString.toUpperCase(Locale.ROOT));
+            final NothingTapAction action = NothingTapAction.fromPreferences(prefs, key);
             final byte side;
-            final NothingTapType tapType;
+            final NothingTapAction.NothingTapType tapType;
             switch (key) {
                 case NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__LEFT__TAP_2:
                     side = battery_earphone_left;
-                    tapType = NothingTapType.TAP_2;
+                    tapType = NothingTapAction.NothingTapType.TAP_2;
                     break;
                 case NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__LEFT__TAP_3:
                     side = battery_earphone_left;
-                    tapType = NothingTapType.TAP_3;
+                    tapType = NothingTapAction.NothingTapType.TAP_3;
                     break;
                 case NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__LEFT__TAP_1_HOLD:
                     side = battery_earphone_left;
-                    tapType = NothingTapType.TAP_1_HOLD;
+                    tapType = NothingTapAction.NothingTapType.TAP_1_HOLD;
                     break;
                 case NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__LEFT__TAP_2_HOLD:
                     side = battery_earphone_left;
-                    tapType = NothingTapType.TAP_2_HOLD;
+                    tapType = NothingTapAction.NothingTapType.TAP_2_HOLD;
                     break;
                 case NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__RIGHT__TAP_2:
                     side = battery_earphone_right;
-                    tapType = NothingTapType.TAP_2;
+                    tapType = NothingTapAction.NothingTapType.TAP_2;
                     break;
                 case NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__RIGHT__TAP_3:
                     side = battery_earphone_right;
-                    tapType = NothingTapType.TAP_3;
+                    tapType = NothingTapAction.NothingTapType.TAP_3;
                     break;
                 case NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__RIGHT__TAP_1_HOLD:
                     side = battery_earphone_right;
-                    tapType = NothingTapType.TAP_1_HOLD;
+                    tapType = NothingTapAction.NothingTapType.TAP_1_HOLD;
                     break;
                 case NothingBudsPreferences.PREF_CMF_BUDS_TOUCH__RIGHT__TAP_2_HOLD:
                     side = battery_earphone_right;
-                    tapType = NothingTapType.TAP_2_HOLD;
+                    tapType = NothingTapAction.NothingTapType.TAP_2_HOLD;
                     break;
                 default:
                     LOG.error("Unknown touch option preference key {}", key);

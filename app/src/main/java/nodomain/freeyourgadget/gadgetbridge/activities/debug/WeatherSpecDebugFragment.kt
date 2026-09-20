@@ -4,6 +4,7 @@ import android.os.Bundle
 import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -13,12 +14,7 @@ class WeatherSpecDebugFragment : AbstractDebugFragment() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.debug_preferences_empty, rootKey)
 
-        @Suppress("DEPRECATION")
-        val weatherSpec = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            arguments?.getParcelable("weatherSpec", WeatherSpec::class.java)!!
-        } else {
-            arguments?.getParcelable<WeatherSpec>("weatherSpec")!!
-        }
+        val weatherSpec = arguments?.getParcelableCompat<WeatherSpec>("weatherSpec")!!
         val day = arguments?.getBoolean("days", false)
         val hour = arguments?.getBoolean("hours", false)
 
@@ -53,8 +49,8 @@ class WeatherSpecDebugFragment : AbstractDebugFragment() {
         addPreference("Min Temp", "${weatherSpec.todayMinTemp} K (${weatherSpec.todayMinTemp - 273} °C)")
         addPreference("Condition", weatherSpec.currentCondition)
         addPreference("Condition Code", weatherSpec.currentConditionCode)
-        addPreference("Humidity", weatherSpec.currentHumidity)
-        addPreference("Wind Speed", "${weatherSpec.windSpeed} kmph")
+        addPreference("Humidity", "${weatherSpec.currentHumidity} %")
+        addPreference("Wind Speed", "${weatherSpec.windSpeed} km/h (${weatherSpec.windSpeed * 0.621371} mi/h)")
         addPreference("Wind Direction", "${weatherSpec.windDirection} deg")
         addPreference("UV Index", weatherSpec.uvIndex)
         addPreference("Precip Probability", "${weatherSpec.precipProbability} %")
@@ -125,8 +121,8 @@ class WeatherSpecDebugFragment : AbstractDebugFragment() {
             addPreference("Max Temp", "${daily.maxTemp} K (${daily.maxTemp - 273} °C)")
             addPreference("Min Temp", "${daily.minTemp} K (${daily.minTemp - 273} °C)")
             addPreference("Condition Code", daily.conditionCode)
-            addPreference("Humidity", daily.humidity)
-            addPreference("Wind Speed", "${daily.windSpeed} kmph")
+            addPreference("Humidity", "${daily.humidity} %")
+            addPreference("Wind Speed", "${daily.windSpeed} km/h (${daily.windSpeed * 0.621371} mi/h)")
             addPreference("Wind Direction", "${daily.windDirection} deg")
             addPreference("UV Index", daily.uvIndex)
             addPreference("Precip Probability", "${daily.precipProbability} %")
@@ -135,6 +131,8 @@ class WeatherSpecDebugFragment : AbstractDebugFragment() {
             addPreference("Moon Rise", sdf.format(Date(daily.moonRise * 1000L)))
             addPreference("Moon Set", sdf.format(Date(daily.moonSet * 1000L)))
             addPreference("Moon Phase", "${daily.moonPhase} deg")
+            addPreference("Pressure", "${daily.pressure} mbar")
+            addPreference("Cloud Cover", "${daily.cloudCover} %")
 
             if (daily.airQuality != null) {
                 addPreference("Air Quality aqi", daily.airQuality!!.aqi)
@@ -162,11 +160,14 @@ class WeatherSpecDebugFragment : AbstractDebugFragment() {
             addDynamicCategory("Hour $i - ${sdf.format(Date(hourly.timestamp * 1000L))}")
             addPreference("Max Temp", "${hourly.temp} K (${hourly.temp - 273} °C)")
             addPreference("Condition Code", hourly.conditionCode)
-            addPreference("Humidity", hourly.humidity)
-            addPreference("Wind Speed", "${hourly.windSpeed} kmph")
+            addPreference("Humidity", "${hourly.humidity} %")
+            addPreference("Wind Speed", "${hourly.windSpeed} km/h (${hourly.windSpeed * 0.621371} mi/h)")
             addPreference("Wind Direction", "${hourly.windDirection} deg")
             addPreference("UV Index", hourly.uvIndex)
             addPreference("Precip Probability", "${hourly.precipProbability} %")
+            addPreference("Dew Point", "${hourly.dewPoint} K (${hourly.dewPoint - 273} °C)")
+            addPreference("Pressure", "${hourly.pressure} mbar")
+            addPreference("Cloud Cover", "${hourly.cloudCover} %")
         }
     }
 }

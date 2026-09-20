@@ -16,6 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin;
 
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
 
 import com.google.protobuf.ByteString;
@@ -54,7 +55,7 @@ import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.S
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.SyncFinishedStatus;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.SyncType;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.VersionStamp;
-import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto;
+import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto.Smart;
 import nodomain.freeyourgadget.gadgetbridge.test.TestBase;
 
 /**
@@ -76,9 +77,10 @@ public class ExploreSyncHandlerTest extends TestBase {
         support = new RecordingGarminSupport();
         support.setContext(
                 new GBDevice(DEVICE_ADDRESS, "TestFenix", null, null, DeviceType.GARMIN_FENIX_7_PRO),
-                /*btAdapter*/ null,
+                (BluetoothAdapter) null,
                 org.robolectric.RuntimeEnvironment.getApplication());
         support.getDevicePrefs().getPreferences().edit()
+                .putBoolean("garmin_exploresync", true)
                 .putStringSet(GarminPreferences.PREF_GARMIN_CAPABILITIES,
                         Collections.singleton(GarminCapability.EXPLORE_SYNC.name()))
                 .apply();
@@ -647,7 +649,7 @@ public class ExploreSyncHandlerTest extends TestBase {
     /** Bare-bones GarminSupport that records outgoing protobuf requests
      *  instead of dispatching them over BLE. */
     private static class RecordingGarminSupport extends GarminSupport {
-        final List<GdiSmartProto.Smart> outgoing = new ArrayList<>();
+        final List<Smart> outgoing = new ArrayList<>();
 
         @Override
         public BluetoothGattCharacteristic getCharacteristic(final UUID uuid) {
@@ -655,7 +657,7 @@ public class ExploreSyncHandlerTest extends TestBase {
         }
 
         @Override
-        void sendProtobufRequest(final String taskName, final GdiSmartProto.Smart payload) {
+        void sendProtobufRequest(final String taskName, final Smart payload) {
             outgoing.add(payload);
         }
 

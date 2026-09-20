@@ -47,10 +47,12 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit
+import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec
+import nodomain.freeyourgadget.gadgetbridge.model.weather.OwmCondition
+import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDeviceSupport
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.wena3.protocol.packets.notification.defines.VibrationKind
-import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol
 import nodomain.freeyourgadget.gadgetbridge.util.MediaManager
 import nodomain.freeyourgadget.gadgetbridge.util.kotlin.coerceIn
 import org.apache.commons.lang3.ArrayUtils
@@ -63,8 +65,9 @@ import java.util.Calendar
 import java.util.GregorianCalendar
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.roundToInt
 
-class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
+class GloryFitSupport : AbstractBTLESingleDeviceSupport(LOG) {
     init {
         addSupportedService(UUID_SERVICE_GLORYFIT_CMD)
         addSupportedService(UUID_SERVICE_GLORYFIT_DATA)
@@ -624,7 +627,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
 
         val senderOrTitle = notificationSpec.sender.takeIf { !it.isNullOrBlank() } ?: notificationSpec.title
 
-        val payloadString = when {
+        val payloadString: String = when {
             StringUtils.isNotBlank(senderOrTitle) && StringUtils.isNotBlank(notificationSpec.body)
                 -> "${senderOrTitle}: ${notificationSpec.body}"
 
@@ -632,7 +635,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
             StringUtils.isNotBlank(notificationSpec.body) -> notificationSpec.body
 
             else -> "?"
-        }
+        }.toString()
 
         val builder = createTransactionBuilder("send notification")
         sendNotification(
@@ -694,14 +697,14 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         }
 
         if (callSpec.command == CallSpec.CALL_INCOMING) {
-            val caller = when {
+            val caller: String = when {
                 StringUtils.isNotBlank(callSpec.name) && StringUtils.isNotBlank(callSpec.number)
                     -> "${callSpec.name}: ${callSpec.number}"
 
                 StringUtils.isNotBlank(callSpec.name) -> callSpec.name
                 StringUtils.isNotBlank(callSpec.name) -> callSpec.number
                 else -> "?"
-            }
+            }.toString()
 
             val builder = createTransactionBuilder("call incoming")
 
@@ -757,26 +760,28 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
     override fun onSetCannedMessages(cannedMessagesSpec: CannedMessagesSpec) {
         val builder = createTransactionBuilder("set canned messages")
 
-        for ((i, message) in cannedMessagesSpec.cannedMessages.withIndex()) {
-            if (i >= device.deviceCoordinator.getCannedRepliesSlotCount(device)) {
-                LOG.warn(
-                    "Got {} canned messages, over the limit of {}",
-                    cannedMessagesSpec.cannedMessages.size,
-                    device.deviceCoordinator.getCannedRepliesSlotCount(device)
-                )
-                break
-            }
+        cannedMessagesSpec.cannedMessages?.let {
+            for ((i, message) in it.withIndex()) {
+                if (i >= device.deviceCoordinator.getCannedRepliesSlotCount(device)) {
+                    LOG.warn(
+                        "Got {} canned messages, over the limit of {}",
+                        cannedMessagesSpec.cannedMessages!!.size,
+                        device.deviceCoordinator.getCannedRepliesSlotCount(device)
+                    )
+                    break
+                }
 
-            val messageBytes = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncate(message, 24).toByteArray()
-            val buf = ByteBuffer.allocate(5 + messageBytes.size).order(ByteOrder.BIG_ENDIAN)
-            buf.put(CMD_CANNED_MESSAGES)
-            buf.put(CANNED_MESSAGES_SET)
-            buf.put(cannedMessagesSpec.cannedMessages.size.toByte())
-            buf.put(i.toByte())
-            buf.put(messageBytes.size.toByte())
-            buf.put(messageBytes)
-            builder.write(UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE, *buf.array())
-            // TODO do we need to throttle?
+                val messageBytes = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncate(message, 24).toByteArray()
+                val buf = ByteBuffer.allocate(5 + messageBytes.size).order(ByteOrder.BIG_ENDIAN)
+                buf.put(CMD_CANNED_MESSAGES)
+                buf.put(CANNED_MESSAGES_SET)
+                buf.put(cannedMessagesSpec.cannedMessages!!.size.toByte())
+                buf.put(i.toByte())
+                buf.put(messageBytes.size.toByte())
+                buf.put(messageBytes)
+                builder.write(UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE, *buf.array())
+                // TODO do we need to throttle?
+            }
         }
 
         builder.write(
@@ -796,7 +801,7 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
             return
         }
 
-        val stateByte: Byte = if (stateSpec?.state?.toInt() == MusicStateSpec.STATE_PLAYING) {
+        val stateByte: Byte = if (stateSpec.state.toInt() == MusicStateSpec.STATE_PLAYING) {
             MUSIC_STATE_PLAYING
         } else {
             MUSIC_STATE_PAUSED
@@ -861,15 +866,13 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         builder.queue()
     }
 
-    override fun onReset(flags: Int) {
-        if ((flags and GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET) != 0) {
-            val builder = createTransactionBuilder("factory reset")
-            builder.write(
-                UUID_CHARACTERISTIC_GLORYFIT_CMD_WRITE,
-                CMD_FACTORY_RESET
-            )
-            builder.queue()
-        }
+    override fun onFactoryReset() {
+        val builder = createTransactionBuilder("factory reset")
+        builder.write(
+            UUID_CHARACTERISTIC_GLORYFIT_CMD_WRITE,
+            CMD_FACTORY_RESET
+        )
+        builder.queue()
     }
 
     override fun onEnableRealtimeHeartRateMeasurement(enable: Boolean) {
@@ -887,7 +890,135 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
     }
 
     override fun onSendWeather() {
-        // TODO onSendWeather
+        val weather: WeatherSpec = Weather.getWeatherSpec() ?: return
+
+        val builder = createTransactionBuilder("set weather")
+
+        //builder.write(
+        //    UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE,
+        //    *GB.hexStringToByteArray("CB01070013160E0001005000000000000000003607"),
+        //)
+        builder.write(
+            UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE,
+            *byteArrayOf(
+                CMD_WEATHER,
+                WEATHER_CURRENT,
+                mapToGloryFitCondition(weather.currentConditionCode),
+                0x00,
+                encodeTemperature(weather.currentTemp),
+                encodeTemperature(weather.todayMaxTemp),
+                encodeTemperature(weather.todayMinTemp),
+                0x00,
+                0x01,
+                0x00,
+                0x50,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                weather.currentHumidity.toByte(),
+                weather.uvIndex.roundToInt().toByte(),
+            )
+        )
+
+        val forecasts1 = ByteArray(18)
+        forecasts1[0] = CMD_WEATHER
+        forecasts1[1] = WEATHER_FORECAST_1
+        var i = 2
+        weather.forecasts.take(4).forEach { forecast ->
+            forecasts1[i++] = mapToGloryFitCondition(forecast.conditionCode)
+            forecasts1[i++] = 0x00
+            forecasts1[i++] = encodeTemperature(forecast.maxTemp)
+            forecasts1[i++] = encodeTemperature(forecast.minTemp)
+        }
+        builder.write(
+            UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE,
+            *forecasts1,
+        )
+
+        val forecasts2 = ByteArray(18)
+        forecasts2[0] = CMD_WEATHER
+        forecasts2[1] = WEATHER_FORECAST_2
+        i = 2
+        weather.forecasts.drop(4).take(2).forEach { forecast ->
+            forecasts2[i++] = mapToGloryFitCondition(forecast.conditionCode)
+            forecasts2[i++] = 0x00
+            forecasts2[i++] = encodeTemperature(forecast.maxTemp)
+            forecasts2[i++] = encodeTemperature(forecast.minTemp)
+        }
+        builder.write(
+            UUID_CHARACTERISTIC_GLORYFIT_DATA_WRITE,
+            *forecasts2,
+        )
+
+        builder.queue()
+    }
+
+    fun mapToGloryFitCondition(openWeatherMapCondition: Int): Byte {
+        return when (OwmCondition.fromCode(openWeatherMapCondition)) {
+            OwmCondition.THUNDERSTORM_WITH_LIGHT_RAIN -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.THUNDERSTORM_WITH_RAIN -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.THUNDERSTORM_WITH_HEAVY_RAIN -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.LIGHT_THUNDERSTORM -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.THUNDERSTORM -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.HEAVY_THUNDERSTORM -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.RAGGED_THUNDERSTORM -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.THUNDERSTORM_WITH_LIGHT_DRIZZLE -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.THUNDERSTORM_WITH_DRIZZLE -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.THUNDERSTORM_WITH_HEAVY_DRIZZLE -> WEATHER_CONDITION_THUNDERSTORM
+            OwmCondition.LIGHT_INTENSITY_DRIZZLE -> WEATHER_CONDITION_LIGHT_RAIN
+            OwmCondition.DRIZZLE -> WEATHER_CONDITION_LIGHT_RAIN
+            OwmCondition.HEAVY_INTENSITY_DRIZZLE -> WEATHER_CONDITION_LIGHT_RAIN
+            OwmCondition.LIGHT_INTENSITY_DRIZZLE_RAIN -> WEATHER_CONDITION_LIGHT_RAIN
+            OwmCondition.DRIZZLE_RAIN -> WEATHER_CONDITION_LIGHT_RAIN
+            OwmCondition.HEAVY_INTENSITY_DRIZZLE_RAIN -> WEATHER_CONDITION_HEAVY_RAINFALL
+            OwmCondition.SHOWER_RAIN_AND_DRIZZLE -> WEATHER_CONDITION_SHOWER
+            OwmCondition.HEAVY_SHOWER_RAIN_AND_DRIZZLE -> WEATHER_CONDITION_SHOWER
+            OwmCondition.SHOWER_DRIZZLE -> WEATHER_CONDITION_SHOWER
+            OwmCondition.LIGHT_RAIN -> WEATHER_CONDITION_LIGHT_RAIN
+            OwmCondition.MODERATE_RAIN -> WEATHER_CONDITION_LIGHT_RAIN
+            OwmCondition.HEAVY_INTENSITY_RAIN -> WEATHER_CONDITION_HEAVY_RAINFALL
+            OwmCondition.VERY_HEAVY_RAIN -> WEATHER_CONDITION_HEAVY_RAINFALL
+            OwmCondition.EXTREME_RAIN -> WEATHER_CONDITION_HEAVY_RAINFALL
+            OwmCondition.FREEZING_RAIN -> WEATHER_CONDITION_SLEET
+            OwmCondition.LIGHT_INTENSITY_SHOWER_RAIN -> WEATHER_CONDITION_LIGHT_RAIN
+            OwmCondition.SHOWER_RAIN -> WEATHER_CONDITION_SHOWER
+            OwmCondition.HEAVY_INTENSITY_SHOWER_RAIN -> WEATHER_CONDITION_HEAVY_RAINFALL
+            OwmCondition.RAGGED_SHOWER_RAIN -> WEATHER_CONDITION_SHOWER
+            OwmCondition.LIGHT_SNOW -> WEATHER_CONDITION_SNOW
+            OwmCondition.SNOW -> WEATHER_CONDITION_SNOW
+            OwmCondition.HEAVY_SNOW -> WEATHER_CONDITION_SNOW
+            OwmCondition.SLEET -> WEATHER_CONDITION_SLEET
+            OwmCondition.LIGHT_SHOWER_SLEET -> WEATHER_CONDITION_SLEET
+            OwmCondition.SHOWER_SLEET -> WEATHER_CONDITION_SLEET
+            OwmCondition.LIGHT_RAIN_AND_SNOW -> WEATHER_CONDITION_SLEET
+            OwmCondition.RAIN_AND_SNOW -> WEATHER_CONDITION_SLEET
+            OwmCondition.LIGHT_SHOWER_SNOW -> WEATHER_CONDITION_SNOW
+            OwmCondition.SHOWER_SNOW -> WEATHER_CONDITION_SNOW
+            OwmCondition.HEAVY_SHOWER_SNOW -> WEATHER_CONDITION_SNOW
+            OwmCondition.MIST -> WEATHER_CONDITION_HAZE
+            OwmCondition.SMOKE -> WEATHER_CONDITION_HAZE
+            OwmCondition.HAZE -> WEATHER_CONDITION_HAZE
+            OwmCondition.SAND_OR_DUST_WHIRLS -> WEATHER_CONDITION_SANDSTORM
+            OwmCondition.FOG -> WEATHER_CONDITION_HAZE
+            OwmCondition.SAND -> WEATHER_CONDITION_SANDSTORM
+            OwmCondition.DUST -> WEATHER_CONDITION_SANDSTORM
+            OwmCondition.VOLCANIC_ASH -> WEATHER_CONDITION_SANDSTORM
+            OwmCondition.SQUALLS -> WEATHER_CONDITION_WINDY
+            OwmCondition.TORNADO -> WEATHER_CONDITION_WINDY
+            OwmCondition.CLEAR_SKY -> WEATHER_CONDITION_SUNNY
+            OwmCondition.FEW_CLOUDS -> WEATHER_CONDITION_CLOUDY
+            OwmCondition.SCATTERED_CLOUDS -> WEATHER_CONDITION_CLOUDY
+            OwmCondition.BROKEN_CLOUDS -> WEATHER_CONDITION_CLOUDY
+            OwmCondition.OVERCAST_CLOUDS -> WEATHER_CONDITION_OVERCAST
+
+            // Let the 9xx map to unknown, they're not documented
+            else -> WEATHER_CONDITION_UNKNOWN
+        }
     }
 
     override fun onTestNewFunction(options: Bundle?) {
@@ -1379,5 +1510,28 @@ class GloryFitSupport() : AbstractBTLESingleDeviceSupport(LOG) {
         const val CONTACT_SOS_SET: Byte = 0xac.toByte()
         const val CONTACT_SOS_END: Byte = 0xad.toByte()
         const val CMD_FACTORY_RESET: Byte = 0xad.toByte()
+        const val CMD_WEATHER: Byte = 0xcb.toByte()
+        const val WEATHER_CURRENT: Byte = 0x01.toByte()
+        const val WEATHER_FORECAST_1: Byte = 0x02.toByte()
+        const val WEATHER_FORECAST_2: Byte = 0x03.toByte()
+        const val WEATHER_CONDITION_INVALID: Byte = 0x00
+        const val WEATHER_CONDITION_SUNNY: Byte = 0x01
+        const val WEATHER_CONDITION_CLOUDY: Byte = 0x02
+        const val WEATHER_CONDITION_OVERCAST: Byte = 0x03
+        const val WEATHER_CONDITION_SHOWER: Byte = 0x04
+        const val WEATHER_CONDITION_THUNDERSTORM: Byte = 0x05
+        const val WEATHER_CONDITION_SLEET: Byte = 0x06
+        const val WEATHER_CONDITION_LIGHT_RAIN: Byte = 0x07
+        const val WEATHER_CONDITION_HEAVY_RAINFALL: Byte = 0x08
+        const val WEATHER_CONDITION_SNOW: Byte = 0x09
+        const val WEATHER_CONDITION_SANDSTORM: Byte = 0x0a
+        const val WEATHER_CONDITION_HAZE: Byte = 0x0b
+        const val WEATHER_CONDITION_WINDY: Byte = 0x0c
+        const val WEATHER_CONDITION_UNKNOWN: Byte = 0x0d
+
+        fun encodeTemperature(kelvin: Int): Byte {
+            val degC = kelvin - 273
+            return if (degC >= 0) degC.toByte() else (0x80 - degC).toByte()
+        }
     }
 }

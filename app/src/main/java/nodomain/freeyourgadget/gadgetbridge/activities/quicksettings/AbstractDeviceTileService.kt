@@ -33,6 +33,7 @@ import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.dsl.QuickSettingType
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.dsl.QuickSettings
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getDevice
 import org.slf4j.LoggerFactory
 
 /**
@@ -54,12 +55,7 @@ abstract class AbstractDeviceTileService : TileService() {
     // Refreshes the tile whenever device connection state changes while the panel is open.
     private val deviceStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val changedDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(GBDevice.EXTRA_DEVICE, GBDevice::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(GBDevice.EXTRA_DEVICE)
-            }
+            val changedDevice = intent.getDevice()
 
             if (changedDevice == null || changedDevice.address != deviceAddress) {
                 return

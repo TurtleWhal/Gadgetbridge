@@ -44,6 +44,8 @@ import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
 import nodomain.freeyourgadget.gadgetbridge.entities.Device;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
+import nodomain.freeyourgadget.gadgetbridge.widgets.WidgetInstance;
+import nodomain.freeyourgadget.gadgetbridge.widgets.WidgetLayoutStore;
 
 public class ZipBackupImportJob extends AbstractZipBackupJob {
     private static final Logger LOG = LoggerFactory.getLogger(ZipBackupImportJob.class);
@@ -77,6 +79,7 @@ public class ZipBackupImportJob extends AbstractZipBackupJob {
 
             final List<ZipEntry> externalFiles = new ArrayList<>();
             final List<ZipEntry> devicePreferences = new ArrayList<>();
+            final List<ZipEntry> widgetPreferences = new ArrayList<>();
 
             final Enumeration<? extends ZipEntry> entries = zipFile.entries();
             while (entries.hasMoreElements() && !isAborted()) {
@@ -90,10 +93,17 @@ public class ZipBackupImportJob extends AbstractZipBackupJob {
                     externalFiles.add(zipEntry);
                 } else if (zipEntry.getName().startsWith("preferences/device_")) {
                     devicePreferences.add(zipEntry);
+                } else if (zipEntry.getName().startsWith("preferences/widget_")) {
+                    widgetPreferences.add(zipEntry);
                 }
             }
 
-            LOG.debug("Got {} external files, {} device preferences", externalFiles.size(), devicePreferences.size());
+            LOG.debug(
+                    "Got {} external files, {} device preferences, {} widget preferences",
+                    externalFiles.size(),
+                    devicePreferences.size(),
+                    widgetPreferences.size()
+            );
 
             // Restore external files
             final File externalFilesDir = FileUtils.getExternalFilesDir();
@@ -115,8 +125,8 @@ public class ZipBackupImportJob extends AbstractZipBackupJob {
 
                 try (InputStream inputStream = zipFile.getInputStream(externalFile);
                      FileOutputStream fout = new FileOutputStream(targetExternalFile)) {
-                    while (inputStream.available() > 0) {
-                        final int bytes = inputStream.read(copyBuffer);
+                    int bytes;
+                    while ((bytes = inputStream.read(copyBuffer)) > 0) {
                         fout.write(copyBuffer, 0, bytes);
                     }
                 } catch (final Exception e) {
@@ -182,6 +192,34 @@ public class ZipBackupImportJob extends AbstractZipBackupJob {
                                 LOG.warn("Device preferences for {} were not commited", dbDevice.getIdentifier());
                             }
                         }
+                    }
+                }
+            }
+
+            if (isAborted()) return;
+
+            // At this point global preferences (which includes pref_dashboard_layout) are
+            // already restored, so WidgetLayoutStore.load() reflects the imported layout.
+            LOG.debug("Importing widget preferences");
+            for (final WidgetInstance widgetInstance : WidgetLayoutStore.INSTANCE.load()) {
+                if (isAborted()) break;
+
+                LOG.debug("Importing widget preferences for {}", widgetInstance.getInstanceId());
+
+                final SharedPreferences widgetPrefs = GBApplication.getWidgetSharedPrefs(widgetInstance.getInstanceId());
+                if (widgetPrefs == null) {
+                    LOG.debug("Failed to load widget shared preferences for {}", widgetInstance.getInstanceId());
+                    continue;
+                }
+                final ZipEntry widgetPrefsZipEntry = zipFile.getEntry(String.format(Locale.ROOT, PREFS_WIDGET_FILENAME, widgetInstance.getInstanceId()));
+                if (widgetPrefsZipEntry == null) {
+                    LOG.debug("Failed to load widget preferences entry for {}", widgetInstance.getInstanceId());
+                    continue;
+                }
+                try (InputStream widgetPrefsInputStream = zipFile.getInputStream(widgetPrefsZipEntry)) {
+                    final JsonBackupPreferences jsonBackupPreferences = JsonBackupPreferences.fromJson(widgetPrefsInputStream);
+                    if (!jsonBackupPreferences.importInto(widgetPrefs)) {
+                        LOG.warn("Widget preferences for {} were not commited", widgetInstance.getInstanceId());
                     }
                 }
             }

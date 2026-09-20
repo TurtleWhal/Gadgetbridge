@@ -1,4 +1,5 @@
-/*  Copyright (C) 2024 José Rebelo
+/*  Copyright (C) 2024-2026 José Rebelo, Martin.JM, a0z, AndrewP, cooligula,
+        punchdeerflyscorpion, Me7c7, Martin Piatka, Thomas Kuehne, DanyPM, Dany Mestas
 
     This file is part of Gadgetbridge.
 
@@ -15,6 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
+
+import androidx.annotation.StringRes;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -251,79 +254,145 @@ public class ActivitySummaryEntries {
     public static final String REPETITIONS = "workout_repetitions";
     public static final String REVOLUTIONS = "workout_revolutions";
 
+    /// @see R.string.bpm
     public static final String UNIT_BPM = "bpm";
+    /// @see R.string.breaths_per_min
     public static final String UNIT_BREATHS_PER_MIN = "breaths_per_min";
+    /// @see R.string.cm
     public static final String UNIT_CM = "cm";
     public static final String UNIT_UNIX_EPOCH_SECONDS = "unix_epoch_seconds";
+    /// @see R.string.calories_unit
     public static final String UNIT_KCAL = "calories_unit";
+    /// @see R.string.unit_kcal_per_day
     public static final String UNIT_KCAL_PER_DAY = "unit_kcal_per_day";
-    public static final String UNIT_ML = "ml";
+    /// @see R.string.unit_ml
+    public static final String UNIT_ML = "unit_ml";
+    /// @see R.string.laps_unit
     public static final String UNIT_LAPS = "laps_unit";
+    /// @see R.string.km
     public static final String UNIT_KILOMETERS = "km";
+    /// @see R.string.meters
     public static final String UNIT_METERS = "meters";
-    public static final String UNIT_PERCENTAGE = "%";
-    public static final String UNIT_ML_KG_MIN = "ml/kg/min";
+    /// @see R.string.unit_percentage
+    public static final String UNIT_PERCENTAGE = "unit_percentage";
+    /// @see R.string.unit_ml_kg_min
+    public static final String UNIT_ML_KG_MIN = "unit_ml_kg_min";
     public static final String UNIT_NONE = "";
-    public static final String UNIT_HOURS = "hours";
+    /// @see R.string.unit_hours
+    public static final String UNIT_HOURS = "unit_hours";
+    /// @see R.string.seconds
     public static final String UNIT_SECONDS = "seconds";
+    /// @see R.string.milliseconds_ms
     public static final String UNIT_MILLISECONDS = "milliseconds_ms";
+    /// @see R.string.seconds_km
     public static final String UNIT_SECONDS_PER_KM = "seconds_km";
+    /// @see R.string.minutes_km
     public static final String UNIT_MINUTES_PER_KM = "minutes_km";
+    /// @see R.string.seconds_m
     public static final String UNIT_SECONDS_PER_M = "seconds_m";
+    /// @see R.string.centimeters_second
     public static final String UNIT_CENTIMETERS_PER_SECOND = "centimeters_second";
+    /// @see R.string.meters_second
     public static final String UNIT_METERS_PER_SECOND = "meters_second";
+    /// @see R.string.meters_per_hour
     public static final String UNIT_METERS_PER_HOUR = "meters_per_hour";
+    /// @see R.string.km_h
     public static final String UNIT_KMPH = "km_h";
+    /// @see R.string.spm
     public static final String UNIT_SPM = "spm";
+    /// @see R.string.steps_unit
     public static final String UNIT_STEPS = "steps_unit";
+    /// @see R.string.strokes_unit
     public static final String UNIT_STROKES = "strokes_unit";
+    /// @see R.string.strokes_minute
     public static final String UNIT_STROKES_PER_MINUTE = "strokes_minute";
+    /// @see R.string.strokes_second
     public static final String UNIT_STROKES_PER_SECOND = "strokes_second";
+    /// @see R.string.strokes_per_length
     public static final String UNIT_STROKES_PER_LENGTH = "strokes_per_length";
+    /// @see R.string.jumps_unit
     public static final String UNIT_JUMPS = "jumps_unit";
+    /// @see R.string.unit_repetitions
     public static final String UNIT_REPS = "unit_repetitions";
+    /// @see R.string.unit_revolutions
     public static final String UNIT_REVS = "unit_revolutions";
+    /// @see R.string.jumps_minute
     public static final String UNIT_JUMPS_PER_MINUTE = "jumps_minute";
+    /// @see R.string.unit_repetitions_per_minute
     public static final String UNIT_REPS_PER_MINUTE = "unit_repetitions_per_minute";
+    /// @see R.string.unit_revolutions_per_minute
     public static final String UNIT_REVS_PER_MINUTE = "unit_revolutions_per_minute";
+    /// @see R.string.yard
     public static final String UNIT_YARD = "yard";
+    /// @see R.string.degrees
     public static final String UNIT_DEGREES = "degrees";
     public static final String UNIT_STRING = "string";
     public static final String UNIT_RAW_STRING = "raw_string";
-    public static final String UNIT_KG = "kg";
-    public static final String UNIT_LB = "lb";
+    /// @see R.string.unit_kg
+    public static final String UNIT_KG = "unit_kg";
+    /// @see R.string.unit_lb
+    public static final String UNIT_LB = "unit_lb";
+    /// @see R.string.unit_rpm
     public static final String UNIT_RPM = "unit_rpm";
+    /// @see R.string.unit_millimeter
     public static final String UNIT_MM = "unit_millimeter";
+    /// @see R.string.unit_watt
     public static final String UNIT_WATT = "unit_watt";
+    /// @see R.string.unit_joule
     public static final String UNIT_JOULE = "unit_joule";
+    /// @see R.string.unit_kilojoule
+    public static final String UNIT_KILOJOULE = "kilojoule";
+    /// @see R.string.unit_ampere
     public static final String UNIT_AMPERE = "unit_ampere";
+    /// @see R.string.unit_ampere_hour
     public static final String UNIT_AMPERE_HOUR = "unit_ampere_hour";
+    /// @see R.string.minutes_100m
     public static final String UNIT_MINUTES_PER_100_METERS = "minutes_100m";
     public static final String UNIT_SECONDS_PER_100_METERS = "seconds_100m";
+    /// @see R.string.minutes_500m
     public static final String UNIT_MINUTES_PER_500_METERS = "minutes_500m";
     public static final String UNIT_SECONDS_PER_500_METERS = "seconds_500m";
+    /// @see R.string.minutes_100yd
     public static final String UNIT_MINUTES_PER_100_YARDS = "minutes_100yd";
     public static final String UNIT_SECONDS_PER_100_YARDS = "seconds_100yd";
+    /// @see R.string.nautical_miles
     public static final String UNIT_NAUTICAL_MILES = "nautical_miles";
+    /// @see R.string.knots
     public static final String UNIT_KNOTS = "knots";
+    /// @see R.string.unit_celsius
     public static final String UNIT_CELSIUS = "unit_celsius";
+    /// @see R.string.unit_oxygen_toxicity_units
     public static final String UNIT_OXYGEN_TOXICITY_UNITs = "unit_oxygen_toxicity_units";
+    /// @see R.string.unit_bar_per_minute
     public static final String UNIT_BAR_PER_MINUTE = "unit_bar_per_minute";
+    /// @see R.string.unit_volt
     public static final String UNIT_VOLT = "unit_volt";
+    /// @see R.string.unit_kg_per_m3
     public static final String UNIT_KG_PER_M3 = "unit_kg_per_m3";
+    /// @see R.string.unit_bar
     public static final String UNIT_BAR = "unit_bar";
+    /// @see R.string.unit_liter
     public static final String UNIT_LITER = "unit_liter";
     /// UNIX epoc seconds to be formated in local time without showing date
     public static final String UNIT_EPOC_TIME = "unit_epoc_time";
     /// display time including milliseconds if any
     public static final String UNIT_SECONDS_SPORT = "unit_sports_seconds";
+    /// @see R.string.ft
     public static final String UNIT_FOOT = "ft";
+    /// @see R.string.foot_per_hour
     public static final String UNIT_FOOT_PER_HOUR = "foot_per_hour";
+    /// @see R.string.mi
     public static final String UNIT_MILE = "mi";
+    /// @see R.string.mi_h
     public static final String UNIT_MILE_PER_HOUR = "mi_h";
+    /// @see R.string.minutes_mi
     public static final String UNIT_MINUTES_PER_MILE = "minutes_mi";
+    /// @see R.string.unit_inch
     public static final String UNIT_INCH = "unit_inch";
+    /// @see R.string.unit_fahrenheit
     public static final String UNIT_FAHRENHEIT = "unit_fahrenheit";
+    public static final String UNIT_MINUTES = "minutes_unit";
+    public static final String UNIT_LUX_HOURS_KILO = "lux_hours_unit";
 
     public static final String GROUP_PACE = "Pace";
     public static final String GROUP_ACTIVITY = "Activity";
@@ -344,6 +413,7 @@ public class ActivitySummaryEntries {
     public static final String GROUP_TRAINING_EFFECT = "TrainingEffect";
     public static final String GROUP_LAPS = "laps";
     public static final String GROUP_RUNNING_FORM = "RunningForm";
+    public static final String GROUP_PERFORMANCE_CONDITION = "performance_condition";
     public static final String GROUP_INTERVALS = "workout_intervals";
     public static final String GROUP_DIVING = "activity_type_diving";
     public static final String GROUP_RECOVERY_HEART_RATE = "recovery_heart_rate";

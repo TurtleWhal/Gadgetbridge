@@ -67,11 +67,11 @@ public class TextReceiverActivity extends AbstractGBActivity {
         final String appName = getApplicationContext().getApplicationInfo()
                 .loadLabel(getApplicationContext().getPackageManager())
                 .toString();
-        notificationSpec.title = appName;
-        notificationSpec.body = text;
-        notificationSpec.sourceAppId = BuildConfig.APPLICATION_ID;
-        notificationSpec.sourceName = appName;
-        notificationSpec.type = NotificationType.GADGETBRIDGE_TEXT_RECEIVER;
+        notificationSpec.setTitle(appName);
+        notificationSpec.setBody(text);
+        notificationSpec.setSourceAppId(BuildConfig.APPLICATION_ID);
+        notificationSpec.setSourceName(appName);
+        notificationSpec.setType(NotificationType.GADGETBRIDGE_TEXT_RECEIVER);
 
         GBApplication.deviceService().onNotification(notificationSpec);
         finish();

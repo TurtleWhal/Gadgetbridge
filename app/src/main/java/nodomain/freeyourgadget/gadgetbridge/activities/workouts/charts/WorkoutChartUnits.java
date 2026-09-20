@@ -26,6 +26,7 @@ import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_500_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_KM;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.WorkoutValueFormatter;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
@@ -120,7 +121,7 @@ public class WorkoutChartUnits {
             case STEP_LENGTH:
                 return authority.convert(value, UNIT_MM, true).value;
             case TEMPERATURE:
-                return fahrenheit ? value * 1.8 + 32 : value;
+                return fahrenheit ? TemperatureUtils.celsiusToFahrenheit(value) : value;
             default:
                 return value;
         }

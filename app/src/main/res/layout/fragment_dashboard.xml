@@ -41,14 +41,10 @@
             android:layout_alignParentRight="true" />
     </RelativeLayout>
 
-    <androidx.core.widget.NestedScrollView
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/dashboard_recyclerview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <androidx.gridlayout.widget.GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/dashboard_gridlayout"
-            app:columnCount="2" />
-    </androidx.core.widget.NestedScrollView>
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        tools:listitem="@layout/dashboard_widget_card" />
 </LinearLayout>

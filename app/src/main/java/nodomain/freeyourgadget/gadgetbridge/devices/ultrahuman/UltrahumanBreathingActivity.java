@@ -31,10 +31,11 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.DecimalFormat;
 import java.util.Calendar;
 import java.util.Locale;
 
-import lineageos.weather.util.WeatherUtils;
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -55,7 +56,7 @@ public class UltrahumanBreathingActivity extends AbstractGBActivity {
     private TextView UiTime;
 
     private TextView UiBatGadget;
-    private boolean MetricUnits;
+    private TemperatureUnit temperatureUnit;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,11 +82,10 @@ public class UltrahumanBreathingActivity extends AbstractGBActivity {
         filter.addAction(UltrahumanConstants.ACTION_EXERCISE_UPDATE);
         LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(UpdateReceiver, filter);
 
-        final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
-        MetricUnits = temperatureUnit == TemperatureUnit.CELSIUS;
+        temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
 
         Button temperatureUom = findViewById(R.id.ultrahuman_exercise_temperature_uom);
-        temperatureUom.setText(MetricUnits ? R.string.unit_celsius : R.string.unit_fahrenheit);
+        temperatureUom.setText("");
 
         changeExercise(UltrahumanExercise.CHECK);
     }
@@ -148,15 +148,7 @@ public class UltrahumanBreathingActivity extends AbstractGBActivity {
                     }
 
                     if (data.Temperature > -1) {
-                        double degree;
-                        if (MetricUnits) {
-                            degree = data.Temperature;
-                        } else {
-                            degree = WeatherUtils.celsiusToFahrenheit(data.Temperature);
-                        }
-
-                        String temp = getString(R.string.ultrahuman_exercise_temperature_format, degree);
-                        UiTemp.setText(temp);
+                        UiTemp.setText(TemperatureUtils.formatAndConvert(data.Temperature, TemperatureUnit.CELSIUS, temperatureUnit, new DecimalFormat("0.000")));
                     } else {
                         UiTemp.setText("");
                     }

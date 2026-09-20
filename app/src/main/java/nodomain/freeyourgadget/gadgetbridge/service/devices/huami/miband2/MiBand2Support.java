@@ -51,18 +51,18 @@ public class MiBand2Support extends HuamiSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        if (notificationSpec.type == NotificationType.GENERIC_ALARM_CLOCK) {
+        if (notificationSpec.getType() == NotificationType.GENERIC_ALARM_CLOCK) {
             onAlarmClock(notificationSpec);
             return;
         }
 
         int alertLevel = HuamiService.ALERT_LEVEL_MESSAGE;
-        if (notificationSpec.type == NotificationType.UNKNOWN) {
+        if (notificationSpec.getType() == NotificationType.UNKNOWN) {
             alertLevel = HuamiService.ALERT_LEVEL_VIBRATE_ONLY;
         }
         String message = NotificationUtils.getPreferredTextFor(notificationSpec, 40, 40, getContext()).trim();
-        String origin = notificationSpec.type.getGenericType();
-        SimpleNotification simpleNotification = new SimpleNotification(message, BLETypeConversions.toAlertCategory(notificationSpec.type), notificationSpec.type);
+        String origin = notificationSpec.getType().getGenericType();
+        SimpleNotification simpleNotification = new SimpleNotification(message, BLETypeConversions.toAlertCategory(notificationSpec.getType()), notificationSpec.getType());
         performPreferredNotification(origin + " received", origin, simpleNotification, alertLevel, null);
     }
 
@@ -75,7 +75,7 @@ public class MiBand2Support extends HuamiSupport {
             }
         };
         String message = NotificationUtils.getPreferredTextFor(notificationSpec, 40, 40, getContext());
-        SimpleNotification simpleNotification = new SimpleNotification(message, AlertCategory.HighPriorityAlert, notificationSpec.type);
+        SimpleNotification simpleNotification = new SimpleNotification(message, AlertCategory.HighPriorityAlert, notificationSpec.getType());
         performPreferredNotification("alarm clock ringing", MiBandConst.ORIGIN_ALARM_CLOCK, simpleNotification, HuamiService.ALERT_LEVEL_VIBRATE_ONLY, abortAction);
     }
 

@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -144,7 +143,7 @@ public class ZeppOsFwHelper {
             return;
         }
 
-        final byte[] header = getHeader(file, 4);
+        final byte[] header = FileUtils.getHeader(file, 4);
         if (header == null) {
             return;
         }
@@ -527,23 +526,6 @@ public class ZeppOsFwHelper {
             LOG.error("Failed to read {}", path, e);
             return null;
         }
-    }
-
-    @Nullable
-    public static byte[] getHeader(final File file, final int bytes) {
-        final byte[] header = new byte[bytes];
-
-        try (InputStream is = new FileInputStream(file)) {
-            if (is.read(header) != header.length) {
-                LOG.warn("Read unexpected number of header bytes");
-                return null;
-            }
-        } catch (final IOException e) {
-            LOG.error("Error while reading header bytes", e);
-            return null;
-        }
-
-        return header;
     }
 
     public static boolean searchString(final byte[] fwBytes, final String str) {

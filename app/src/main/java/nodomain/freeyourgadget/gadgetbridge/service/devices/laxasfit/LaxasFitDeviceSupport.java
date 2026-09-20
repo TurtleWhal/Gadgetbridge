@@ -116,6 +116,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Locale;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.SettingsActivity;
@@ -404,7 +405,7 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
         LOG.debug("LaxasFit send call notification");
         TransactionBuilder builder = createTransactionBuilder("CALL");
 
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             try {
@@ -412,12 +413,12 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 outputStream.write(0x0);
                 outputStream.write(0x0);
 
-                if (callSpec.name != null) {
-                    outputStream.write(callSpec.name.getBytes(StandardCharsets.UTF_8));
+                if (callSpec.getName() != null) {
+                    outputStream.write(callSpec.getName().getBytes(StandardCharsets.UTF_8));
                     outputStream.write(0x20);
                 }
-                if (callSpec.number != null) {
-                    outputStream.write(callSpec.number.getBytes(StandardCharsets.UTF_8));
+                if (callSpec.getNumber() != null) {
+                    outputStream.write(callSpec.getNumber().getBytes(StandardCharsets.UTF_8));
                     outputStream.write(0x20);
                 }
 
@@ -515,8 +516,8 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
         byte weatherUnit = 0;
         final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
         if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
-            todayMax = (short) (todayMax * 1.8f + 32);
-            todayMin = (short) (todayMin * 1.8f + 32);
+            todayMax = (short) TemperatureUtils.celsiusToFahrenheit(todayMax);
+            todayMin = (short) TemperatureUtils.celsiusToFahrenheit(todayMin);
             weatherUnit = 1;
         }
 
@@ -533,10 +534,10 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        LOG.debug("LaxasFit notification: " + notificationSpec.type);
+        LOG.debug("LaxasFit notification: " + notificationSpec.getType());
         TransactionBuilder builder = createTransactionBuilder("notification");
         byte icon = NOTIFICATION_ICON_SMS;
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case GENERIC_SMS:
                 icon = NOTIFICATION_ICON_SMS;
                 break;
@@ -576,22 +577,22 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
             outputStream.write(0x0);
             outputStream.write(0x0);
 
-            if (notificationSpec.sender != null) {
-                outputStream.write(notificationSpec.sender.getBytes(StandardCharsets.UTF_8));
+            if (notificationSpec.getSender() != null) {
+                outputStream.write(notificationSpec.getSender().getBytes(StandardCharsets.UTF_8));
                 outputStream.write(0x20);
             } else {
-                if (notificationSpec.phoneNumber != null) { //use number only if there is no sender
-                    outputStream.write(notificationSpec.phoneNumber.getBytes(StandardCharsets.UTF_8));
+                if (notificationSpec.getPhoneNumber() != null) { //use number only if there is no sender
+                    outputStream.write(notificationSpec.getPhoneNumber().getBytes(StandardCharsets.UTF_8));
                     outputStream.write(0x20);
                 }
             }
 
-            if (notificationSpec.subject != null) {
-                outputStream.write(notificationSpec.subject.getBytes(StandardCharsets.UTF_8));
+            if (notificationSpec.getSubject() != null) {
+                outputStream.write(notificationSpec.getSubject().getBytes(StandardCharsets.UTF_8));
                 outputStream.write(0x20);
             }
-            if (notificationSpec.body != null) {
-                outputStream.write(notificationSpec.body.getBytes(StandardCharsets.UTF_8));
+            if (notificationSpec.getBody() != null) {
+                outputStream.write(notificationSpec.getBody().getBytes(StandardCharsets.UTF_8));
                 outputStream.write(0x20);
             }
 
@@ -919,18 +920,17 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
-        LOG.debug("LaxasFit reset flags: " + flags);
-        byte[] command = craftData(CMD_GROUP_RESET, CMD_RESET);
-        switch (flags) {
-            case 1:
-                command = craftData(CMD_GROUP_RESET, CMD_RESET);
-                break;
-            case 2:
-                command = craftData(CMD_GROUP_BIND, CMD_UNBIND);
-                break;
-        }
+    public void onReboot() {
+        final byte[] command = craftData(CMD_GROUP_RESET, CMD_RESET);
+        getQueue().clear();
+        TransactionBuilder builder = createTransactionBuilder("rebooting");
+        builder.write(writeCharacteristic, command);
+        builder.queue();
+    }
 
+    @Override
+    public void onFactoryReset() {
+        final byte[] command = craftData(CMD_GROUP_BIND, CMD_UNBIND);
         getQueue().clear();
         TransactionBuilder builder = createTransactionBuilder("resetting");
         builder.write(writeCharacteristic, command);
@@ -1175,7 +1175,7 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     public void handleSleepData(byte[] value) {
-        LOG.debug("SLEEP data: {}", GB.hexdump(value));
+        LOG.debug("SLEEP data: {}", GB.lazyHexdump(value));
         // sleep packet consists of: date + list of 4bytes of 15minutes intervals
         // these intervals contain seconds offset from the date and type of sleep
         final ActivityKind[] SleepKind={ActivityKind.LIGHT_SLEEP, ActivityKind.DEEP_SLEEP, ActivityKind.AWAKE_SLEEP, ActivityKind.REM_SLEEP};
@@ -1208,7 +1208,7 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     public void handleDayTotalsData(byte[] value) {
-        LOG.debug("STEP data: {}", GB.hexdump(value));
+        LOG.debug("STEP data: {}", GB.lazyHexdump(value));
         ByteBuffer buf = ByteBuffer.wrap(value);
         // generate sample
         LaxasFitActivitySample sample = new LaxasFitActivitySample();
@@ -1221,7 +1221,7 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
         addGBActivitySample(sample);
     }
     public void handleStepData(byte[] value) {
-        LOG.debug("STEPS data: {}", GB.hexdump(value));
+        LOG.debug("STEPS data: {}", GB.lazyHexdump(value));
         // sleep packet consists of: date + list of 4bytes of 15minutes intervals
         // these intervals contain seconds offset from the date and type of sleep
         ByteBuffer buf = ByteBuffer.wrap(value);
@@ -1243,7 +1243,7 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     public void handleHR(byte[] value) {
-        LOG.debug("HR data: {}", GB.hexdump(value));
+        LOG.debug("HR data: {}", GB.lazyHexdump(value));
         ByteBuffer buf = ByteBuffer.wrap(value);
         Calendar date = decodeDateTime(buf.getShort(0));
         int timestamp = (int)(date.getTimeInMillis()/1000L);
@@ -1263,7 +1263,7 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     public void handleBP(byte[] value) {
-        LOG.debug("BP data: {}", GB.hexdump(value));
+        LOG.debug("BP data: {}", GB.lazyHexdump(value));
         ByteBuffer buf = ByteBuffer.wrap(value);
         Calendar date = decodeDateTime(buf.getShort(0));
         int timestamp = (int)(date.getTimeInMillis()/1000L);
@@ -1285,7 +1285,7 @@ public class LaxasFitDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     public void handleSPO2(byte[] value) {
-        LOG.debug("SPO2 data: {}", GB.hexdump(value));
+        LOG.debug("SPO2 data: {}", GB.lazyHexdump(value));
         ByteBuffer buf = ByteBuffer.wrap(value);
         Calendar date = decodeDateTime(buf.getShort(0));
         int timestamp = (int)(date.getTimeInMillis()/1000L);

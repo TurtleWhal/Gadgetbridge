@@ -17,22 +17,49 @@
 package nodomain.freeyourgadget.gadgetbridge.activities.endurain
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import java.security.GeneralSecurityException
 
+// FIXME MasterKey/EncryptedSharedPreferences is deprecated - we should move to Tink
+@Suppress("DEPRECATION")
 class WandererTokenManager(context: Context) {
+    companion object {
+        private val LOG: Logger = LoggerFactory.getLogger(WandererTokenManager::class.java)
+    }
+
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
-    private val tokenPreferences = EncryptedSharedPreferences.create(
-        context,
-        "wanderer_tokens",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val tokenPreferences = createPreferences(context)
+
+    private fun createPreferences(context: Context): SharedPreferences {
+        return try {
+            EncryptedSharedPreferences.create(
+                context,
+                "wanderer_tokens",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: GeneralSecurityException) {
+            LOG.warn("Unable to decrypt wanderer token preferences, resetting them instead\n", e)
+            context.getSharedPreferences("wanderer_tokens", Context.MODE_PRIVATE)
+                .edit(commit = true) { clear() }
+            EncryptedSharedPreferences.create(
+                context,
+                "wanderer_tokens",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
+    }
 
     fun saveToken(apiToken: String) {
         tokenPreferences.edit {
@@ -45,6 +72,18 @@ class WandererTokenManager(context: Context) {
     }
 
     fun getAPIToken(): String? = tokenPreferences.getString("api_token", null)
+
+    /**
+     * Stores the account's Wanderer handle, the `preferred_username` half of `@user@domain`. Trail
+     * pages are namespaced by their owner's handle, so a link to one cannot be built without it.
+     */
+    fun saveHandle(handle: String) {
+        tokenPreferences.edit {
+            putString("handle", handle)
+        }
+    }
+
+    fun getHandle(): String? = tokenPreferences.getString("handle", null)
 
     fun isLoggedIn(): Boolean {
         return getAPIToken() != null && getAPIToken()?.startsWith("wanderer_key_") == true

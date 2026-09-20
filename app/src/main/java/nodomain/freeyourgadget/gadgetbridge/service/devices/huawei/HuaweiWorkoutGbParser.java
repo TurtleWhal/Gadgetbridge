@@ -16,9 +16,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei;
 
+import static nodomain.freeyourgadget.gadgetbridge.activities.workouts.WorkoutValueFormatter.getUnitString;
+
 import android.content.Context;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.github.mikephil.charting.data.Entry;
@@ -38,6 +41,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import de.greenrobot.dao.query.CloseableListIterator;
@@ -202,13 +206,13 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
                 ActivitySummaryEntries.GROUP_SWIMMING,
                 new LineData(dataset),
                 null,
-                DefaultWorkoutCharts.getUnitString(context, ActivitySummaryEntries.UNIT_NONE)
+                getUnitString(context, ActivitySummaryEntries.UNIT_NONE)
         );
     }
 
     private static WorkoutChart createStrokeRateChart(final Context context,
                                                       final List<Entry> strokesDataPoints) {
-        final String label = String.format("%s (%s)", context.getString(R.string.stroke_rate), DefaultWorkoutCharts.getUnitString(context, ActivitySummaryEntries.UNIT_STROKES_PER_MINUTE));
+        final String label = String.format("%s (%s)", context.getString(R.string.stroke_rate), getUnitString(context, ActivitySummaryEntries.UNIT_STROKES_PER_MINUTE));
         final LineDataSet dataset = DefaultWorkoutCharts.createLineDataSet(context, strokesDataPoints, label, ContextCompat.getColor(context, R.color.chart_line_stroke_rate));
         return new WorkoutChart(
                 "strokesRate",
@@ -216,13 +220,13 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
                 ActivitySummaryEntries.GROUP_STROKES,
                 new LineData(dataset),
                 null,
-                DefaultWorkoutCharts.getUnitString(context, ActivitySummaryEntries.UNIT_STROKES_PER_MINUTE)
+                getUnitString(context, ActivitySummaryEntries.UNIT_STROKES_PER_MINUTE)
         );
     }
 
     private static WorkoutChart createFrequencyChart(final Context context,
                                                      final List<Entry> frequencyDataPoints) {
-        final String label = String.format("%s (%s)", context.getString(R.string.Speed), DefaultWorkoutCharts.getUnitString(context, ActivitySummaryEntries.UNIT_JUMPS_PER_MINUTE));
+        final String label = String.format("%s (%s)", context.getString(R.string.Speed), getUnitString(context, ActivitySummaryEntries.UNIT_JUMPS_PER_MINUTE));
         final LineDataSet dataset = DefaultWorkoutCharts.createLineDataSet(context, frequencyDataPoints, label, ContextCompat.getColor(context, R.color.chart_line_speed));
         return new WorkoutChart(
                 "frequency",
@@ -230,7 +234,7 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
                 ActivitySummaryEntries.GROUP_JUMPS,
                 new LineData(dataset),
                 null,
-                DefaultWorkoutCharts.getUnitString(context, ActivitySummaryEntries.UNIT_JUMPS_PER_MINUTE)
+                getUnitString(context, ActivitySummaryEntries.UNIT_JUMPS_PER_MINUTE)
         );
     }
 
@@ -573,31 +577,34 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
         };
     }
 
-    public void parseWorkout(Long workoutId) {
+    @Nullable
+    public BaseActivitySummary parseWorkout(final Long workoutId) {
         LOG.debug("Parsing workout ID {}", workoutId);
         if (workoutId == null)
-            return;
+            return null;
 
         try (DBHandler db = GBApplication.acquireDB()) {
             final DaoSession session = db.getDaoSession();
             final Device device = DBHelper.getDevice(gbDevice, session);
-            parseWorkout(session, workoutId, device.getId());
+            return parseWorkout(session, workoutId, Objects.requireNonNull(device.getId()));
         } catch (Exception e) {
             GB.toast("Exception parsing workout data", Toast.LENGTH_SHORT, GB.ERROR, e);
             LOG.error("Exception parsing workout data", e);
         }
+
+        return null;
     }
 
-    public void parseWorkout(final DaoSession session, final Long workoutId, final long deviceId) {
+    public BaseActivitySummary parseWorkout(final DaoSession session, final Long workoutId, final long deviceId) {
         if (workoutId == null)
-            return;
+            return null;
 
         QueryBuilder<HuaweiWorkoutSummarySample> qbSummary = session.getHuaweiWorkoutSummarySampleDao().queryBuilder().where(
                 HuaweiWorkoutSummarySampleDao.Properties.WorkoutId.eq(workoutId)
         );
         List<HuaweiWorkoutSummarySample> summarySamples = qbSummary.build().list();
         if (summarySamples.size() != 1)
-            return;
+            return null;
         HuaweiWorkoutSummarySample summary = summarySamples.get(0);
 
         final BaseActivitySummary baseSummary = ActivitySummaryParser.findOrCreateBaseActivitySummary(
@@ -610,6 +617,8 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
         updateBaseSummary(session, summary, baseSummary, activityPoints);
 
         session.getBaseActivitySummaryDao().insertOrReplace(baseSummary);
+
+        return baseSummary;
     }
 
     public static Integer parseAndValidatePostureType(final String postureType) {
@@ -697,7 +706,7 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
 
     private static WorkoutChart createRecoveryHeartRateChart(final Context context,
                                                              final List<Entry> heartRateDataPoints) {
-        final String label = String.format("%s(%s)", context.getString(R.string.recovery_heart_rate), DefaultWorkoutCharts.getUnitString(context, ActivitySummaryEntries.UNIT_BPM));
+        final String label = String.format("%s(%s)", context.getString(R.string.recovery_heart_rate), getUnitString(context, ActivitySummaryEntries.UNIT_BPM));
         final LineDataSet dataset = DefaultWorkoutCharts.createLineDataSet(context, heartRateDataPoints, label, ContextCompat.getColor(context, R.color.chart_line_heart_rate));
         return new WorkoutChart(
                 "recovery_heart_rate",
@@ -705,7 +714,7 @@ public class HuaweiWorkoutGbParser implements ActivitySummaryParser {
                 ActivitySummaryEntries.GROUP_RECOVERY_HEART_RATE,
                 new LineData(dataset),
                 null,
-                DefaultWorkoutCharts.getUnitString(context, ActivitySummaryEntries.UNIT_BPM)
+                getUnitString(context, ActivitySummaryEntries.UNIT_BPM)
         );
     }
 

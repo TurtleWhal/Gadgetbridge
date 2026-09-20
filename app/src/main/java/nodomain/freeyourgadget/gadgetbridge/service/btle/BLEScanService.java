@@ -104,7 +104,7 @@ public class BLEScanService extends Service {
             super.onScanResult(callbackType, result);
             BluetoothDevice device = result.getDevice();
 
-            LOG.debug("onScanResult: " + result);
+            LOG.debug("onScanResult: {}", result);
 
             Intent intent = new Intent(EVENT_DEVICE_FOUND);
             intent.putExtra(EXTRA_DEVICE_ADDRESS, device.getAddress());

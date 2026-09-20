@@ -57,8 +57,8 @@ public class HuaweiFreebudsSettingsCustomizer implements DeviceSpecificSettingsC
             final Preference voiceBoost = handler.findPreference(PREF_HUAWEI_FREEBUDS_VOICE_BOOST);
 
             final Preference.OnPreferenceChangeListener audioModePrefListener = (preference, newVal) -> {
-                boolean isNoiseCancellationEnabled = SetAudioModeRequest.AudioMode.ANC.name().toLowerCase(Locale.getDefault()).equals(newVal);
-                boolean isTransparencyEnabled = SetAudioModeRequest.AudioMode.TRANSPARENCY.name().toLowerCase(Locale.getDefault()).equals(newVal);
+                boolean isNoiseCancellationEnabled = SetAudioModeRequest.AudioMode.ANC.name().toLowerCase(Locale.ROOT).equals(newVal);
+                boolean isTransparencyEnabled = SetAudioModeRequest.AudioMode.TRANSPARENCY.name().toLowerCase(Locale.ROOT).equals(newVal);
                 if (ancMode != null)
                     ancMode.setVisible(isNoiseCancellationEnabled);
                 if (voiceBoost != null)

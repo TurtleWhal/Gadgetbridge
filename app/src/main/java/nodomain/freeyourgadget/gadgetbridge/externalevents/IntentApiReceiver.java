@@ -164,46 +164,46 @@ public class IntentApiReceiver extends BroadcastReceiver {
                     return;
                 }
                 NotificationSpec notificationSpec = new NotificationSpec();
-                notificationSpec.sender = intent.getStringExtra("sender");
-                if (notificationSpec.sender == null) {
-                    notificationSpec.sender = "DEBUG Sender";
+                notificationSpec.setSender(intent.getStringExtra("sender"));
+                if (notificationSpec.getSender() == null) {
+                    notificationSpec.setSender("DEBUG Sender");
                 }
-                notificationSpec.phoneNumber = intent.getStringExtra("phoneNumber");
-                if (notificationSpec.phoneNumber == null) {
-                    notificationSpec.phoneNumber = "DEBUG PhoneNumber";
+                notificationSpec.setPhoneNumber(intent.getStringExtra("phoneNumber"));
+                if (notificationSpec.getPhoneNumber() == null) {
+                    notificationSpec.setPhoneNumber("DEBUG PhoneNumber");
                 }
-                notificationSpec.subject = intent.getStringExtra("subject");
-                if (notificationSpec.subject == null) {
-                    notificationSpec.subject = "DEBUG Subject";
+                notificationSpec.setSubject(intent.getStringExtra("subject"));
+                if (notificationSpec.getSubject() == null) {
+                    notificationSpec.setSubject("DEBUG Subject");
                 }
-                notificationSpec.body = intent.getStringExtra("body");
-                if (notificationSpec.body == null) {
-                    notificationSpec.body = "DEBUG Body";
+                notificationSpec.setBody(intent.getStringExtra("body"));
+                if (notificationSpec.getBody() == null) {
+                    notificationSpec.setBody("DEBUG Body");
                 }
-                notificationSpec.type = NotificationType.GENERIC_SMS;
+                notificationSpec.setType(NotificationType.GENERIC_SMS);
                 if (intent.getStringExtra("type") != null) {
                     try {
-                        notificationSpec.type = NotificationType.valueOf(intent.getStringExtra("type"));
+                        notificationSpec.setType(NotificationType.valueOf(intent.getStringExtra("type")));
                     } catch (IllegalArgumentException e) {
                         LOG.error("Failed to parse notification type {}", intent.getStringExtra("type"), e);
                     }
                 }
-                if (notificationSpec.type != NotificationType.GENERIC_SMS) {
+                if (notificationSpec.getType() != NotificationType.GENERIC_SMS) {
                     // SMS notifications don't have a source app ID when sent by the SMSReceiver,
                     // so let's not set it here as well for consistency
-                    notificationSpec.sourceAppId = BuildConfig.APPLICATION_ID;
+                    notificationSpec.setSourceAppId(BuildConfig.APPLICATION_ID);
                 }
-                notificationSpec.sourceName = context.getApplicationInfo()
+                notificationSpec.setSourceName(context.getApplicationInfo()
                         .loadLabel(context.getPackageManager())
-                        .toString();
-                notificationSpec.attachedActions = new ArrayList<>();
-                notificationSpec.picturePath = intent.getStringExtra("picturePath");
-                if (notificationSpec.type == NotificationType.GENERIC_SMS) {
+                        .toString());
+                notificationSpec.setAttachedActions(new ArrayList<>());
+                notificationSpec.setPicturePath(intent.getStringExtra("picturePath"));
+                if (notificationSpec.getType() == NotificationType.GENERIC_SMS) {
                     // REPLY action
                     NotificationSpec.Action replyAction = new NotificationSpec.Action();
-                    replyAction.title = context.getString(R.string._pebble_watch_reply);
-                    replyAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_REPLY_PHONENR;
-                    notificationSpec.attachedActions.add(replyAction);
+                    replyAction.setTitle(context.getString(R.string._pebble_watch_reply));
+                    replyAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_REPLY_PHONENR);
+                    notificationSpec.getAttachedActions().add(replyAction);
                 }
 
                 DeviceService deviceService = getDeviceService(intent);
@@ -221,10 +221,10 @@ public class IntentApiReceiver extends BroadcastReceiver {
                     return;
                 }
                 CallSpec callSpec = new CallSpec();
-                callSpec.command = CallSpec.CALL_INCOMING;
-                callSpec.number = intent.getStringExtra("caller");
-                if (callSpec.number == null) {
-                    callSpec.number = "DEBUG_INCOMING_CALL";
+                callSpec.setCommand(CallSpec.CALL_INCOMING);
+                callSpec.setNumber(intent.getStringExtra("caller"));
+                if (callSpec.getNumber() == null) {
+                    callSpec.setNumber("DEBUG_INCOMING_CALL");
                 }
                 DeviceService deviceService = getDeviceService(intent);
                 if (deviceService != null) {
@@ -241,7 +241,7 @@ public class IntentApiReceiver extends BroadcastReceiver {
                     return;
                 }
                 CallSpec callSpecEnd = new CallSpec();
-                callSpecEnd.command = CallSpec.CALL_END;
+                callSpecEnd.setCommand(CallSpec.CALL_END);
 
                 DeviceService deviceService = getDeviceService(intent);
                 if (deviceService != null) {

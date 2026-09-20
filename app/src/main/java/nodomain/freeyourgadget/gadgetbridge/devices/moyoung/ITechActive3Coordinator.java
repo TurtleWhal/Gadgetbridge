@@ -55,11 +55,6 @@ public class ITechActive3Coordinator extends AbstractMoyoungDeviceCoordinator {
     }
 
     @Override
-    public boolean supportsHeartRateRestingMeasurement(@NonNull GBDevice device) {
-        return true;
-    }
-
-    @Override
     public boolean supportsManualHeartRateMeasurement(@NonNull GBDevice device) {
         return true;
     }
@@ -71,11 +66,6 @@ public class ITechActive3Coordinator extends AbstractMoyoungDeviceCoordinator {
 
     @Override
     public boolean supportsSleepMeasurement(@NonNull GBDevice device) {
-        return true;
-    }
-
-    @Override
-    public boolean supportsSleepScore(@NonNull GBDevice device) {
         return true;
     }
 

@@ -21,7 +21,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.adapter.foss
 
 public class PlayTextNotificationRequest extends PlayNotificationRequest {
     public PlayTextNotificationRequest(String packageName, String sender, NotificationSpec notificationSpec, FossilWatchAdapter adapter) {
-        super(NotificationType.NOTIFICATION, 0x02 | notificationSpec.dndSuppressed, packageName, sender, notificationSpec.body, notificationSpec.getId(), adapter);
+        super(NotificationType.NOTIFICATION, 0x02 | notificationSpec.getDndSuppressed(), packageName, sender, notificationSpec.getBody(), notificationSpec.getId(), adapter);
     }
 
     public PlayTextNotificationRequest(String packageName, FossilWatchAdapter adapter) {

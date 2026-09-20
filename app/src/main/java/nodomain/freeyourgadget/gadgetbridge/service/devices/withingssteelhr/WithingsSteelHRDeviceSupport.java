@@ -334,15 +334,15 @@ public class WithingsSteelHRDeviceSupport extends AbstractBTLESingleDeviceSuppor
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             NotificationSpec notificationSpec = new NotificationSpec();
-            notificationSpec.sourceAppId = "incoming.call";
-            notificationSpec.title = callSpec.number;
-            notificationSpec.sender = callSpec.name;
-            notificationSpec.type = NotificationType.GENERIC_PHONE;
+            notificationSpec.setSourceAppId("incoming.call");
+            notificationSpec.setTitle(callSpec.getNumber());
+            notificationSpec.setSender(callSpec.getName());
+            notificationSpec.setType(NotificationType.GENERIC_PHONE);
             notificationProvider.notifyClient(notificationSpec);
         } else {
-            logger.info("Received yet unhandled call command: " + callSpec.command);
+            logger.info("Received yet unhandled call command: " + callSpec.getCommand());
         }
     }
 

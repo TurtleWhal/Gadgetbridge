@@ -1666,7 +1666,6 @@
     <string name="pref_summary_garmin_default_reply_suffix">Anexado além do sufixo definido em Gadgetbridge</string>
     <string name="pref_sleepasandroid_features_title">Recursos</string>
     <string name="pref_sleepasandroid_feat_notifications">Notificações</string>
-    <string name="pref_sleepasandroid_feat_spo2">SPO2</string>
     <string name="pref_speak_notifications_focus_exclusive_summary_off">O volume de reprodução de outros aplicações será reduzido enquanto a notificação estiver a ser falada</string>
     <string name="pref_summary_huawei_account">Conta da Huawei usada no processo de emparelhamento. A sua configuração permite emparelhar sem redefinição de fábrica.</string>
     <string name="watchface_resolution_doesnt_match">A resolução do mostrador do relógio não corresponde ao ecrã do dispositivo. O mostrador do relógio é %1$s e o ecrã do dispositivo é %2$s</string>
@@ -1815,7 +1814,7 @@
 \nA sua pulseira será reiniciada após a instalação do ficheiro .zip.
 \n
 \nPROSSIGA POR SUA PRÓPRIA CONTA E RISCO!</string>
-    <string name="fw_upgrade_notice_zepp_os">Está prestes a instalar o firmware %s no seu %s. \n \nA sua pulseira será reiniciada após a instalação do ficheiro .zip. \n \nPROSSIGA POR SUA PRÓPRIA CONTA E RISCO!</string>
+    <string name="fw_upgrade_notice_zepp_os">Está prestes a instalar o firmware %1$s no seu %2$s. \n \nA sua pulseira será reiniciada após a instalação do ficheiro .zip. \n \nPROSSIGA POR SUA PRÓPRIA CONTA E RISCO!</string>
     <string name="pref_pair_bluetooth_calls_help_summary">Para receber chamadas por Bluetooth, é necessário parear o telefone com uma segunda instância do relógio.</string>
     <string name="prefs_wena3_vibration_warning">Aviso</string>
     <string name="info_connected_count">%d dispositivos conectados</string>

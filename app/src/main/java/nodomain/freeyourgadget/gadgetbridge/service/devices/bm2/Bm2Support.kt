@@ -14,6 +14,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfo
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfoProfile
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 import java.util.UUID
@@ -30,12 +31,7 @@ class Bm2Support : AbstractBTLESingleDeviceSupport(LOG) {
             intent?.action?.let { action ->
                 when (action) {
                     DeviceInfoProfile.ACTION_DEVICE_INFO -> {
-                        @Suppress("DEPRECATION")
-                        val deviceInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                            intent.getParcelableExtra(DeviceInfoProfile.EXTRA_DEVICE_INFO, DeviceInfo::class.java)
-                        } else {
-                            intent.getParcelableExtra(DeviceInfoProfile.EXTRA_DEVICE_INFO)
-                        }
+                        val deviceInfo = intent.getParcelableCompat<DeviceInfo>(DeviceInfoProfile.EXTRA_DEVICE_INFO)
                         LOG.debug("Device info: {}", deviceInfo)
 
                         val events = DeviceInfoProfile.toDeviceEvents(deviceInfo)

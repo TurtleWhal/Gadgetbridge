@@ -56,11 +56,11 @@ public enum SoundPosition implements LabeledEntry {
 
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
-            put(DeviceSettingsPreferenceConst.PREF_SONY_SOUND_POSITION, name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_SOUND_POSITION, name().toLowerCase(Locale.ROOT));
         }};
     }
 
     public static SoundPosition fromPreferences(final SharedPreferences prefs) {
-        return SoundPosition.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_SOUND_POSITION, "off").toUpperCase());
+        return SoundPosition.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_SOUND_POSITION, "off").toUpperCase(Locale.ROOT));
     }
 }

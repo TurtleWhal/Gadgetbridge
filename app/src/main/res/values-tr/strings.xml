@@ -2691,7 +2691,6 @@
     <string name="alarm_slot_reset">Alarm yuvası öntanımlı olarak ayarlandı</string>
     <string name="pref_sleepasandroid_feat_heartrate">Kalp ritmi</string>
     <string name="pref_sleepasandroid_feat_oximetry">Oksimetri</string>
-    <string name="pref_sleepasandroid_feat_spo2">SPO2</string>
     <string name="sleepasandroid_settings">Sleep As Android</string>
     <string name="pref_sleepasandroid_slot_summary">Alarmları ayarlarken hangi alarm yuvasının kullanılacağı</string>
     <string name="pref_sleepasandroid_feat_notifications">Bildirimler</string>
@@ -3598,7 +3597,7 @@
     <string name="soundcore_auto_power_off_summary">Telefonla bağlantı kesildiğinde, aygıt belirtilen zaman aşımı süresinden sonra kapanacaktır</string>
     <string name="soundcore_auto_power_off_title">Otomatik Kapanma</string>
     <string name="soundcore_battery_low_tone_title">Düşük Pil Sesi</string>
-    <string name="soundcore_battery_low_tone_summary">Pil seviyesi %20 ve %10\'un altına düştüğünde uyarı sesini duyun</string>
+    <string name="soundcore_battery_low_tone_summary" formatted="false">Pil seviyesi %20 ve %10\'un altına düştüğünde uyarı sesini duyun</string>
     <string name="soundcore_gaming_mode_title">Oyun Modu</string>
     <string name="soundcore_gaming_mode_summary">Gecikmeyi azaltın ve ayak sesleri ile konuşma seslerini iyileştirin. Bağlantı kararlılığını azaltabilir.</string>
     <string name="huawei_sleep_breath_summary">Sessiz bir ortamda nefesinizi değerlendirin. Pil ömrünü etkileyebilir.\nUyarı: Henüz Gadgetbridge ile eşzamanlanmadı.</string>
@@ -3944,7 +3943,7 @@
     <string name="open_app">%s aç</string>
     <string name="install_app_fail">%s kurmak için uygulama mağazası açılamadı</string>
     <string name="loyalty_cards_app_not_installed">Sadakat kartlarını yönetmek için bir sadakat kartı uygulaması gereklidir. Lütfen aşağıda desteklenen uygulamalardan birini kurun.</string>
-    <string name="loyalty_cards_app_not_compatible">Kurulu %1s sürümü Gadgetbridge ile uyumlu değil. Lütfen en son %1s ve Gadgetbridge sürümlerine güncelleyin.</string>
+    <string name="loyalty_cards_app_not_compatible">Kurulu %1$s sürümü Gadgetbridge ile uyumlu değil. Lütfen en son %1$s ve Gadgetbridge sürümlerine güncelleyin.</string>
     <string name="internet_firewall_action">Eylem</string>
     <string name="internet_firewall_allow">İzin ver</string>
     <string name="internet_firewall_block">Engelle</string>

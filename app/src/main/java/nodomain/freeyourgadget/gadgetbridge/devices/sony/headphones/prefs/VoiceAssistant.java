@@ -77,17 +77,17 @@ public class VoiceAssistant {
     public Map<String, Object> toPreferences() {
         return new HashMap<String, Object>() {{
             put(DeviceSettingsPreferenceConst.PREF_SONY_VOICE_ASSISTANT_FUNCTION,
-                    mode.name().toLowerCase(Locale.getDefault()));
+                    mode.name().toLowerCase(Locale.ROOT));
         }};
     }
 
     public static VoiceAssistant fromPreferences(final SharedPreferences prefs) {
         final String value = prefs.getString(
                 DeviceSettingsPreferenceConst.PREF_SONY_VOICE_ASSISTANT_FUNCTION,
-                Mode.DO_NOT_USE.name().toLowerCase(Locale.getDefault())
+                Mode.DO_NOT_USE.name().toLowerCase(Locale.ROOT)
         );
         try {
-            return new VoiceAssistant(Mode.valueOf(value.toUpperCase(Locale.getDefault())));
+            return new VoiceAssistant(Mode.valueOf(value.toUpperCase(Locale.ROOT)));
         } catch (final IllegalArgumentException e) {
             return new VoiceAssistant(Mode.DO_NOT_USE);
         }

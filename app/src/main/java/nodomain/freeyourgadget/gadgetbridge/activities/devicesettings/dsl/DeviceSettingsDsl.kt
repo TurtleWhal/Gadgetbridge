@@ -23,7 +23,6 @@ import androidx.annotation.ArrayRes
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsHandler
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs
@@ -176,16 +175,49 @@ class DeviceSettingsScope {
         )
     }
 
+    fun multiSelect(
+        key: String,
+        @StringRes title: Int,
+        @StringRes summary: Int = 0,
+        @DrawableRes icon: Int = 0,
+        entries: List<ListEntry> = emptyList(),
+        entriesProvider: ((Prefs) -> List<ListEntry>)? = null,
+        defaultValue: Set<String> = emptySet(),
+        dependency: String? = null,
+        connectedOnly: Boolean = true,
+        visibleWhen: ((Prefs) -> Boolean)? = null,
+    ) {
+        items.add(
+            MultiSelectSetting(
+                key = key,
+                title = title,
+                summary = summary,
+                icon = icon,
+                entries = entries,
+                entriesProvider = entriesProvider,
+                defaultValue = defaultValue,
+                dependency = dependency,
+                connectedOnly = connectedOnly,
+                visibleWhen = visibleWhen,
+            )
+        )
+    }
+
     fun seekbar(
         key: String,
         @StringRes title: Int,
         @StringRes summary: Int = 0,
         @DrawableRes icon: Int = 0,
+        min: Int = 0,
         max: Int,
         defaultValue: Int,
+        step: Int = 1,
+        scale: Double = 1.0,
         showValue: Boolean = true,
+        @StringRes valueFormat: Int = 0,
         dependency: String? = null,
         connectedOnly: Boolean = true,
+        onSharedPreferenceChanged: ((Int) -> Unit)? = null,
         visibleWhen: ((Prefs) -> Boolean)? = null,
     ) {
         items.add(
@@ -194,11 +226,16 @@ class DeviceSettingsScope {
                 title = title,
                 summary = summary,
                 icon = icon,
+                min = min,
                 max = max,
                 defaultValue = defaultValue,
+                step = step,
+                scale = scale,
                 showValue = showValue,
+                valueFormat = valueFormat,
                 dependency = dependency,
                 connectedOnly = connectedOnly,
+                onSharedPreferenceChanged = onSharedPreferenceChanged,
                 visibleWhen = visibleWhen,
             )
         )
@@ -295,7 +332,7 @@ class DeviceSettingsScope {
         @StringRes confirmationMessage: Int = 0,
         connectedOnly: Boolean = true,
         visibleWhen: ((Prefs) -> Boolean)? = null,
-        onClick: ((DeviceSpecificSettingsHandler) -> Boolean)? = null,
+        onClick: ((Context, GBDevice?) -> Boolean)? = null,
     ) {
         items.add(
             ActionSetting(
@@ -329,10 +366,10 @@ class DeviceSettingsScope {
             icon = icon,
             connectedOnly = connectedOnly,
             visibleWhen = visibleWhen,
-        ) { handler ->
-            val intent = Intent(handler.context, activityClass)
-            intent.putExtra(GBDevice.EXTRA_DEVICE, handler.device)
-            handler.context.startActivity(intent)
+        ) { context, device ->
+            val intent = Intent(context, activityClass)
+            device?.let { intent.putExtra(GBDevice.EXTRA_DEVICE, it) }
+            context.startActivity(intent)
             true
         }
     }

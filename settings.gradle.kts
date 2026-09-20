@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        mavenLocal()
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -35,3 +36,5 @@ rootProject.name = "Gadgetbridge"
 include(":app")
 include(":GBDaoGenerator")
 include(":FitCodeGenerator")
+include(":KaitaiAuxGenerator")
+include(":GBProtobufGenerator")

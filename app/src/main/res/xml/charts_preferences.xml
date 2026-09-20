@@ -69,6 +69,16 @@
             android:title="@string/pref_title_charts_average"
             app:iconSpaceReserved="false" />
 
+        <MultiSelectListPreference
+            android:defaultValue="@array/pref_chart_weight_body_composition_default"
+            android:dialogTitle="@string/pref_title_chart_weight_body_composition"
+            android:entries="@array/pref_chart_weight_body_composition_entries"
+            android:entryValues="@array/pref_chart_weight_body_composition_values"
+            android:key="chart_weight_body_composition"
+            android:summary="@string/pref_summary_chart_weight_body_composition"
+            android:title="@string/pref_title_chart_weight_body_composition"
+            app:iconSpaceReserved="false" />
+
         <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="charts_range"

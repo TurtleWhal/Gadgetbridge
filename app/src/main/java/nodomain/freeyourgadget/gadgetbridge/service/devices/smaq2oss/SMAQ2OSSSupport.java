@@ -161,10 +161,10 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
 
 
         notification.setTimestamp(getTimestamp());
-        String sender = StringUtils.getFirstOf(StringUtils.getFirstOf(notificationSpec.sender,notificationSpec.phoneNumber),notificationSpec.title);
+        String sender = StringUtils.getFirstOf(StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getPhoneNumber()), notificationSpec.getTitle());
         notification.setSender(truncateUTF8(sender,SMAQ2OSSConstants.NOTIFICATION_SENDER_MAX_LEN));
 //        notification.setSubject(truncateUTF8(notificationSpec.subject,SMAQ2OSSConstants.NOTIFICATION_SUBJECT_MAX_LEN));
-        notification.setBody(truncateUTF8(notificationSpec.body,SMAQ2OSSConstants.NOTIFICATION_BODY_MAX_LEN));
+        notification.setBody(truncateUTF8(notificationSpec.getBody(),SMAQ2OSSConstants.NOTIFICATION_BODY_MAX_LEN));
 
 
         try {
@@ -194,9 +194,9 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
 
         SMAQ2OSSProtos.CallNotification.Builder callnotif = SMAQ2OSSProtos.CallNotification.newBuilder();
 
-        callnotif.setName(truncateUTF8(callSpec.name,SMAQ2OSSConstants.CALL_NAME_MAX_LEN));
-        callnotif.setNumber(truncateUTF8(callSpec.number,SMAQ2OSSConstants.CALL_NUMBER_MAX_LEN));
-        callnotif.setCommand(callSpec.command);
+        callnotif.setName(truncateUTF8(callSpec.getName(),SMAQ2OSSConstants.CALL_NAME_MAX_LEN));
+        callnotif.setNumber(truncateUTF8(callSpec.getNumber(),SMAQ2OSSConstants.CALL_NUMBER_MAX_LEN));
+        callnotif.setCommand(callSpec.getCommand());
 
         try {
             TransactionBuilder builder;
@@ -219,9 +219,9 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
     public void onSetMusicInfo(MusicSpec musicSpec) {
         SMAQ2OSSProtos.MusicInfo.Builder musicInfo = SMAQ2OSSProtos.MusicInfo.newBuilder();
 
-        musicInfo.setArtist(truncateUTF8(musicSpec.artist,SMAQ2OSSConstants.MUSIC_ARTIST_MAX_LEN));
-        musicInfo.setAlbum(truncateUTF8(musicSpec.album,SMAQ2OSSConstants.MUSIC_ALBUM_MAX_LEN));
-        musicInfo.setTrack(truncateUTF8(musicSpec.track,SMAQ2OSSConstants.MUSIC_TRACK_MAX_LEN));
+        musicInfo.setArtist(truncateUTF8(musicSpec.getArtist(),SMAQ2OSSConstants.MUSIC_ARTIST_MAX_LEN));
+        musicInfo.setAlbum(truncateUTF8(musicSpec.getAlbum(),SMAQ2OSSConstants.MUSIC_ALBUM_MAX_LEN));
+        musicInfo.setTrack(truncateUTF8(musicSpec.getTrack(),SMAQ2OSSConstants.MUSIC_TRACK_MAX_LEN));
 
         try {
             TransactionBuilder builder;
@@ -239,7 +239,7 @@ public class SMAQ2OSSSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
+    public void onReboot() {
 //        try {
 //            getQueue().clear();
 //

@@ -894,8 +894,8 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             // Received when the app sends a notification
             case SleepAsAndroidAction.SHOW_NOTIFICATION:
                 NotificationSpec notificationSpec = new NotificationSpec();
-                notificationSpec.title = extras.getString("TITLE");
-                notificationSpec.body = extras.getString("TEXT");
+                notificationSpec.setTitle(extras.getString("TITLE"));
+                notificationSpec.setBody(extras.getString("TEXT"));
                 this.onNotification(notificationSpec);
                 break;
             case SleepAsAndroidAction.UPDATE_ALARM:
@@ -1879,29 +1879,29 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
         final ArrayList<Long> actionHandles = new ArrayList<Long>();
         final JSONArray actionsArray = new JSONArray();
         boolean canReply = false;
-        if (notificationSpec.attachedActions!=null) {
-            for (int i=0;i<notificationSpec.attachedActions.size();i++) {
-                NotificationSpec.Action action = notificationSpec.attachedActions.get(i);
-                if (action.type==NotificationSpec.Action.TYPE_WEARABLE_REPLY) {
-                    mNotificationReplyAction.add(notificationSpec.getId(), action.handle);
+        if (notificationSpec.getAttachedActions()!=null) {
+            for (int i=0;i<notificationSpec.getAttachedActions().size();i++) {
+                NotificationSpec.Action action = notificationSpec.getAttachedActions().get(i);
+                if (action.getType()==NotificationSpec.Action.TYPE_WEARABLE_REPLY) {
+                    mNotificationReplyAction.add(notificationSpec.getId(), action.getHandle());
                     canReply = true;
                 }
 
-                if (action.type==NotificationSpec.Action.TYPE_WEARABLE_SIMPLE ||
-                    action.type==NotificationSpec.Action.TYPE_CUSTOM_SIMPLE) {
+                if (action.getType()==NotificationSpec.Action.TYPE_WEARABLE_SIMPLE ||
+                    action.getType()==NotificationSpec.Action.TYPE_CUSTOM_SIMPLE) {
                     try {
                         final JSONObject actionJson = new JSONObject();
-                        actionJson.put("title", renderUnicodeAsImage(cropToLength(action.title, 40)));
+                        actionJson.put("title", renderUnicodeAsImage(cropToLength(action.getTitle(), 40)));
                         actionsArray.put(actionJson);
-                        actionHandles.add(action.handle);
+                        actionHandles.add(action.getHandle());
                     } catch (JSONException ignored) {}
                 }
             }
         }
 
         // sourceName isn't set for SMS messages
-        String src = notificationSpec.sourceName;
-        if (notificationSpec.type == NotificationType.GENERIC_SMS)
+        String src = notificationSpec.getSourceName();
+        if (notificationSpec.getType() == NotificationType.GENERIC_SMS)
             src = "SMS Message";
         // Send JSON to Bangle.js
         try {
@@ -1909,19 +1909,19 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             o.put("t", "notify");
             o.put("id", notificationSpec.getId());
             o.put("src", src);
-            o.put("title", renderUnicodeAsImage(cropToLength(notificationSpec.title,80)));
-            o.put("subject", renderUnicodeAsImage(cropToLength(notificationSpec.subject,80)));
-            o.put("body", renderUnicodeAsImage(cropToLength(notificationSpec.body, 400)));
-            o.put("sender", renderUnicodeAsImage(cropToLength(notificationSpec.sender,40)));
-            o.put("tel", notificationSpec.phoneNumber);
+            o.put("title", renderUnicodeAsImage(cropToLength(notificationSpec.getTitle(),80)));
+            o.put("subject", renderUnicodeAsImage(cropToLength(notificationSpec.getSubject(),80)));
+            o.put("body", renderUnicodeAsImage(cropToLength(notificationSpec.getBody(), 400)));
+            o.put("sender", renderUnicodeAsImage(cropToLength(notificationSpec.getSender(),40)));
+            o.put("tel", notificationSpec.getPhoneNumber());
             if (canReply) {
                 o.put("reply", true);
                 // Forward Android's app-supplied quick-reply suggestions, so the watch can
                 // offer them as one-tap choices alongside (or instead of) the user's canned
                 // replies. Only sent when the notification is actually replyable.
-                if (notificationSpec.suggestedReplies != null && notificationSpec.suggestedReplies.length > 0) {
+                if (notificationSpec.getSuggestedReplies() != null && notificationSpec.getSuggestedReplies().length > 0) {
                     final JSONArray suggestions = new JSONArray();
-                    for (final String s : notificationSpec.suggestedReplies) {
+                    for (final String s : notificationSpec.getSuggestedReplies()) {
                         suggestions.put(renderUnicodeAsImage(cropToLength(s, 80)));
                     }
                     o.put("suggestions", suggestions);
@@ -2296,7 +2296,7 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             JSONArray jsonMessages = new JSONArray();
             o.put("d", jsonMessages);
 
-            for (String message : cannedMessagesSpec.cannedMessages) {
+            for (String message : cannedMessagesSpec.getCannedMessages()) {
                 JSONObject jsonMessage = new JSONObject();
                 jsonMessages.put(jsonMessage);
                 // Render Unicode (emojis etc.) as an image for the watch to display
@@ -2341,7 +2341,7 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
     public void onSetCallState(CallSpec callSpec) {
         try {
             final boolean enableMissedCall = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(PREF_BANGLEJS_NOTIFICATION_MISSED_CALL_ENABLE, false);
-            switch (callSpec.command) {
+            switch (callSpec.getCommand()) {
                 case CallSpec.CALL_INCOMING:
                     // possible missed call
                     isMissedCall = true;
@@ -2352,19 +2352,19 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
                         isMissedCall = false;
                         if (enableMissedCall) {
                             NotificationSpec notificationSpec = new NotificationSpec();
-                            notificationSpec.sourceName = getContext().getString(R.string.banglejs_notification_missed_call_source);
-                            notificationSpec.title =  getContext().getString(R.string.banglejs_notification_missed_call_title);
-                            notificationSpec.subject = getContext().getString(R.string.banglejs_notification_missed_call_title);
-                            if (callSpec.name == null && callSpec.number == null) {
-                                notificationSpec.body = getContext().getString(R.string.banglejs_notification_missed_call_suppressed_caller_id);
-                            }else if (callSpec.name == null) {
-                                notificationSpec.sender = callSpec.number;
-                                notificationSpec.body = callSpec.number;
-                                notificationSpec.phoneNumber = callSpec.number;
+                            notificationSpec.setSourceName(getContext().getString(R.string.banglejs_notification_missed_call_source));
+                            notificationSpec.setTitle(getContext().getString(R.string.banglejs_notification_missed_call_title));
+                            notificationSpec.setSubject(getContext().getString(R.string.banglejs_notification_missed_call_title));
+                            if (callSpec.getName() == null && callSpec.getNumber() == null) {
+                                notificationSpec.setBody(getContext().getString(R.string.banglejs_notification_missed_call_suppressed_caller_id));
+                            }else if (callSpec.getName() == null) {
+                                notificationSpec.setSender(callSpec.getNumber());
+                                notificationSpec.setBody(callSpec.getNumber());
+                                notificationSpec.setPhoneNumber(callSpec.getNumber());
                             } else {
-                                notificationSpec.sender = callSpec.name;
-                                notificationSpec.body = callSpec.name + "\n" + callSpec.number;
-                                notificationSpec.phoneNumber = callSpec.number;
+                                notificationSpec.setSender(callSpec.getName());
+                                notificationSpec.setBody(callSpec.getName() + "\n" + callSpec.getNumber());
+                                notificationSpec.setPhoneNumber(callSpec.getNumber());
                             }
 
                             handler.postDelayed(() -> {
@@ -2386,12 +2386,12 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             try {
                 Field[] fields = callSpec.getClass().getDeclaredFields();
                 for (Field field : fields)
-                    if (field.getName().startsWith("CALL_") && field.getInt(callSpec) == callSpec.command)
+                    if (field.getName().startsWith("CALL_") && field.getInt(callSpec) == callSpec.getCommand())
                         cmdName = field.getName().substring(5).toLowerCase(Locale.US);
             } catch (IllegalAccessException e) {}
             o.put("cmd", cmdName);
-            o.put("name", renderUnicodeAsImage(callSpec.name));
-            o.put("number", callSpec.number);
+            o.put("name", renderUnicodeAsImage(callSpec.getName()));
+            o.put("number", callSpec.getNumber());
             uartTxJSON("onSetCallState", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -2427,14 +2427,14 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             JSONObject o = new JSONObject();
             o.put("t", "musicstate");
-            int musicState = stateSpec.state;
+            int musicState = stateSpec.getState();
             String[] musicStates = {"play", "pause", "stop", ""};
             if (musicState<0) musicState=3;
             if (musicState>=musicStates.length) musicState = musicStates.length-1;
             o.put("state", musicStates[musicState]);
-            o.put("position", stateSpec.position);
-            o.put("shuffle", stateSpec.shuffle);
-            o.put("repeat", stateSpec.repeat);
+            o.put("position", stateSpec.getPosition());
+            o.put("shuffle", stateSpec.getShuffle());
+            o.put("repeat", stateSpec.getRepeat());
             uartTxJSON("onSetMusicState", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -2449,7 +2449,7 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
     private static final String IGNORED_MUSIC_ARTIST = "SHIELD";
 
     private static boolean isIgnoredArtist(final MusicSpec musicSpec) {
-        return musicSpec != null && IGNORED_MUSIC_ARTIST.equals(musicSpec.artist);
+        return musicSpec != null && IGNORED_MUSIC_ARTIST.equals(musicSpec.getArtist());
     }
 
     @Override
@@ -2501,7 +2501,7 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             return false;
         }
         LOG.debug("Showing {} from another media session instead of {}",
-                musicSpec.track, IGNORED_MUSIC_ARTIST);
+                musicSpec.getTrack(), IGNORED_MUSIC_ARTIST);
         handleMusicInfo(musicSpec);
         final MusicStateSpec stateSpec = MediaManager.extractMusicStateSpec(controller.getPlaybackState());
         if (stateSpec != null && mediaManager.onSetMusicState(stateSpec)) {
@@ -2553,12 +2553,12 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             JSONObject o = new JSONObject();
             o.put("t", "musicinfo");
-            o.put("artist", renderUnicodeAsImage(musicSpec.artist));
-            o.put("album", renderUnicodeAsImage(musicSpec.album));
-            o.put("track", renderUnicodeAsImage(musicSpec.track));
-            o.put("dur", musicSpec.duration);
-            o.put("c", musicSpec.trackCount);
-            o.put("n", musicSpec.trackNr);
+            o.put("artist", renderUnicodeAsImage(musicSpec.getArtist()));
+            o.put("album", renderUnicodeAsImage(musicSpec.getAlbum()));
+            o.put("track", renderUnicodeAsImage(musicSpec.getTrack()));
+            o.put("dur", musicSpec.getDuration());
+            o.put("c", musicSpec.getTrackCount());
+            o.put("n", musicSpec.getTrackNr());
             uartTxJSON("onSetMusicInfo", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -2574,15 +2574,15 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
         if (musicSpec == null) {
             return "";
         }
-        return (musicSpec.artist == null ? "" : musicSpec.artist) + " | "
-                + (musicSpec.album == null ? "" : musicSpec.album) + " | "
-                + (musicSpec.track == null ? "" : musicSpec.track);
+        return (musicSpec.getArtist() == null ? "" : musicSpec.getArtist()) + " | "
+                + (musicSpec.getAlbum() == null ? "" : musicSpec.getAlbum()) + " | "
+                + (musicSpec.getTrack() == null ? "" : musicSpec.getTrack());
     }
 
     private static final int ALBUM_ART_SIZE = 120;
 
     private void sendAlbumArtIfPresent(final MusicSpec musicSpec, final String trackKey) {
-        if (musicSpec == null || musicSpec.albumArt == null) {
+        if (musicSpec == null || musicSpec.getAlbumArt() == null) {
             LOG.debug("sendAlbumArt: no album art on MusicSpec, skipping");
             return;
         }
@@ -2597,12 +2597,12 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             return;
         }
         lastAlbumArtTrackKey = trackKey;
-        final Bitmap albumArt = musicSpec.albumArt;
+        final Bitmap albumArt = musicSpec.getAlbumArt();
         LOG.info("sendAlbumArt: sending {}x{} album art for {}",
                 albumArt.getWidth(), albumArt.getHeight(), trackKey);
         // Scaling and RGB565 conversion run on the image worker, after the preemption check, so
         // art for a song that has already been skipped past is never converted at all.
-        submitImageJob(IMAGE_KIND_ALBUM_ART, "sendAlbumArt:" + musicSpec.track, () -> {
+        submitImageJob(IMAGE_KIND_ALBUM_ART, "sendAlbumArt:" + musicSpec.getTrack(), () -> {
             final Bitmap scaled = (albumArt.getWidth() == ALBUM_ART_SIZE
                     && albumArt.getHeight() == ALBUM_ART_SIZE)
                     ? albumArt
@@ -2671,7 +2671,7 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             stateSpec = MediaManager.extractMusicStateSpec(controller.getPlaybackState());
             showingFallbackSession = true;
         }
-        if (stateSpec == null || stateSpec.state != MusicStateSpec.STATE_PLAYING) {
+        if (stateSpec == null || stateSpec.getState() != MusicStateSpec.STATE_PLAYING) {
             LOG.debug("resend after connect: nothing playing, not sending music");
             return;
         }
@@ -2679,7 +2679,7 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
             LOG.debug("resend after connect: playing, but no track info to send");
             return;
         }
-        LOG.info("resend after connect: sending music info for {}", musicSpec.track);
+        LOG.info("resend after connect: sending music info for {}", musicSpec.getTrack());
         // The watch lost everything we sent it before the disconnect, so bypass the "only if it
         // changed" checks that would otherwise suppress a resend of the very same track.
         currentTrackKey = trackKey(musicSpec);
@@ -2802,11 +2802,20 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
+    public void onReboot() {
+        sendReboot();
+    }
+
+    @Override
+    public void onFactoryReset() {
+        sendReboot();
+    }
+
+    private void sendReboot() {
         try {
             JSONObject o = new JSONObject();
             o.put("t", "reboot");
-            uartTxJSON("onReset", o);
+            uartTxJSON("sendReboot", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
         }
@@ -2912,10 +2921,10 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
     @Override
     public void onAddCalendarEvent(CalendarEventSpec calendarEventSpec) {
         if (!getDevicePrefs().getBoolean("sync_calendar", false)) {
-            LOG.debug("Ignoring add calendar event {}, sync is disabled", calendarEventSpec.id);
+            LOG.debug("Ignoring add calendar event {}, sync is disabled", calendarEventSpec.getId());
             return;
         }
-        String description = calendarEventSpec.description;
+        String description = calendarEventSpec.getDescription();
         if (description != null) {
             // remove any HTML formatting
             if (description.startsWith("<html"))
@@ -2930,16 +2939,16 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             JSONObject o = new JSONObject();
             o.put("t", "calendar");
-            o.put("id", calendarEventSpec.id);
-            o.put("type", calendarEventSpec.type); //implement this too? (sunrise and set)
-            o.put("timestamp", calendarEventSpec.timestamp);
-            o.put("durationInSeconds", calendarEventSpec.durationInSeconds);
-            o.put("title", renderUnicodeAsImage(cropToLength(calendarEventSpec.title,40)));
+            o.put("id", calendarEventSpec.getId());
+            o.put("type", calendarEventSpec.getType()); //implement this too? (sunrise and set)
+            o.put("timestamp", calendarEventSpec.getTimestamp());
+            o.put("durationInSeconds", calendarEventSpec.getDurationInSeconds());
+            o.put("title", renderUnicodeAsImage(cropToLength(calendarEventSpec.getTitle(),40)));
             o.put("description", renderUnicodeAsImage(cropToLength(description,200)));
-            o.put("location", renderUnicodeAsImage(cropToLength(calendarEventSpec.location,40)));
-            o.put("calName", cropToLength(calendarEventSpec.calName,20));
-            o.put("color", calendarEventSpec.color);
-            o.put("allDay", calendarEventSpec.allDay);
+            o.put("location", renderUnicodeAsImage(cropToLength(calendarEventSpec.getLocation(),40)));
+            o.put("calName", cropToLength(calendarEventSpec.getCalName(),20));
+            o.put("color", calendarEventSpec.getColor());
+            o.put("allDay", calendarEventSpec.getAllDay());
             uartTxJSON("onAddCalendarEvent", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());
@@ -3401,17 +3410,17 @@ public class GWatchDeviceSupport extends AbstractBTLESingleDeviceSupport {
         try {
             JSONObject o = new JSONObject();
             o.put("t", "nav");
-            if (navigationInfoSpec.instruction!=null)
-                o.put("instr", navigationInfoSpec.instruction);
-            o.put("distance", navigationInfoSpec.distanceToTurn);
+            if (navigationInfoSpec.getInstruction()!=null)
+                o.put("instr", navigationInfoSpec.getInstruction());
+            o.put("distance", navigationInfoSpec.getDistanceToTurn());
             String[] navActions = {
                     "","continue", "left", "left_slight", "left_sharp",  "right", "right_slight",
                     "right_sharp", "keep_left", "keep_right", "uturn_left", "uturn_right",
                     "offroute", "roundabout_right", "roundabout_left", "roundabout_straight", "roundabout_uturn", "finish"};
-            if (navigationInfoSpec.nextAction>0 && navigationInfoSpec.nextAction<navActions.length)
-                o.put("action", navActions[navigationInfoSpec.nextAction]);
-            if (navigationInfoSpec.ETA!=null)
-                o.put("eta", navigationInfoSpec.ETA);
+            if (navigationInfoSpec.getNextAction()>0 && navigationInfoSpec.getNextAction()<navActions.length)
+                o.put("action", navActions[navigationInfoSpec.getNextAction()]);
+            if (navigationInfoSpec.getETA()!=null)
+                o.put("eta", navigationInfoSpec.getETA());
             uartTxJSON("onSetNavigationInfo", o);
         } catch (JSONException e) {
             LOG.info("JSONException: " + e.getLocalizedMessage());

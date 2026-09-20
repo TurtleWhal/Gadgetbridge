@@ -21,6 +21,7 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.pebble;
 import android.util.Base64;
 import android.util.Pair;
 
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -40,12 +41,11 @@ import java.util.Random;
 import java.util.SimpleTimeZone;
 import java.util.UUID;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
-import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleHardware;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppInfo;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppManagement;
-import nodomain.freeyourgadget.gadgetbridge.deviceevents.pebble.GBDeviceEventFirmwareUpdateStart;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppMessage;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCallControl;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventMusicControl;
@@ -54,7 +54,9 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventScreenshot
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventSendBytes;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInfo;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.pebble.GBDeviceEventDataLogging;
+import nodomain.freeyourgadget.gadgetbridge.deviceevents.pebble.GBDeviceEventFirmwareUpdateStart;
 import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleCoordinator;
+import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleHardware;
 import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleIconID;
 import nodomain.freeyourgadget.gadgetbridge.devices.pebble.PebbleNotification;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -67,8 +69,8 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec.Action;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
-import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
+import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
@@ -294,6 +296,8 @@ public class PebbleProtocol extends GBDeviceProtocol {
     private static final Random mRandom = new Random();
 
     int mFwMajor = 3;
+    int mFwMinor = 0;
+
     boolean isNewEraPebble = false;
 
     // Dual-slot firmware support
@@ -429,15 +433,12 @@ public class PebbleProtocol extends GBDeviceProtocol {
     private static final UUID UUID_LOVE_WEATHER = UUID.fromString("1f0b0701-cc8f-47ec-86e7-7181397f8888");
     private static final UUID UUID_WEATHER_LAND = UUID.fromString("1f0b0701-cc8f-47ec-86e7-7181397f9a25");
     private static final UUID UUID_REAL_WEATHER = UUID.fromString("1f0b0701-cc8f-47ec-86e7-7181397f9a52");
-
+    private static final UUID UUID_SIMPLE_WEATHER = UUID.fromString("fc42139a-5710-4456-b164-ddc12c464398");
     private static final UUID UUID_TOTK = UUID.fromString("c234bf39-a905-48a4-9972-2931aadf4d9e");
 
     private static final UUID UUID_ZERO = new UUID(0, 0);
-
     private static final UUID UUID_LOCATION = UUID.fromString("2c7e6a86-51e5-4ddd-b606-db43d1e4ad28"); // might be the location of "Berlin" or "Auto"
-
     private final Map<UUID, AppMessageHandler> mAppMessageHandlers = new HashMap<>();
-
     private UUID currentRunningApp = UUID_ZERO;
 
     public PebbleProtocol(GBDevice device) {
@@ -465,6 +466,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
             mAppMessageHandlers.put(UUID_REAL_WEATHER, new AppMessageHandlerRenoWeather(UUID_REAL_WEATHER, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_LOVE_WEATHER, new AppMessageHandlerRenoWeather(UUID_LOVE_WEATHER, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_WEATHER_LAND, new AppMessageHandlerRenoWeather(UUID_WEATHER_LAND, PebbleProtocol.this));
+            mAppMessageHandlers.put(UUID_SIMPLE_WEATHER, new AppMessageHandlerSimpleWeather(UUID_SIMPLE_WEATHER, PebbleProtocol.this));
             mAppMessageHandlers.put(UUID_TOTK, new AppMessageHandlerTearsOfTheKingdom(UUID_TOTK, PebbleProtocol.this));
         }
     }
@@ -535,19 +537,19 @@ public class PebbleProtocol extends GBDeviceProtocol {
         String subtitle = null;
 
         // for SMS that came in though the SMS receiver
-        if (notificationSpec.sender != null) {
-            title = notificationSpec.sender;
-            subtitle = notificationSpec.subject;
+        if (notificationSpec.getSender() != null) {
+            title = notificationSpec.getSender();
+            subtitle = notificationSpec.getSubject();
         } else {
-            title = notificationSpec.title;
+            title = notificationSpec.getTitle();
         }
 
         long ts = System.currentTimeMillis();
         ts /= 1000;
 
-        return encodeNotification(id, (int) (ts & 0xffffffffL), title, subtitle, notificationSpec.body,
+        return encodeNotification(id, (int) (ts & 0xffffffffL), title, subtitle, notificationSpec.getBody(),
                 pebbleNotification,
-                notificationSpec.cannedReplies, notificationSpec.attachedActions);
+                notificationSpec.getCannedReplies(), notificationSpec.getAttachedActions());
     }
 
     @Override
@@ -557,11 +559,11 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
     @Override
     public byte[] encodeAddCalendarEvent(CalendarEventSpec calendarEventSpec) {
-        long id = calendarEventSpec.id != -1 ? calendarEventSpec.id : mRandom.nextLong();
+        long id = calendarEventSpec.getId() != -1 ? calendarEventSpec.getId() : mRandom.nextLong();
         int iconId;
         ArrayList<Pair<Integer, Object>> attributes = new ArrayList<>();
-        attributes.add(new Pair<>(1, calendarEventSpec.title));
-        switch (calendarEventSpec.type) {
+        attributes.add(new Pair<>(1, calendarEventSpec.getTitle()));
+        switch (calendarEventSpec.getType()) {
             case CalendarEventSpec.TYPE_SUNRISE:
                 iconId = PebbleIconID.SUNRISE;
                 break;
@@ -570,13 +572,13 @@ public class PebbleProtocol extends GBDeviceProtocol {
                 break;
             default:
                 iconId = PebbleIconID.TIMELINE_CALENDAR;
-                attributes.add(new Pair<>(3, calendarEventSpec.description));
-                attributes.add(new Pair<>(11, calendarEventSpec.location));
+                attributes.add(new Pair<>(3, calendarEventSpec.getDescription()));
+                attributes.add(new Pair<>(11, calendarEventSpec.getLocation()));
         }
 
 
-        int startTimestamp = calendarEventSpec.timestamp;
-        if (calendarEventSpec.allDay) {
+        int startTimestamp = calendarEventSpec.getTimestamp();
+        if (calendarEventSpec.getAllDay()) {
             // For all-day events, Pebble expects the start date to match the midnight boundaries
             // in the user's timezone. However, the calendar event will have them in the UTC timezone,
             // so we need to convert it
@@ -584,7 +586,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
             startTimestamp = (int) (DateTimeUtils.utcDateTimeToLocal(startTimestampMs) / 1000);
         }
 
-        return encodeTimelinePin(new UUID(GB_UUID_MASK | calendarEventSpec.type, id), startTimestamp, (short) (calendarEventSpec.durationInSeconds / 60), iconId, attributes);
+        return encodeTimelinePin(new UUID(GB_UUID_MASK | calendarEventSpec.getType(), id), startTimestamp, (short) (calendarEventSpec.getDurationInSeconds() / 60), iconId, attributes);
     }
 
     @Override
@@ -908,7 +910,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
         if (attachedActions != null && !attachedActions.isEmpty()) {
             for (Action act : attachedActions) {
                 actions_count++;
-                actions_length += (short) (ACTION_LENGTH_MIN + act.title.getBytes().length);
+                actions_length += (short) (ACTION_LENGTH_MIN + act.getTitle().getBytes().length);
                 if (act.isReply()) {
                     actions_length += (short) ((short) replies_length + 3);  // 3 = attribute id (byte) + length(short)
                 }
@@ -978,17 +980,17 @@ public class PebbleProtocol extends GBDeviceProtocol {
         if (attachedActions != null && !attachedActions.isEmpty()) {
             for (int ai = 0; ai < attachedActions.size(); ai++) {
                 Action act = attachedActions.get(ai);
-                switch (act.type) {
-                    case Action.TYPE_SYNTECTIC_OPEN:
+                switch (act.getType()) {
+                    case Action.TYPE_SYNTHETIC_OPEN:
                         buf.put((byte) 0x01);
                         break;
-                    case Action.TYPE_SYNTECTIC_DISMISS:
+                    case Action.TYPE_SYNTHETIC_DISMISS:
                         buf.put((byte) 0x02);
                         break;
-                    case Action.TYPE_SYNTECTIC_DISMISS_ALL:
+                    case Action.TYPE_SYNTHETIC_DISMISS_ALL:
                         buf.put((byte) 0x03);
                         break;
-                    case Action.TYPE_SYNTECTIC_MUTE:
+                    case Action.TYPE_SYNTHETIC_MUTE:
                         buf.put((byte) 0x04);
                         break;
                     default:
@@ -999,7 +1001,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
                     buf.put((byte) 0x03); // reply action
                     buf.put((byte) 0x02); // number attributes
                 } else {
-                    if (act.type == Action.TYPE_SYNTECTIC_DISMISS) {
+                    if (act.getType() == Action.TYPE_SYNTHETIC_DISMISS) {
                         buf.put(dismiss_action_type);
                     } else {
                         buf.put((byte) 0x02); // generic action
@@ -1008,8 +1010,8 @@ public class PebbleProtocol extends GBDeviceProtocol {
                 }
 
                 buf.put((byte) 0x01); // attribute id (title)
-                buf.putShort((short) act.title.getBytes().length);
-                buf.put(act.title.getBytes());
+                buf.putShort((short) act.getTitle().getBytes().length);
+                buf.put(act.getTitle().getBytes());
                 if (act.isReply()) {
                     buf.put((byte) 0x08); // canned replies
                     buf.putShort((short) replies_length);
@@ -1133,13 +1135,17 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
         int length = 0;
         if (mFwMajor >= 4) {
+            int weather_version = 3;
+            if (mFwMinor >= 34) {
+                weather_version = 4;
+            }
             deleteWeatherDataProtocol = encodeBlobDBClear(BLOBDB_WEATHER);
             length += deleteWeatherDataProtocol.length;
             for (int i = 0; i < 5; i++) {
                 if (weatherSpecs.size() < i + 1)
                     break;
                 WeatherSpec weatherSpec = weatherSpecs.get(i);
-                forecastProtocolBuf[i] = encodeWeatherForecast(weatherSpec, i);
+                forecastProtocolBuf[i] = encodeWeatherForecast(weatherSpec, i, weather_version);
                 length += forecastProtocolBuf[i].length;
             }
         }
@@ -1167,8 +1173,18 @@ public class PebbleProtocol extends GBDeviceProtocol {
         return buf.array();
     }
 
-    private byte[] encodeWeatherForecast(WeatherSpec weatherSpec, int location) {
+    private byte[] encodeWeatherForecast(WeatherSpec weatherSpec, int location, int version) {
         short currentTemp = (short) (weatherSpec.getCurrentTemp() - 273);
+
+        // for v4
+        short currentTempFeelsLike = (short) (weatherSpec.getFeelsLikeTemp() - 273);
+        short currentUVIndex = (short) (weatherSpec.getUvIndex() * 10);
+        short currentPrecipProbability = (short) weatherSpec.getPrecipProbability();
+        short currentWindSpeed = (short) weatherSpec.getWindSpeed();
+        short currentWindDirection = (short) weatherSpec.getWindDirection();
+        short currentLongitude = (short) (weatherSpec.getLongitude() * 100);
+        short currentLatitude = (short) (weatherSpec.getLatitude() * 100);
+
         short todayMax = (short) (weatherSpec.getTodayMaxTemp() - 273);
         short todayMin = (short) (weatherSpec.getTodayMinTemp() - 273);
         short tomorrowMax = 0;
@@ -1183,13 +1199,15 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
         final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
         if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
-            currentTemp = (short) (currentTemp * 1.8f + 32);
-            todayMax = (short) (todayMax * 1.8f + 32);
-            todayMin = (short) (todayMin * 1.8f + 32);
-            tomorrowMax = (short) (tomorrowMax * 1.8f + 32);
-            tomorrowMin = (short) (tomorrowMin * 1.8f + 32);
+            currentTemp = (short) TemperatureUtils.celsiusToFahrenheit(currentTemp);
+            currentTempFeelsLike = (short) TemperatureUtils.celsiusToFahrenheit(currentTempFeelsLike);
+            todayMax = (short) TemperatureUtils.celsiusToFahrenheit(todayMax);
+            todayMin = (short) TemperatureUtils.celsiusToFahrenheit(todayMin);
+            tomorrowMax = (short) TemperatureUtils.celsiusToFahrenheit(tomorrowMax);
+            tomorrowMin = (short) TemperatureUtils.celsiusToFahrenheit(tomorrowMin);
         }
-        final short WEATHER_FORECAST_LENGTH = 20;
+        final short WEATHER_FORECAST_LENGTH_V3 = 20;
+        final short WEATHER_FORECAST_LENGTH_V4 = 120;
 
         String[] parts = {weatherSpec.getLocation(), weatherSpec.getCurrentCondition()};
 
@@ -1202,11 +1220,13 @@ public class PebbleProtocol extends GBDeviceProtocol {
             attributes_length += (short) (2 + s.getBytes().length);
         }
 
-        short pin_length = (short) (WEATHER_FORECAST_LENGTH + attributes_length);
-
+        short pin_length = (short) (WEATHER_FORECAST_LENGTH_V3 + attributes_length);
+        if (version == 4) {
+            pin_length = (short) (WEATHER_FORECAST_LENGTH_V4 + attributes_length);
+        }
         ByteBuffer buf = ByteBuffer.allocate(pin_length);
         buf.order(ByteOrder.LITTLE_ENDIAN);
-        buf.put((byte) 3); // Version
+        buf.put((byte) version); // Version
         buf.putShort(currentTemp);
         buf.put(WeatherMapper.mapToPebbleCondition(weatherSpec.getCurrentConditionCode()));
         buf.putShort(todayMax);
@@ -1215,7 +1235,75 @@ public class PebbleProtocol extends GBDeviceProtocol {
         buf.putShort(tomorrowMax);
         buf.putShort(tomorrowMin);
         buf.putInt(weatherSpec.getTimestamp());
-        buf.put((byte) 0); // automatic location 0=manual 1=auto
+        buf.put((byte) (weatherSpec.isCurrentLocation() == 1 ? 1 : 0));
+        if (version == 4) {
+            int forecast_days = 0;
+            if (!weatherSpec.getForecasts().isEmpty()) {
+                forecast_days = weatherSpec.getForecasts().size();
+                if (forecast_days > 6) {
+                    forecast_days = 6;
+                }
+            }
+            buf.put((byte) 0); // minor rev
+            buf.putShort(currentTempFeelsLike);
+            buf.putShort(currentUVIndex);
+            buf.putShort(currentPrecipProbability);
+            buf.putShort(currentWindSpeed);
+            buf.putShort(currentWindDirection);
+            buf.putShort(currentLatitude);
+            buf.putShort(currentLongitude);
+            buf.put((byte) (forecast_days + 1)); // today also counts
+            // today
+            buf.putShort(todayMax);
+            buf.putShort(todayMin);
+            buf.put(WeatherMapper.mapToPebbleCondition(weatherSpec.getCurrentConditionCode()));
+
+            for (int i = 0; i < forecast_days; i++) {
+                WeatherSpec.Daily daily = weatherSpec.getForecasts().get(i);
+                short dailyMax = (short) (daily.getMaxTemp() - 273);
+                short dailyMin = (short) (daily.getMinTemp() - 273);
+                byte dailyConditionCode = WeatherMapper.mapToPebbleCondition(daily.getConditionCode());
+                if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
+                    dailyMax = (short) TemperatureUtils.celsiusToFahrenheit(dailyMax);
+                    dailyMin = (short) TemperatureUtils.celsiusToFahrenheit(dailyMin);
+                }
+                buf.putShort(dailyMax);
+                buf.putShort(dailyMin);
+                buf.put(dailyConditionCode);
+            }
+            // pad the remaining days, if not available to us - needed :(
+            buf.position(buf.position() + (5 * (6 - forecast_days)));
+
+            int local_hour = java.time.LocalTime.now().getHour();
+            ArrayList<WeatherSpec.@NotNull Hourly> hourlyForecasts = weatherSpec.getHourly();
+            if (hourlyForecasts.size() >= (24 - local_hour)) {
+                byte[] hourly_condition = new byte[24];
+                byte[] hourly_temperature = new byte[24];
+                buf.put((byte) 24);
+                hourly_temperature[local_hour] = (byte) currentTemp;
+                hourly_condition[local_hour] = WeatherMapper.mapToPebbleCondition(weatherSpec.getCurrentConditionCode());
+
+                for (int i = 0; i < 24; i++) {
+                    if (local_hour > i) {
+                        hourly_condition[i] = -1; // unknown past
+                        hourly_temperature[i] = (byte) currentTemp; // unknown past
+                    } else {
+                        WeatherSpec.Hourly hourlyForecast = hourlyForecasts.get(i - local_hour);
+                        hourly_condition[i] = WeatherMapper.mapToPebbleCondition(hourlyForecast.getConditionCode());
+                        if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
+                            hourly_temperature[i] = (byte) TemperatureUtils.celsiusToFahrenheit(hourlyForecast.getTemp() - 273);
+                        } else {
+                            hourly_temperature[i] = (byte) (hourlyForecast.getTemp() - 273);
+                        }
+                    }
+                }
+                buf.put(hourly_condition);
+                buf.put(hourly_temperature);
+            } else {
+                buf.put((byte) 0);
+                buf.position(buf.position() + 24 * 2);
+            }
+        }
         buf.putShort(attributes_length);
 
         // Encode Pascal-Style Strings
@@ -1501,12 +1589,12 @@ public class PebbleProtocol extends GBDeviceProtocol {
     @Override
     public byte[] encodeSetCannedMessages(CannedMessagesSpec cannedMessagesSpec) {
 
-        if (cannedMessagesSpec.cannedMessages == null || cannedMessagesSpec.cannedMessages.length == 0) {
+        if (cannedMessagesSpec.getCannedMessages() == null || cannedMessagesSpec.getCannedMessages().length == 0) {
             return null;
         }
 
         String blobDBKey;
-        switch (cannedMessagesSpec.type) {
+        switch (cannedMessagesSpec.getType()) {
             case CannedMessagesSpec.TYPE_REJECTEDCALLS:
                 blobDBKey = "com.pebble.android.phone";
                 break;
@@ -1519,7 +1607,7 @@ public class PebbleProtocol extends GBDeviceProtocol {
 
         int replies_length = -1;
 
-        for (String reply : cannedMessagesSpec.cannedMessages) {
+        for (String reply : cannedMessagesSpec.getCannedMessages()) {
             replies_length += reply.getBytes().length + 1;
         }
 
@@ -1535,12 +1623,12 @@ public class PebbleProtocol extends GBDeviceProtocol {
         buf.put((byte) 0x01); // attributes count
         buf.put((byte) 0x08); // canned messages
         buf.putShort((short) replies_length);
-        for (int i = 0; i < cannedMessagesSpec.cannedMessages.length - 1; i++) {
-            buf.put(cannedMessagesSpec.cannedMessages[i].getBytes());
+        for (int i = 0; i < cannedMessagesSpec.getCannedMessages().length - 1; i++) {
+            buf.put(cannedMessagesSpec.getCannedMessages()[i].getBytes());
             buf.put((byte) 0x00);
         }
         // last one must not be zero terminated, else we get an additional empty reply
-        buf.put(cannedMessagesSpec.cannedMessages[cannedMessagesSpec.cannedMessages.length - 1].getBytes());
+        buf.put(cannedMessagesSpec.getCannedMessages()[cannedMessagesSpec.getCannedMessages().length - 1].getBytes());
 
         return encodeBlobdb(blobDBKey, BLOBDB_INSERT, BLOBDB_CANNED_MESSAGES, buf.array());
     }
@@ -2458,11 +2546,13 @@ public class PebbleProtocol extends GBDeviceProtocol {
                 buf.getInt(); // skip
                 versionCmd.fwVersion = getFixedString(buf, 32);
 
-                mFwMajor = versionCmd.fwVersion.charAt(1) - 48;
                 String[] parsedVersion = versionCmd.fwVersion.split("\\.");
+                mFwMajor = Integer.parseInt(parsedVersion[0].substring(1));
+                mFwMinor = Integer.parseInt(parsedVersion[1]);
+
                 LOG.info("Pebble firmware major detected as {}", mFwMajor);
-                LOG.info("Pebble firmware minor detected as {}", parsedVersion[1]);
-                if (mFwMajor >= 5 || (mFwMajor == 4 && Integer.parseInt(parsedVersion[1]) >= 9)) {
+                LOG.info("Pebble firmware minor detected as {}", mFwMinor);
+                if (mFwMajor >= 5 || (mFwMajor == 4 && mFwMinor >= 9)) {
                     isNewEraPebble = true;
                 }
 

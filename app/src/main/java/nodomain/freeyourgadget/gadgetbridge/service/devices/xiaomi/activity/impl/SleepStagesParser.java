@@ -152,17 +152,10 @@ public class SleepStagesParser extends XiaomiActivityParser {
         // Save the sleep stage samples
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
-            final Device device = DBHelper.getDevice(gbDevice, session);
-            final User user = DBHelper.getUser(session);
 
             final XiaomiSleepStageSampleProvider sampleProvider = new XiaomiSleepStageSampleProvider(gbDevice, session);
 
-            for (final XiaomiSleepStageSample stageSample : stages) {
-                stageSample.setDevice(device);
-                stageSample.setUser(user);
-            }
-
-            sampleProvider.addSamples(stages);
+            sampleProvider.persistSamples(stages, context);
         } catch (final Exception e) {
             GB.toast(context, "Error saving sleep stage samples", Toast.LENGTH_LONG, GB.ERROR);
             LOG.error("Error saving sleep stage samples", e);

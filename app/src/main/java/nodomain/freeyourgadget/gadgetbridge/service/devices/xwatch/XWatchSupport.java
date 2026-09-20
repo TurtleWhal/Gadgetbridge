@@ -198,7 +198,7 @@ public class XWatchSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             LOG.debug("Incoming call8");
             try {
                 TransactionBuilder builder = performInitialized("callnotification");

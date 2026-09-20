@@ -22,6 +22,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.PermissionRequest
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.widget.Toast
@@ -37,6 +38,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.DeviceService
 import nodomain.freeyourgadget.gadgetbridge.util.GB
 import nodomain.freeyourgadget.gadgetbridge.util.InternetUtils
 import nodomain.freeyourgadget.gadgetbridge.util.PebbleUtils
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 import nodomain.freeyourgadget.gadgetbridge.webview.GBChromeClient
 import nodomain.freeyourgadget.gadgetbridge.webview.GBWebClient
 import nodomain.freeyourgadget.gadgetbridge.webview.RequestInterceptorInterface
@@ -55,7 +57,7 @@ class RebbleAppStoreActivity : AbstractGBActivity()  {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_banglejs_apps_management)
 
-        val gbDevice: GBDevice? = intent?.extras?.getParcelable(GBDevice.EXTRA_DEVICE)
+        val gbDevice: GBDevice? = intent?.extras?.getParcelableCompat(GBDevice.EXTRA_DEVICE)
         requireNotNull(gbDevice) { "Must provide a device when invoking this activity" }
         mGBDevice = gbDevice
         url = intent?.extras?.getString(DeviceService.EXTRA_URI, url)!!
@@ -100,7 +102,7 @@ class RebbleAppStoreActivity : AbstractGBActivity()  {
             val firstAppObject = dataArray.getJSONObject(0)
             val appUUID = firstAppObject.getString("uuid")
             // Cache appstore ID for app update checks
-            DBHelper.store(PebbleAppstoreIdEntry(appUUID, storeId, System.currentTimeMillis(), false));
+            DBHelper.store(PebbleAppstoreIdEntry(appUUID, storeId, System.currentTimeMillis(), false))
             // Find and install pbw file
             val latestRelease = firstAppObject.getJSONObject("latest_release")
             val pbwFile = latestRelease.getString("pbw_file")
@@ -114,7 +116,7 @@ class RebbleAppStoreActivity : AbstractGBActivity()  {
     }
 
     fun installFile(file: File) {
-        val installHandler: InstallHandler? = mGBDevice?.deviceCoordinator?.findInstallHandler(file.toUri(), Bundle.EMPTY, applicationContext)
+        val installHandler: InstallHandler? = mGBDevice.deviceCoordinator.findInstallHandler(file.toUri(), Bundle.EMPTY, applicationContext)
         if (installHandler == null) {
             GB.toast(getString(R.string.fwinstaller_file_not_compatible_to_device), Toast.LENGTH_LONG, GB.ERROR)
             LOG.error("Installable file not compatible with device")
@@ -162,11 +164,10 @@ class RebbleAppStoreActivity : AbstractGBActivity()  {
 
             override fun onReceivedError(
                 view: WebView,
-                errorCode: Int,
-                description: String?,
-                failingUrl: String?
+                request: WebResourceRequest,
+                error: WebResourceError,
             ) {
-                LOG.error(description)
+                LOG.error("Got webview error: {}", error.description)
                 view.loadUrl("about:blank")
             }
         }

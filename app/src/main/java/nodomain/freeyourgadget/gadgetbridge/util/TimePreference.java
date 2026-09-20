@@ -24,6 +24,10 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.TimePicker;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
 public class TimePreference extends DialogPreference {
     private int hour = 0;
     private int minute = 0;
@@ -108,13 +112,10 @@ public class TimePreference extends DialogPreference {
     }
 
     public String getTime24h() {
-        return String.format("%02d", hour) + ":" + String.format("%02d", minute);
+        return LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT));
     }
 
     public String getTime12h() {
-        String suffix = hour < 12 ? " AM" : " PM";
-        int h = hour > 12 ? hour - 12 : hour;
-
-        return String.valueOf(h) + ":" + String.format("%02d", minute) + suffix;
+        return LocalTime.of(hour, minute).format(DateTimeFormatter.ofPattern("h:mm a", Locale.ROOT));
     }
 }

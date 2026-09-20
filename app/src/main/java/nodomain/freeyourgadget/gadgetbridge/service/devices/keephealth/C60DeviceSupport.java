@@ -565,14 +565,14 @@ public class C60DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             String callerStr;
-            if (!StringUtils.isNullOrEmpty(callSpec.name) && !StringUtils.isNullOrEmpty(callSpec.number)) {
-                callerStr = callSpec.name + ": " + callSpec.number;
-            } else if (!StringUtils.isNullOrEmpty(callSpec.name)) {
-                callerStr = callSpec.name;
-            } else if (!StringUtils.isNullOrEmpty(callSpec.number)) {
-                callerStr = callSpec.number;
+            if (!StringUtils.isNullOrEmpty(callSpec.getName()) && !StringUtils.isNullOrEmpty(callSpec.getNumber())) {
+                callerStr = callSpec.getName() + ": " + callSpec.getNumber();
+            } else if (!StringUtils.isNullOrEmpty(callSpec.getName())) {
+                callerStr = callSpec.getName();
+            } else if (!StringUtils.isNullOrEmpty(callSpec.getNumber())) {
+                callerStr = callSpec.getNumber();
             } else {
                 callerStr = "?";
             }
@@ -584,9 +584,9 @@ public class C60DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        String titleStr = notificationSpec.title;
-        String bodyStr = notificationSpec.body;
-        KeepHealthNotificationType type = KeepHealthNotificationType.fromNotificationType(notificationSpec.type);
+        String titleStr = notificationSpec.getTitle();
+        String bodyStr = notificationSpec.getBody();
+        KeepHealthNotificationType type = KeepHealthNotificationType.fromNotificationType(notificationSpec.getType());
         notificationQueue.addToQueue(new NotificationItem(titleStr, bodyStr, type));
         LOG.debug("notificationQueue: {}", notificationQueue);
         sendNotification();

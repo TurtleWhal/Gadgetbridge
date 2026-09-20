@@ -19,21 +19,22 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.test
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.os.Handler
+import android.os.Looper
 import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard
 import nodomain.freeyourgadget.gadgetbridge.devices.test.TestDeviceCoordinator
 import nodomain.freeyourgadget.gadgetbridge.devices.test.TestFeature
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
-import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport
+import nodomain.freeyourgadget.gadgetbridge.service.AbstractBluetoothDeviceSupport
 import nodomain.freeyourgadget.gadgetbridge.util.GB
 import nodomain.freeyourgadget.gadgetbridge.util.notifications.GBProgressNotification
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.ArrayList
 
-open class TestDeviceSupport : AbstractDeviceSupport() {
+open class TestDeviceSupport : AbstractBluetoothDeviceSupport() {
     private lateinit var progressNotification: GBProgressNotification
-    private val handler = Handler()
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun setContext(gbDevice: GBDevice, btAdapter: BluetoothAdapter, context: Context) {
         super.setContext(gbDevice, btAdapter, context)

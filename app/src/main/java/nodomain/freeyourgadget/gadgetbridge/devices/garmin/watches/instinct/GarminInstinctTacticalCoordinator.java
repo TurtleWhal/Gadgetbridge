@@ -48,4 +48,9 @@ public class GarminInstinctTacticalCoordinator extends GarminWatchCoordinator {
     public boolean supportsVO2Max(@NonNull final GBDevice device) {
         return false;
     }
+
+    @Override
+    public boolean supportsRacePrediction(@NonNull final GBDevice device) {
+        return false;
+    }
 }

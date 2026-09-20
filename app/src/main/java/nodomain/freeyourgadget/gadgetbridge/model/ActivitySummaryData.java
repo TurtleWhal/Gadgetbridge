@@ -17,6 +17,7 @@
 package nodomain.freeyourgadget.gadgetbridge.model;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -33,11 +34,13 @@ import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.Activity
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummaryProgressEntry;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummarySimpleEntry;
 import nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.ActivitySummaryTableRowEntry;
+import nodomain.freeyourgadget.gadgetbridge.util.gson.GsonSerialized;
 
 /**
  * A small wrapper for a JSONObject, with helper methods to add activity summary data in the format
  * Gadgetbridge expects.
  */
+@GsonSerialized
 public class ActivitySummaryData {
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapterFactory(RuntimeTypeAdapterFactory
@@ -57,22 +60,22 @@ public class ActivitySummaryData {
         this.entries = new LinkedHashMap<>();
     }
 
-    public ActivitySummaryData(final LinkedHashMap<String, ActivitySummaryEntry> entries) {
+    public ActivitySummaryData(@NonNull final LinkedHashMap<String, ActivitySummaryEntry> entries) {
         this.entries = entries;
     }
 
     /// @return {@code true} if the value was actually added
-    public boolean add(final String key, final Number value, final String unit) {
+    public boolean add(@NonNull final String key, @Nullable final Number value, @NonNull final String unit) {
         return add(null, key, value, unit, false);
     }
 
     /// @return {@code true} if the value was actually added
-    public boolean add(final String key, final String unit, final Number value, final Number valueFallback) {
+    public boolean add(@NonNull final String key, @NonNull final String unit, @Nullable final Number value, @Nullable final Number valueFallback) {
         return add(key, unit, value, valueFallback, false);
     }
 
     /// @return {@code true} if the value was actually added
-    public boolean add(final String key, final String unit, final Number value, final Number valueFallback, boolean force) {
+    public boolean add(@NonNull final String key, @NonNull final String unit, @Nullable final Number value, @Nullable final Number valueFallback, boolean force) {
         if (value != null) {
             return add(null, key, value, unit, force);
         } else {
@@ -81,17 +84,17 @@ public class ActivitySummaryData {
     }
 
     /// @return {@code true} if the value was actually added
-    public boolean add(final String key, final Number value, final String unit, boolean forceDisplay) {
+    public boolean add(@NonNull final String key, @Nullable final Number value, @NonNull final String unit, boolean forceDisplay) {
         return add(null, key, value, unit, forceDisplay);
     }
 
     /// @return {@code true} if the value was actually added
-    public boolean add(final String group, final String key, final Number value, final String unit) {
+    public boolean add(@Nullable final String group, @NonNull final String key, @Nullable final Number value, @NonNull final String unit) {
         return add(group, key, value, unit, false);
     }
 
     /// @return {@code true} if the value was actually added
-    public boolean add(final String group, final String key, final Number value, final String unit, boolean forceDisplay) {
+    public boolean add(@Nullable final String group, @NonNull final String key, @Nullable final Number value, @NonNull final String unit, boolean forceDisplay) {
         if (value == null || !Double.isFinite(value.doubleValue())) {
             return false;
         }
@@ -104,11 +107,11 @@ public class ActivitySummaryData {
     }
 
     /// @return {@code true} if the value was actually added
-    public boolean add(final String key, final String value) {
+    public boolean add(@NonNull final String key, @Nullable final String value) {
         return add(null, key, value);
     }
 
-    public boolean add(final String group, final String key, final String value) {
+    public boolean add(@Nullable final String group, @NonNull final String key, @Nullable final String value) {
         if (StringUtils.isBlank(key) || StringUtils.isBlank(value)) {
             return false;
         }
@@ -133,7 +136,7 @@ public class ActivitySummaryData {
         return entries.containsKey(key);
     }
 
-    public Number getNumber(final String key, final Number defaultValue) {
+    public Number getNumber(@NonNull final String key, final Number defaultValue) {
         final ActivitySummaryEntry entry = entries.get(key);
         if (!(entry instanceof ActivitySummarySimpleEntry simpleEntry)) {
             return defaultValue;
@@ -146,7 +149,7 @@ public class ActivitySummaryData {
         return ((Number) value).doubleValue();
     }
 
-    public boolean getBoolean(final String key, final boolean defaultValue) {
+    public boolean getBoolean(@NonNull final String key, final boolean defaultValue) {
         final ActivitySummaryEntry entry = entries.get(key);
         if (!(entry instanceof ActivitySummarySimpleEntry simpleEntry)) {
             return defaultValue;
@@ -193,7 +196,7 @@ public class ActivitySummaryData {
         return GSON.toJson(entries);
     }
 
-    public void addTotal(final Number value, final ActivityKind.CycleUnit unit) {
+    public void addTotal(@Nullable final Number value, @NonNull final ActivityKind.CycleUnit unit) {
         switch (unit) {
             case STROKES:
                 add(ActivitySummaryEntries.STROKES, value, ActivitySummaryEntries.UNIT_STROKES);
@@ -212,7 +215,7 @@ public class ActivitySummaryData {
         }
     }
 
-    public void addCadenceAvg(final Number value, final ActivityKind.CycleUnit unit) {
+    public void addCadenceAvg(@Nullable final Number value, @NonNull final ActivityKind.CycleUnit unit) {
         switch (unit) {
             case STROKES:
                 add(ActivitySummaryEntries.STROKE_RATE_AVG, value, ActivitySummaryEntries.UNIT_STROKES_PER_MINUTE);
@@ -231,7 +234,7 @@ public class ActivitySummaryData {
         }
     }
 
-    public void addCadenceMax(final Number value, final ActivityKind.CycleUnit unit) {
+    public void addCadenceMax(@Nullable final Number value, @NonNull final ActivityKind.CycleUnit unit) {
         switch (unit) {
             case STROKES:
                 add(ActivitySummaryEntries.STROKE_RATE_MAX, value, ActivitySummaryEntries.UNIT_STROKES_PER_MINUTE);

@@ -81,6 +81,7 @@ public class GBDaoGenerator {
     private static final String SAMPLE_STRESS = "stress";
     private static final String SAMPLE_TEMPERATURE = "temperature";
     private static final String SAMPLE_WEIGHT_KG = "weightKg";
+    private static final String SAMPLE_IMPEDANCE_OHM = "impedanceOhm";
     private static final String SAMPLE_BLOOD_PRESSURE_SYSTOLIC = "bpSystolic";
     private static final String SAMPLE_BLOOD_PRESSURE_DIASTOLIC = "bpDiastolic";
     private static final String TIMESTAMP_FROM = "timestampFrom";
@@ -109,7 +110,7 @@ public class GBDaoGenerator {
             outputDir.mkdirs();
         }
 
-        final Schema schema = new Schema(139, MAIN_PACKAGE + ".entities");
+        final Schema schema = new Schema(142, MAIN_PACKAGE + ".entities");
 
         final List<Entity> sampleProvidersToGenerate = new LinkedList<>();
         final List<Entity> batterySampleProvidersToGenerate = new LinkedList<>();
@@ -133,6 +134,7 @@ public class GBDaoGenerator {
         addMakibesHR3ActivitySample(schema, user, device);
         addOVTouch26ActivitySample(schema, user, device);
         addAk102ActivitySample(schema, user, device);
+        addWearFitActivitySample(schema, user, device);
         addMiBandActivitySample(schema, user, device);
         addHuamiExtendedActivitySample(schema, user, device);
         sampleProvidersToGenerate.add(addHuamiStressSample(schema, user, device));
@@ -191,6 +193,7 @@ public class GBDaoGenerator {
         addGarminActivitySample(schema, user, device);
         sampleProvidersToGenerate.add(addGarminStressSample(schema, user, device));
         sampleProvidersToGenerate.add(addGarminBodyEnergySample(schema, user, device));
+        sampleProvidersToGenerate.add(addGarminSolarChargeSample(schema, user, device));
         sampleProvidersToGenerate.add(addGarminSpo2Sample(schema, user, device));
         sampleProvidersToGenerate.add(addGarminSleepStageSample(schema, user, device));
         addGarminEventSample(schema, user, device);
@@ -279,6 +282,7 @@ public class GBDaoGenerator {
         addNotificationFilterEntry(schema, notificationFilter);
 
         addActivitySummary(schema, user, device);
+        addWorkoutUpload(schema);
         // FIXME: BatteryLevel timestamp is in seconds, maybe migrate it once #6177 is merged
         addBatteryLevel(schema, device);
         batterySampleProvidersToGenerate.add(addBatteryVoltageSample(schema, device));
@@ -571,6 +575,16 @@ public class GBDaoGenerator {
         activitySample.addIntProperty(SAMPLE_BLOOD_PRESSURE_SYSTOLIC).notNull();
         activitySample.addIntProperty(SAMPLE_BLOOD_PRESSURE_DIASTOLIC).notNull();
         activitySample.addIntProperty("sleep");
+        activitySample.addIntProperty(SAMPLE_RAW_KIND).notNull().codeBeforeGetterAndSetter(OVERRIDE);
+        addHeartRateProperties(activitySample);
+        return activitySample;
+    }
+
+    private static Entity addWearFitActivitySample(Schema schema, Entity user, Entity device) {
+        Entity activitySample = addEntity(schema, "WearFitActivitySample");
+        activitySample.implementsSerializable();
+        addCommonActivitySampleProperties("AbstractActivitySample", activitySample, user, device);
+        activitySample.addIntProperty(SAMPLE_STEPS).notNull().codeBeforeGetterAndSetter(OVERRIDE);
         activitySample.addIntProperty(SAMPLE_RAW_KIND).notNull().codeBeforeGetterAndSetter(OVERRIDE);
         addHeartRateProperties(activitySample);
         return activitySample;
@@ -1167,6 +1181,14 @@ public class GBDaoGenerator {
         return stressSample;
     }
 
+    private static Entity addGarminSolarChargeSample(Schema schema, Entity user, Entity device) {
+        Entity solarChargeSample = addEntity(schema, "GarminSolarChargeSample");
+        addCommonTimeSampleProperties("AbstractSolarChargeSample", solarChargeSample, user, device);
+        solarChargeSample.addFloatProperty("percent").notNull().codeBeforeGetter(OVERRIDE);
+        solarChargeSample.addLongProperty("gain").notNull().codeBeforeGetter(OVERRIDE);
+        return solarChargeSample;
+    }
+
     private static Entity addGarminSpo2Sample(Schema schema, Entity user, Entity device) {
         Entity spo2sample = addEntity(schema, "GarminSpo2Sample");
         addCommonTimeSampleProperties("AbstractSpo2Sample", spo2sample, user, device);
@@ -1442,6 +1464,7 @@ public class GBDaoGenerator {
 
     private static Entity addMoyoungSpo2Sample(Schema schema, Entity user, Entity device) {
         Entity spo2sample = addEntity(schema, "MoyoungSpo2Sample");
+        spo2sample.implementsSerializable();
         addCommonTimeSampleProperties("AbstractSpo2Sample", spo2sample, user, device);
         spo2sample.addIntProperty("spo2").notNull().codeBeforeGetter(OVERRIDE);
         return spo2sample;
@@ -1768,6 +1791,38 @@ public class GBDaoGenerator {
         summary.addToOne(user, userId);
         summary.addStringProperty("summaryData").codeBeforeGetter(OVERRIDE);
         summary.addByteArrayProperty("rawSummaryData");
+    }
+
+    private static void addWorkoutUpload(Schema schema) {
+        Entity upload = addEntity(schema, "WorkoutUpload");
+        upload.implementsSerializable();
+        upload.setJavaDoc(
+                "Tracks the upload of a workout summary to an external service (Endurain, Wanderer).\n"
+                + "Keyed by (summaryId, service). Stores the remote activity id and status so a workout\n"
+                + "is never uploaded twice and later edits can be re-synced.");
+        upload.addLongProperty("summaryId").primaryKey().notNull();
+        upload.addIntProperty("service").primaryKey().notNull();
+        upload.addStringProperty("remoteActivityId");
+        upload.addIntProperty("status").notNull();
+        upload.addLongProperty("updatedAt").notNull();
+        // Fingerprint of the header photo at the time of the last upload, so a photo added or
+        // replaced afterwards can be detected and re-synced to the remote activity.
+        upload.addStringProperty("photoHash");
+        // Id of the media entry the header photo was uploaded as, so it can be deleted when the
+        // photo is replaced or removed without touching media the user attached on the server.
+        upload.addIntProperty("photoMediaId");
+        // Fingerprint of everything about the summary that a later edit or a reprocess can
+        // change. Compared on every sync to decide whether the workout is worth re-exporting.
+        upload.addStringProperty("sourceHash");
+        // Fingerprint of the exported file that was actually uploaded, compared once the source
+        // hash has already shown that something changed.
+        upload.addStringProperty("payloadHash");
+        // Whether the uploaded file carried a GPS track, so a track added afterwards can be told
+        // apart from a track that merely changed.
+        upload.addBooleanProperty("hadTrack");
+        // Why the last attempt failed, in the user's language, or null once one succeeds. Set on a
+        // failed re-sync too, where the row keeps the successful status of the upload it describes.
+        upload.addStringProperty("lastError");
     }
 
     private static Property findProperty(Entity entity, String propertyName) {
@@ -2468,6 +2523,12 @@ public class GBDaoGenerator {
         Entity sample = addEntity(schema, "MiScaleWeightSample");
         addCommonTimeSampleProperties("AbstractWeightSample", sample, user, device);
         sample.addFloatProperty(SAMPLE_WEIGHT_KG).notNull().codeBeforeGetter(OVERRIDE);
+        // Raw BLE impedance (Ohms) from the Body Composition Measurement characteristic (0x2A9C),
+        // present only on devices with a Body Composition Service (e.g. MIBFS). Null when the
+        // scale has no impedance sensor, or the reading did not carry one. Body fat/muscle/water
+        // etc. are derived from this plus a user profile, not stored raw (formula-dependent,
+        // see https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/6393).
+        sample.addIntProperty(SAMPLE_IMPEDANCE_OHM).codeBeforeGetter(OVERRIDE);
         return sample;
     }
 
@@ -2541,6 +2602,8 @@ public class GBDaoGenerator {
         Entity sample = addEntity(schema, "GenericWeightSample");
         addCommonTimeSampleProperties("AbstractWeightSample", sample, user, device);
         sample.addFloatProperty(SAMPLE_WEIGHT_KG).notNull().codeBeforeGetter(OVERRIDE);
+        // Raw bio-impedance in Ohms, for scales that report it (see MiScaleWeightSample).
+        sample.addIntProperty(SAMPLE_IMPEDANCE_OHM).codeBeforeGetter(OVERRIDE);
         return sample;
     }
 

@@ -347,17 +347,10 @@ public class SleepDetailsParser extends XiaomiActivityParser {
             // Save the sleep stage samples
             try (DBHandler handler = GBApplication.acquireDB()) {
                 final DaoSession session = handler.getDaoSession();
-                final Device device = DBHelper.getDevice(gbDevice, session);
-                final User user = DBHelper.getUser(session);
 
                 final XiaomiSleepStageSampleProvider sampleProvider = new XiaomiSleepStageSampleProvider(gbDevice, session);
 
-                for (final XiaomiSleepStageSample stageSample : stages) {
-                    stageSample.setDevice(device);
-                    stageSample.setUser(user);
-                }
-
-                sampleProvider.addSamples(stages);
+                sampleProvider.persistSamples(stages, context);
             } catch (final Exception e) {
                 GB.toast(context, "Error saving sleep stage samples", Toast.LENGTH_LONG, GB.ERROR);
                 LOG.error("Error saving sleep stage samples", e);
@@ -368,17 +361,10 @@ public class SleepDetailsParser extends XiaomiActivityParser {
         // Save the heart pulse samples
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
-            final Device device = DBHelper.getDevice(gbDevice, session);
-            final User user = DBHelper.getUser(session);
 
             final HeartPulseSampleProvider sampleProvider = new HeartPulseSampleProvider(gbDevice, session);
 
-            for (final HeartPulseSample stageSample : heartPulseSamples) {
-                stageSample.setDevice(device);
-                stageSample.setUser(user);
-            }
-
-            sampleProvider.addSamples(heartPulseSamples);
+            sampleProvider.persistSamples(heartPulseSamples, context);
         } catch (final Exception e) {
             GB.toast(context, "Error saving heart pulse samples", Toast.LENGTH_LONG, GB.ERROR);
             LOG.error("Error saving heart pulse samples", e);
@@ -390,13 +376,11 @@ public class SleepDetailsParser extends XiaomiActivityParser {
 
     private static boolean readStagePacketHeader(final ByteBuffer buffer) {
         while (buffer.remaining() >= 17) {
-            if (buffer.getInt() != 0xfffcfafb) {
-                // rollback to second byte of header
-                buffer.position(buffer.position() - 3);
-                continue;
+            if (buffer.getInt() == 0xfffcfafb) {
+                return true;
             }
-
-            return true;
+            // rollback to second byte of header
+            buffer.position(buffer.position() - 3);
         }
         return false;
     }

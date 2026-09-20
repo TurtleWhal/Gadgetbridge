@@ -37,8 +37,12 @@ import static nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst.PR
 import static nodomain.freeyourgadget.gadgetbridge.devices.miband.MiBandConst.PREF_SWIPE_UNLOCK;
 import static nodomain.freeyourgadget.gadgetbridge.devices.moyoung.MoyoungConstants.PREF_MOYOUNG_DEVICE_VERSION;
 import static nodomain.freeyourgadget.gadgetbridge.devices.moyoung.MoyoungConstants.PREF_MOYOUNG_WATCH_FACE;
+import static nodomain.freeyourgadget.gadgetbridge.util.GBPrefs.DEVICE_CONNECT_BY_TRIGGER;
 
 import android.Manifest;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -67,6 +71,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -109,6 +114,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.GBSimpleSummaryProvider;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.MinMaxTextWatcher;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.PreferenceCategoryMultiline;
+import nodomain.freeyourgadget.gadgetbridge.util.preferences.SubtitleListPreference;
 
 public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment implements DeviceSpecificSettingsHandler {
 
@@ -682,6 +688,43 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
             });
         }
 
+        final Preference connectTrigger = findPreference(DEVICE_CONNECT_BY_TRIGGER);
+        if(connectTrigger != null) {
+            final SubtitleListPreference connectTriggerPref = (SubtitleListPreference) connectTrigger;
+            try {
+
+                final BluetoothManager bluetoothManager = (BluetoothManager) requireContext().getSystemService(Context.BLUETOOTH_SERVICE);
+                final Set<BluetoothDevice> pairedDevices = bluetoothManager.getAdapter().getBondedDevices();
+                List<BluetoothDevice> bondedDevices =
+                        (pairedDevices != null) ? new ArrayList<>(pairedDevices) : new ArrayList<>();
+                bondedDevices.sort(Comparator.comparing(BluetoothDevice::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+
+                final List<CharSequence> entries = new ArrayList<>();
+                final List<CharSequence> entrySubtitles = new ArrayList<>();
+                final List<CharSequence> entryValues = new ArrayList<>();
+
+                entries.add(requireContext().getString(R.string.none));
+                entrySubtitles.add(null);
+                entryValues.add("none");
+
+                for (final BluetoothDevice bluetoothDevice : bondedDevices) {
+                    if (device.getAddress().equals(bluetoothDevice.getAddress())) {
+                        continue;
+                    }
+                    final String name = Objects.requireNonNullElse(bluetoothDevice.getName(), requireContext().getString(R.string.unknown));
+                    entries.add(name);
+                    entrySubtitles.add(bluetoothDevice.getAddress());
+                    entryValues.add(bluetoothDevice.getAddress());
+                }
+
+                connectTriggerPref.setEntries(entries.toArray(new CharSequence[0]));
+                connectTriggerPref.setEntrySubtitles(entrySubtitles.toArray(new CharSequence[0]));
+                connectTriggerPref.setEntryValues(entryValues.toArray(new CharSequence[0]));
+            } catch (final SecurityException e) {
+                LOG.error("Failed to list paired devices", e);
+            }
+        }
+
         addPreferenceHandlerFor(PREF_SEND_APP_NOTIFICATIONS);
         addPreferenceHandlerFor(PREF_SWIPE_UNLOCK);
         addPreferenceHandlerFor(PREF_MI2_DATEFORMAT);
@@ -1056,10 +1099,6 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
 
         addPreferenceHandlerFor(PREF_MOYOUNG_WATCH_FACE);
         addPreferenceHandlerFor(PREF_MOYOUNG_DEVICE_VERSION);
-
-        addPreferenceHandlerFor(PREF_QC35_NOISE_CANCELLING_LEVEL);
-
-        addPreferenceHandlerFor(PREF_DUAL_DEVICE_SUPPORT);
 
         addPreferenceHandlerFor(PREF_DEVICE_LOGS_TOGGLE);
 
@@ -1453,8 +1492,8 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                         }
                     }
                     CannedMessagesSpec cannedMessagesSpec = new CannedMessagesSpec();
-                    cannedMessagesSpec.type = CannedMessagesSpec.TYPE_REJECTEDCALLS;
-                    cannedMessagesSpec.cannedMessages = messages.toArray(new String[0]);
+                    cannedMessagesSpec.setType(CannedMessagesSpec.TYPE_REJECTEDCALLS);
+                    cannedMessagesSpec.setCannedMessages(messages.toArray(new String[0]));
                     GBApplication.deviceService(device).onSetCannedMessages(cannedMessagesSpec);
                     return true;
                 }
@@ -1483,8 +1522,8 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                         }
                     }
                     final CannedMessagesSpec cannedMessagesSpec = new CannedMessagesSpec();
-                    cannedMessagesSpec.type = CannedMessagesSpec.TYPE_GENERIC;
-                    cannedMessagesSpec.cannedMessages = messages.toArray(new String[0]);
+                    cannedMessagesSpec.setType(CannedMessagesSpec.TYPE_GENERIC);
+                    cannedMessagesSpec.setCannedMessages(messages.toArray(new String[0]));
                     GBApplication.deviceService().onSetCannedMessages(cannedMessagesSpec);
                     return true;
                 }
@@ -1740,10 +1779,13 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                 );
             }
 
-            deviceSpecificSettings.addRootScreen(
-                    DeviceSpecificSettingsScreen.CONNECTION,
-                    coordinator.getSupportedDeviceSpecificConnectionSettings()
-            );
+            final int[] supportedConnectionSettings = coordinator.getSupportedDeviceSpecificConnectionSettings();
+            if (supportedConnectionSettings.length > 0) {
+                deviceSpecificSettings.addRootScreen(
+                        DeviceSpecificSettingsScreen.CONNECTION,
+                        supportedConnectionSettings
+                );
+            }
 
             if (coordinator.getBatteryCount(device) > 0) {
                 deviceSpecificSettings.addRootScreen(
@@ -1764,10 +1806,13 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
                 );
             }
 
-            deviceSpecificSettings.addRootScreen(
-                    DeviceSpecificSettingsScreen.DEVELOPER,
-                    R.xml.devicesettings_device_support_can_reconnect
-            );
+            if (coordinator.getConnectionType() != DeviceCoordinator.ConnectionType.USB) {
+                // USB devices do not support it (and should not need it)
+                deviceSpecificSettings.addRootScreen(
+                        DeviceSpecificSettingsScreen.DEVELOPER,
+                        R.xml.devicesettings_device_support_can_reconnect
+                );
+            }
 
             final List<Integer> intentApiSubScreens = new ArrayList<>();
             Collections.addAll(
@@ -1801,14 +1846,16 @@ public class DeviceSpecificSettingsFragment extends AbstractPreferenceFragment i
             }
             if (BuildConfig.DEBUG) {
                 final int[] debugSettings = coordinator.getSupportedDebugSettings(device);
-                deviceSpecificSettings.addRootScreen(
-                        DeviceSpecificSettingsScreen.DEVELOPER,
-                        R.xml.devicesettings_header_debug
-                );
-                deviceSpecificSettings.addRootScreen(
-                        DeviceSpecificSettingsScreen.DEVELOPER,
-                        debugSettings
-                );
+                if (debugSettings.length > 0) {
+                    deviceSpecificSettings.addRootScreen(
+                            DeviceSpecificSettingsScreen.DEVELOPER,
+                            R.xml.devicesettings_header_debug
+                    );
+                    deviceSpecificSettings.addRootScreen(
+                            DeviceSpecificSettingsScreen.DEVELOPER,
+                            debugSettings
+                    );
+                }
             }
             if (GBApplication.getPrefs().experimentalSettings()) {
                 final int[] experimentalSettings = coordinator.getSupportedDeviceSpecificExperimentalSettings(device);

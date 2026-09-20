@@ -21,6 +21,7 @@ import android.content.SharedPreferences;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
@@ -43,7 +44,7 @@ public class SetAdaptiveVolumeRequest extends Request {
 
         public static Mode fromPreference(String value) {
             try {
-                return valueOf(value.toUpperCase());
+                return valueOf(value.toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException e) {
                 return OFF;
             }
@@ -64,7 +65,7 @@ public class SetAdaptiveVolumeRequest extends Request {
         }
 
         public String toPreference() {
-            return name().toLowerCase();
+            return name().toLowerCase(Locale.ROOT);
         }
     }
 

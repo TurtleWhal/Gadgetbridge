@@ -1,3 +1,19 @@
+/*  Copyright (C) 2024-2026 José Rebelo, kuhy, Daniele Gobbetti, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.http;
 
 import androidx.annotation.Nullable;
@@ -68,6 +84,8 @@ public class HttpHandler {
                         .build();
             }
             return null;
+        } else if (httpService.hasShowURLNotification()) {
+            return handleShowURLRequest(httpService.getShowURLNotification(), messageRequestId);
         }
 
         LOG.warn("Unsupported http service request {}", httpService);
@@ -78,6 +96,11 @@ public class HttpHandler {
     public GdiHttpService.HttpService.RawResponse handleRawRequest(final GdiHttpService.HttpService.RawRequest rawRequest,
                                                                    final int messageRequestId) {
         LOG.debug("Got rawRequest {}: {} - {}", messageRequestId, rawRequest.getMethod(), rawRequest.getUrl());
+
+        if (rawRequest.getMultiPartFormsCount() > 0) {
+            LOG.warn("RawRequest {} requires unsupported MultiPartForm support: {}", messageRequestId, rawRequest);
+            return null;
+        }
 
         final GarminHttpRequest request = new GarminHttpRequest(rawRequest, messageRequestId);
 
@@ -187,6 +210,17 @@ public class HttpHandler {
                 .setBody(ByteString.copyFrom(responseBody))
                 .addAllHeader(responseHeaders)
                 .build();
+    }
+
+    public GdiHttpService.HttpService handleShowURLRequest(final GdiHttpService.HttpService.ShowURLNotification showURLNotification,
+                                                           final int messageRequestId) {
+        LOG.warn("Got unsupported ShowUrlNotification {}: {} {} {}",
+                messageRequestId,
+                showURLNotification.hasUrl() ? showURLNotification.getUrl() : null,
+                showURLNotification.hasParameters() ? showURLNotification.getParameters() : null,
+                showURLNotification.hasApp() ? showURLNotification.getApp() : null);
+        // TODO: ask the user if they want to open the web page
+        return null;
     }
 
     public GdiHttpService.HttpService.WebResponse handleWebRequest(final GdiHttpService.HttpService.WebRequest webRequest,

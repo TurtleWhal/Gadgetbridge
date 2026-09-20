@@ -237,7 +237,7 @@ public class MoyoungActivitySampleProvider extends AbstractSampleProvider<Moyoun
         if (sleepStageSamples.size() > 1) {
             LOG.debug("Overlaying with data from {} sleep stage samples", sleepStageSamples.size());
         } else {
-            LOG.warn("Not overlaying sleep data because more than 1 sleep stage sample is required");
+            LOG.debug("Not overlaying sleep data: fewer than 2 sleep stage samples in range");
             return;
         }
 

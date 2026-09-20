@@ -51,7 +51,7 @@ public class NotificationProvider {
         NotificationSource notificationSource = new NotificationSource(spec.getId(),
                                                                         AncsConstants.EVENT_ID_NOTIFICATION_ADDED,
                                                                         AncsConstants.EVENT_FLAGS_IMPORTANT,
-                                                                        mapNotificationType(spec.type),
+                                                                        mapNotificationType(spec.getType()),
                                                                         (byte)1);
         pendingNotifications.put(notificationSource.getNotificationUID(), spec);
         support.sendAncsNotificationSourceNotification(notificationSource);
@@ -84,19 +84,19 @@ public class NotificationProvider {
             logger.debug("Handling attribute " + attribute.getAttributeID() + " with maxLength " + attribute.getAttributeLength());
             String value = "";
             if (requestedAttribute.getAttributeID() == 0) {
-                value = spec.sourceAppId;
+                value = spec.getSourceAppId();
             }
             if (requestedAttribute.getAttributeID() == 1) {
                 complete = true;
-                value = spec.sender != null? spec.sender : (spec.phoneNumber != null? spec.phoneNumber : (spec.sourceName != null? spec.sourceName : "Unknown"));
+                value = spec.getSender() != null? spec.getSender() : (spec.getPhoneNumber() != null? spec.getPhoneNumber() : (spec.getSourceName() != null? spec.getSourceName() : "Unknown"));
             }
             if (requestedAttribute.getAttributeID() == 2) {
                 complete = true;
-                value = spec.title != null? spec.title : (spec.subject != null? spec.subject : " ");
+                value = spec.getTitle() != null? spec.getTitle() : (spec.getSubject() != null? spec.getSubject() : " ");
             }
             if (requestedAttribute.getAttributeID() == 3) {
                 complete = true;
-                value = (spec.body != null? spec.body : " ");
+                value = (spec.getBody() != null? spec.getBody() : " ");
             }
 
             if (value != null) {
@@ -123,7 +123,7 @@ public class NotificationProvider {
 
     public NotificationSpec getNotificationSpecForSourceAppId(String sourceAppId) {
         for (NotificationSpec notificationSpec : pendingNotifications.values()) {
-            if (notificationSpec.sourceAppId != null && notificationSpec.sourceAppId.equalsIgnoreCase(sourceAppId)) {
+            if (notificationSpec.getSourceAppId() != null && notificationSpec.getSourceAppId().equalsIgnoreCase(sourceAppId)) {
                 return notificationSpec;
             }
         }

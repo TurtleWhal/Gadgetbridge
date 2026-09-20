@@ -19,10 +19,10 @@ package nodomain.freeyourgadget.gadgetbridge.devices.una
 import java.util.UUID
 
 object UnaConstants {
-    // File Transfer Service (FTS): a small Adafruit-style pair (service UUID matches Adafruit's
-    // real published BLE File Transfer Service, 0xFEBB, but the characteristic-level protocol is
-    // UNA's own, not Adafruit's). adaf0002 carries both the request writes and the response
-    // notifications for every FTS sub-protocol below; adaf0001 exists but is unused here.
+    // FTS uses Adafruit's published 0xFEBB service UUID, but UNA's own characteristic numbering
+    // and protocol. adaf0002 carries requests and responses for every FTS command; adaf0001 is a
+    // uint32 protocol version (4 = classic, 5 = fast-transfer extensions) that nothing here needs.
+    // Wire format: UNA's Docs/BLE-File-Transfer-Service.md.
     val UUID_SERVICE_FTS: UUID = UUID.fromString("0000febb-0000-1000-8000-00805f9b34fb")
     val UUID_CHARACTERISTIC_FTS: UUID = UUID.fromString("adaf0002-4669-6c65-5472-616e73666572")
 
@@ -30,25 +30,70 @@ object UnaConstants {
     const val CMD_LIST_DIR: Int = 0x50
     const val RESP_LIST_ENTRY: Int = 0x51
 
-    // Whole-file read: 0x10 request (path + offset) per chunk, 0x11 response. The real app was
-    // observed switching to a leaner 0x12 opcode (no path) for chunks after the first, but that's
-    // never been directly validated here -- repeating 0x10 with the full path is the form that's
-    // actually been tested end-to-end, and the firmware accepts it for every chunk.
     const val CMD_READ: Int = 0x10
     const val RESP_READ_CHUNK: Int = 0x11
+    const val CMD_READ_PACING: Int = 0x12
 
-    const val READ_CHUNK_SIZE: Int = 128
+    const val READ_WINDOW_SIZE: Int = 4096
 
-    // CCS (Custom Command Service): a grab-bag of small phone<->watch commands, multiplexed by
-    // leading opcode byte on one characteristic, same pattern as FTS. Only the daily-health request
-    // (steps/floors/active-minutes/resting-HR/average-HR for one calendar day) is used here; CCS
-    // also reportedly carries find-phone, reset, and firmware-update commands, none of which are
-    // implemented or needed by this device support.
+    // Without this the link can sit on the 23-byte default, roughly tenfold more round trips.
+    const val MTU_REQUEST: Int = 247
+
+    // CCS multiplexes small phone/watch commands by leading opcode byte, same pattern as FTS, and
+    // is not covered by UNA's published BLE docs. Two commands are used here: daily health for one
+    // calendar day, and 60 per-minute heart rates for one hour. CCS also carries find-phone, reset,
+    // EPO and firmware update, none of which are implemented.
+    //
+    // -0001- takes commands and answers them. -0002- is notify-only and carries watch to phone
+    // events.
     val UUID_SERVICE_CCS: UUID = UUID.fromString("554e4100-a2cf-4df8-0000-7e1e48595106")
-    val UUID_CHARACTERISTIC_DAILY_HEALTH: UUID = UUID.fromString("554e4100-a2cf-4df8-0001-7e1e48595106")
+    val UUID_CHARACTERISTIC_CCS_COMMAND: UUID = UUID.fromString("554e4100-a2cf-4df8-0001-7e1e48595106")
+    val UUID_CHARACTERISTIC_CCS_EVENT: UUID = UUID.fromString("554e4100-a2cf-4df8-0002-7e1e48595106")
+
+    const val EVENT_ACTIVITY_SAVED: Int = 0x01
+
+    // ANCS re-done on a vendor service: -0001- announces a notification, -0002- carries the
+    // watch's requests for its text and the answers. The watch discards every announcement without
+    // a word unless `phone.notifications` is true in /settings.json.
+    val UUID_SERVICE_CANS: UUID = UUID.fromString("554e4100-28e7-4811-0000-141f8b92ee40")
+    val UUID_CHARACTERISTIC_CANS_NOTIFICATION: UUID = UUID.fromString("554e4100-28e7-4811-0001-141f8b92ee40")
+    val UUID_CHARACTERISTIC_CANS_COMMAND: UUID = UUID.fromString("554e4100-28e7-4811-0002-141f8b92ee40")
+
+    const val NOTIFICATION_EVENT: Int = 0x01
+
+    const val ACTION_ADD: Int = 0
+    const val ACTION_REMOVE: Int = 1
+    const val ACTION_MODIFY: Int = 2
+
+    const val CATEGORY_OTHER: Int = 0
+    const val CATEGORY_MESSAGE: Int = 1
+    const val CATEGORY_CALL: Int = 2
+
+    const val SERVER_REQUEST_ATTRIBUTES: Int = 3
+    const val SERVER_EXECUTE_POSITIVE_ACTION: Int = 4
+    const val SERVER_EXECUTE_NEGATIVE_ACTION: Int = 5
+
+    const val ATTRIBUTE_TITLE: Int = 1
+    const val ATTRIBUTE_SUBTITLE: Int = 2
+    const val ATTRIBUTE_MESSAGE_CONTENT_SIZE: Int = 3
+    const val ATTRIBUTE_MESSAGE: Int = 4
+    const val ATTRIBUTE_APP_IDENTIFIER: Int = 5
+    const val ATTRIBUTE_APP_NAME: Int = 6
+    const val ATTRIBUTE_TIMESTAMP: Int = 7
+    const val ATTRIBUTE_POSITIVE_ACTION_LABEL: Int = 8
+    const val ATTRIBUTE_NEGATIVE_ACTION_LABEL: Int = 9
+
+    const val ERROR_INVALID_REQUEST_FORMAT: Int = 128
+    const val ERROR_NOTIFICATION_UID_NOT_FOUND: Int = 129
+    const val ERROR_ATTRIBUTE_DATA_NOT_AVAILABLE: Int = 130
+
+    /** The format the watch's own companion writes into the timestamp attribute. */
+    const val TIMESTAMP_PATTERN: String = "yyyyMMdd'T'HHmmss"
 
     const val CMD_DAILY_HEALTH: Int = 0x10
-    // Not a separate opcode -- byte 1 of the response, alongside the same leading opcode byte
-    // as the request (see UnaDailyHealthProtocol.parseResponse).
-    const val RESP_DAILY_HEALTH: Int = 0x01
+    const val CMD_HOURLY_HR: Int = 0x14
+
+    // Byte 1 of a CCS response, shared by both commands. Any other value is an error status
+    // rather than a payload.
+    const val RESP_STATUS_OK: Int = 0x01
 }

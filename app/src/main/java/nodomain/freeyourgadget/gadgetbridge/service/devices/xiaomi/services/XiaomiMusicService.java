@@ -134,17 +134,17 @@ public class XiaomiMusicService extends AbstractXiaomiService {
         if (musicSpec == null || musicStateSpec == null) {
             musicInfo.setState(STATE_NOTHING);
         } else {
-            if (musicStateSpec.state == MusicStateSpec.STATE_PLAYING) {
+            if (musicStateSpec.getState() == MusicStateSpec.STATE_PLAYING) {
                 musicInfo.setState(STATE_PLAYING);
             } else {
                 musicInfo.setState(STATE_PAUSED);
             }
 
             musicInfo.setVolume(mediaManager.getPhoneVolume())
-                    .setTrack(musicSpec.track != null ? musicSpec.track : "")
-                    .setArtist(musicSpec.artist != null ? musicSpec.artist : "")
-                    .setPosition(musicStateSpec.position)
-                    .setDuration(musicSpec.duration);
+                    .setTrack(musicSpec.getTrack() != null ? musicSpec.getTrack() : "")
+                    .setArtist(musicSpec.getArtist() != null ? musicSpec.getArtist() : "")
+                    .setPosition(musicStateSpec.getPosition())
+                    .setDuration(musicSpec.getDuration());
         }
 
         final XiaomiProto.Music music = XiaomiProto.Music.newBuilder()

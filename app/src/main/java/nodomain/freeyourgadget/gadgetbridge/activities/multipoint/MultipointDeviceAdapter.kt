@@ -7,6 +7,8 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import nodomain.freeyourgadget.gadgetbridge.R
 
 class MultipointDeviceAdapter(
@@ -18,7 +20,8 @@ class MultipointDeviceAdapter(
 
     enum class Action {
         CONNECT,
-        DISCONNECT
+        DISCONNECT,
+        FORGET,
     }
 
     class DeviceViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -26,6 +29,7 @@ class MultipointDeviceAdapter(
         val deviceName: TextView = itemView.findViewById(R.id.device_name)
         val deviceAddress: TextView = itemView.findViewById(R.id.device_address)
         val connectionButton: Button = itemView.findViewById(R.id.connection_button)
+        val forgetButton: Button = itemView.findViewById(R.id.forget_button)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DeviceViewHolder {
@@ -39,17 +43,21 @@ class MultipointDeviceAdapter(
         val context = holder.itemView.context
 
         holder.deviceName.text = device.name ?: context.getString(R.string.unknown)
-        holder.deviceAddress.text = device.address
+        holder.deviceAddress.text = if (device.isActive) {
+            context.getString(R.string.bluetooth_multipoint_active_device, device.address)
+        } else {
+            device.address
+        }
 
-        val (icon, buttonText, action) = if (device.isConnected) {
+        val (colorFilter, buttonText, action) = if (device.isConnected) {
             Triple(
-                R.drawable.ic_bluetooth_connected,
+                null,
                 context.getString(R.string.controlcenter_disconnect),
                 Action.DISCONNECT
             )
         } else {
             Triple(
-                R.drawable.ic_bluetooth_disabled,
+                ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) }),
                 context.getString(R.string.connect),
                 Action.CONNECT
             )
@@ -58,14 +66,20 @@ class MultipointDeviceAdapter(
         val allowConnect = allowAction && devices.count { it.isConnected } < 2
         val allowDisconnect = allowAction
 
-        holder.deviceIcon.setImageResource(icon)
+        holder.deviceIcon.colorFilter = colorFilter
         holder.connectionButton.text = buttonText
         holder.connectionButton.isEnabled = when (action) {
             Action.CONNECT -> allowConnect
             Action.DISCONNECT -> allowDisconnect
+            Action.FORGET -> false
         }
         holder.connectionButton.setOnClickListener {
             onAction(device, action)
+        }
+        holder.forgetButton.visibility = if (device.canForget) View.VISIBLE else View.GONE
+        holder.forgetButton.isEnabled = allowAction
+        holder.forgetButton.setOnClickListener {
+            onAction(device, Action.FORGET)
         }
     }
 

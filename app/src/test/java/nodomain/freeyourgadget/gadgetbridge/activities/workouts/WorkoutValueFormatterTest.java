@@ -2,6 +2,8 @@ package nodomain.freeyourgadget.gadgetbridge.activities.workouts;
 
 import static org.junit.Assert.assertEquals;
 
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_CELSIUS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_FAHRENHEIT;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_FOOT;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KILOMETERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KMPH;
@@ -65,6 +67,33 @@ public class WorkoutValueFormatterTest extends TestBase {
     }
 
     @Test
+    public void paceRoundingCarriesSecondsIntoMinutes() {
+        final String[] units = {
+                UNIT_SECONDS_PER_KM,
+                UNIT_SECONDS_PER_M,
+                UNIT_SECONDS_PER_100_METERS,
+                UNIT_SECONDS_PER_500_METERS
+        };
+        final String[] metricLabels = {"min/km", "min/km", "min/100m", "min/500m"};
+        final String[] imperialLabels = {"min/mi", "min/mi", "min/100yd", "min/500m"};
+        final double[] metricFactors = {1, 1000, 1, 1};
+        final double[] imperialFactors = {1.609344, 1609.344, 0.9144, 1};
+        final double[] seconds = {0, 299.4, 299.6, 300};
+        final String[] expected = {"0:00", "4:59", "5:00", "5:00"};
+
+        for (int i = 0; i < units.length; i++) {
+            for (int j = 0; j < seconds.length; j++) {
+                final double metricValue = seconds[j] / metricFactors[i];
+                final double imperialValue = seconds[j] / imperialFactors[i];
+                assertEquals(expected[j] + " " + metricLabels[i], metric(metricValue, units[i]));
+                assertEquals(expected[j] + " " + imperialLabels[i], imperial(imperialValue, units[i]));
+                assertEquals(expected[j], metric.formatValue(metricValue, units[i], false));
+                assertEquals(expected[j], imperial.formatValue(imperialValue, units[i], false));
+            }
+        }
+    }
+
+    @Test
     public void paceSecondsPerMeter() {
         assertEquals("5:00 min/km", metric(0.3, UNIT_SECONDS_PER_M));
         assertEquals("8:03 min/mi", imperial(0.3, UNIT_SECONDS_PER_M));
@@ -81,6 +110,16 @@ public class WorkoutValueFormatterTest extends TestBase {
         // rowing 500 m pace is conventionally kept metric regardless of the imperial setting
         assertEquals("2:00 min/500m", metric(120, UNIT_SECONDS_PER_500_METERS));
         assertEquals("2:00 min/500m", imperial(120, UNIT_SECONDS_PER_500_METERS));
+    }
+
+    @Test
+    public void temperatureRespectsUnitPreference() {
+        final WorkoutValueFormatter fahrenheit =
+                new WorkoutValueFormatter(ActivityKind.UNKNOWN, DistanceUnit.METRIC, WeightUnit.KILOGRAM, false, true);
+        assertEquals("20 ℃", metric(20, UNIT_CELSIUS));
+        assertEquals("68 ℉", fahrenheit.formatValue(20, UNIT_CELSIUS, true));
+        assertEquals("20 ℃", metric(68, UNIT_FAHRENHEIT));
+        assertEquals("68 ℉", fahrenheit.formatValue(68, UNIT_FAHRENHEIT, true));
     }
 
     // --- Speed ---

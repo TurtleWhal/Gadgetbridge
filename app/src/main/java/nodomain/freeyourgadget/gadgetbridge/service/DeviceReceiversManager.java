@@ -32,6 +32,7 @@ import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Pair;
 
 import androidx.core.content.ContextCompat;
@@ -72,6 +73,7 @@ import nodomain.freeyourgadget.gadgetbridge.externalevents.TinyWeatherForecastGe
 import nodomain.freeyourgadget.gadgetbridge.externalevents.VolumeChangeReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.comaps.CoMapsNavigationReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.comaps.CoMapsNavigationReceiverFactory;
+import nodomain.freeyourgadget.gadgetbridge.externalevents.comaps.CoMapsNavigationRouteReceiver;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.gps.GBLocationService;
 import nodomain.freeyourgadget.gadgetbridge.externalevents.sleepasandroid.SleepAsAndroidReceiver;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
@@ -152,6 +154,8 @@ class DeviceReceiversManager {
 
     private OsmandEventReceiver mOsmandAidlHelper = null;
     private final List<CoMapsNavigationReceiver> mCoMapsNavigationReceivers = new ArrayList<>();
+    private final List<CoMapsNavigationRouteReceiver> mCoMapsNavigationRouteReceivers = new ArrayList<>();
+    private HandlerThread mCoMapsHandlerThread = null;
 
     private SleepAsAndroidReceiver mSleepAsAndroidReceiver = null;
 
@@ -317,10 +321,7 @@ class DeviceReceiversManager {
             }
 
             if (features.supports(Feature.NAVIGATION) && GBApplication.getPrefs().getBoolean(GBPrefs.NAVIGATION_APP_COMAPS, false)) {
-                for (Pair<Uri, CoMapsNavigationReceiver> pair : CoMapsNavigationReceiverFactory.createCoMapsNavigationReceiversForApplication(service.getApplication())) {
-                    service.getContentResolver().registerContentObserver(pair.first, false, pair.second);
-                    mCoMapsNavigationReceivers.add(pair.second);
-                }
+                enableCoMapsReceivers();
             }
 
             // Weather receivers
@@ -426,8 +427,7 @@ class DeviceReceiversManager {
                 mOsmandAidlHelper.cleanupResources();
                 mOsmandAidlHelper = null;
             }
-            mCoMapsNavigationReceivers.forEach(service.getContentResolver()::unregisterContentObserver);
-            mCoMapsNavigationReceivers.clear();
+            disableCoMapsReceivers();
             if (mGBAutoFetchReceiver != null) {
                 service.unregisterReceiver(mGBAutoFetchReceiver);
                 mGBAutoFetchReceiver = null;
@@ -447,16 +447,49 @@ class DeviceReceiversManager {
                     boolean enable = sharedPreferences.getBoolean(GBPrefs.NAVIGATION_APP_COMAPS, false);
                     LOG.debug("Actioning CoMaps preference change to {}", enable);
                     if (enable) {
-                        for (Pair<Uri, CoMapsNavigationReceiver> pair : CoMapsNavigationReceiverFactory.createCoMapsNavigationReceiversForApplication(service.getApplication())) {
-                            service.getContentResolver().registerContentObserver(pair.first, false, pair.second);
-                            mCoMapsNavigationReceivers.add(pair.second);
-                        }
+                        enableCoMapsReceivers();
                     } else {
-                        mCoMapsNavigationReceivers.forEach(service.getContentResolver()::unregisterContentObserver);
-                        mCoMapsNavigationReceivers.clear();
+                        disableCoMapsReceivers();
                     }
                 }
             }
+        }
+    }
+
+    private void enableCoMapsReceivers() {
+        if (mCoMapsHandlerThread != null) {
+            return;
+        }
+
+        mCoMapsHandlerThread = new HandlerThread("CoMapsNavigationObserver");
+        mCoMapsHandlerThread.start();
+        final Handler handler = new Handler(mCoMapsHandlerThread.getLooper());
+
+        for (Pair<Uri, CoMapsNavigationReceiver> pair :
+                CoMapsNavigationReceiverFactory.createCoMapsNavigationReceiversForApplication(
+                        service.getApplication(), handler)) {
+            service.getContentResolver().registerContentObserver(pair.first, false, pair.second);
+            mCoMapsNavigationReceivers.add(pair.second);
+        }
+
+        for (Pair<Uri, CoMapsNavigationRouteReceiver> pair :
+                CoMapsNavigationReceiverFactory.createCoMapsNavigationRouteReceiversForApplication(
+                        service.getApplication(), handler)) {
+            service.getContentResolver().registerContentObserver(pair.first, false, pair.second);
+            mCoMapsNavigationRouteReceivers.add(pair.second);
+        }
+    }
+
+    private void disableCoMapsReceivers() {
+        mCoMapsNavigationReceivers.forEach(service.getContentResolver()::unregisterContentObserver);
+        mCoMapsNavigationReceivers.clear();
+
+        mCoMapsNavigationRouteReceivers.forEach(service.getContentResolver()::unregisterContentObserver);
+        mCoMapsNavigationRouteReceivers.clear();
+
+        if (mCoMapsHandlerThread != null) {
+            mCoMapsHandlerThread.quitSafely();
+            mCoMapsHandlerThread = null;
         }
     }
 

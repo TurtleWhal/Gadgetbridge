@@ -10,6 +10,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.huami.zeppos.ZeppOsW
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils
 import nodomain.freeyourgadget.gadgetbridge.util.gson.DoubleAdapter
 import nodomain.freeyourgadget.gadgetbridge.util.gson.FloatAdapter
+import nodomain.freeyourgadget.gadgetbridge.util.gson.GsonSerialized
 import nodomain.freeyourgadget.gadgetbridge.util.gson.OffsetDateTimeAdapter
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -93,10 +94,11 @@ object ZeppOsWeatherHandlerV5 {
 
     private fun createPlace(weatherSpec: WeatherSpec): Place {
         val (lat, lon) = resolveCoordinates(weatherSpec)
-        // Stable per-location id so the watch can dedupe responses. Hash of rounded
-        // coords keeps it deterministic across requests for the same location.
-        val coordKey = String.format(Locale.ROOT, "%.4f,%.4f", lat, lon)
-        val locationKeyId = coordKey.hashCode().toLong() and 0xFFFFFFFFL
+        // While the location ID should be stable so that the watch can dedupe responses, this
+        // is also preventing it from reloading the most updated data from the phone. Until we
+        // understand the protocol better, keep the location key tied to the last weather update
+        // timestamp, so that the watch refreshes it.
+        val locationKeyId = weatherSpec.timestamp.toLong() and 0xFFFFFFFFL
         return Place(
             locationKey = "accu:$locationKeyId",
             longitude = String.format(Locale.ROOT, "%.3f", lon),
@@ -119,12 +121,37 @@ object ZeppOsWeatherHandlerV5 {
     }
 
     private fun createHourlyWeather(weatherSpec: WeatherSpec): HourlyWeather {
-        return HourlyWeather(
-            metadata = createMetadata(weatherSpec),
-            hours = weatherSpec.hourly
-                .filter { it.timestamp != 0 && it.timestamp >= weatherSpec.timestamp}
-                .take(72)
-                .map {
+        // Round down to the hour, so that the entry covering the current hour is kept
+        val cutoff = weatherSpec.timestamp - Math.floorMod(weatherSpec.timestamp, 3600)
+
+        val filteredHourly = weatherSpec.hourly.filter { it.timestamp != 0 && it.timestamp >= cutoff }
+
+        // weatherSpec.hourly may not have an entry for the current hour, e.g. if its first
+        // entry is later than cutoff. If so, add the current hour from weatherSpec itself,
+        // so that the current hour is never missing. Devices misbehave otherwise, and only
+        // start displaying weather once a known hour starts (#6663). Some weather providers
+        // such as TinyWeatherForecast have a gap in the first hour.
+        val currentHourMissing = filteredHourly.firstOrNull()?.timestamp != cutoff
+
+        val hours = buildList {
+            if (currentHourMissing) {
+                add(
+                    HourlyWeatherHour(
+                        forecastStart = toOffsetDateTime(Date(cutoff * 1000L)),
+                        conditionCode = ZeppOsWeatherHandler.mapToZeppOsWeatherCode(weatherSpec.currentConditionCode).toString(),
+                        humidity = weatherSpec.currentHumidity / 100.0f,
+                        pressure = weatherSpec.pressure,
+                        temperature = weatherSpec.currentTemp - 273f,
+                        uvIndex = weatherSpec.uvIndex.roundToInt(),
+                        visibility = weatherSpec.visibility,
+                        windDirection = weatherSpec.windDirection,
+                        windSpeed = weatherSpec.windSpeed,
+                        windScale = weatherSpec.windSpeedAsBeaufort(),
+                    )
+                )
+            }
+            filteredHourly.forEach {
+                add(
                     HourlyWeatherHour(
                         forecastStart = toOffsetDateTime(Date(it.timestamp * 1000L)),
                         conditionCode = ZeppOsWeatherHandler.mapToZeppOsWeatherCode(it.conditionCode).toString(),
@@ -137,7 +164,13 @@ object ZeppOsWeatherHandlerV5 {
                         windSpeed = it.windSpeed,
                         windScale = it.windSpeedAsBeaufort(),
                     )
-                }.toList()
+                )
+            }
+        }.take(72)
+
+        return HourlyWeather(
+            metadata = createMetadata(weatherSpec),
+            hours = hours
         )
     }
 
@@ -291,12 +324,14 @@ object ZeppOsWeatherHandlerV5 {
         else -> "new"
     }
 
+    @GsonSerialized
     data class Metadata(
         val reportedTime: OffsetDateTime,
         val units: String,
         val version: Int,
     )
 
+    @GsonSerialized
     data class Place(
         val locationKey: String?,
         val longitude: String?,
@@ -306,6 +341,7 @@ object ZeppOsWeatherHandlerV5 {
         val countryCode: String?,
     )
 
+    @GsonSerialized
     data class HourlyWeatherHour(
         val forecastStart: OffsetDateTime,
         val conditionCode: String,
@@ -319,11 +355,13 @@ object ZeppOsWeatherHandlerV5 {
         val windScale: Int,
     )
 
+    @GsonSerialized
     data class HourlyWeather(
         val metadata: Metadata,
         val hours: List<HourlyWeatherHour>,
     )
 
+    @GsonSerialized
     data class HourlyAirQualityHour(
         val forecastStart: OffsetDateTime,
         val aqi: String,
@@ -335,11 +373,13 @@ object ZeppOsWeatherHandlerV5 {
         val so2: String,
     )
 
+    @GsonSerialized
     data class HourlyAirQuality(
         val metadata: Metadata,
         val hours: List<HourlyAirQualityHour>,
     )
 
+    @GsonSerialized
     data class DailyIndicesDay(
         val forecastStart: OffsetDateTime,
         val forecastEnd: OffsetDateTime,
@@ -350,11 +390,13 @@ object ZeppOsWeatherHandlerV5 {
         val allergyIndex: String?,
     )
 
+    @GsonSerialized
     data class DailyIndices(
         val metadata: Metadata,
         val days: List<DailyIndicesDay>,
     )
 
+    @GsonSerialized
     data class DayPartForecast(
         val forecastStart: OffsetDateTime,
         val forecastEnd: OffsetDateTime,
@@ -365,6 +407,7 @@ object ZeppOsWeatherHandlerV5 {
         val windScale: Int,
     )
 
+    @GsonSerialized
     data class DailyWeatherDay(
         val forecastStart: OffsetDateTime,
         val forecastEnd: OffsetDateTime,
@@ -382,22 +425,26 @@ object ZeppOsWeatherHandlerV5 {
         val overnightForecast: DayPartForecast?,
     )
 
+    @GsonSerialized
     data class DailyWeather(
         val metadata: Metadata,
         val days: List<DailyWeatherDay>,
     )
 
+    @GsonSerialized
     data class TideTableEntry(
         val forecastTime: OffsetDateTime,
         val height: String,
         val type: String,
     )
 
+    @GsonSerialized
     data class TideHourlyEntry(
         val forecastStart: OffsetDateTime,
         val height: String,
     )
 
+    @GsonSerialized
     data class DailyTideDay(
         val forecastStart: OffsetDateTime,
         val forecastEnd: OffsetDateTime,
@@ -407,11 +454,13 @@ object ZeppOsWeatherHandlerV5 {
         val tideHourly: List<TideHourlyEntry>,
     )
 
+    @GsonSerialized
     data class DailyTide(
         val metadata: Metadata,
         val days: List<DailyTideDay>,
     )
 
+    @GsonSerialized
     data class DailyAirQualityDay(
         val forecastStart: OffsetDateTime,
         val forecastEnd: OffsetDateTime,
@@ -425,6 +474,7 @@ object ZeppOsWeatherHandlerV5 {
         val so2: String,
     )
 
+    @GsonSerialized
     data class DailyAirQuality(
         val metadata: Metadata,
         val days: List<DailyAirQualityDay>,
@@ -432,6 +482,7 @@ object ZeppOsWeatherHandlerV5 {
 
     // Fallback shape for unknown dataset names — gives the firmware the metadata
     // it expects plus an empty items array so the key is never omitted.
+    @GsonSerialized
     data class UnknownDataset(
         val metadata: Metadata,
         val items: List<Nothing> = emptyList(),

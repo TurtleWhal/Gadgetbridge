@@ -1,4 +1,4 @@
-/*  Copyright (C) 2024 Severin von Wnuck-Lipinski
+/*  Copyright (C) 2024-2026 Severin von Wnuck-Lipinski, oddballza
 
     This file is part of Gadgetbridge.
 
@@ -16,9 +16,20 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.model;
 
+import androidx.annotation.Nullable;
+
 public interface WeightSample extends TimeSample {
     /**
      * Returns the weight value.
      */
     float getWeightKg();
+
+    /**
+     * Returns the raw bio-impedance in Ohms as reported by the scale, or null when the scale
+     * has no impedance sensor or this measurement did not carry one.
+     */
+    @Nullable
+    default Integer getImpedanceOhm() {
+        return null;
+    }
 }

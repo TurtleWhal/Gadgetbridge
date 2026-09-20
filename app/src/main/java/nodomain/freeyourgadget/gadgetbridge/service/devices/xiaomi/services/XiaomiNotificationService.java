@@ -140,6 +140,7 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
                 deviceEvtNotificationControl.handle = cmd.getNotification().getOpenOnPhone().getId();
                 deviceEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.OPEN;
                 getSupport().evaluateGBDeviceEvent(deviceEvtNotificationControl);
+                return;
             case CMD_CANNED_MESSAGES_GET:
                 handleCannedMessages(cmd.getNotification().getCannedMessages());
                 return;
@@ -177,40 +178,40 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
         final XiaomiProto.Notification3.Builder notification3 = XiaomiProto.Notification3.newBuilder()
                 .setId(notificationSpec.getId())
                 .setUnknown4("") // ?
-                .setTimestamp(TIMESTAMP_SDF.format(new Date(notificationSpec.when)));
+                .setTimestamp(TIMESTAMP_SDF.format(new Date(notificationSpec.getWhen())));
 
-        if (notificationSpec.sourceAppId != null) {
-            notification3.setPackage(notificationSpec.sourceAppId);
+        if (notificationSpec.getSourceAppId() != null) {
+            notification3.setPackage(notificationSpec.getSourceAppId());
         } else {
             notification3.setPackage(BuildConfig.APPLICATION_ID);
         }
 
-        mNotificationPackageName.add(notificationSpec.getId(), notificationSpec.sourceAppId);
-        mNotificationKey.add(notificationSpec.getId(), notificationSpec.key);
+        mNotificationPackageName.add(notificationSpec.getId(), notificationSpec.getSourceAppId());
+        mNotificationKey.add(notificationSpec.getId(), notificationSpec.getKey());
 
         mPackages.add(notification3.getPackage());
         if (mPackages.size() > 32) {
             mPackages.poll();
         }
 
-        final String senderOrTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        final String senderOrTitle = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
         if (!senderOrTitle.isEmpty()) {
             notification3.setTitle(senderOrTitle);
         }
 
-        if (notificationSpec.body != null) {
-            notification3.setBody(notificationSpec.body);
+        if (notificationSpec.getBody() != null) {
+            notification3.setBody(notificationSpec.getBody());
         }
 
-        if (notificationSpec.sourceName != null) {
-            notification3.setAppName(notificationSpec.sourceName);
+        if (notificationSpec.getSourceName() != null) {
+            notification3.setAppName(notificationSpec.getSourceName());
         } else {
             // Should never happen, but notification is not shown otherwise
             notification3.setAppName("UNKNOWN");
         }
 
-        if (notificationSpec.key != null) {
-            notification3.setKey(notificationSpec.key);
+        if (notificationSpec.getKey() != null) {
+            notification3.setKey(notificationSpec.getKey());
             notification3.setOpenOnPhone(true);
         }
 
@@ -243,11 +244,16 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
             return;
         }
 
-        final XiaomiProto.NotificationId notificationId = XiaomiProto.NotificationId.newBuilder()
+        final XiaomiProto.NotificationId.Builder notificationId = XiaomiProto.NotificationId.newBuilder()
                 .setId(id)
-                .setPackage(mNotificationPackageName.lookup(id))
-                .setKey(mNotificationKey.lookup(id))
-                .build();
+                .setPackage(mNotificationPackageName.lookup(id));
+
+        // Only notifications posted through NotificationListener carry a key, and the field is
+        // optional on the wire
+        final String key = mNotificationKey.lookup(id);
+        if (key != null) {
+            notificationId.setKey(key);
+        }
 
         final XiaomiProto.NotificationDismiss notificationDismiss = XiaomiProto.NotificationDismiss.newBuilder()
                 .addNotificationId(notificationId)
@@ -268,11 +274,11 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
     }
 
     public void onSetCallState(final CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_OUTGOING) {
+        if (callSpec.getCommand() == CallSpec.CALL_OUTGOING) {
             return;
         }
 
-        if (callSpec.command != CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() != CallSpec.CALL_INCOMING) {
             final XiaomiProto.NotificationDismiss.Builder notification4 = XiaomiProto.NotificationDismiss.newBuilder()
                     .addNotificationId(XiaomiProto.NotificationId.newBuilder().setId(0).setPackage("phone"));
 
@@ -301,13 +307,13 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
         notification3.setPackage("phone");
         notification3.setAppName("phone");
 
-        if (callSpec.name != null) {
-            notification3.setTitle(callSpec.name);
+        if (callSpec.getName() != null) {
+            notification3.setTitle(callSpec.getName());
         } else {
             notification3.setTitle("?");
         }
-        if (callSpec.number != null) {
-            notification3.setBody(callSpec.number);
+        if (callSpec.getNumber() != null) {
+            notification3.setBody(callSpec.getNumber());
         } else {
             notification3.setBody("?");
         }
@@ -348,8 +354,8 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
     }
 
     public void onSetCannedMessages(final CannedMessagesSpec cannedMessagesSpec) {
-        if (cannedMessagesSpec.type != CannedMessagesSpec.TYPE_REJECTEDCALLS) {
-            LOG.warn("Got unsupported canned messages type: {}", cannedMessagesSpec.type);
+        if (cannedMessagesSpec.getType() != CannedMessagesSpec.TYPE_REJECTEDCALLS) {
+            LOG.warn("Got unsupported canned messages type: {}", cannedMessagesSpec.getType());
             return;
         }
 
@@ -365,9 +371,9 @@ public class XiaomiNotificationService extends AbstractXiaomiService implements 
                 .setMinReplies(minReplies)
                 .setMaxReplies(maxReplies);
         int i = 0;
-        for (final String cannedMessage : cannedMessagesSpec.cannedMessages) {
+        for (final String cannedMessage : cannedMessagesSpec.getCannedMessages()) {
             if (i >= maxReplies) {
-                LOG.warn("Got too many canned messages ({}), limit is {}", cannedMessagesSpec.cannedMessages.length, maxReplies);
+                LOG.warn("Got too many canned messages ({}), limit is {}", cannedMessagesSpec.getCannedMessages().length, maxReplies);
                 break;
             }
 

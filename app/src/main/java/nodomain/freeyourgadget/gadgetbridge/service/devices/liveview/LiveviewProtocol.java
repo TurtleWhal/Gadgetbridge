@@ -86,14 +86,14 @@ public class LiveviewProtocol extends GBDeviceProtocol {
     public byte[] encodeNotification(NotificationSpec notificationSpec) {
         String headerText;
         // for SMS and EMAIL that came in though SMS or K9 receiver
-        if (notificationSpec.sender != null) {
-            headerText = notificationSpec.sender;
+        if (notificationSpec.getSender() != null) {
+            headerText = notificationSpec.getSender();
         } else {
-            headerText = notificationSpec.title;
+            headerText = notificationSpec.getTitle();
         }
 
-        String footerText = (null != notificationSpec.sourceName) ? notificationSpec.sourceName : "";
-        String bodyText = (null != notificationSpec.body) ? notificationSpec.body : "";
+        String footerText = (null != notificationSpec.getSourceName()) ? notificationSpec.getSourceName() : "";
+        String bodyText = (null != notificationSpec.getBody()) ? notificationSpec.getBody() : "";
 
         byte[] headerTextArray = headerText.getBytes(LiveviewConstants.ENCODING);
         byte[] footerTextArray = footerText.getBytes(LiveviewConstants.ENCODING);

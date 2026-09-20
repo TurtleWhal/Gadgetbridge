@@ -192,18 +192,18 @@ public class PebbleSupport extends AbstractSerialDeviceSupport {
     public void onNotification(NotificationSpec notificationSpec) {
         String currentPrivacyMode = GBApplication.getDevicePrefs(gbDevice).getString("pebble_pref_privacy_mode", getContext().getString(R.string.p_pebble_privacy_mode_off));
         if (getContext().getString(R.string.p_pebble_privacy_mode_complete).equals(currentPrivacyMode)) {
-            notificationSpec.body = null;
-            notificationSpec.sender = null;
-            notificationSpec.subject = null;
-            notificationSpec.title = null;
-            notificationSpec.phoneNumber = null;
+            notificationSpec.setBody(null);
+            notificationSpec.setSender(null);
+            notificationSpec.setSubject(null);
+            notificationSpec.setTitle(null);
+            notificationSpec.setPhoneNumber(null);
         } else if (getContext().getString(R.string.p_pebble_privacy_mode_content).equals(currentPrivacyMode)) {
-            if (notificationSpec.sender != null) {
-                notificationSpec.sender = "\n\n\n\n\n" + notificationSpec.sender;
-            } else if (notificationSpec.title != null) {
-                notificationSpec.title = "\n\n\n\n\n" + notificationSpec.title;
-            } else if (notificationSpec.subject != null) {
-                notificationSpec.subject = "\n\n\n\n\n" + notificationSpec.subject;
+            if (notificationSpec.getSender() != null) {
+                notificationSpec.setSender("\n\n\n\n\n" + notificationSpec.getSender());
+            } else if (notificationSpec.getTitle() != null) {
+                notificationSpec.setTitle("\n\n\n\n\n" + notificationSpec.getTitle());
+            } else if (notificationSpec.getSubject() != null) {
+                notificationSpec.setSubject("\n\n\n\n\n" + notificationSpec.getSubject());
             }
         }
         if (reconnect()) {
@@ -214,7 +214,7 @@ public class PebbleSupport extends AbstractSerialDeviceSupport {
     @Override
     public void onSetCallState(CallSpec callSpec) {
         if (reconnect()) {
-            if ((callSpec.command != CallSpec.CALL_OUTGOING) || GBApplication.getDevicePrefs(gbDevice).getBoolean("pebble_enable_outgoing_call", true)) {
+            if ((callSpec.getCommand() != CallSpec.CALL_OUTGOING) || GBApplication.getDevicePrefs(gbDevice).getBoolean("pebble_enable_outgoing_call", true)) {
                 super.onSetCallState(callSpec);
             }
         }

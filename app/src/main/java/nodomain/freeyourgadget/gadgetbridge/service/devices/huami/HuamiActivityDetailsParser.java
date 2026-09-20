@@ -263,32 +263,32 @@ public class HuamiActivityDetailsParser extends AbstractHuamiActivityDetailsPars
     }
 
     private int consumePause(byte[] bytes, int offset) {
-        LOG.debug("got pause packet: " + GB.hexdump(bytes, offset, 6));
+        LOG.debug("got pause packet: {}", GB.lazyHexdump(bytes, offset, 6));
         return 6;
     }
 
     private int consumeResume(byte[] bytes, int offset) {
-        LOG.debug("got resume package: " + GB.hexdump(bytes, offset, 6));
+        LOG.debug("got resume package: {}", GB.lazyHexdump(bytes, offset, 6));
         return 6;
     }
 
     private int consumeSpeed4(byte[] bytes, int offset) {
-        LOG.debug("got packet type 4 (speed): " + GB.hexdump(bytes, offset, 6));
+        LOG.debug("got packet type 4 (speed): {}", GB.lazyHexdump(bytes, offset, 6));
         return 6;
     }
 
     private int consumeSpeed5(byte[] bytes, int offset) {
-        LOG.debug("got packet type 5 (speed): " + GB.hexdump(bytes, offset, 6));
+        LOG.debug("got packet type 5 (speed): {}", GB.lazyHexdump(bytes, offset, 6));
         return 6;
     }
 
     private int consumeSpeed6(byte[] bytes, int offset) {
-        LOG.debug("got packet type 6 (speed): " + GB.hexdump(bytes, offset, 6));
+        LOG.debug("got packet type 6 (speed): {}", GB.lazyHexdump(bytes, offset, 6));
         return 6;
     }
 
     private int consumeSwimming(byte[] bytes, int offset) {
-        LOG.debug("got packet type 8 (swimming?): " + GB.hexdump(bytes, offset, 6));
+        LOG.debug("got packet type 8 (swimming?): {}", GB.lazyHexdump(bytes, offset, 6));
         return 6;
     }
 }

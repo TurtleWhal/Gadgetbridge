@@ -263,7 +263,7 @@ public class NotificationListener extends NotificationListenerService {
                             try {
                                 PendingIntent pi = sbn.getNotification().contentIntent;
                                 if (pi != null) {
-                                    pi.send();
+                                    sendAllowingBackgroundActivityStart(pi);
                                 }
                             } catch (final PendingIntent.CanceledException e) {
                                 LOG.error("Failed to open notification {}", sbn.getId());
@@ -335,14 +335,7 @@ public class NotificationListener extends NotificationListenerService {
                                 RemoteInput.addResultsToIntent(new RemoteInput[]{remoteInput}, localIntent, extras);
                                 actionIntent.send(context, 0, localIntent);
                             } else {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                    final ActivityOptions activityOptions = ActivityOptions.makeBasic();
-                                    final Bundle bundle = activityOptions.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
-                                            .toBundle();
-                                    actionIntent.send(bundle);
-                                } else {
-                                    actionIntent.send();
-                                }
+                                sendAllowingBackgroundActivityStart(actionIntent);
                             }
                             mActionLookup.remove(handle);
                         } catch (final PendingIntent.CanceledException e) {
@@ -355,6 +348,20 @@ public class NotificationListener extends NotificationListenerService {
             }
         }
     };
+
+    /// Send a PendingIntent, granting it our background activity start privileges, which
+    /// Android 14 and later require to start an activity from the background
+    private static void sendAllowingBackgroundActivityStart(final PendingIntent pendingIntent)
+            throws PendingIntent.CanceledException {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            final ActivityOptions activityOptions = ActivityOptions.makeBasic();
+            final Bundle bundle = activityOptions.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                    .toBundle();
+            pendingIntent.send(bundle);
+        } else {
+            pendingIntent.send();
+        }
+    }
 
     @Override
     public void onCreate() {
@@ -561,26 +568,26 @@ public class NotificationListener extends NotificationListenerService {
         }
 
         NotificationSpec notificationSpec = new NotificationSpec(-1, notification.when);
-        notificationSpec.key = sbn.getKey();
+        notificationSpec.setKey(sbn.getKey());
 
         // determinate Source App Name ("Label")
         String name = NotificationUtils.getApplicationLabel(this, source);
         if (name != null) {
-            notificationSpec.sourceName = name;
+            notificationSpec.setSourceName(name);
         }
 
         // Get the app ID that generated this notification. For now only used by pebble color, but may be more useful later.
-        notificationSpec.sourceAppId = source;
+        notificationSpec.setSourceAppId(source);
 
         populateNotificationIcon(notification, source, notificationSpec);
 
-        notificationSpec.type = AppNotificationType.getInstance().get(source);
+        notificationSpec.setType(AppNotificationType.getInstance().get(source));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notificationSpec.channelId = notification.getChannelId();
+            notificationSpec.setChannelId(notification.getChannelId());
         }
 
-        notificationSpec.category = notification.category;
+        notificationSpec.setCategory(notification.category);
 
         //FIXME: some quirks lookup table would be the minor evil here
         if (source.startsWith("com.fsck.k9") || source.startsWith("net.thunderbird.android")) {
@@ -590,8 +597,8 @@ public class NotificationListener extends NotificationListenerService {
             }
         }
 
-        if (notificationSpec.type == null) {
-            notificationSpec.type = NotificationType.UNKNOWN;
+        if (notificationSpec.getType() == null) {
+            notificationSpec.setType(NotificationType.UNKNOWN);
         }
 
         LOG.info(
@@ -606,8 +613,8 @@ public class NotificationListener extends NotificationListenerService {
 
         dissectNotificationTo(notification, notificationSpec, preferBigText);
 
-        if (notificationSpec.title != null || notificationSpec.body != null) {
-            final String textToCheck = ensureNotNull(notificationSpec.title) + " " + ensureNotNull(notificationSpec.body);
+        if (notificationSpec.getTitle() != null || notificationSpec.getBody() != null) {
+            final String textToCheck = ensureNotNull(notificationSpec.getTitle()) + " " + ensureNotNull(notificationSpec.getBody());
             if (!checkNotificationContentForWhiteAndBlackList(sbn.getPackageName().toLowerCase(), textToCheck)) {
                 return;
             }
@@ -631,7 +638,7 @@ public class NotificationListener extends NotificationListenerService {
 
         // ignore Gadgetbridge's very own notifications, except for those from the debug screen
         if (getApplicationContext().getPackageName().equals(source)) {
-            if (!getApplicationContext().getString(R.string.test_notification).equals(notificationSpec.title)) {
+            if (!getApplicationContext().getString(R.string.test_notification).equals(notificationSpec.getTitle())) {
                 return;
             }
         }
@@ -647,23 +654,23 @@ public class NotificationListener extends NotificationListenerService {
             return;
         }
 
-        notificationSpec.attachedActions = new ArrayList<>();
-        notificationSpec.dndSuppressed = dndSuppressed;
+        notificationSpec.setAttachedActions(new ArrayList<>());
+        notificationSpec.setDndSuppressed(dndSuppressed);
 
         // DISMISS action
         NotificationSpec.Action dismissAction = new NotificationSpec.Action();
-        dismissAction.title = getString(R.string.dismiss);
-        dismissAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_DISMISS;
-        notificationSpec.attachedActions.add(dismissAction);
+        dismissAction.setTitle(getString(R.string.dismiss));
+        dismissAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_DISMISS);
+        notificationSpec.getAttachedActions().add(dismissAction);
 
         boolean hasWearableActions = false;
         for (NotificationCompat.Action act : wearableActions) {
             if (act != null) {
                 NotificationSpec.Action wearableAction = new NotificationSpec.Action();
-                wearableAction.title = String.valueOf(act.getTitle());
+                wearableAction.setTitle(String.valueOf(act.getTitle()));
                 final RemoteInput remoteInput;
                 if (act.getRemoteInputs() != null && act.getRemoteInputs().length > 0) {
-                    wearableAction.type = NotificationSpec.Action.TYPE_WEARABLE_REPLY;
+                    wearableAction.setType(NotificationSpec.Action.TYPE_WEARABLE_REPLY);
                     remoteInput = act.getRemoteInputs()[0];
                     // Only forward choices when the app opted into Android's smart-reply
                     // engine for this action; that filters out static canned replies on
@@ -672,13 +679,13 @@ public class NotificationListener extends NotificationListenerService {
                         captureSuggestedReplies(notificationSpec, remoteInput.getChoices());
                     }
                 } else {
-                    wearableAction.type = NotificationSpec.Action.TYPE_WEARABLE_SIMPLE;
+                    wearableAction.setType(NotificationSpec.Action.TYPE_WEARABLE_SIMPLE);
                     remoteInput = null;
                 }
-                notificationSpec.attachedActions.add(wearableAction);
-                wearableAction.handle = ((long) notificationSpec.getId() << 4) + notificationSpec.attachedActions.size();
-                mActionLookup.add((int) wearableAction.handle, new NotificationAction(act.getActionIntent(), remoteInput));
-                LOG.debug("Found wearable action {}: {} - {}  {}", notificationSpec.attachedActions.size(), (int) wearableAction.handle, act.getTitle(), sbn.getTag());
+                notificationSpec.getAttachedActions().add(wearableAction);
+                wearableAction.setHandle(((long) notificationSpec.getId() << 4) + notificationSpec.getAttachedActions().size());
+                mActionLookup.add((int) wearableAction.getHandle(), new NotificationAction(act.getActionIntent(), remoteInput));
+                LOG.debug("Found wearable action {}: {} - {}  {}", notificationSpec.getAttachedActions().size(), (int) wearableAction.getHandle(), act.getTitle(), sbn.getTag());
                 hasWearableActions = true;
             }
         }
@@ -687,10 +694,10 @@ public class NotificationListener extends NotificationListenerService {
             // If no wearable actions are sent, fallback to normal custom actions
             for (final Notification.Action act : notification.actions) {
                 final NotificationSpec.Action customAction = new NotificationSpec.Action();
-                customAction.title = String.valueOf(act.title);
+                customAction.setTitle(String.valueOf(act.title));
                 final RemoteInput remoteInput;
                 if (act.getRemoteInputs() != null && act.getRemoteInputs().length > 0) {
-                    customAction.type = NotificationSpec.Action.TYPE_CUSTOM_REPLY;
+                    customAction.setType(NotificationSpec.Action.TYPE_CUSTOM_REPLY);
                     android.app.RemoteInput ri = act.getRemoteInputs()[0];
                     // FIXME this is not very clean
                     remoteInput = new RemoteInput.Builder(ri.getResultKey())
@@ -705,33 +712,33 @@ public class NotificationListener extends NotificationListenerService {
                         captureSuggestedReplies(notificationSpec, ri.getChoices());
                     }
                 } else {
-                    customAction.type = NotificationSpec.Action.TYPE_CUSTOM_SIMPLE;
+                    customAction.setType(NotificationSpec.Action.TYPE_CUSTOM_SIMPLE);
                     remoteInput = null;
                 }
-                notificationSpec.attachedActions.add(customAction);
-                customAction.handle = ((long) notificationSpec.getId() << 4) + notificationSpec.attachedActions.size();
-                mActionLookup.add((int) customAction.handle, new NotificationAction(act.actionIntent, remoteInput));
-                LOG.info("Found custom action {}: {} - {}", notificationSpec.attachedActions.size(), (int) customAction.handle, act.title);
+                notificationSpec.getAttachedActions().add(customAction);
+                customAction.setHandle(((long) notificationSpec.getId() << 4) + notificationSpec.getAttachedActions().size());
+                mActionLookup.add((int) customAction.getHandle(), new NotificationAction(act.actionIntent, remoteInput));
+                LOG.info("Found custom action {}: {} - {}", notificationSpec.getAttachedActions().size(), (int) customAction.getHandle(), act.title);
             }
         }
 
         // OPEN action
         NotificationSpec.Action openAction = new NotificationSpec.Action();
-        openAction.title = getString(R.string._pebble_watch_open_on_phone);
-        openAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_OPEN;
-        notificationSpec.attachedActions.add(openAction);
+        openAction.setTitle(getString(R.string._pebble_watch_open_on_phone));
+        openAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_OPEN);
+        notificationSpec.getAttachedActions().add(openAction);
 
         // MUTE action
         NotificationSpec.Action muteAction = new NotificationSpec.Action();
-        muteAction.title = getString(R.string._pebble_watch_mute);
-        muteAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_MUTE;
-        notificationSpec.attachedActions.add(muteAction);
+        muteAction.setTitle(getString(R.string._pebble_watch_mute));
+        muteAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_MUTE);
+        notificationSpec.getAttachedActions().add(muteAction);
 
         mNotificationHandleLookup.add(notificationSpec.getId(), sbn.getPostTime()); // for both DISMISS and OPEN
         mPackageLookup.add(notificationSpec.getId(), sbn.getPackageName()); // for MUTE
 
-        if (notificationSpec.picturePath != null) {
-            lastPictureNotificationTime = notificationSpec.when;
+        if (notificationSpec.getPicturePath() != null) {
+            lastPictureNotificationTime = notificationSpec.getWhen();
         }
 
         notificationBurstPrevention.put(source, curTime);
@@ -776,12 +783,12 @@ public class NotificationListener extends NotificationListenerService {
     private static void captureSuggestedReplies(final NotificationSpec spec,
                                                 final CharSequence[] choices) {
         if (choices == null || choices.length == 0) return;
-        if (spec.suggestedReplies != null && spec.suggestedReplies.length > 0) return;
+        if (spec.getSuggestedReplies() != null && spec.getSuggestedReplies().length > 0) return;
         final String[] out = new String[choices.length];
         for (int i = 0; i < choices.length; i++) {
             out[i] = choices[i] == null ? "" : choices[i].toString();
         }
-        spec.suggestedReplies = out;
+        spec.setSuggestedReplies(out);
     }
 
     /**
@@ -980,22 +987,22 @@ public class NotificationListener extends NotificationListenerService {
         }
         activeCallPostTime = sbn.getPostTime();
         CallSpec callSpec = new CallSpec();
-        callSpec.number = number;
-        callSpec.sourceAppId = app;
+        callSpec.setNumber(number);
+        callSpec.setSourceAppId(app);
         if (appName != null) {
-            callSpec.sourceName = appName;
+            callSpec.setSourceName(appName);
         }
 
-        callSpec.isVoip = true;
+        callSpec.setVoip(true);
 
-        callSpec.key = sbn.getKey();
+        callSpec.setKey(sbn.getKey());
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            callSpec.channelId = noti.getChannelId();
+            callSpec.setChannelId(noti.getChannelId());
         }
-        callSpec.category = noti.category;
+        callSpec.setCategory(noti.category);
 
-        callSpec.command = callStarted ? CallSpec.CALL_START : CallSpec.CALL_INCOMING;
-        mLastCallCommand = callSpec.command;
+        callSpec.setCommand(callStarted ? CallSpec.CALL_START : CallSpec.CALL_INCOMING);
+        mLastCallCommand = callSpec.getCommand();
         GBApplication.deviceService().onSetCallState(callSpec);
     }
 
@@ -1087,7 +1094,7 @@ public class NotificationListener extends NotificationListenerService {
 
         CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
         if (title != null) {
-            notificationSpec.title = sanitizeUnicode(title.toString());
+            notificationSpec.setTitle(sanitizeUnicode(title.toString()));
         }
 
         CharSequence contentCS = null;
@@ -1098,7 +1105,7 @@ public class NotificationListener extends NotificationListenerService {
             contentCS = extras.getCharSequence(NotificationCompat.EXTRA_TEXT);
         }
         if (contentCS != null) {
-            notificationSpec.body = sanitizeUnicode(contentCS.toString());
+            notificationSpec.setBody(sanitizeUnicode(contentCS.toString()));
         }
 
         NotificationCompat.MessagingStyle messagingStyle = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification);
@@ -1115,14 +1122,14 @@ public class NotificationListener extends NotificationListenerService {
                     try (Cursor cursor = contentResolver.query(lastMessage.getDataUri(), null, null, null, null)) {
                         if (cursor != null && cursor.moveToFirst()) {
                             int dataIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
-                            notificationSpec.picturePath = cursor.getString(dataIndex);
+                            notificationSpec.setPicturePath(cursor.getString(dataIndex));
                         }
                     } catch (Exception e) {
                         LOG.error("Failed to get notification picture path", e);
                     }
 
                     // Fallback - attempt to open the URI and copy it to cache
-                    if (notificationSpec.picturePath == null) {
+                    if (notificationSpec.getPicturePath() == null) {
                         Bitmap bmp = null;
                         try (InputStream inputStream = contentResolver.openInputStream(lastMessage.getDataUri())) {
                             bmp = BitmapFactory.decodeStream(inputStream);
@@ -1130,7 +1137,7 @@ public class NotificationListener extends NotificationListenerService {
                                 final File pictureFile = new File(this.notificationPictureCacheDirectory, String.valueOf(notificationSpec.getId()));
                                 try (FileOutputStream fos = new FileOutputStream(pictureFile)) {
                                     bmp.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                                    notificationSpec.picturePath = pictureFile.getAbsolutePath();
+                                    notificationSpec.setPicturePath(pictureFile.getAbsolutePath());
                                 }
                             }
                         } catch (Exception e) {
@@ -1145,14 +1152,14 @@ public class NotificationListener extends NotificationListenerService {
             }
         }
 
-        if (notificationSpec.picturePath == null && extras.containsKey(NotificationCompat.EXTRA_PICTURE)) {
+        if (notificationSpec.getPicturePath() == null && extras.containsKey(NotificationCompat.EXTRA_PICTURE)) {
             final Bitmap bmp = (Bitmap) extras.get(NotificationCompat.EXTRA_PICTURE);
             if (bmp != null) {
                 File pictureFile = new File(this.notificationPictureCacheDirectory, String.valueOf(notificationSpec.getId()));
 
                 try (FileOutputStream fos = new FileOutputStream(pictureFile)) {
                     bmp.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                    notificationSpec.picturePath = pictureFile.getAbsolutePath();
+                    notificationSpec.setPicturePath(pictureFile.getAbsolutePath());
                 } catch (Exception e) {
                     LOG.error("Failed to save picture to notification cache: {}", e.getMessage());
                 } finally {
@@ -1161,11 +1168,11 @@ public class NotificationListener extends NotificationListenerService {
             }
         }
 
-        if (notificationSpec.type == NotificationType.COL_REMINDER
-                && notificationSpec.body == null
-                && notificationSpec.title != null) {
-            notificationSpec.body = notificationSpec.title;
-            notificationSpec.title = null;
+        if (notificationSpec.getType() == NotificationType.COL_REMINDER
+                && notificationSpec.getBody() == null
+                && notificationSpec.getTitle() != null) {
+            notificationSpec.setBody(notificationSpec.getTitle());
+            notificationSpec.setTitle(null);
         }
     }
 
@@ -1178,11 +1185,11 @@ public class NotificationListener extends NotificationListenerService {
                 try {
                     final int resourceId = smallIcon.getResId();
                     if (resourceId != 0) {
-                        notificationSpec.iconId = resourceId;
+                        notificationSpec.setIconId(resourceId);
                         final String resourcePackage = smallIcon.getResPackage();
-                        notificationSpec.iconPackageId = StringUtils.isBlank(resourcePackage)
+                        notificationSpec.setIconPackageId(StringUtils.isBlank(resourcePackage)
                                 ? sourcePackage
-                                : resourcePackage;
+                                : resourcePackage);
                         return;
                     }
                 } catch (final IllegalStateException e) {
@@ -1192,9 +1199,9 @@ public class NotificationListener extends NotificationListenerService {
         }
 
         //noinspection deprecation
-        notificationSpec.iconId = notification.icon;
-        if (notificationSpec.iconId != 0) {
-            notificationSpec.iconPackageId = sourcePackage;
+        notificationSpec.setIconId(notification.icon);
+        if (notificationSpec.getIconId() != 0) {
+            notificationSpec.setIconPackageId(sourcePackage);
         }
     }
 
@@ -1221,8 +1228,8 @@ public class NotificationListener extends NotificationListenerService {
             final MusicStateSpec stateSpec = MediaManager.extractMusicStateSpec(playbackState);
             final MusicSpec musicSpec = MediaManager.extractMusicSpec(metadata);
 
-            if (musicSpec != null && musicSpec.albumArt != null) {
-                latestAlbumArt = musicSpec.albumArt;
+            if (musicSpec != null && musicSpec.getAlbumArt() != null) {
+                latestAlbumArt = musicSpec.getAlbumArt();
             }
 
             // finally, tell the device about it
@@ -1288,8 +1295,8 @@ public class NotificationListener extends NotificationListenerService {
                 && activeCallPostTime == sbn.getPostTime()) {
             activeCallPostTime = 0;
             CallSpec callSpec = new CallSpec();
-            callSpec.command = CallSpec.CALL_END;
-            mLastCallCommand = callSpec.command;
+            callSpec.setCommand(CallSpec.CALL_END);
+            mLastCallCommand = callSpec.getCommand();
             GBApplication.deviceService().onSetCallState(callSpec);
         }
 
@@ -1345,7 +1352,7 @@ public class NotificationListener extends NotificationListenerService {
     }
 
     private static String notificationContent(final NotificationSpec notificationSpec) {
-        return ensureNotNull(notificationSpec.title) + " " + ensureNotNull(notificationSpec.body);
+        return ensureNotNull(notificationSpec.getTitle()) + " " + ensureNotNull(notificationSpec.getBody());
     }
 
     private void cleanUpNotificationPictureProvider() {
@@ -1366,10 +1373,11 @@ public class NotificationListener extends NotificationListenerService {
 
     private void logNotification(StatusBarNotification sbn, boolean posted) {
         LOG.debug(
-                "Notification {} {}: packageName={}, when={}, priority={}, category={}, flags={}",
+                "Notification {} {}: packageName={}, channelId={} when={}, priority={}, category={}, flags={}",
                 sbn.getId(),
                 posted ? "posted" : "removed",
                 sbn.getPackageName(),
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? sbn.getNotification().getChannelId() : "N/A",
                 sbn.getNotification().when,
                 sbn.getNotification().priority,
                 sbn.getNotification().category,
@@ -1378,12 +1386,16 @@ public class NotificationListener extends NotificationListenerService {
     }
 
     private void dumpExtras(Bundle bundle) {
+        // reading an extra deserializes it, which for a bitmap or a remote view is far from free
+        if (!LOG.isDebugEnabled()) {
+            return;
+        }
         for (String key : bundle.keySet()) {
             Object value = bundle.get(key);
             if (value == null) {
                 continue;
             }
-            LOG.debug(String.format("Notification extra: %s %s (%s)", key, value.toString(), value.getClass().getName()));
+            LOG.debug("Notification extra: {} {} ({})", key, value, value.getClass().getName());
         }
     }
 
@@ -1402,6 +1414,16 @@ public class NotificationListener extends NotificationListenerService {
         return false;
     }
 
+    private boolean isOtherUser(StatusBarNotification sbn) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (sbn.getPackageName().equals("android")) {
+                return "OTHER_USERS".equals(sbn.getNotification().getChannelId());
+            }
+        }
+
+        return false;
+    }
+
     private boolean shouldIgnoreSource(StatusBarNotification sbn) {
         String source = sbn.getPackageName();
 
@@ -1417,6 +1439,15 @@ public class NotificationListener extends NotificationListenerService {
                 source.equals("com.android.dialer") ||
                 source.equals("com.google.android.dialer") ||
                 source.equals("com.cyanogenmod.eleven")) {
+            if (isOtherUser(sbn)) {
+                final boolean ignoreOtherUsers = prefs.getBoolean("notifications_ignore_other_users", false);
+                if (ignoreOtherUsers) {
+                    LOG.info("Ignoring notification, is from another user");
+                } else {
+                    LOG.debug("Allowing notification from another user");
+                    return false;
+                }
+            }
             LOG.info("Ignoring notification, is a system event");
             return true;
         }

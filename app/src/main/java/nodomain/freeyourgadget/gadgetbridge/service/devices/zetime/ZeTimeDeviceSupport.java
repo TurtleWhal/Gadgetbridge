@@ -348,7 +348,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetMusicInfo(MusicSpec musicSpec) {
-        songtitle = musicSpec.track;
+        songtitle = musicSpec.getTrack();
         if (musicState != -1) {
             music = new byte[songtitle.getBytes(StandardCharsets.UTF_8).length + 7]; // 7 bytes for status and overhead
             music[0] = ZeTimeConstants.CMD_PREAMBLE;
@@ -396,18 +396,18 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 (byte) ((time.get(Calendar.SECOND) % 10) + '0'),
         };
 
-        if (callIncoming || (callSpec.command == CallSpec.CALL_INCOMING)) {
-            if (callSpec.command == CallSpec.CALL_INCOMING) {
-                if (callSpec.name != null) {
-                    notification_length += callSpec.name.getBytes(StandardCharsets.UTF_8).length;
-                    subject_length = callSpec.name.getBytes(StandardCharsets.UTF_8).length;
+        if (callIncoming || (callSpec.getCommand() == CallSpec.CALL_INCOMING)) {
+            if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
+                if (callSpec.getName() != null) {
+                    notification_length += callSpec.getName().getBytes(StandardCharsets.UTF_8).length;
+                    subject_length = callSpec.getName().getBytes(StandardCharsets.UTF_8).length;
                     subject = new byte[subject_length];
-                    System.arraycopy(callSpec.name.getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
-                } else if (callSpec.number != null) {
-                    notification_length += callSpec.number.getBytes(StandardCharsets.UTF_8).length;
-                    subject_length = callSpec.number.getBytes(StandardCharsets.UTF_8).length;
+                    System.arraycopy(callSpec.getName().getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
+                } else if (callSpec.getNumber() != null) {
+                    notification_length += callSpec.getNumber().getBytes(StandardCharsets.UTF_8).length;
+                    subject_length = callSpec.getNumber().getBytes(StandardCharsets.UTF_8).length;
                     subject = new byte[subject_length];
-                    System.arraycopy(callSpec.number.getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
+                    System.arraycopy(callSpec.getNumber().getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
                 }
                 notification_length += datetimeBytes.length + 10; // add message overhead
                 notification = new byte[notification_length];
@@ -484,7 +484,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetMusicState(MusicStateSpec stateSpec) {
-        musicState = stateSpec.state;
+        musicState = stateSpec.getState();
         if (songtitle != null) {
             music = new byte[songtitle.getBytes(StandardCharsets.UTF_8).length + 7]; // 7 bytes for status and overhead
             music[0] = ZeTimeConstants.CMD_PREAMBLE;
@@ -492,7 +492,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
             music[2] = ZeTimeConstants.CMD_REQUEST_RESPOND;
             music[3] = (byte) ((songtitle.getBytes(StandardCharsets.UTF_8).length + 1) & 0xff);
             music[4] = (byte) ((songtitle.getBytes(StandardCharsets.UTF_8).length + 1) >> 8);
-            if (stateSpec.state == MusicStateSpec.STATE_PLAYING) {
+            if (stateSpec.getState() == MusicStateSpec.STATE_PLAYING) {
                 music[5] = 0;
             } else {
                 music[5] = 1;
@@ -512,7 +512,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
     @Override
     public void onAddCalendarEvent(CalendarEventSpec calendarEventSpec) {
         // This is not used currently since we cannot add and remove calendar event one by one pebble style.
-        byte[] calendarEvent = encodeCalendarEvent(calendarEventSpec.title, calendarEventSpec.timestamp, (byte) (calendarEventSpec.type + 1)); // HACK)
+        byte[] calendarEvent = encodeCalendarEvent(calendarEventSpec.getTitle(), calendarEventSpec.getTimestamp(), (byte) (calendarEventSpec.getType() + 1)); // HACK)
         try {
             TransactionBuilder builder = performInitialized("sendCalendarEvent");
             sendMsgToWatch(builder, calendarEvent);
@@ -654,7 +654,7 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
     public void onNotification(NotificationSpec notificationSpec) {
 
         int subject_length = 0;
-        int body_length = notificationSpec.body.getBytes(StandardCharsets.UTF_8).length;
+        int body_length = notificationSpec.getBody().getBytes(StandardCharsets.UTF_8).length;
         if (body_length > 255) {
             body_length = 255;
         }
@@ -683,26 +683,26 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
                 (byte) ((time.get(Calendar.SECOND) % 10) + '0'),
         };
 
-        if (notificationSpec.sender != null) {
-            notification_length += notificationSpec.sender.getBytes(StandardCharsets.UTF_8).length;
-            subject_length = notificationSpec.sender.getBytes(StandardCharsets.UTF_8).length;
+        if (notificationSpec.getSender() != null) {
+            notification_length += notificationSpec.getSender().getBytes(StandardCharsets.UTF_8).length;
+            subject_length = notificationSpec.getSender().getBytes(StandardCharsets.UTF_8).length;
             subject = new byte[subject_length];
-            System.arraycopy(notificationSpec.sender.getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
-        } else if (notificationSpec.phoneNumber != null) {
-            notification_length += notificationSpec.phoneNumber.getBytes(StandardCharsets.UTF_8).length;
-            subject_length = notificationSpec.phoneNumber.getBytes(StandardCharsets.UTF_8).length;
+            System.arraycopy(notificationSpec.getSender().getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
+        } else if (notificationSpec.getPhoneNumber() != null) {
+            notification_length += notificationSpec.getPhoneNumber().getBytes(StandardCharsets.UTF_8).length;
+            subject_length = notificationSpec.getPhoneNumber().getBytes(StandardCharsets.UTF_8).length;
             subject = new byte[subject_length];
-            System.arraycopy(notificationSpec.phoneNumber.getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
-        } else if (notificationSpec.subject != null) {
-            notification_length += notificationSpec.subject.getBytes(StandardCharsets.UTF_8).length;
-            subject_length = notificationSpec.subject.getBytes(StandardCharsets.UTF_8).length;
+            System.arraycopy(notificationSpec.getPhoneNumber().getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
+        } else if (notificationSpec.getSubject() != null) {
+            notification_length += notificationSpec.getSubject().getBytes(StandardCharsets.UTF_8).length;
+            subject_length = notificationSpec.getSubject().getBytes(StandardCharsets.UTF_8).length;
             subject = new byte[subject_length];
-            System.arraycopy(notificationSpec.subject.getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
-        } else if (notificationSpec.title != null) {
-            notification_length += notificationSpec.title.getBytes(StandardCharsets.UTF_8).length;
-            subject_length = notificationSpec.title.getBytes(StandardCharsets.UTF_8).length;
+            System.arraycopy(notificationSpec.getSubject().getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
+        } else if (notificationSpec.getTitle() != null) {
+            notification_length += notificationSpec.getTitle().getBytes(StandardCharsets.UTF_8).length;
+            subject_length = notificationSpec.getTitle().getBytes(StandardCharsets.UTF_8).length;
             subject = new byte[subject_length];
-            System.arraycopy(notificationSpec.title.getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
+            System.arraycopy(notificationSpec.getTitle().getBytes(StandardCharsets.UTF_8), 0, subject, 0, subject_length);
         }
         notification_length += datetimeBytes.length + 10; // add message overhead
         notification = new byte[notification_length];
@@ -715,11 +715,11 @@ public class ZeTimeDeviceSupport extends AbstractBTLESingleDeviceSupport {
         notification[7] = (byte) subject_length;
         notification[8] = (byte) body_length;
         System.arraycopy(subject, 0, notification, 9, subject_length);
-        System.arraycopy(notificationSpec.body.getBytes(StandardCharsets.UTF_8), 0, notification, 9 + subject_length, body_length);
+        System.arraycopy(notificationSpec.getBody().getBytes(StandardCharsets.UTF_8), 0, notification, 9 + subject_length, body_length);
         System.arraycopy(datetimeBytes, 0, notification, 9 + subject_length + body_length, datetimeBytes.length);
         notification[notification_length - 1] = ZeTimeConstants.CMD_END;
 
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case GENERIC_SMS:
                 notification[5] = ZeTimeConstants.NOTIFICATION_SMS;
                 break;

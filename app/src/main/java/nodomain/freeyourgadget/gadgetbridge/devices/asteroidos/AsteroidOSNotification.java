@@ -62,12 +62,12 @@ public class AsteroidOSNotification {
      * @param spec The NotificationSpec to create the notification from
      */
     public AsteroidOSNotification(NotificationSpec spec) {
-        this.body = spec.body;
-        this.applicationName = spec.sourceName;
-        this.summary = StringUtils.firstNonBlank(spec.sender, spec.title, spec.subject);
+        this.body = spec.getBody();
+        this.applicationName = spec.getSourceName();
+        this.summary = StringUtils.firstNonBlank(spec.getSender(), spec.getTitle(), spec.getSubject());
         this.id = spec.getId();
-        this.packageName = spec.sourceAppId;
-        this.icon = this.gbNotificationTypeToIcon(spec.type);
+        this.packageName = spec.getSourceAppId();
+        this.icon = this.gbNotificationTypeToIcon(spec.getType());
     }
 
     /**
@@ -75,13 +75,13 @@ public class AsteroidOSNotification {
      * @param callSpec The callSpec given by the device support
      */
     public AsteroidOSNotification(CallSpec callSpec) {
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING:
                 this.applicationName = GBApplication.getContext().getString(R.string.pref_screen_notification_profile_incoming_call);
-                this.summary = callSpec.name;
-                this.body = callSpec.number;
+                this.summary = callSpec.getName();
+                this.body = callSpec.getNumber();
                 this.vibrationStrength = VibrationStrength.RINGTONE;
-                this.id = (callSpec.name + callSpec.number).hashCode();
+                this.id = (callSpec.getName() + callSpec.getNumber()).hashCode();
                 this.icon = "ios-call-outline";
                 break;
             case CallSpec.CALL_OUTGOING:
@@ -92,7 +92,7 @@ public class AsteroidOSNotification {
             case CallSpec.CALL_START:
             case CallSpec.CALL_UNDEFINED:
             default:
-                this.id = (callSpec.name + callSpec.number).hashCode();
+                this.id = (callSpec.getName() + callSpec.getNumber()).hashCode();
                 this.remove = true;
         }
     }

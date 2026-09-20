@@ -62,7 +62,7 @@ public enum EqualizerPreset implements LabeledEntry {
 
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
-            put(DeviceSettingsPreferenceConst.PREF_SONY_EQUALIZER_MODE, name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_EQUALIZER_MODE, name().toLowerCase(Locale.ROOT));
         }};
     }
 
@@ -77,6 +77,6 @@ public enum EqualizerPreset implements LabeledEntry {
     }
 
     public static EqualizerPreset fromPreferences(final SharedPreferences prefs) {
-        return EqualizerPreset.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_EQUALIZER_MODE, "off").toUpperCase());
+        return EqualizerPreset.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_EQUALIZER_MODE, "off").toUpperCase(Locale.ROOT));
     }
 }

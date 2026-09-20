@@ -96,7 +96,7 @@ public class ID115Support extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             try {
                 new SendNotificationOperation(this, callSpec).perform();
             } catch (IOException ex) {
@@ -117,7 +117,7 @@ public class ID115Support extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
+    public void onReboot() {
         try {
             getQueue().clear();
 

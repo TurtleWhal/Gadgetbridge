@@ -308,7 +308,7 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
         if (!devices[deviceIdx].isInitialized()) {
             logger.debug("Initializing device for {}", taskName);
             // first, add a transaction that performs device initialization
-            TransactionBuilder builder = createTransactionBuilder("Initialize device", deviceIdx);
+            TransactionBuilder builder = createTransactionBuilder("performInitialized", deviceIdx);
             builder.add(new CheckInitializedAction(devices[deviceIdx]));
             initializeDevice(builder, deviceIdx);
             builder.queue();
@@ -453,7 +453,7 @@ public abstract class AbstractBTLEMultiDeviceSupport extends AbstractBTLEDeviceS
                     getDevice(deviceIdx), deviceIdx, getDevice(deviceIdx).getState());
             return;
         }
-        TransactionBuilder builder = createTransactionBuilder("Initializing device", deviceIdx);
+        TransactionBuilder builder = createTransactionBuilder("initializeDevice", deviceIdx);
 
         if (bleApis[deviceIdx] != null) {
             bleApis[deviceIdx].initializeDevice(builder);

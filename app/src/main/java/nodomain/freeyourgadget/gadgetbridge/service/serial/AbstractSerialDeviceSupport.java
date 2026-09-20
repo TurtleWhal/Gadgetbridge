@@ -40,7 +40,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
-import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.AbstractBluetoothDeviceSupport;
 
 /**
  * An abstract base class for devices speaking a serial protocol, like via
@@ -57,7 +57,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
  * @deprecated Use {@link nodomain.freeyourgadget.gadgetbridge.service.btbr.AbstractBTBRDeviceSupport}
  */
 @Deprecated
-public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport {
+public abstract class AbstractSerialDeviceSupport extends AbstractBluetoothDeviceSupport {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractSerialDeviceSupport.class);
 
     /// used to guard {@link #connect()} and {@link #dispose()}
@@ -166,7 +166,7 @@ public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport 
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        byte[] bytes = gbDeviceProtocol.encodeSetCallState(callSpec.number, callSpec.name, callSpec.command);
+        byte[] bytes = gbDeviceProtocol.encodeSetCallState(callSpec.getNumber(), callSpec.getName(), callSpec.getCommand());
         sendToDevice(bytes);
     }
 
@@ -178,13 +178,13 @@ public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport 
 
     @Override
     public void onSetMusicState(MusicStateSpec stateSpec) {
-        byte[] bytes = gbDeviceProtocol.encodeSetMusicState(stateSpec.state, stateSpec.position, stateSpec.playRate, stateSpec.shuffle, stateSpec.repeat);
+        byte[] bytes = gbDeviceProtocol.encodeSetMusicState(stateSpec.getState(), stateSpec.getPosition(), stateSpec.getPlayRate(), stateSpec.getShuffle(), stateSpec.getRepeat());
         sendToDevice(bytes);
     }
 
     @Override
     public void onSetMusicInfo(MusicSpec musicSpec) {
-        byte[] bytes = gbDeviceProtocol.encodeSetMusicInfo(musicSpec.artist, musicSpec.album, musicSpec.track, musicSpec.duration, musicSpec.trackCount, musicSpec.trackNr);
+        byte[] bytes = gbDeviceProtocol.encodeSetMusicInfo(musicSpec.getArtist(), musicSpec.getAlbum(), musicSpec.getTrack(), musicSpec.getDuration(), musicSpec.getTrackCount(), musicSpec.getTrackNr());
         sendToDevice(bytes);
     }
 
@@ -225,8 +225,14 @@ public abstract class AbstractSerialDeviceSupport extends AbstractDeviceSupport 
     }
 
     @Override
-    public void onReset(int flags) {
-        byte[] bytes = gbDeviceProtocol.encodeReset(flags);
+    public void onReboot() {
+        byte[] bytes = gbDeviceProtocol.encodeReset(GBDeviceProtocol.RESET_FLAGS_REBOOT);
+        sendToDevice(bytes);
+    }
+
+    @Override
+    public void onFactoryReset() {
+        byte[] bytes = gbDeviceProtocol.encodeReset(GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET);
         sendToDevice(bytes);
     }
 

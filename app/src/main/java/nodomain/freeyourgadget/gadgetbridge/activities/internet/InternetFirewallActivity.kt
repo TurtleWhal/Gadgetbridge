@@ -33,6 +33,7 @@ import nodomain.freeyourgadget.gadgetbridge.entities.InternetFirewallRule
 import nodomain.freeyourgadget.gadgetbridge.entities.InternetFirewallRuleDao
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.internet.FirewallAction
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getDevice
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -44,12 +45,7 @@ class InternetFirewallActivity : AbstractGBActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        @Suppress("DEPRECATION")
-        device = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(GBDevice.EXTRA_DEVICE, GBDevice::class.java)
-        } else {
-            intent.getParcelableExtra(GBDevice.EXTRA_DEVICE)
-        }
+        device = intent.getDevice()
 
         binding = ActivityInternetFirewallBinding.inflate(layoutInflater)
         setContentView(binding.root)

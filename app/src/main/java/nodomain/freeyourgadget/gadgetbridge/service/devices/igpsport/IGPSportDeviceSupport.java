@@ -528,7 +528,7 @@ public class IGPSportDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        LOG.debug("iGPSport notification: " + notificationSpec.type);
+        LOG.debug("iGPSport notification: " + notificationSpec.getType());
         TransactionBuilder builder = createTransactionBuilder("notification");
 
         Ins.ins_msg.Builder insMsgBuilder = Ins.ins_msg.newBuilder();
@@ -536,19 +536,19 @@ public class IGPSportDeviceSupport extends AbstractBTLESingleDeviceSupport {
         insMsgBuilder.setInsServiceType(Ins.INS_SERVICE_TYPE.enum_INS_SERVICE_TYPE_NOTE);
         insMsgBuilder.setInsOperateType(Ins.INS_OPERATE_TYPE.enum_INS_OPERATE_TYPE_INCOMING_NOTE);
         Ins.ins_data_message.Builder insDataMsgBuilder = Ins.ins_data_message.newBuilder();
-        if (notificationSpec.type == NotificationType.GENERIC_SMS) {
+        if (notificationSpec.getType() == NotificationType.GENERIC_SMS) {
             insDataMsgBuilder.setIsApp(0);
         } else {
             insDataMsgBuilder.setIsApp(1);
-            insDataMsgBuilder.setAppName(notificationSpec.sourceName);
+            insDataMsgBuilder.setAppName(notificationSpec.getSourceName());
         }
 
-        if (notificationSpec.phoneNumber != null)
-            insDataMsgBuilder.setTelNum(ByteString.copyFromUtf8(notificationSpec.phoneNumber));
-        if (notificationSpec.title != null)
-            insDataMsgBuilder.setName(notificationSpec.title);
-        if (notificationSpec.body != null)
-            insDataMsgBuilder.setContent(notificationSpec.body);
+        if (notificationSpec.getPhoneNumber() != null)
+            insDataMsgBuilder.setTelNum(ByteString.copyFromUtf8(notificationSpec.getPhoneNumber()));
+        if (notificationSpec.getTitle() != null)
+            insDataMsgBuilder.setName(notificationSpec.getTitle());
+        if (notificationSpec.getBody() != null)
+            insDataMsgBuilder.setContent(notificationSpec.getBody());
         String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
         insDataMsgBuilder.setTime(timeStamp);
         insMsgBuilder.setInsDataMsg(insDataMsgBuilder);
@@ -564,19 +564,19 @@ public class IGPSportDeviceSupport extends AbstractBTLESingleDeviceSupport {
         Ins.ins_msg.Builder insMsgBuilder = Ins.ins_msg.newBuilder();
         insMsgBuilder.setServiceType(Common.service_type_index.enum_SERVICE_TYPE_INDEX_INS);
         insMsgBuilder.setInsServiceType(Ins.INS_SERVICE_TYPE.enum_INS_SERVICE_TYPE_CALL);
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             insMsgBuilder.setInsOperateType(Ins.INS_OPERATE_TYPE.enum_INS_OPERATE_TYPE_INCOMING_CALL);
-        } else if (callSpec.command == CallSpec.CALL_ACCEPT ||
-                callSpec.command == CallSpec.CALL_START ||
-                callSpec.command == CallSpec.CALL_END) {
+        } else if (callSpec.getCommand() == CallSpec.CALL_ACCEPT ||
+                callSpec.getCommand() == CallSpec.CALL_START ||
+                callSpec.getCommand() == CallSpec.CALL_END) {
             insMsgBuilder.setInsOperateType(Ins.INS_OPERATE_TYPE.enum_INS_OPERATE_TYPE_ANSWER_CALL);
-        } else if (callSpec.command == CallSpec.CALL_REJECT) {
+        } else if (callSpec.getCommand() == CallSpec.CALL_REJECT) {
             insMsgBuilder.setInsOperateType(Ins.INS_OPERATE_TYPE.enum_INS_OPERATE_TYPE_REJECT_CALL);
         }
 
         Ins.ins_data_message.Builder insDataMsgBuilder = Ins.ins_data_message.newBuilder();
-        insDataMsgBuilder.setTelNum(ByteString.copyFromUtf8(callSpec.number));
-        insDataMsgBuilder.setName(callSpec.name);
+        insDataMsgBuilder.setTelNum(ByteString.copyFromUtf8(callSpec.getNumber()));
+        insDataMsgBuilder.setName(callSpec.getName());
         String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date());
         insDataMsgBuilder.setTime(timeStamp);
         insMsgBuilder.setInsDataMsg(insDataMsgBuilder);
@@ -755,14 +755,14 @@ public class IGPSportDeviceSupport extends AbstractBTLESingleDeviceSupport {
         LOG.debug("onSetMusicInfo: {}", musicSpec.toString());
 
         Media.track_message.Builder track_message = Media.track_message.newBuilder()
-                .setAlbum(musicSpec.album != null ? musicSpec.album : "")
-                .setArtist(musicSpec.artist != null ? musicSpec.artist : "")
-                .setTitle(musicSpec.track != null ? musicSpec.track : "")
-                .setTotalTime(musicSpec.duration);
+                .setAlbum(musicSpec.getAlbum() != null ? musicSpec.getAlbum() : "")
+                .setArtist(musicSpec.getArtist() != null ? musicSpec.getArtist() : "")
+                .setTitle(musicSpec.getTrack() != null ? musicSpec.getTrack() : "")
+                .setTotalTime(musicSpec.getDuration());
 
         Media.queue_message.Builder queue_message = Media.queue_message.newBuilder()
-                .setQueueCount(Math.max(0, musicSpec.trackCount))
-                .setQueueIndex(Math.max(0, musicSpec.trackNr));
+                .setQueueCount(Math.max(0, musicSpec.getTrackCount()))
+                .setQueueIndex(Math.max(0, musicSpec.getTrackNr()));
 
 
         Media.player_message.Builder player_message = Media.player_message.newBuilder();
@@ -770,9 +770,9 @@ public class IGPSportDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
         final MusicStateSpec bufferMusicStateSpec = mediaManager.getBufferMusicStateSpec();
         if (bufferMusicStateSpec != null) {
-            player_message.setPlayerState(getPlayerState(bufferMusicStateSpec.state))
-                    .setPlayerRate(bufferMusicStateSpec.playRate)
-                    .setElapsedTime(bufferMusicStateSpec.position)
+            player_message.setPlayerState(getPlayerState(bufferMusicStateSpec.getState()))
+                    .setPlayerRate(bufferMusicStateSpec.getPlayRate())
+                    .setElapsedTime(bufferMusicStateSpec.getPosition())
                     .setVolumeCur(mediaManager.getPhoneVolume())
                     .setVolumeMax(100);
         }
@@ -802,9 +802,9 @@ public class IGPSportDeviceSupport extends AbstractBTLESingleDeviceSupport {
         Media.player_message.Builder player_message = Media.player_message.newBuilder();
         final MusicStateSpec bufferMusicStateSpec = mediaManager.getBufferMusicStateSpec();
         if (bufferMusicStateSpec != null) {
-            player_message.setPlayerState(getPlayerState(bufferMusicStateSpec.state))
-                    .setPlayerRate(bufferMusicStateSpec.playRate)
-                    .setElapsedTime(bufferMusicStateSpec.position);
+            player_message.setPlayerState(getPlayerState(bufferMusicStateSpec.getState()))
+                    .setPlayerRate(bufferMusicStateSpec.getPlayRate())
+                    .setElapsedTime(bufferMusicStateSpec.getPosition());
         }
 
         Media.media_message.Builder media_message = Media.media_message.newBuilder()

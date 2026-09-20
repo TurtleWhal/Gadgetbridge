@@ -212,7 +212,7 @@ public class TransactionBuilder {
     /// {@link GattCallback#onMtuChanged(BluetoothGatt, int, int)}
     @NonNull
     public TransactionBuilder requestMtu(@IntRange(from = 23L, to = 517L) int mtu) {
-        RequestMtuAction action = new RequestMtuAction(mtu);
+        RequestMtuAction action = new RequestMtuAction(mtu, mDeviceSupport, mDeviceIdx);
         return add(action);
     }
 
@@ -387,6 +387,12 @@ public class TransactionBuilder {
         }
         mQueued = true;
         BtLEQueue queue = mDeviceSupport.getQueue(mDeviceIdx);
+        if (queue == null) {
+            // The device support was disposed concurrently with this call (eg. a retransmission
+            // or other async callback racing a disconnect). There is nothing to queue to anymore.
+            LOG.error("Not queuing '{}', device support has no queue (disposed?)", getTaskName());
+            return;
+        }
         queue.add(mTransaction);
     }
 

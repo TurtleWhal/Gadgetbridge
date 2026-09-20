@@ -43,7 +43,7 @@ public class ZeppOsActivityFetchService extends AbstractZeppOsService {
 
     @Override
     public void handlePayload(final byte[] payload) {
-        LOG.trace("Passing to fetcher: {}", GB.hexdump(payload));
+        LOG.trace("Passing to fetcher: {}", GB.lazyHexdump(payload));
         fetcher.onActivityControl(payload);
     }
 

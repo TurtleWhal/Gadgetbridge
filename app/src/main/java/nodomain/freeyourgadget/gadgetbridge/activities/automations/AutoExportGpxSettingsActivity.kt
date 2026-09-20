@@ -29,6 +29,7 @@ import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractPreferenceFragment
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractSettingsActivityV2
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs
+import nodomain.freeyourgadget.gadgetbridge.util.UriUtils
 import org.slf4j.LoggerFactory
 
 class AutoExportGpxSettingsActivity : AbstractSettingsActivityV2() {
@@ -97,7 +98,7 @@ class AutoExportGpxSettingsActivity : AbstractSettingsActivityV2() {
                 if (uriString.isEmpty()) {
                     customDirPref?.summary = getString(R.string.not_set)
                 } else {
-                    customDirPref?.summary = AbstractAutoExportSettingsFragment.resolveLocationSummary(
+                    customDirPref?.summary = UriUtils.resolveLocationSummary(
                         requireContext(),
                         uriString
                     )

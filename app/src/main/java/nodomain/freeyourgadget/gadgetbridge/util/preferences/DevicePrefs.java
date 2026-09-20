@@ -163,8 +163,8 @@ public class DevicePrefs extends Prefs {
     }
 
     public Language getLanguage(final Language defaultLanguage) {
-        String localeString = getString(PREF_LANGUAGE, defaultLanguage.name().toLowerCase(Locale.ROOT));
-        if (localeString == null || localeString.equals(Language.AUTO.name().toLowerCase(Locale.ROOT))) {
+        String localeString = getString(PREF_LANGUAGE, defaultLanguage.getCode());
+        if (localeString == null || localeString.equals(Language.AUTO.getCode())) {
             String language = Locale.getDefault().getLanguage();
             String country = Locale.getDefault().getCountry();
 
@@ -175,10 +175,7 @@ public class DevicePrefs extends Prefs {
             }
             localeString = language + "_" + country.toUpperCase();
         }
-        try {
-            return Language.valueOf(localeString);
-        } catch (final Exception e) {
-            return defaultLanguage;
-        }
+        final Language language = Language.fromCode(localeString);
+        return language != null ? language : defaultLanguage;
     }
 }

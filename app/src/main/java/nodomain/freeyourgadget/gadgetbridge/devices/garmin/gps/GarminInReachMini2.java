@@ -1,4 +1,4 @@
-/*  Copyright (C) 2025 Thomas Kuehne
+/*  Copyright (C) 2025-2026 Thomas Kuehne
 
     This file is part of Gadgetbridge.
 
@@ -36,11 +36,6 @@ public class GarminInReachMini2 extends GarminCoordinator {
     }
 
     @Override
-    public boolean isExperimental() {
-        return true;
-    }
-
-    @Override
     public boolean supportsDataFetching(@NonNull final GBDevice device) {
         // for gps tracks
         return true;
@@ -60,6 +55,7 @@ public class GarminInReachMini2 extends GarminCoordinator {
 
     @Override
     public DeviceKind getDeviceKind(@NonNull GBDevice device) {
-        return DeviceKind.UNKNOWN;
+        // sattelite messenger with GPS support
+        return DeviceKind.PHONE;
     }
 }

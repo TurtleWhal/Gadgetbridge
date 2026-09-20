@@ -1,179 +1,157 @@
+/*  Copyright (C) 2024-2026 Daniele Gobbetti, José Rebelo, Thomas Kuehne
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions;
+
+import static nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.WeatherCondition.*;
 
 import androidx.annotation.Nullable;
 
 import java.nio.ByteBuffer;
 
+import nodomain.freeyourgadget.gadgetbridge.model.weather.OwmCondition;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.FieldDefinition;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.baseTypes.BaseType;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.WeatherCondition;
 
 public class FieldDefinitionWeatherCondition extends FieldDefinition {
 
-    public FieldDefinitionWeatherCondition(int localNumber, int size, BaseType baseType, String name) {
-        super(localNumber, size, baseType, name, 1, 0);
+    public FieldDefinitionWeatherCondition(int localNumber, int size, BaseType baseType, String name, int scale, int offset) {
+        super(localNumber, size, baseType, name, scale, offset);
     }
 
+    @Nullable
+    public static WeatherCondition fromId(final int id) {
+        for (final WeatherCondition candidate : WeatherCondition.values()) {
+            if (id == candidate.num) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
     @Override
-    public Object decode(ByteBuffer byteBuffer) {
+    public WeatherCondition decode(ByteBuffer byteBuffer) {
         final Object rawObj = baseType.decode(byteBuffer, scale, offset);
-        if (rawObj != null) {
-            final int raw = (int) rawObj;
-            return Condition.values()[raw];
+        if (rawObj instanceof final Number raw) {
+            int id = raw.intValue();
+            return fromId(id);
         }
         return null;
     }
 
     @Override
     public void encode(ByteBuffer byteBuffer, Object o) {
-        if (o instanceof Condition) {
-            baseType.encode(byteBuffer, ((Condition) o).ordinal(), scale, offset);
-            return;
+        if (o instanceof final WeatherCondition weatherCondition) {
+            o = weatherCondition.num;
+        } else if(o instanceof final Integer code) {
+            final WeatherCondition condition = openWeatherCodeToFitWeatherStatus(code);
+            o = condition != null ? condition.num : 255;
+        } else {
+            o = null;
         }
-        final Condition condition = openWeatherCodeToFitWeatherStatus((int) o);
-        baseType.encode(byteBuffer, condition != null ? condition.ordinal() : 255, scale, offset);
+        baseType.encode(byteBuffer, o, scale, offset);
     }
 
     @Nullable
-    public static Condition openWeatherCodeToFitWeatherStatus(int openWeatherCode) {
-        switch (openWeatherCode) {
-//Group 2xx: Thunderstorm
-            case 200:  //thunderstorm with light rain:  //11d
-            case 201:  //thunderstorm with rain:  //11d
-            case 202:  //thunderstorm with heavy rain:  //11d
-            case 210:  //light thunderstorm::  //11d
-            case 211:  //thunderstorm:  //11d
-            case 212:  //heavy thunderstorm:  //11d
-            case 230:  //thunderstorm with light drizzle:  //11d
-            case 231:  //thunderstorm with drizzle:  //11d
-            case 232:  //thunderstorm with heavy drizzle:  //11d
-                return Condition.THUNDERSTORMS;
-            case 221:  //ragged thunderstorm:  //11d
-                return Condition.SCATTERED_THUNDERSTORMS;
-//Group 3xx: Drizzle
-            case 300:  //light intensity drizzle:  //09d
-            case 310:  //light intensity drizzle rain:  //09d
-            case 313:  //shower rain and drizzle:  //09d
-                return Condition.LIGHT_RAIN;
-            case 301:  //drizzle:  //09d
-            case 311:  //drizzle rain:  //09d
-                return Condition.RAIN;
-            case 302:  //heavy intensity drizzle:  //09d
-            case 312:  //heavy intensity drizzle rain:  //09d
-            case 314:  //heavy shower rain and drizzle:  //09d
-                return Condition.HEAVY_RAIN;
-            case 321:  //shower drizzle:  //09d
-                return Condition.SCATTERED_SHOWERS;
-//Group 5xx: Rain
-            case 500:  //light rain:  //10d
-            case 520:  //light intensity shower rain:  //09d
-            case 521:  //shower rain:  //09d
-                return Condition.LIGHT_RAIN;
-            case 501:  //moderate rain:  //10d
-            case 531:  //ragged shower rain:  //09d
-                return Condition.RAIN;
-            case 502:  //heavy intensity rain:  //10d
-            case 503:  //very heavy rain:  //10d
-            case 504:  //extreme rain:  //10d
-            case 522:  //heavy intensity shower rain:  //09d
-                return Condition.HEAVY_RAIN;
-            case 511:  //freezing rain:  //13d
-                return Condition.UNKNOWN_PRECIPITATION;
-//Group 6xx: Snow
-            case 600:  //light snow:  //[[file:13d.png]]
-                return Condition.LIGHT_SNOW;
-            case 601:  //snow:  //[[file:13d.png]]
-            case 620:  //light shower snow:  //[[file:13d.png]]
-            case 621:  //shower snow:  //[[file:13d.png]]
-                return Condition.SNOW;
-            case 602:  //heavy snow:  //[[file:13d.png]]
-            case 622:  //heavy shower snow:  //[[file:13d.png]]
-                return Condition.HEAVY_SNOW;
-            case 611:  //sleet:  //[[file:13d.png]]
-            case 612:  //light shower sleet:  //[[file:13d.png]]
-            case 613:  //shower sleet:  //[[file:13d.png]]
-                return Condition.WINTRY_MIX;
-            case 615:  //light rain and snow:  //[[file:13d.png]]
-                return Condition.LIGHT_RAIN_SNOW;
-            case 616:  //rain and snow:  //[[file:13d.png]]
-                return Condition.HEAVY_RAIN_SNOW;
-
-//Group 7xx: Atmosphere
-            case 701:  //mist:  //[[file:50d.png]]
-            case 711:  //smoke:  //[[file:50d.png]]
-            case 721:  //haze:  //[[file:50d.png]]
-            case 731:  //sandcase  dust whirls:  //[[file:50d.png]]
-            case 751:  //sand:  //[[file:50d.png]]
-            case 761:  //dust:  //[[file:50d.png]]
-            case 762:  //volcanic ash:  //[[file:50d.png]]
-                return Condition.HAZY;
-            case 741:  //fog:  //[[file:50d.png]]
-                return Condition.FOG;
-            case 771:  //squalls:  //[[file:50d.png]]
-            case 781:  //tornado:  //[[file:50d.png]]
-                return Condition.WINDY;
-//Group 800: Clear
-            case 800:  //clear sky:  //[[file:01d.png]] [[file:01n.png]]
-                return Condition.CLEAR;
-
-//Group 80x: Clouds
-            case 801:  //few clouds:  //[[file:02d.png]] [[file:02n.png]]
-            case 802:  //scattered clouds:  //[[file:03d.png]] [[file:03d.png]]
-                return Condition.PARTLY_CLOUDY;
-            case 803:  //broken clouds:  //[[file:04d.png]] [[file:03d.png]]
-                return Condition.MOSTLY_CLOUDY;
-            case 804:  //overcast clouds:  //[[file:04d.png]] [[file:04d.png]]
-                return Condition.CLOUDY;
-//Group 90x: Extreme
-            case 901:  //tropical storm
-                return Condition.THUNDERSTORMS;
-            case 906:  //hail
-                return Condition.HAIL;
-            case 903:  //cold
-            case 904:  //hot
-            case 905:  //windy
-//Group 9xx: Additional
-            case 951:  //calm
-            case 952:  //light breeze
-            case 953:  //gentle breeze
-            case 954:  //moderate breeze
-            case 955:  //fresh breeze
-            case 956:  //strong breeze
-            case 957:  //high windcase  near gale
-            case 958:  //gale
-            case 959:  //severe gale
-            case 960:  //storm
-            case 961:  //violent storm
-            case 902:  //hurricane
-            case 962:  //hurricane
-            default:
-                return null; //invalid
+    public static WeatherCondition openWeatherCodeToFitWeatherStatus(int openWeatherCode) {
+        final OwmCondition openWeatherCondition = OwmCondition.Companion.fromCode(openWeatherCode);
+        if (openWeatherCondition == null) {
+            return null;
         }
+
+        return switch (openWeatherCondition) {
+            case THUNDERSTORM_WITH_LIGHT_RAIN -> THUNDERSTORMS;
+            case THUNDERSTORM_WITH_RAIN -> THUNDERSTORMS;
+            case THUNDERSTORM_WITH_HEAVY_RAIN -> THUNDERSTORMS;
+            case LIGHT_THUNDERSTORM -> THUNDERSTORMS;
+            case THUNDERSTORM -> THUNDERSTORMS;
+            case HEAVY_THUNDERSTORM -> THUNDERSTORMS;
+            case RAGGED_THUNDERSTORM -> SCATTERED_THUNDERSTORMS;
+            case THUNDERSTORM_WITH_LIGHT_DRIZZLE -> THUNDERSTORMS;
+            case THUNDERSTORM_WITH_DRIZZLE -> THUNDERSTORMS;
+            case THUNDERSTORM_WITH_HEAVY_DRIZZLE -> THUNDERSTORMS;
+            case LIGHT_INTENSITY_DRIZZLE -> LIGHT_RAIN;
+            case DRIZZLE -> LIGHT_RAIN;
+            case HEAVY_INTENSITY_DRIZZLE -> HEAVY_RAIN;
+            case LIGHT_INTENSITY_DRIZZLE_RAIN -> LIGHT_RAIN;
+            case DRIZZLE_RAIN -> RAIN;
+            case HEAVY_INTENSITY_DRIZZLE_RAIN -> HEAVY_RAIN;
+            case SHOWER_RAIN_AND_DRIZZLE -> LIGHT_RAIN;
+            case HEAVY_SHOWER_RAIN_AND_DRIZZLE -> HEAVY_RAIN;
+            case SHOWER_DRIZZLE -> SCATTERED_SHOWERS;
+            case LIGHT_RAIN -> LIGHT_RAIN;
+            case MODERATE_RAIN -> RAIN;
+            case HEAVY_INTENSITY_RAIN -> HEAVY_RAIN;
+            case VERY_HEAVY_RAIN -> HEAVY_RAIN;
+            case EXTREME_RAIN -> HEAVY_RAIN;
+            case FREEZING_RAIN -> UNKNOWN_PRECIPITATION;
+            case LIGHT_INTENSITY_SHOWER_RAIN -> LIGHT_RAIN;
+            case SHOWER_RAIN -> LIGHT_RAIN;
+            case HEAVY_INTENSITY_SHOWER_RAIN -> HEAVY_RAIN;
+            case RAGGED_SHOWER_RAIN -> RAIN;
+            case LIGHT_SNOW -> LIGHT_SNOW;
+            case SNOW -> SNOW;
+            case HEAVY_SNOW -> HEAVY_SNOW;
+            case SLEET -> WINTRY_MIX;
+            case LIGHT_SHOWER_SLEET -> WINTRY_MIX;
+            case SHOWER_SLEET -> WINTRY_MIX;
+            case LIGHT_RAIN_AND_SNOW -> LIGHT_RAIN_SNOW;
+            case RAIN_AND_SNOW -> HEAVY_RAIN_SNOW;
+            case LIGHT_SHOWER_SNOW -> SNOW;
+            case SHOWER_SNOW -> SNOW;
+            case HEAVY_SHOWER_SNOW -> HEAVY_SNOW;
+            case MIST -> HAZY;
+            case SMOKE -> HAZY;
+            case HAZE -> HAZY;
+            case SAND_OR_DUST_WHIRLS -> HAZY;
+            case FOG -> FOG;
+            case SAND -> HAZY;
+            case DUST -> HAZY;
+            case VOLCANIC_ASH -> HAZY;
+            case SQUALLS -> WINDY;
+            case TORNADO -> WINDY;
+            case CLEAR_SKY -> CLEAR;
+            case FEW_CLOUDS -> PARTLY_CLOUDY;
+            case SCATTERED_CLOUDS -> PARTLY_CLOUDY;
+            case BROKEN_CLOUDS -> MOSTLY_CLOUDY;
+            case OVERCAST_CLOUDS -> CLOUDY;
+            case TORNADO_900 -> THUNDERSTORMS;
+            case TROPICAL_STORM -> THUNDERSTORMS;
+            case HURRICANE_902 -> THUNDERSTORMS;
+            case COLD -> null;
+            case HOT -> null;
+            case WINDY -> WINDY;
+            case HAIL -> HAIL;
+            case CALM -> null;
+            case LIGHT_BREEZE -> null;
+            case GENTLE_BREEZE -> null;
+            case MODERATE_BREEZE -> null;
+            case FRESH_BREEZE -> null;
+            case STRONG_BREEZE -> null;
+            case HIGH_WINDCASE_NEAR_GALE -> null;
+            case GALE -> null;
+            case SEVERE_GALE -> null;
+            case STORM -> null;
+            case VIOLENT_STORM -> null;
+            case HURRICANE_962 -> THUNDERSTORMS;
+            default -> null;
+        };
     }
 
-    public enum Condition {
-        CLEAR,
-        PARTLY_CLOUDY,
-        MOSTLY_CLOUDY,
-        RAIN,
-        SNOW,
-        WINDY,
-        THUNDERSTORMS,
-        WINTRY_MIX,
-        FOG,
-        UNK9,
-        UNK10,
-        HAZY,
-        HAIL,
-        SCATTERED_SHOWERS,
-        SCATTERED_THUNDERSTORMS,
-        UNKNOWN_PRECIPITATION,
-        LIGHT_RAIN,
-        HEAVY_RAIN,
-        LIGHT_SNOW,
-        HEAVY_SNOW,
-        LIGHT_RAIN_SNOW,
-        HEAVY_RAIN_SNOW,
-        CLOUDY,
-        ;
-    }
 }

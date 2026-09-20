@@ -45,25 +45,25 @@ public class SendNotificationOperation extends AbstractID115Operation {
         super(support);
 
         String phone = "";
-        if (notificationSpec.phoneNumber != null) {
-            phone = notificationSpec.phoneNumber;
+        if (notificationSpec.getPhoneNumber() != null) {
+            phone = notificationSpec.getPhoneNumber();
         }
 
         String title = "";
-        if (notificationSpec.sender != null) {
-            title = notificationSpec.sender;
-        } else if (notificationSpec.title != null) {
-            title = notificationSpec.title;
-        } else if (notificationSpec.subject != null) {
-            title = notificationSpec.subject;
+        if (notificationSpec.getSender() != null) {
+            title = notificationSpec.getSender();
+        } else if (notificationSpec.getTitle() != null) {
+            title = notificationSpec.getTitle();
+        } else if (notificationSpec.getSubject() != null) {
+            title = notificationSpec.getSubject();
         }
 
         String text = "";
-        if (notificationSpec.body != null) {
-            text = notificationSpec.body;
+        if (notificationSpec.getBody() != null) {
+            text = notificationSpec.getBody();
         }
 
-        currentNotificationBuffer = encodeMessageNotification(notificationSpec.type, title, phone, text);
+        currentNotificationBuffer = encodeMessageNotification(notificationSpec.getType(), title, phone, text);
         currentNotificationSize = (currentNotificationBuffer.length + 15) / 16;
         currentNotificationType = ID115Constants.CMD_KEY_NOTIFY_MSG;
     }
@@ -73,13 +73,13 @@ public class SendNotificationOperation extends AbstractID115Operation {
         super(support);
 
         String number = "";
-        if (callSpec.number != null) {
-            number = callSpec.number;
+        if (callSpec.getNumber() != null) {
+            number = callSpec.getNumber();
         }
 
         String name = "";
-        if (callSpec.name != null) {
-            name = callSpec.name;
+        if (callSpec.getName() != null) {
+            name = callSpec.getName();
         }
 
         currentNotificationBuffer = encodeCallNotification(name, number);

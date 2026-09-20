@@ -44,11 +44,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.dashboard.GaugeDrawer;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 
@@ -122,8 +124,13 @@ public class SolarEquipmentStatusActivity extends AbstractGBActivity {
                     } else {
                         removeWidget("panel4");
                     }
-                    updateGaugeWidget("temp1", temp1 + "°C", (float) ((temp1 + 20) / 100.0));
-                    updateGaugeWidget("temp2", temp2 + "°C", (float) ((temp2 + 20) / 100.0));
+                    if (GBApplication.getPrefs().getTemperatureUnit() == TemperatureUnit.FAHRENHEIT) {
+                        updateGaugeWidget("temp1", TemperatureUtils.formatAndConvert(temp1, TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT), (float) ((temp1 + 20) / 100.0));
+                        updateGaugeWidget("temp2", TemperatureUtils.formatAndConvert(temp2, TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT), (float) ((temp2 + 20) / 100.0));
+                    } else {
+                        updateGaugeWidget("temp1", TemperatureUtils.formatTemperature(temp1, TemperatureUnit.CELSIUS), (float) ((temp1 + 20) / 100.0));
+                        updateGaugeWidget("temp2", TemperatureUtils.formatTemperature(temp2, TemperatureUnit.CELSIUS), (float) ((temp2 + 20) / 100.0));
+                    }
                     if (output1_watt >= 0) {
                         updateGaugeWidget("output1", output1_watt + "W", (float) (output1_watt / 400.0));
                     } else {

@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
@@ -21,11 +20,14 @@ import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity
 import nodomain.freeyourgadget.gadgetbridge.adapter.ItemWithDetailsAdapter
 import nodomain.freeyourgadget.gadgetbridge.databinding.ActivityInstallerGpxBinding
 import nodomain.freeyourgadget.gadgetbridge.devices.GpxRouteInstallHandler
+import nodomain.freeyourgadget.gadgetbridge.devices.garmin.GarminGpxRouteInstallHandler
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.model.GenericItem
 import nodomain.freeyourgadget.gadgetbridge.model.ItemWithDetails
 import nodomain.freeyourgadget.gadgetbridge.util.GB
 import nodomain.freeyourgadget.gadgetbridge.util.gpx.model.GpxFile
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableArrayListCompat
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 import nodomain.freeyourgadget.gadgetbridge.util.maps.MapsManager
 import org.slf4j.LoggerFactory
 
@@ -50,16 +52,14 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
     private var details: ArrayList<ItemWithDetails> = ArrayList()
     private lateinit var detailsAdapter: ItemWithDetailsAdapter
 
+    private val supportsTurnByTurnNavigation: Boolean
+        get() = installHandler is GarminGpxRouteInstallHandler
+
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 GBDevice.ACTION_DEVICE_CHANGED -> {
-                    val changedDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(GBDevice.EXTRA_DEVICE, GBDevice::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(GBDevice.EXTRA_DEVICE)
-                    }
+                    val changedDevice = intent.getParcelableCompat<GBDevice>(GBDevice.EXTRA_DEVICE)
 
                     if (changedDevice == null || changedDevice != device) {
                         return
@@ -119,7 +119,6 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
 
                 GB.ACTION_SET_FINISHED -> {
                     finished = true
-                    setProgressBarVisibility(false)
                     setInstallEnabled(false)
                     setCloseEnabled(true)
                 }
@@ -167,12 +166,7 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
         binding = ActivityInstallerGpxBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val intentDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(GBDevice.EXTRA_DEVICE, GBDevice::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(GBDevice.EXTRA_DEVICE)
-        }
+        val intentDevice = intent.getParcelableCompat<GBDevice>(GBDevice.EXTRA_DEVICE)
         if (intentDevice == null) {
             GB.toast(this, "No device provided to GpxRouteInstallerActivity", Toast.LENGTH_LONG, GB.ERROR)
             finish()
@@ -181,17 +175,12 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
         device = intentDevice
 
         details = if (savedInstanceState != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                savedInstanceState.getParcelableArrayList(ITEM_DETAILS, ItemWithDetails::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                savedInstanceState.getParcelableArrayList(ITEM_DETAILS)
-            } ?: ArrayList()
+            savedInstanceState.getParcelableArrayListCompat<ItemWithDetails>(ITEM_DETAILS) ?: ArrayList()
         } else {
             ArrayList()
         }
 
-        val intentUri = intent.data ?: intent.getParcelableExtra(Intent.EXTRA_STREAM)
+        val intentUri = intent.data ?: intent.getParcelableCompat<Uri>(Intent.EXTRA_STREAM)
         if (intentUri == null) {
             GB.toast(this, "No URI provided to GpxRouteInstallerActivity", Toast.LENGTH_LONG, GB.ERROR)
             finish()
@@ -250,6 +239,15 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
 
         binding.trackNameEditText.setText(gpxRouteInstallHandler.name)
 
+        binding.tbtToggle.visibility = if (supportsTurnByTurnNavigation) View.VISIBLE else View.GONE
+        binding.tbtStraightToggle.visibility =
+            if (binding.tbtToggle.isChecked && supportsTurnByTurnNavigation) View.VISIBLE else View.GONE
+
+        binding.tbtToggle.setOnCheckedChangeListener { _, isChecked ->
+            binding.tbtStraightToggle.visibility =
+                if (isChecked) View.VISIBLE else View.GONE
+        }
+
         binding.installButton.setOnClickListener {
             val trackName = binding.trackNameEditText.text?.toString()?.trim() ?: ""
             if (trackName.isEmpty()) {
@@ -259,11 +257,16 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
                 binding.trackNameInputLayout.error = null
             }
 
+            val includeNavigation = binding.tbtToggle.isChecked
+            val includeStraightNavigation = binding.tbtStraightToggle.isChecked
+
             setInstallEnabled(false)
             installHandler.onStartInstall(device)
 
             val bundle = Bundle().apply {
                 putString(GpxRouteInstallHandler.EXTRA_TRACK_NAME, trackName)
+                putBoolean(GpxRouteInstallHandler.EXTRA_NAVIGATION_ENABLED, includeNavigation)
+                putBoolean(GpxRouteInstallHandler.EXTRA_STRAIGHT_NAVIGATION_ENABLED, includeStraightNavigation)
             }
             GBApplication.deviceService(device)?.onInstallApp(currentUri, bundle)
         }
@@ -330,6 +333,8 @@ class GpxRouteInstallerActivity : AbstractGBActivity(), InstallActivity {
         binding.installButton.visibility = if (isEnabled) View.VISIBLE else View.GONE
         binding.gpxMapView.visibility = if (isEnabled) View.VISIBLE else View.GONE
         binding.trackNameInputLayout.visibility = if (isEnabled) View.VISIBLE else View.GONE
+        binding.tbtToggle.visibility = if (isEnabled && supportsTurnByTurnNavigation) View.VISIBLE else View.GONE
+        binding.tbtStraightToggle.visibility = if (isEnabled && supportsTurnByTurnNavigation && binding.tbtToggle.isChecked) View.VISIBLE else View.GONE
         if (isEnabled) {
             setCloseEnabled(false)
         }

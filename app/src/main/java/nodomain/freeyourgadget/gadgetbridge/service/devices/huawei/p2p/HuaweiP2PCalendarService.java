@@ -141,7 +141,7 @@ public class HuaweiP2PCalendarService extends HuaweiBaseP2PService {
     }
 
     public void onAddCalendarEvent(final CalendarEventSpec calendarEventSpec) {
-        LOG.info("onAddCalendarEvent {}", calendarEventSpec.id);
+        LOG.info("onAddCalendarEvent {}", calendarEventSpec.getId());
         scheduleUpdate(2000);
     }
 

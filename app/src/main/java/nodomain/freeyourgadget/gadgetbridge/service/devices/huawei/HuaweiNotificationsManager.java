@@ -61,17 +61,17 @@ public class HuaweiNotificationsManager {
     }
 
     public static String getNotificationKey(NotificationSpec notificationSpec) {
-        if(!TextUtils.isEmpty(notificationSpec.key)) {
-            return notificationSpec.key;
+        if(!TextUtils.isEmpty(notificationSpec.getKey())) {
+            return notificationSpec.getKey();
         }
-        return "0|" + notificationSpec.sourceAppId + "|" + notificationSpec.getId() + "||0";
+        return "0|" + notificationSpec.getSourceAppId() + "|" + notificationSpec.getId() + "||0";
     }
 
     public static String getCallSpecKey(CallSpec callSpec, int id) {
-        if(!TextUtils.isEmpty(callSpec.key)) {
-            return callSpec.key;
+        if(!TextUtils.isEmpty(callSpec.getKey())) {
+            return callSpec.getKey();
         }
-        return "0|" + callSpec.sourceAppId + "|" + id + "||0";
+        return "0|" + callSpec.getSourceAppId() + "|" + id + "||0";
     }
 
     public void onNotification(NotificationSpec notificationSpec) {
@@ -108,12 +108,12 @@ public class HuaweiNotificationsManager {
 
         try {
             SendNotificationRemoveRequest sendNotificationReq = new SendNotificationRemoveRequest(this.support,
-                    SendNotificationRequest.getNotificationType(notificationSpec.type), // notificationType
-                    notificationSpec.sourceAppId,
+                    SendNotificationRequest.getNotificationType(notificationSpec.getType()), // notificationType
+                    notificationSpec.getSourceAppId(),
                     getNotificationKey(notificationSpec),
                     id,
-                    notificationSpec.channelId,
-                    notificationSpec.category);
+                    notificationSpec.getChannelId(),
+                    notificationSpec.getCategory());
             sendNotificationReq.doPerform();
         } catch (IOException e) {
             LOG.error("Sending notification remove failed", e);
@@ -134,7 +134,7 @@ public class HuaweiNotificationsManager {
         NotificationSpec notificationSpec = null;
         if(response.type == 1) { // generic SMS notification reply. Find by phone number
             for (NotificationSpec spec : notificationSpecCache) {
-                if (spec.phoneNumber.equals(response.key)) {
+                if (spec.getPhoneNumber().equals(response.key)) {
                     notificationSpec = spec;
                     break;
                 }
@@ -158,15 +158,15 @@ public class HuaweiNotificationsManager {
         deviceEvtNotificationControl.handle = notificationSpec.getId();
         deviceEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.REPLY;
         deviceEvtNotificationControl.reply = response.text;
-        if (notificationSpec.type.equals(NotificationType.GENERIC_PHONE) || notificationSpec.type.equals(NotificationType.GENERIC_SMS)) {
-            deviceEvtNotificationControl.phoneNumber = notificationSpec.phoneNumber;
+        if (notificationSpec.getType().equals(NotificationType.GENERIC_PHONE) || notificationSpec.getType().equals(NotificationType.GENERIC_SMS)) {
+            deviceEvtNotificationControl.phoneNumber = notificationSpec.getPhoneNumber();
         } else {
-            final boolean hasActions = (null != notificationSpec.attachedActions && !notificationSpec.attachedActions.isEmpty());
+            final boolean hasActions = (null != notificationSpec.getAttachedActions() && !notificationSpec.getAttachedActions().isEmpty());
             if (hasActions) {
-                for (int i = 0; i < notificationSpec.attachedActions.size(); i++) {
-                    final NotificationSpec.Action action = notificationSpec.attachedActions.get(i);
+                for (int i = 0; i < notificationSpec.getAttachedActions().size(); i++) {
+                    final NotificationSpec.Action action = notificationSpec.getAttachedActions().get(i);
                     if (action.isReply()) {
-                        deviceEvtNotificationControl.handle = action.handle; //handle of wearable action is needed
+                        deviceEvtNotificationControl.handle = action.getHandle(); //handle of wearable action is needed
                         break;
                     }
                 }

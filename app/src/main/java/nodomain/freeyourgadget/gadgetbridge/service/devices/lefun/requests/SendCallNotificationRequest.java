@@ -39,15 +39,15 @@ public class SendCallNotificationRequest extends AbstractSendNotificationRequest
     @Override
     protected String getMessage() {
         String message = "";
-        if (callNotification.number != null &&!callNotification.number.isEmpty()) {
-            message = callNotification.number;
+        if (callNotification.getNumber() != null &&!callNotification.getNumber().isEmpty()) {
+            message = callNotification.getNumber();
         }
 
-        if (callNotification.name != null && !callNotification.name.isEmpty()) {
+        if (callNotification.getName() != null && !callNotification.getName().isEmpty()) {
             if (message.length() > 0) {
                 message += " - ";
             }
-            message += callNotification.name;
+            message += callNotification.getName();
         }
 
         return message;

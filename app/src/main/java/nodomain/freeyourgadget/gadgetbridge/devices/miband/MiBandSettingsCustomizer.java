@@ -62,7 +62,7 @@ public class MiBandSettingsCustomizer implements DeviceSpecificSettingsCustomize
 
     private void tryVibration(NotificationType type) {
         NotificationSpec spec = new NotificationSpec();
-        spec.type = type;
+        spec.setType(type);
         GBApplication.deviceService(device).onNotification(spec);
     }
 

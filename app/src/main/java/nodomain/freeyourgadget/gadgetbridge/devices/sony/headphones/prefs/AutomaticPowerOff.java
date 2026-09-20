@@ -56,7 +56,7 @@ public enum AutomaticPowerOff implements LabeledEntry {
 
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
-            put(DeviceSettingsPreferenceConst.PREF_SONY_AUTOMATIC_POWER_OFF, name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_AUTOMATIC_POWER_OFF, name().toLowerCase(Locale.ROOT));
         }};
     }
 
@@ -71,6 +71,6 @@ public enum AutomaticPowerOff implements LabeledEntry {
     }
 
     public static AutomaticPowerOff fromPreferences(final SharedPreferences prefs) {
-        return AutomaticPowerOff.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_AUTOMATIC_POWER_OFF, "off").toUpperCase());
+        return AutomaticPowerOff.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_AUTOMATIC_POWER_OFF, "off").toUpperCase(Locale.ROOT));
     }
 }

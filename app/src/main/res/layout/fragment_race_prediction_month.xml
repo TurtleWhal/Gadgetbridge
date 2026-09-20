@@ -1,0 +1,183 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="nodomain.freeyourgadget.gadgetbridge.activities.charts.RacePredictionPeriodFragment">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/race_prediction_date_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="20sp"
+            android:textColor="?attr/textColorPrimary"
+            android:layout_marginTop="15dp"
+            android:layout_marginBottom="20dp" />
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2">
+
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_gravity="fill"
+                android:layout_columnWeight="1">
+                <TextView
+                    android:id="@+id/race_prediction_5k_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="24sp" />
+                <TextView
+                    android:id="@+id/race_prediction_5k_trend"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/race_prediction_5k_value"
+                    android:layout_centerHorizontal="true"
+                    android:gravity="center"
+                    android:drawablePadding="4dp"
+                    android:textSize="12sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:visibility="gone" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/race_prediction_5k_trend"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/metric_generic_race_predictor_5k" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_gravity="fill"
+                android:layout_columnWeight="1">
+                <TextView
+                    android:id="@+id/race_prediction_10k_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="24sp" />
+                <TextView
+                    android:id="@+id/race_prediction_10k_trend"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/race_prediction_10k_value"
+                    android:layout_centerHorizontal="true"
+                    android:gravity="center"
+                    android:drawablePadding="4dp"
+                    android:textSize="12sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:visibility="gone" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/race_prediction_10k_trend"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/metric_generic_race_predictor_10k" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_gravity="fill"
+                android:layout_columnWeight="1">
+                <TextView
+                    android:id="@+id/race_prediction_half_marathon_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="24sp" />
+                <TextView
+                    android:id="@+id/race_prediction_half_marathon_trend"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/race_prediction_half_marathon_value"
+                    android:layout_centerHorizontal="true"
+                    android:gravity="center"
+                    android:drawablePadding="4dp"
+                    android:textSize="12sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:visibility="gone" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/race_prediction_half_marathon_trend"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/metric_generic_race_predictor_half_marathon" />
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_gravity="fill"
+                android:layout_columnWeight="1">
+                <TextView
+                    android:id="@+id/race_prediction_full_marathon_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="24sp" />
+                <TextView
+                    android:id="@+id/race_prediction_full_marathon_trend"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/race_prediction_full_marathon_value"
+                    android:layout_centerHorizontal="true"
+                    android:gravity="center"
+                    android:drawablePadding="4dp"
+                    android:textSize="12sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:visibility="gone" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/race_prediction_full_marathon_trend"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/metric_generic_race_predictor_full_marathon" />
+            </RelativeLayout>
+        </GridLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="250sp">
+            <com.github.mikephil.charting.charts.LineChart
+                android:id="@+id/race_prediction_chart"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:layout_weight="2" />
+        </LinearLayout>
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/race_prediction_chip_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_marginTop="10dp"
+            app:singleSelection="true"
+            app:selectionRequired="true" />
+    </LinearLayout>
+</RelativeLayout>

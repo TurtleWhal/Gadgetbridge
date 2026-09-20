@@ -1,3 +1,21 @@
+/*  Copyright (C) 2024-2026 José Rebelo, Daniele Gobbetti, Sparronator9999, Arjan Schrijver,
+                            Thomas Kuehne, Dominic Karvik
+
+    This file is part of Gadgetbridge.
+
+    Gadgetbridge is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Gadgetbridge is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+
 package nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.http.interceptors;
 
 import android.location.Location;
@@ -10,7 +28,7 @@ import com.google.gson.GsonBuilder;
 
 import net.e175.klaus.solarpositioning.DeltaT;
 import net.e175.klaus.solarpositioning.SPA;
-import net.e175.klaus.solarpositioning.SunriseTransitSet;
+import net.e175.klaus.solarpositioning.SunriseResult;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import lineageos.weather.util.WeatherUtils;
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
@@ -34,6 +52,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.http.GarminHttpRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.http.GarminHttpResponse;
+import nodomain.freeyourgadget.gadgetbridge.util.gson.GsonSerialized;
 import nodomain.freeyourgadget.gadgetbridge.webview.CurrentPosition;
 
 @SuppressWarnings("unused")
@@ -46,7 +65,8 @@ public class WeatherInterceptor implements HttpInterceptor {
 
     @Override
     public boolean supports(@NonNull final GarminHttpRequest request) {
-        return ("api.gcs.garmin.com".equals(request.getDomain()) || "cache.dciwx.com".equals(request.getDomain())) &&
+        return ("api.gcs.garmin.com".equals(request.getDomain()) || "api.gcs.garmin.cn".equals(request.getDomain())
+                    || "cache.dciwx.com".equals(request.getDomain())) &&
                 request.getPath().startsWith("/weather/");
     }
 
@@ -186,6 +206,7 @@ public class WeatherInterceptor implements HttpInterceptor {
         }
     }
 
+    @GsonSerialized
     public static class WeatherForecastDay {
         public int dayOfWeek; // v2: 1 monday .. 7 sunday, v1: 1 sunday
         public String description;
@@ -224,18 +245,16 @@ public class WeatherInterceptor implements HttpInterceptor {
             } else {
                 final Location lastKnownLocation = new CurrentPosition().getLastKnownLocation();
 
-                final SunriseTransitSet sunriseTransitSet = SPA.calculateSunriseTransitSet(
+                final SunriseResult sunriseResult = SPA.calculateSunriseTransitSet(
                         date.toZonedDateTime(),
                         lastKnownLocation.getLatitude(),
                         lastKnownLocation.getLongitude(),
                         DeltaT.estimate(date.toZonedDateTime().toLocalDate())
                 );
 
-                if (sunriseTransitSet.getSunrise() != null) {
-                    epochSunrise = (int) (sunriseTransitSet.getSunrise().toInstant().getEpochSecond());
-                }
-                if (sunriseTransitSet.getSunset() != null) {
-                    epochSunset = (int) (sunriseTransitSet.getSunset().toInstant().getEpochSecond());
+                if (sunriseResult instanceof SunriseResult.RegularDay regularDay) {
+                    epochSunrise = (int) (regularDay.sunrise().toInstant().getEpochSecond());
+                    epochSunset = (int) (regularDay.sunset().toInstant().getEpochSecond());
                 }
             }
 
@@ -244,6 +263,7 @@ public class WeatherInterceptor implements HttpInterceptor {
         }
     }
 
+    @GsonSerialized
     public static class WeatherForecastHour {
         public int epochSeconds;
         public String description;
@@ -284,6 +304,7 @@ public class WeatherInterceptor implements HttpInterceptor {
         }
     }
 
+    @GsonSerialized
     public static class WeatherForecastCurrent {
         public Integer epochSeconds;
         public WeatherValue temperature;
@@ -319,6 +340,7 @@ public class WeatherInterceptor implements HttpInterceptor {
     }
 
     // /weather/v1/calibration/altimeter?lat=XXXXXXXXX&lon=-YYYYYYYY
+    @GsonSerialized
     public static class WeatherAltimeterCalibration {
         public UncertainValue temperature; // Celsius - 11.89999... / 100
         public UncertainValue pressure; // Pa - 101494.79xxx... / 100
@@ -326,11 +348,13 @@ public class WeatherInterceptor implements HttpInterceptor {
         public Long forecastIssueTime; // unix epoch seconds
     }
 
+    @GsonSerialized
     public static class UncertainValue {
         public Number value;
         public Integer uncertainty; // 100
     }
 
+    @GsonSerialized
     public static class WeatherValue {
         public Number value;
         public String units;
@@ -341,6 +365,7 @@ public class WeatherInterceptor implements HttpInterceptor {
         }
     }
 
+    @GsonSerialized
     public static class Wind {
         public WeatherValue speed;
         public String directionString;
@@ -354,6 +379,7 @@ public class WeatherInterceptor implements HttpInterceptor {
         }
     }
 
+    @GsonSerialized
     public static class PointWindsResponse {
         public final CcPointWinds CcPointWinds;
 
@@ -380,6 +406,7 @@ public class WeatherInterceptor implements HttpInterceptor {
         }
     }
 
+    @GsonSerialized
     public static class CcPointWinds {
         public int i;
         public float lat;
@@ -387,6 +414,7 @@ public class WeatherInterceptor implements HttpInterceptor {
         public List<PointWind> W;
     }
 
+    @GsonSerialized
     public static class PointWind {
         public int t;
         public float s;
@@ -415,7 +443,7 @@ public class WeatherInterceptor implements HttpInterceptor {
 
     private static WeatherValue getTemperature(final int kelvin, final String unit) {
         return switch (unit) {
-            case "FAHRENHEIT" -> new WeatherValue(WeatherUtils.celsiusToFahrenheit(kelvin - 273.15), "FAHRENHEIT");
+            case "FAHRENHEIT" -> new WeatherValue(TemperatureUtils.celsiusToFahrenheit(kelvin - 273.15), "FAHRENHEIT");
             case "KELVIN" -> new WeatherValue(kelvin, "KELVIN");
             case "CELSIUS" ->
                 // #4313 - We do a "wrong" conversion to celsius on purpose

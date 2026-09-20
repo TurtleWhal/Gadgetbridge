@@ -42,6 +42,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
@@ -94,8 +95,8 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
 
         // Using approximately the range of survivable body-temperatures (in Celsius), rounded to multiples of 5
         final boolean isMetric = temperatureUnit == TemperatureUnit.CELSIUS;
-        mTemperatureChart.getAxisLeft().setAxisMinimum((float) (isMetric ? 30f : celsiusToFahrenheit(30d)));
-        mTemperatureChart.getAxisLeft().setAxisMaximum((float) (isMetric ? 45f : celsiusToFahrenheit(45f)));
+        mTemperatureChart.getAxisLeft().setAxisMinimum((float) (isMetric ? 30f : TemperatureUtils.celsiusToFahrenheit(30d)));
+        mTemperatureChart.getAxisLeft().setAxisMaximum((float) (isMetric ? 45f : TemperatureUtils.celsiusToFahrenheit(45f)));
 
         mTemperatureChart.setData(temperatureData.getData());
     }
@@ -188,7 +189,7 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
                 int timestamp_in_seconds = (int) (sample.getTimestamp() / 1000L);
                 entries.add(new Entry(
                         tsTranslation.shorten(timestamp_in_seconds),
-                        (float) (isMetric ? sample.getTemperature() : celsiusToFahrenheit(sample.getTemperature()))
+                        (float) (isMetric ? sample.getTemperature() : TemperatureUtils.celsiusToFahrenheit(sample.getTemperature()))
                 ));
                 if (firstTs == 0) {
                     firstTs = sample.getTimestamp();
@@ -246,9 +247,5 @@ public class TemperatureChartFragment extends AbstractChartFragment<TemperatureC
         public String getPointLabel(Entry entry) {
             return formatter.format(entry.getY());
         }
-    }
-
-    public static double celsiusToFahrenheit(final double celsius) {
-        return ((celsius * (9d/5d)) + 32d);
     }
 }

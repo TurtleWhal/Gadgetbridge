@@ -631,6 +631,24 @@ public class GBApplication extends Application {
         context.getSharedPreferences("devicesettings_" + deviceIdentifier.toString().toUpperCase(Locale.ROOT), Context.MODE_PRIVATE).edit().clear().apply();
     }
 
+    /**
+     * The per-instance settings file for a dashboard widget instance, keyed by its instance id.
+     */
+    public static SharedPreferences getWidgetSharedPrefs(final CharSequence instanceId) {
+        //noinspection SizeReplaceableByIsEmpty
+        if (instanceId == null || instanceId.length() < 1) {
+            return null;
+        }
+        return context.getSharedPreferences("widgetsettings_" + instanceId, Context.MODE_PRIVATE);
+    }
+
+    public static void deleteWidgetSharedPrefs(final CharSequence instanceId) {
+        //noinspection SizeReplaceableByIsEmpty
+        if (instanceId == null || instanceId.length() < 1) {
+            return;
+        }
+        context.getSharedPreferences("widgetsettings_" + instanceId, Context.MODE_PRIVATE).edit().clear().apply();
+    }
 
     public static void setLanguage(String lang) {
         if (lang.equals("default")) {

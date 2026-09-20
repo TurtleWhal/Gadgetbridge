@@ -26,13 +26,13 @@ import nodomain.freeyourgadget.gadgetbridge.util.preferences.MacAddressInputFilt
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.Random
-import java.util.TreeMap
 import kotlin.collections.map
 
 class DeviceTypeDialog(
     private val activity: Activity,
     private val dialogTitle: Int,
-    private val macAddress: String?
+    private val macAddress: String?,
+    private val deviceTypeFilter: (DeviceType) -> Boolean = { true }
 ) {
     var selectedTestDeviceMAC = macAddress ?: randomMac()
     var selectedTestDeviceKey = -1L
@@ -196,6 +196,9 @@ class DeviceTypeDialog(
     private fun getAllSupportedDevices(context: Context): MutableMap<String, DeviceTypeWithIcon> {
         var newMap = LinkedHashMap<String, DeviceTypeWithIcon>(1)
         for (deviceType in DeviceType.entries) {
+            if (!deviceTypeFilter(deviceType)) {
+                continue
+            }
             val coordinator = deviceType.getDeviceCoordinator()
             val icon = coordinator.getDefaultIconResource()
             var name = context.getString(coordinator.getDeviceNameResource())
@@ -210,9 +213,8 @@ class DeviceTypeDialog(
             newMap[name] = DeviceTypeWithIcon(deviceType, icon)
         }
 
-        val sortedMap = TreeMap<String, DeviceTypeWithIcon>(String.CASE_INSENSITIVE_ORDER)
-        sortedMap.putAll(newMap)
-        newMap = LinkedHashMap(sortedMap.size + 3)
+        val sortedEntries = newMap.entries.sortedWith(compareBy(StringUtils::naturalCompare) { it.key })
+        newMap = LinkedHashMap(sortedEntries.size + 3)
 
         // Ensure some devices are first
         //newMap[context.getString(R.string.devicetype_scannable)] =
@@ -220,7 +222,9 @@ class DeviceTypeDialog(
         //newMap[context.getString(R.string.devicetype_ble_gatt_client)] =
         //    DeviceTypeWithIcon(DeviceType.BLE_GATT_CLIENT, R.drawable.ic_device_scannable)
 
-        newMap.putAll(sortedMap)
+        for (entry in sortedEntries) {
+            newMap[entry.key] = entry.value
+        }
 
         return newMap
     }
@@ -228,25 +232,26 @@ class DeviceTypeDialog(
     private fun setupMacAddressInput(editText: EditText) {
         editText.inputType = InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
 
+        editText.setText(selectedTestDeviceMAC)
+
         if (macAddress != null) {
             editText.isEnabled = false
+        } else {
+            editText.filters = arrayOf(MacAddressInputFilter())
+
+            editText.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(charSequence: CharSequence?, i: Int, i1: Int, i2: Int) {
+                }
+
+                override fun onTextChanged(charSequence: CharSequence?, i: Int, i1: Int, i2: Int) {
+                }
+
+                override fun afterTextChanged(editable: Editable) {
+                    selectedTestDeviceMAC = editable.toString()
+                    updateOkButtonState.invoke()
+                }
+            })
         }
-
-        editText.filters = arrayOf(MacAddressInputFilter())
-
-        editText.setText(selectedTestDeviceMAC)
-        editText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(charSequence: CharSequence?, i: Int, i1: Int, i2: Int) {
-            }
-
-            override fun onTextChanged(charSequence: CharSequence?, i: Int, i1: Int, i2: Int) {
-            }
-
-            override fun afterTextChanged(editable: Editable) {
-                selectedTestDeviceMAC = editable.toString()
-                updateOkButtonState.invoke()
-            }
-        })
     }
 
     private data class DeviceTypeWithIcon(val deviceType: DeviceType, val icon: Int)
@@ -258,6 +263,9 @@ class DeviceTypeDialog(
             if (BuildConfig.INTERNET_ACCESS) {
                 // For builds with internet access (Bangle.js), allow more flexible formats
                 return mac.isNotEmpty()
+            }
+            if (mac.startsWith("usb:")) {
+                return true
             }
             // Standard MAC address validation: XX:XX:XX:XX:XX:XX
             val macRegex = "^([0-9A-F]{2}:){5}[0-9A-F]{2}$".toRegex()

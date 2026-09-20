@@ -20,6 +20,7 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests;
 import android.content.SharedPreferences;
 
 import java.util.List;
+import java.util.Locale;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
@@ -46,7 +47,7 @@ public class SetANCModeRequest extends Request {
         }
 
         public static ANCMode fromPreferences(final SharedPreferences prefs) {
-            return ANCMode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_HUAWEI_FREEBUDS_ANC_MODE, NORMAL.name().toLowerCase()).toUpperCase());
+            return ANCMode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_HUAWEI_FREEBUDS_ANC_MODE, NORMAL.name().toLowerCase(Locale.ROOT)).toUpperCase(Locale.ROOT));
         }
     }
 

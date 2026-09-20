@@ -16,11 +16,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.nothing;
 
+import androidx.annotation.NonNull;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingAudioMode;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingEqualizer;
 
 public class CmfBuds2PlusCoordinator extends AbstractEarCoordinator {
     @Override
@@ -36,22 +40,20 @@ public class CmfBuds2PlusCoordinator extends AbstractEarCoordinator {
         return false;
     }
 
+    @NonNull
     @Override
-    public boolean supportsLightAnc() {
-        return true;
+    public List<NothingAudioMode> getAudioModes() {
+        return Arrays.asList(
+                NothingAudioMode.ANC,
+                NothingAudioMode.ANCLIGHT,
+                NothingAudioMode.ANCMEDIUM,
+                NothingAudioMode.ANCADAPTIVE,
+                NothingAudioMode.TRANSPARENCY,
+                NothingAudioMode.OFF
+        );
     }
 
-    @Override
-    public boolean supportsTransparency() {
-        return true;
-    }
-
-    @Override
-    public boolean supportsMediumAnc() { return true; }
-
-    @Override
-    public boolean supportsAdaptiveAnc() { return true; }
-
+    @NonNull
     @Override
     public List<NothingEqualizer> getEqualizerPresets() {
         return Arrays.asList(
@@ -70,8 +72,12 @@ public class CmfBuds2PlusCoordinator extends AbstractEarCoordinator {
     @Override
     public boolean supportsLowLatency() { return true; }
 
+    @NonNull
     @Override
-    public boolean supportsTouchOptions() { return true; }
+    public List<TapGesture> getTouchGestures() {
+        return TapGesture.getEntries();
+    }
+
     @Override
     public boolean supportsSpatialAudio() { return true; }
 

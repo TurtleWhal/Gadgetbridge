@@ -70,7 +70,7 @@ public class HeadphoneHelper {
 
         final int delayMillis = Integer.parseInt(prefs.getString(DeviceSettingsPreferenceConst.PREF_AUTO_REPLY_INCOMING_CALL_DELAY, "15")) * 1000;
 
-        if (CallSpec.CALL_INCOMING != callSpec.command)
+        if (CallSpec.CALL_INCOMING != callSpec.getCommand())
                 return;
 
         if (!gbTextToSpeech.isConnected()) { // schedule the automatic reply here, if the speech to text is not connected. Else it's done by the callback, and the timeout starts after the name or number have been spoken
@@ -85,10 +85,10 @@ public class HeadphoneHelper {
 
             return;
         }
-        String speechText = callSpec.name;
-        if (callSpec.name.equals(callSpec.number)) {
+        String speechText = callSpec.getName();
+        if (callSpec.getName().equals(callSpec.getNumber())) {
             StringBuilder numberSpeller = new StringBuilder();
-            for (char c : callSpec.number.toCharArray()) {
+            for (char c : callSpec.getNumber().toCharArray()) {
                 numberSpeller.append(c).append(" ");
             }
             speechText = numberSpeller.toString();
@@ -104,9 +104,9 @@ public class HeadphoneHelper {
 
         if (gbTextToSpeech.isConnected()) {
             String notificationSpeller = new StringBuilder()
-                    .append(notificationSpec.sourceName == null ? "" : notificationSpec.sourceName).append(". ")
-                    .append(notificationSpec.title == null ? "" : notificationSpec.title).append(": ")
-                    .append(notificationSpec.body == null ? "" : notificationSpec.body).toString();
+                    .append(notificationSpec.getSourceName() == null ? "" : notificationSpec.getSourceName()).append(". ")
+                    .append(notificationSpec.getTitle() == null ? "" : notificationSpec.getTitle()).append(": ")
+                    .append(notificationSpec.getBody() == null ? "" : notificationSpec.getBody()).toString();
 
             gbTextToSpeech.speakNotification(notificationSpeller);
         }

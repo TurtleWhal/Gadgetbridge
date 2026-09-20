@@ -63,7 +63,7 @@ public class GBZipFile {
      * @param data The data to check.
      * @return Whether data resembles a ZIP file.
      */
-    public static boolean isZipFile(byte[] data) {
+    public static boolean isZipFile(final byte[] data) {
         return ArrayUtils.equals(data, ZIP_HEADER, 0);
     }
 

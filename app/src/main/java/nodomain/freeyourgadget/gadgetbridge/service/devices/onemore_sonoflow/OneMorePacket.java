@@ -38,29 +38,11 @@ public class OneMorePacket {
         return concat(REQUEST_PREAMBLE, GET_NOISE_CONTROL_COMMAND, flags, checksum);
     }
 
-    public static byte[] createSetNoiseControlModePacket(String mode) {
+    public static byte[] createSetNoiseControlModePacket(OneMoreNoiseControlMode mode) {
         byte[] flags = { 0x00, 0x01, 0x00 };
         byte[] checksum = { 0x13, 0x5c };
 
-        byte modeByte;
-        switch (mode) {
-            case "0":
-                // Off
-                modeByte = 0x00;
-                break;
-            case "1":
-                // ANC
-                modeByte = 0x01;
-                break;
-            case "2":
-                // Pass-through
-                modeByte = 0x03;
-                break;
-            default:
-                throw new IllegalStateException("mode not one of the allowed values: [\"0\", \"1\", \"2\"]");
-        }
-
-        return concat(REQUEST_PREAMBLE, SET_NOISE_CONTROL_COMMAND, flags, checksum, modeByte);
+        return concat(REQUEST_PREAMBLE, SET_NOISE_CONTROL_COMMAND, flags, checksum, mode.getCode());
     }
 
     public static byte[] createGetLdacModePacket() {

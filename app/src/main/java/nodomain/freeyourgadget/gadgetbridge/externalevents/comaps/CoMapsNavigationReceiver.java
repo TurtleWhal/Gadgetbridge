@@ -6,6 +6,7 @@ import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.SystemClock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +21,16 @@ public final class CoMapsNavigationReceiver extends ContentObserver {
 
     private static final Logger LOG = LoggerFactory.getLogger(CoMapsNavigationReceiver.class);
 
-    private final Application app;
+    private static final long THROTTLE_MS = 300L;
 
+    private final Application app;
     private final Uri dataUri;
+
+    private final Handler handler;
+
+    private long lastQueryTime = 0L;
+
+    private final Runnable pendingQuery = this::queryNavigationData;
 
     private final Map<String, Integer> carDirectionToNavSpecInfo = Map.ofEntries(
             Map.entry("GO_STRAIGHT", NavigationInfoSpec.ACTION_CONTINUE),
@@ -52,6 +60,7 @@ public final class CoMapsNavigationReceiver extends ContentObserver {
 
     CoMapsNavigationReceiver(Handler handler, Application application, Uri dataUri) {
         super(handler);
+        this.handler = handler;
         this.app = application;
         this.dataUri = dataUri;
     }
@@ -64,16 +73,29 @@ public final class CoMapsNavigationReceiver extends ContentObserver {
             return;
         }
 
-        queryNavigationData();
+        final long now = SystemClock.elapsedRealtime();
+        final long elapsed = now - lastQueryTime;
+
+        handler.removeCallbacks(pendingQuery);
+
+        if (elapsed >= THROTTLE_MS) {
+            lastQueryTime = now;
+            queryNavigationData();
+        } else {
+            handler.postDelayed(pendingQuery, THROTTLE_MS - elapsed);
+        }
     }
 
     private void queryNavigationData() {
+        lastQueryTime = SystemClock.elapsedRealtime();
+
         final ContentResolver resolver = app.getContentResolver();
         try (Cursor cursor = resolver.query(dataUri, new String[]{
                 NavigationContract.Live.Columns.CAR_DIRECTION,
                 NavigationContract.Live.Columns.PEDESTRIAN_DIRECTION,
                 NavigationContract.Live.Columns.NEXT_STREET,
                 NavigationContract.Live.Columns.DIST_TO_TURN,
+                NavigationContract.Live.Columns.DIST_TO_TARGET,
                 NavigationContract.Live.Columns.TOTAL_TIME_SECONDS,
                 NavigationContract.Live.Columns.COMPLETION_PERCENT,
                 NavigationContract.Live.Columns.EXIT_NUM
@@ -88,36 +110,41 @@ public final class CoMapsNavigationReceiver extends ContentObserver {
             final String carDirection = cursor.getString(cursor.getColumnIndexOrThrow(NavigationContract.Live.Columns.CAR_DIRECTION));
             final String pedestrianDirection = cursor.getString(cursor.getColumnIndexOrThrow(NavigationContract.Live.Columns.PEDESTRIAN_DIRECTION));
 
-            navInfo.nextAction = carDirectionToNavSpecInfo.getOrDefault(carDirection, pedestrianDirectionToNavSpecInfo.getOrDefault(pedestrianDirection, 0));
+            navInfo.setNextAction(carDirectionToNavSpecInfo.getOrDefault(carDirection, pedestrianDirectionToNavSpecInfo.getOrDefault(pedestrianDirection, 0)));
 
             final int exitNumCol = cursor.getColumnIndex(NavigationContract.Live.Columns.EXIT_NUM);
-            if (exitNumCol >= 0 && navInfo.nextAction == NavigationInfoSpec.ACTION_ROUNDABOUT_STRAIGHT) {
+            if (exitNumCol >= 0 && navInfo.getNextAction() == NavigationInfoSpec.ACTION_ROUNDABOUT_STRAIGHT) {
                 int exitNum = cursor.getInt(exitNumCol);
                 if (exitNum == 1) {
-                    navInfo.nextAction = NavigationInfoSpec.ACTION_ROUNDABOUT_LEFT;
+                    navInfo.setNextAction(NavigationInfoSpec.ACTION_ROUNDABOUT_LEFT);
                 } else if (exitNum >= 3) {
-                    navInfo.nextAction = NavigationInfoSpec.ACTION_ROUNDABOUT_RIGHT;
+                    navInfo.setNextAction(NavigationInfoSpec.ACTION_ROUNDABOUT_RIGHT);
                 }
             }
 
             final int distToTurnFormattedCol = cursor.getColumnIndex(NavigationContract.Live.Columns.DIST_TO_TURN);
             if (distToTurnFormattedCol >= 0) {
-                navInfo.distanceToTurn = cursor.getString(distToTurnFormattedCol);
+                navInfo.setDistanceToTurn(cursor.getString(distToTurnFormattedCol));
+            }
+
+            final int distToTargetFormattedCol = cursor.getColumnIndex(NavigationContract.Live.Columns.DIST_TO_TARGET);
+            if (distToTargetFormattedCol >= 0) {
+                navInfo.setDistanceToTarget(cursor.getString(distToTargetFormattedCol));
             }
 
             final int nextStreetCol = cursor.getColumnIndex(NavigationContract.Live.Columns.NEXT_STREET);
             if (nextStreetCol >= 0) {
-                navInfo.instruction = cursor.getString(nextStreetCol);
+                navInfo.setInstruction(cursor.getString(nextStreetCol));
             }
 
             final int timeLeftCol = cursor.getColumnIndex(NavigationContract.Live.Columns.TOTAL_TIME_SECONDS);
             if (timeLeftCol >= 0 && !cursor.isNull(timeLeftCol)) {
-                navInfo.ETA = cursor.getString(timeLeftCol);
+                navInfo.setTotalTimeToDestination(cursor.getInt(timeLeftCol));
             }
 
             final int completionPercentCol = cursor.getColumnIndex(NavigationContract.Live.Columns.COMPLETION_PERCENT);
             if (completionPercentCol >= 0 && !cursor.isNull(completionPercentCol)) {
-                navInfo.completionPercent = (int) cursor.getDouble(completionPercentCol);
+                navInfo.setCompletionPercent((int) cursor.getDouble(completionPercentCol));
             }
 
             LOG.debug("CoMaps navigation data unmarshalled: {}", navInfo);

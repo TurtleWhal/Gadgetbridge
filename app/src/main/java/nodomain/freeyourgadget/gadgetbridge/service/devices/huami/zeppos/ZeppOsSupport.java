@@ -57,6 +57,7 @@ import java.util.concurrent.TimeUnit;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppInfo;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventDisplayMessage;
@@ -64,8 +65,10 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventScreenshot
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.ZeppOsMapsInstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.ZeppOsMusicInstallHandler;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
+import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.RecordedDataTypes;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
+import nodomain.freeyourgadget.gadgetbridge.service.AbstractBluetoothDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.AbstractDeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.SleepAsAndroidSender;
 import nodomain.freeyourgadget.gadgetbridge.devices.huami.zeppos.ZeppOsCoordinator;
@@ -143,7 +146,7 @@ import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.RealtimeSamplesAggregator;
 
-public class ZeppOsSupport extends AbstractDeviceSupport
+public class ZeppOsSupport extends AbstractBluetoothDeviceSupport
         implements Huami2021Handler, HuamiFetcher.HuamiFetchSupport, ZeppOsFileTransferService.DownloadCallback {
     private static final Logger LOG = LoggerFactory.getLogger(ZeppOsSupport.class);
 
@@ -410,11 +413,29 @@ public class ZeppOsSupport extends AbstractDeviceSupport
 
     @Override
     public void onSetCallState(final CallSpec callSpec) {
+        if (!getCoordinator().hasDisplay() && getDevice().getType() != DeviceType.AMAZFITHELIORING) {
+            if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
+                findDeviceService.vibrateForCall(true);
+            } else if (callSpec.getCommand() == CallSpec.CALL_START || callSpec.getCommand() == CallSpec.CALL_END) {
+                findDeviceService.vibrateForCall(false);
+            }
+            return;
+        }
         notificationService.setCallState(callSpec);
     }
 
     @Override
     public void onNotification(final NotificationSpec notificationSpec) {
+        if (!getDevicePrefs().getBoolean(DeviceSettingsPreferenceConst.PREF_SEND_APP_NOTIFICATIONS, true)) {
+            LOG.debug("App notifications disabled - ignoring");
+            return;
+        }
+
+        if (!getCoordinator().hasDisplay() && getDevice().getType() != DeviceType.AMAZFITHELIORING) {
+            findDeviceService.vibrateForNotification();
+            return;
+        }
+
         notificationService.sendNotification(notificationSpec);
     }
 
@@ -740,8 +761,8 @@ public class ZeppOsSupport extends AbstractDeviceSupport
             // Received when the app sends a notificaation
             case SleepAsAndroidAction.SHOW_NOTIFICATION:
                 NotificationSpec notificationSpec = new NotificationSpec();
-                notificationSpec.title = extras.getString("TITLE");
-                notificationSpec.body = extras.getString("TEXT");
+                notificationSpec.setTitle(extras.getString("TITLE"));
+                notificationSpec.setBody(extras.getString("TEXT"));
                 notificationService.sendNotification(notificationSpec);
                 break;
             // Received when the app updates an alarm (Snoozing included too)

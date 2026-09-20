@@ -25,16 +25,24 @@ data class UnaFtsListEntry(val index: Int, val total: Int, val attr: Int, val na
     val isDirectory: Boolean get() = (attr and 0x1) != 0
 }
 
-/** One chunk of a whole-file read (0x10/0x12 request, 0x11 response). */
-data class UnaFtsReadChunk(val offset: Int, val total: Int, val payload: ByteArray)
+data class UnaFtsReadChunk(
+    val offset: Int,
+    val total: Int,
+    val payload: ByteArray,
+    val deliveredLessThanAdvertised: Boolean,
+)
 
 /**
- * Pure request/response encoding for the FTS wire protocol -- no BLE or Android dependencies,
- * so this is unit-testable directly against captured bytes.
+ * Wire encoding for FTS. No BLE or Android dependencies, so it is testable directly against
+ * captured bytes. Protocol reference: UNA's Docs/BLE-File-Transfer-Service.md.
  */
 object UnaFtsProtocol {
     private const val LIST_ENTRY_HEADER_SIZE = 28
-    private const val READ_CHUNK_HEADER_SIZE = 16
+    const val READ_CHUNK_HEADER_SIZE = 16
+    private const val STATUS_OK = 0x01
+
+    private fun uint32AsLong(data: ByteArray, offset: Int): Long =
+        BLETypeConversions.toUint32(data, offset).toLong() and 0xFFFFFFFFL
 
     /** 0x50 00 <path_len:u16LE> <path>. */
     fun buildListRequest(path: String): ByteArray {
@@ -44,8 +52,8 @@ object UnaFtsProtocol {
             pathBytes
     }
 
-    /** 0x10 00 <path_len:u16LE> <offset:u32LE> <chunk_len:u32LE> <path>, one request per chunk. */
-    fun buildReadRequest(path: String, offset: Int, chunkLen: Int = UnaConstants.READ_CHUNK_SIZE): ByteArray {
+    /** 0x10 00 <path_len:u16LE> <offset:u32LE> <chunk_len:u32LE> <path>. */
+    fun buildReadRequest(path: String, offset: Int, chunkLen: Int): ByteArray {
         val pathBytes = path.toByteArray(Charsets.US_ASCII)
         return byteArrayOf(UnaConstants.CMD_READ.toByte(), 0) +
             BLETypeConversions.fromUint16(pathBytes.size) +
@@ -53,6 +61,12 @@ object UnaFtsProtocol {
             BLETypeConversions.fromUint32(chunkLen) +
             pathBytes
     }
+
+    /** 0x12 01 0000 <offset:u32LE> <chunk_len:u32LE>. */
+    fun buildReadPacingRequest(offset: Int, chunkLen: Int): ByteArray =
+        byteArrayOf(UnaConstants.CMD_READ_PACING.toByte(), STATUS_OK.toByte(), 0, 0) +
+            BLETypeConversions.fromUint32(offset) +
+            BLETypeConversions.fromUint32(chunkLen)
 
     /**
      * Parses a 0x51 list-entry notification. Bytes 16-27 (mtime and/or reserved, not confirmed
@@ -69,19 +83,17 @@ object UnaFtsProtocol {
         return UnaFtsListEntry(index, total, attr, name)
     }
 
-    /** Parses a 0x11 read-chunk notification. Null if too short or the wrong opcode. */
+    /** Parses a 0x11 read-chunk notification, or null if it carries no usable payload. */
     fun parseReadChunk(data: ByteArray): UnaFtsReadChunk? {
         if (data.size < READ_CHUNK_HEADER_SIZE || (data[0].toInt() and 0xFF) != UnaConstants.RESP_READ_CHUNK) return null
         val offset = BLETypeConversions.toUint32(data, 4)
         val total = BLETypeConversions.toUint32(data, 8)
-        val chunkLen = BLETypeConversions.toUint32(data, 12)
-        // chunkLen is an untrusted, wire-supplied u32 read into a signed Int -- comparing/adding
-        // it directly against data.size (as `HEADER + chunkLen`) can wrap negative for a
-        // corrupted or hostile value, silently defeating this truncation check. Masking to its
-        // real unsigned value in a Long before comparing closes that hole.
-        val chunkLenUnsigned = chunkLen.toLong() and 0xFFFFFFFFL
-        if (data.size.toLong() < READ_CHUNK_HEADER_SIZE + chunkLenUnsigned) return null
-        val payload = data.copyOfRange(READ_CHUNK_HEADER_SIZE, READ_CHUNK_HEADER_SIZE + chunkLen)
-        return UnaFtsReadChunk(offset, total, payload)
+        val advertised = uint32AsLong(data, 12)
+        val delivered = (data.size - READ_CHUNK_HEADER_SIZE).toLong()
+        // Firmware can advertise more than it sends: https://github.com/UNAWatch/una-sdk/issues/272
+        val payloadLen = minOf(advertised, delivered).toInt()
+        if (payloadLen <= 0) return null
+        val payload = data.copyOfRange(READ_CHUNK_HEADER_SIZE, READ_CHUNK_HEADER_SIZE + payloadLen)
+        return UnaFtsReadChunk(offset, total, payload, deliveredLessThanAdvertised = advertised > payloadLen)
     }
 }

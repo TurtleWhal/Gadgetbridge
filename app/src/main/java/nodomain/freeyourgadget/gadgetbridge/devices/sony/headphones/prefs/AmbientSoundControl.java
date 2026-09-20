@@ -82,7 +82,7 @@ public class AmbientSoundControl {
 
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
-            put(DeviceSettingsPreferenceConst.PREF_SONY_AMBIENT_SOUND_CONTROL, mode.name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_AMBIENT_SOUND_CONTROL, mode.name().toLowerCase(Locale.ROOT));
 
             if (AmbientSoundControl.Mode.AMBIENT_SOUND.equals(mode)) {
                 // Only use the ambient sound levels and focus on voice if we're on ambient sound mode,
@@ -100,6 +100,6 @@ public class AmbientSoundControl {
         // Level is offset by 1 because we can't configure the SeekBarPreference min level on the current api level
         final int ambientSound = prefs.getInt(DeviceSettingsPreferenceConst.PREF_SONY_AMBIENT_SOUND_LEVEL, 0) + 1;
 
-        return new AmbientSoundControl(AmbientSoundControl.Mode.valueOf(soundControl.toUpperCase()), focusVoice, ambientSound);
+        return new AmbientSoundControl(AmbientSoundControl.Mode.valueOf(soundControl.toUpperCase(Locale.ROOT)), focusVoice, ambientSound);
     }
 }

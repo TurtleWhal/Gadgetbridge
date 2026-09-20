@@ -33,7 +33,7 @@ import androidx.annotation.Nullable;
 
 import net.e175.klaus.solarpositioning.DeltaT;
 import net.e175.klaus.solarpositioning.SPA;
-import net.e175.klaus.solarpositioning.SunriseTransitSet;
+import net.e175.klaus.solarpositioning.SunriseResult;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -81,7 +81,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLESingleDevic
 import nodomain.freeyourgadget.gadgetbridge.service.btle.BLETypeConversions;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.webview.CurrentPosition;
-import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.MediaManager;
 
@@ -619,11 +618,11 @@ public class CmfWatchProSupport extends AbstractBTLESingleDeviceSupport implemen
         }
 
         final String senderOrTitle = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.getFirstOf(
-                notificationSpec.sender,
-                notificationSpec.title
+                notificationSpec.getSender(),
+                notificationSpec.getTitle()
         );
 
-        final String body = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.getFirstOf(notificationSpec.body, "");
+        final String body = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.getFirstOf(notificationSpec.getBody(), "");
 
         final byte[] senderOrTitleBytes = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateToBytes(senderOrTitle, 20); // TODO confirm max
         final byte[] bodyBytes = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateToBytes(body, 128); // TODO confirm max
@@ -633,7 +632,7 @@ public class CmfWatchProSupport extends AbstractBTLESingleDeviceSupport implemen
 
         buf.put(CmfNotificationIcon.forNotification(notificationSpec).getCode());
         buf.put((byte) 0x00); // ?
-        buf.putInt((int) (notificationSpec.when / 1000));
+        buf.putInt((int) (notificationSpec.getWhen() / 1000));
         buf.put((byte) senderOrTitleBytes.length);
         buf.put(senderOrTitleBytes);
         buf.put(bodyBytes);
@@ -735,7 +734,7 @@ public class CmfWatchProSupport extends AbstractBTLESingleDeviceSupport implemen
         final byte stateByte;
         if (musicSpec == null || musicStateSpec == null) {
             stateByte = 0x00;
-        } else if (musicStateSpec.state == MusicStateSpec.STATE_PLAYING) {
+        } else if (musicStateSpec.getState() == MusicStateSpec.STATE_PLAYING) {
             stateByte = 0x02;
         } else {
             stateByte = 0x01;
@@ -745,8 +744,8 @@ public class CmfWatchProSupport extends AbstractBTLESingleDeviceSupport implemen
         final byte[] artist;
 
         if (musicSpec != null) {
-            track = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateToBytes(musicSpec.track, 63);
-            artist = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateToBytes(musicSpec.artist, 63);
+            track = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateToBytes(musicSpec.getTrack(), 63);
+            artist = nodomain.freeyourgadget.gadgetbridge.util.StringUtils.truncateToBytes(musicSpec.getArtist(), 63);
         } else {
             track = new byte[0];
             artist = new byte[0];
@@ -789,12 +788,8 @@ public class CmfWatchProSupport extends AbstractBTLESingleDeviceSupport implemen
     }
 
     @Override
-    public void onReset(final int flags) {
-        if ((flags & GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET) != 0) {
-            sendCommand("factory reset", CmfCommand.FACTORY_RESET, A5);
-        } else {
-            LOG.warn("Unknown reset flags: {}", String.format("0x%x", flags));
-        }
+    public void onFactoryReset() {
+        sendCommand("factory reset", CmfCommand.FACTORY_RESET, A5);
     }
 
     @Override
@@ -961,16 +956,16 @@ public class CmfWatchProSupport extends AbstractBTLESingleDeviceSupport implemen
     }
 
     private void putSunriseSunset(final ByteBuffer buf, final Location location, final GregorianCalendar date) {
-        final SunriseTransitSet sunriseTransitSet = SPA.calculateSunriseTransitSet(
+        final SunriseResult sunriseResult = SPA.calculateSunriseTransitSet(
                 date.toZonedDateTime(),
                 location.getLatitude(),
                 location.getLongitude(),
                 DeltaT.estimate(date.toZonedDateTime().toLocalDate())
         );
 
-        if (sunriseTransitSet.getSunrise() != null && sunriseTransitSet.getSunset() != null) {
-            buf.putInt((int) sunriseTransitSet.getSunrise().toInstant().getEpochSecond());
-            buf.putInt((int) sunriseTransitSet.getSunset().toInstant().getEpochSecond());
+        if (sunriseResult instanceof SunriseResult.RegularDay regularDay) {
+            buf.putInt((int) regularDay.sunrise().toInstant().getEpochSecond());
+            buf.putInt((int) regularDay.sunset().toInstant().getEpochSecond());
         } else {
             buf.putInt(0);
             buf.putInt(0);

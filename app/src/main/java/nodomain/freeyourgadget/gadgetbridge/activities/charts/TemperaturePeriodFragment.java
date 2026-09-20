@@ -44,6 +44,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -51,6 +52,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
@@ -322,8 +324,8 @@ public class TemperaturePeriodFragment extends AbstractChartFragment<Temperature
             yAxisLeft.setAxisMaximum((float) Math.ceil(maximum) + axisGap);
         } else {
             final boolean isMetric = temperatureUnit == TemperatureUnit.CELSIUS;
-            yAxisLeft.setAxisMinimum((float) (isMetric ? 30f : TemperatureChartFragment.celsiusToFahrenheit(30d)));
-            yAxisLeft.setAxisMaximum((float) (isMetric ? 45f : TemperatureChartFragment.celsiusToFahrenheit(45d)));
+            yAxisLeft.setAxisMinimum((float) (isMetric ? 30f : TemperatureUtils.celsiusToFahrenheit(30d)));
+            yAxisLeft.setAxisMaximum((float) (isMetric ? 45f : TemperatureUtils.celsiusToFahrenheit(45f)));
         }
     }
 
@@ -357,12 +359,11 @@ public class TemperaturePeriodFragment extends AbstractChartFragment<Temperature
             return celsius;
         }
 
-        return TemperatureDailyFragment.celsiusToFahrenheit(celsius);
+        return (float) TemperatureUtils.celsiusToFahrenheit(celsius);
     }
 
     private String formatTemperature(final float temperature) {
-        final String unit = getString(temperatureUnit == TemperatureUnit.CELSIUS ? R.string.unit_celsius : R.string.unit_fahrenheit);
-        return String.format(Locale.getDefault(), "%.1f %s", temperature, unit);
+        return TemperatureUtils.formatTemperature(temperature, temperatureUnit, new DecimalFormat("0.0"));
     }
 
     private static boolean hasData(final float value) {

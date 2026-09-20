@@ -433,7 +433,7 @@ public class XiaomiCharacteristicV1 {
             return;
         }
 
-        LOG.debug("Will send {}", GB.hexdump(currentPayload.getBytesToSend()));
+        LOG.debug("Will send {}", GB.lazyHexdump(currentPayload.getBytesToSend()));
 
         final boolean encrypt = isEncrypted && authService.isEncryptionInitialized();
 

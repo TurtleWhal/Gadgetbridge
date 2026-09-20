@@ -297,7 +297,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 handleCameraMediaPacket(keyId, keyData);
                 return;
             default:
-                LOG.debug("AK102 RX unhandled cmd={} key={} data={}", cmdId, keyId, GB.hexdump(keyData));
+                LOG.debug("AK102 RX unhandled cmd={} key={} data={}", cmdId, keyId, GB.lazyHexdump(keyData));
         }
     }
 
@@ -306,7 +306,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
             case Ak102Constants.KEY_BATTERY_RESPONSE:
                 // [0] charging flag, [1] bar count, [2] percentage 0-100
                 // (verified against the watch's own battery display).
-                LOG.debug("AK102 battery k28 raw: {}", GB.hexdump(keyData));
+                LOG.debug("AK102 battery k28 raw: {}", GB.lazyHexdump(keyData));
                 if (keyData.length >= 3) {
                     handleBatteryStatus(keyData[0] == 1, keyData[2] & 0xFF);
                 }
@@ -314,7 +314,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
             case Ak102Constants.KEY_PUSH_BATTERY_CHANGED:
                 // The payload is a bar count, not a percentage: use the push
                 // only as a trigger to re-poll k27 for the real level.
-                LOG.debug("AK102 battery push raw: {}", GB.hexdump(keyData));
+                LOG.debug("AK102 battery push raw: {}", GB.lazyHexdump(keyData));
                 if (System.currentTimeMillis() - lastBatteryRequestMillis > 60_000L) {
                     lastBatteryRequestMillis = System.currentTimeMillis();
                     sendSimpleCommand("ak102-battery", Ak102Constants.CMD_SETTINGS,
@@ -340,7 +340,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 storeActivityPoints(Ak102SyncParser.parseRestingHeartRate(keyData));
                 return;
             case Ak102Constants.KEY_EXERCISE_GOAL_RESPONSE:
-                LOG.debug("AK102 exercise goal: {}", GB.hexdump(keyData));
+                LOG.debug("AK102 exercise goal: {}", GB.lazyHexdump(keyData));
                 return;
             case Ak102Constants.KEY_PUSH_QUICK_REPLY_SMS:
             case Ak102Constants.KEY_PUSH_QUICK_REPLY_FREE:
@@ -365,10 +365,10 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 LOG.warn("AK102 SOS triggered on watch");
                 return;
             case Ak102Constants.KEY_PUSH_AUDIO_DEVICE_MAC:
-                LOG.debug("AK102 audio device MAC: {}", GB.hexdump(keyData));
+                LOG.debug("AK102 audio device MAC: {}", GB.lazyHexdump(keyData));
                 return;
             default:
-                LOG.debug("AK102 RX unhandled settings key={} data={}", keyId, GB.hexdump(keyData));
+                LOG.debug("AK102 RX unhandled settings key={} data={}", keyId, GB.lazyHexdump(keyData));
         }
     }
 
@@ -405,7 +405,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 }
                 return;
             default:
-                LOG.debug("AK102 RX unhandled camera/media key={} data={}", keyId, GB.hexdump(keyData));
+                LOG.debug("AK102 RX unhandled camera/media key={} data={}", keyId, GB.lazyHexdump(keyData));
         }
     }
 
@@ -475,7 +475,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
                 LOG.debug("AK102 measurement stopped on watch");
                 return;
             default:
-                LOG.debug("AK102 typed event {} data={}", type, GB.hexdump(keyData));
+                LOG.debug("AK102 typed event {} data={}", type, GB.lazyHexdump(keyData));
         }
     }
 
@@ -817,21 +817,21 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(final NotificationSpec notificationSpec) {
-        final String name = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        final String name = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
         final StringBuilder content = new StringBuilder();
-        if (!StringUtils.isEmpty(notificationSpec.title) && !notificationSpec.title.equals(name)) {
-            content.append(notificationSpec.title).append(": ");
+        if (!StringUtils.isEmpty(notificationSpec.getTitle()) && !notificationSpec.getTitle().equals(name)) {
+            content.append(notificationSpec.getTitle()).append(": ");
         }
-        if (!StringUtils.isEmpty(notificationSpec.body)) {
-            content.append(notificationSpec.body);
-        } else if (!StringUtils.isEmpty(notificationSpec.subject)) {
-            content.append(notificationSpec.subject);
+        if (!StringUtils.isEmpty(notificationSpec.getBody())) {
+            content.append(notificationSpec.getBody());
+        } else if (!StringUtils.isEmpty(notificationSpec.getSubject())) {
+            content.append(notificationSpec.getSubject());
         }
         sendNotification(mapNotificationType(notificationSpec), name, content.toString());
     }
 
     private byte mapNotificationType(final NotificationSpec notificationSpec) {
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case GENERIC_SMS:
                 return Ak102Constants.NOTIFICATION_SMS;
             case QQ:
@@ -919,18 +919,18 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(final CallSpec callSpec) {
-        final String name = StringUtils.getFirstOf(callSpec.name, callSpec.number);
-        switch (callSpec.command) {
+        final String name = StringUtils.getFirstOf(callSpec.getName(), callSpec.getNumber());
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING:
-                sendNotification(Ak102Constants.NOTIFICATION_TELEPHONY_INCOMING, name, callSpec.number);
+                sendNotification(Ak102Constants.NOTIFICATION_TELEPHONY_INCOMING, name, callSpec.getNumber());
                 break;
             case CallSpec.CALL_REJECT:
-                sendNotification(Ak102Constants.NOTIFICATION_TELEPHONY_REJECTED, name, callSpec.number);
+                sendNotification(Ak102Constants.NOTIFICATION_TELEPHONY_REJECTED, name, callSpec.getNumber());
                 break;
             case CallSpec.CALL_ACCEPT:
             case CallSpec.CALL_START:
             case CallSpec.CALL_END:
-                sendNotification(Ak102Constants.NOTIFICATION_TELEPHONY_ANSWERED, name, callSpec.number);
+                sendNotification(Ak102Constants.NOTIFICATION_TELEPHONY_ANSWERED, name, callSpec.getNumber());
                 break;
             default:
                 break;
@@ -1150,11 +1150,11 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
         if (!supportsWatchFeature(Ak102Constants.FEATURE_MUSIC_INFO)) {
             return;
         }
-        final byte[] title = StringUtils.ensureNotNull(musicSpec.track).getBytes(StandardCharsets.UTF_8);
-        final byte[] artist = StringUtils.ensureNotNull(musicSpec.artist).getBytes(StandardCharsets.UTF_8);
+        final byte[] title = StringUtils.ensureNotNull(musicSpec.getTrack()).getBytes(StandardCharsets.UTF_8);
+        final byte[] artist = StringUtils.ensureNotNull(musicSpec.getArtist()).getBytes(StandardCharsets.UTF_8);
         final int titleLength = Math.min(title.length, 127);
         final int artistLength = Math.min(artist.length, 96);
-        final int duration = Math.max(musicSpec.duration, 0);
+        final int duration = Math.max(musicSpec.getDuration(), 0);
 
         final byte[] payload = new byte[6 + titleLength + artistLength];
         payload[0] = (byte) titleLength;
@@ -1174,9 +1174,9 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
             return;
         }
         // FitCloud states: 0 stop, 1 playing, 2 pause.
-        final int state = stateSpec.state == MusicStateSpec.STATE_PLAYING ? 1
-                : stateSpec.state == MusicStateSpec.STATE_PAUSED ? 2 : 0;
-        final int position = Math.max(stateSpec.position, 0);
+        final int state = stateSpec.getState() == MusicStateSpec.STATE_PLAYING ? 1
+                : stateSpec.getState() == MusicStateSpec.STATE_PAUSED ? 2 : 0;
+        final int position = Math.max(stateSpec.getPosition(), 0);
         final int speed = 100;
 
         final byte[] payload = new byte[7];
@@ -1306,7 +1306,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
             case Ak102Constants.KEY_REALTIME_TEMP_ERROR:
                 return;
             default:
-                LOG.debug("AK102 RX unhandled sync key={} data={}", keyId, GB.hexdump(keyData));
+                LOG.debug("AK102 RX unhandled sync key={} data={}", keyId, GB.lazyHexdump(keyData));
         }
     }
 
@@ -1341,7 +1341,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     private void decodeSyncBuffer(final int type, final byte[] buffer) {
         if (buffer.length > 0 && buffer.length <= 200) {
-            LOG.debug("AK102 sync type {} buffer: {}", type, GB.hexdump(buffer));
+            LOG.debug("AK102 sync type {} buffer: {}", type, GB.lazyHexdump(buffer));
         }
         switch (type) {
             case Ak102Constants.SYNC_TYPE_STEP:
@@ -1438,7 +1438,7 @@ public class Ak102DeviceSupport extends AbstractBTLESingleDeviceSupport {
         // 8B timestamp. dispatch() already split them, so parse directly.
         final int[] totals = Ak102SyncParser.parseTodayTotal(keyData);
         if (totals == null) {
-            LOG.debug("AK102 today-total aux packet: {}", GB.hexdump(keyData));
+            LOG.debug("AK102 today-total aux packet: {}", GB.lazyHexdump(keyData));
             return;
         }
         LOG.info("AK102 today: steps={} distance={}m calories={} hr={}",

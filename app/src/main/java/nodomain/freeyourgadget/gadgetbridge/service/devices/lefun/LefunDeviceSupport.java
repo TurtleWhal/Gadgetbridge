@@ -209,7 +209,7 @@ public class LefunDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING:
                 try {
                     TransactionBuilder builder = performInitialized(SetTimeRequest.class.getSimpleName());

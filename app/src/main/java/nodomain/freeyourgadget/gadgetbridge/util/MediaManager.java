@@ -78,8 +78,8 @@ public class MediaManager {
         if (musicSpec != null && !musicSpec.equals(bufferMusicSpec)) {
             bufferMusicSpec = musicSpec;
             if (bufferMusicStateSpec != null) {
-                bufferMusicStateSpec.state = 0;
-                bufferMusicStateSpec.position = 0;
+                bufferMusicStateSpec.setState((byte) 0);
+                bufferMusicStateSpec.setPosition(0);
             }
             return true;
         }
@@ -139,23 +139,23 @@ public class MediaManager {
 
         try {
             if (d.containsKey(MediaMetadata.METADATA_KEY_ARTIST))
-                musicSpec.artist = d.getString(MediaMetadata.METADATA_KEY_ARTIST);
+                musicSpec.setArtist(d.getString(MediaMetadata.METADATA_KEY_ARTIST));
             if (d.containsKey(MediaMetadata.METADATA_KEY_ALBUM))
-                musicSpec.album = d.getString(MediaMetadata.METADATA_KEY_ALBUM);
+                musicSpec.setAlbum(d.getString(MediaMetadata.METADATA_KEY_ALBUM));
             if (d.containsKey(MediaMetadata.METADATA_KEY_TITLE))
-                musicSpec.track = d.getString(MediaMetadata.METADATA_KEY_TITLE);
+                musicSpec.setTrack(d.getString(MediaMetadata.METADATA_KEY_TITLE));
             if (d.containsKey(MediaMetadata.METADATA_KEY_DURATION))
-                musicSpec.duration = (int) d.getLong(MediaMetadata.METADATA_KEY_DURATION) / 1000;
+                musicSpec.setDuration((int) d.getLong(MediaMetadata.METADATA_KEY_DURATION) / 1000);
             if (d.containsKey(MediaMetadata.METADATA_KEY_NUM_TRACKS))
-                musicSpec.trackCount = (int) d.getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS);
+                musicSpec.setTrackCount((int) d.getLong(MediaMetadata.METADATA_KEY_NUM_TRACKS));
             if (d.containsKey(MediaMetadata.METADATA_KEY_TRACK_NUMBER))
-                musicSpec.trackNr = (int) d.getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER);
+                musicSpec.setTrackNr((int) d.getLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER));
             if (d.containsKey(MediaMetadata.METADATA_KEY_ART))
-                musicSpec.albumArt = d.getBitmap(MediaMetadata.METADATA_KEY_ART);
+                musicSpec.setAlbumArt(d.getBitmap(MediaMetadata.METADATA_KEY_ART));
             else if (d.containsKey(MediaMetadata.METADATA_KEY_ALBUM_ART))
-                musicSpec.albumArt = d.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+                musicSpec.setAlbumArt(d.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART));
             else if (d.containsKey(MediaMetadata.METADATA_KEY_DISPLAY_ICON))
-                musicSpec.albumArt = d.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
+                musicSpec.setAlbumArt(d.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON));
         } catch (final Exception e) {
             LOG.error("Failed to extract music spec", e);
         }
@@ -172,22 +172,22 @@ public class MediaManager {
         final MusicStateSpec stateSpec = new MusicStateSpec();
 
         try {
-            stateSpec.position = (int) (s.getPosition() / 1000);
-            stateSpec.playRate = Math.round(100 * s.getPlaybackSpeed());
-            stateSpec.repeat = MusicStateSpec.STATE_UNKNOWN;
-            stateSpec.shuffle = MusicStateSpec.STATE_UNKNOWN;
+            stateSpec.setPosition((int) (s.getPosition() / 1000));
+            stateSpec.setPlayRate(Math.round(100 * s.getPlaybackSpeed()));
+            stateSpec.setRepeat((byte) MusicStateSpec.STATE_UNKNOWN);
+            stateSpec.setShuffle((byte) MusicStateSpec.STATE_UNKNOWN);
             switch (s.getState()) {
                 case PlaybackState.STATE_PLAYING:
-                    stateSpec.state = MusicStateSpec.STATE_PLAYING;
+                    stateSpec.setState((byte) MusicStateSpec.STATE_PLAYING);
                     break;
                 case PlaybackState.STATE_STOPPED:
-                    stateSpec.state = MusicStateSpec.STATE_STOPPED;
+                    stateSpec.setState((byte) MusicStateSpec.STATE_STOPPED);
                     break;
                 case PlaybackState.STATE_PAUSED:
-                    stateSpec.state = MusicStateSpec.STATE_PAUSED;
+                    stateSpec.setState((byte) MusicStateSpec.STATE_PAUSED);
                     break;
                 default:
-                    stateSpec.state = MusicStateSpec.STATE_UNKNOWN;
+                    stateSpec.setState((byte) MusicStateSpec.STATE_UNKNOWN);
                     break;
             }
         } catch (final Exception e) {

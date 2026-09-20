@@ -25,6 +25,21 @@ public class GarminVivoActiveHrCoordinator extends GarminWatchCoordinator {
     }
 
     @Override
+    public boolean supportsStressMeasurement(@NonNull GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsHrvMeasurement(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsVO2Max(@NonNull GBDevice device) {
+        return false;
+    }
+
+    @Override
     public boolean supportsSpo2(@NonNull final GBDevice device) {
         return false;
     }
@@ -41,6 +56,11 @@ public class GarminVivoActiveHrCoordinator extends GarminWatchCoordinator {
 
     @Override
     public boolean supportsVO2MultiSport(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsRacePrediction(@NonNull final GBDevice device) {
         return false;
     }
 }

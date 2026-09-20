@@ -55,11 +55,11 @@ public enum SurroundMode implements LabeledEntry {
 
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
-            put(DeviceSettingsPreferenceConst.PREF_SONY_SURROUND_MODE, name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_SURROUND_MODE, name().toLowerCase(Locale.ROOT));
         }};
     }
 
     public static SurroundMode fromPreferences(final SharedPreferences prefs) {
-        return SurroundMode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_SURROUND_MODE, "off").toUpperCase());
+        return SurroundMode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_SURROUND_MODE, "off").toUpperCase(Locale.ROOT));
     }
 }

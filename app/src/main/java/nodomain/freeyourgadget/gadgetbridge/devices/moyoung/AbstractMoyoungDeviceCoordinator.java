@@ -32,7 +32,10 @@ import java.util.Map;
 
 import de.greenrobot.dao.AbstractDao;
 import de.greenrobot.dao.Property;
+import nodomain.freeyourgadget.gadgetbridge.GBApplication;
+import nodomain.freeyourgadget.gadgetbridge.activities.HeartRateDialog;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCardAction;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettings;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.HeartRateCapability;
@@ -72,6 +75,44 @@ import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.moyoung.MoyoungDeviceSupport;
 
 public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDeviceCoordinator {
+    /** Asks the watch to take a one-off blood oxygen measurement. */
+    public static final String CONFIG_SPO2_MEASURE = "spo2_measure";
+    /** Holds the most recent blood oxygen reading, for as long as the device stays connected. */
+    public static final String EXTRA_SPO2 = "spo2";
+
+    @Override
+    public List<DeviceCardAction> getCustomActions() {
+        return Collections.singletonList(new DeviceCardAction() {
+            @Override
+            public int getIcon(@NonNull final GBDevice device) {
+                return R.drawable.ic_spo2;
+            }
+
+            @NonNull
+            @Override
+            public String getDescription(@NonNull final GBDevice device, @NonNull final Context context) {
+                return context.getString(R.string.controlcenter_get_spo2_measurement);
+            }
+
+            @Nullable
+            @Override
+            public String getLabel(@NonNull final GBDevice device, @NonNull final Context context) {
+                return (String) device.getExtraInfo(EXTRA_SPO2);
+            }
+
+            @Override
+            public boolean isVisible(@NonNull final GBDevice device) {
+                return device.isInitialized();
+            }
+
+            @Override
+            public void onClick(@NonNull final GBDevice device, @NonNull final Context context) {
+                GBApplication.deviceService(device).onSendConfiguration(CONFIG_SPO2_MEASURE);
+                new HeartRateDialog(device, context, HeartRateDialog.Measurement.SPO2).show();
+            }
+        });
+    }
+
     @Override
     public Map<AbstractDao<?, ?>, Property> getAllDeviceDao( @NonNull final DaoSession session) {
         return new HashMap<>() {{
@@ -94,7 +135,7 @@ public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDevice
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass(GBDevice device) {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(@NonNull final GBDevice device) {
         return MoyoungDeviceSupport.class;
     }
 
@@ -283,12 +324,20 @@ public abstract class AbstractMoyoungDeviceCoordinator extends AbstractBLEDevice
         );
     }
 
-    public MoyoungSetting[] getSupportedSettings() {
+    public boolean supportsDeviceInfoProfile() {
+        return true;
+    }
+
+    public MoyoungSetting<?>[] getSupportedSettings() {
         return MOYOUNG_SETTINGS;
     }
 
     public int getMtu() {
         return 20;
+    }
+
+    public boolean newAlarmProtocol() {
+        return false;
     }
 
     @Override

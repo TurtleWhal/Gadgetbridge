@@ -1,4 +1,5 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -59,6 +60,7 @@
             </RelativeLayout>
 
             <TextView
+                android:id="@+id/acute_load_header"
                 android:layout_marginTop="30dp"
                 android:layout_marginStart="25dp"
                 android:layout_width="match_parent"
@@ -67,11 +69,20 @@
                 android:textSize="20sp"
                 android:text="@string/training_acute_load"
                 />
-            <com.github.mikephil.charting.charts.LineChart
+            <com.github.mikephil.charting.charts.CombinedChart
                 android:id="@+id/acute_load_chart"
                 android:layout_width="fill_parent"
                 android:layout_height="250sp"
                 android:layout_weight="2" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/load_chart_data_type_group"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:layout_marginBottom="10dp"
+                app:selectionRequired="true" />
 
             <GridLayout
                 android:background="@color/gauge_line_color"
@@ -82,6 +93,7 @@
                 android:layout_marginBottom="15dp"
                 >
                 <LinearLayout
+                    android:id="@+id/acute_load_wrapper"
                     style="@style/GridTile"
                     android:layout_marginEnd="1dp"
                     android:layout_marginTop="2dp"
@@ -95,12 +107,14 @@
                         android:textSize="20sp" />
 
                     <TextView
+                        android:id="@+id/acute_load_label"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/training_acute_load"
                         android:textSize="12sp" />
                 </LinearLayout>
                 <LinearLayout
+                    android:id="@+id/chronic_load_wrapper"
                     style="@style/GridTile"
                     android:layout_marginStart="1dp"
                     android:layout_marginTop="2dp"

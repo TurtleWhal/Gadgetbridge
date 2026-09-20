@@ -341,7 +341,7 @@ public class FossilWatchAdapter extends WatchAdapter {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             LOG.info("Incoming call, triggering vibration on watch");
             vibrateStartCall();
         } else {

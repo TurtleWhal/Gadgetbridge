@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.moyoung;
 
-import lineageos.weather.util.WeatherUtils;
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
@@ -36,8 +36,8 @@ public class MoyoungWeatherForecast {
         conditionId = MoyoungConstants.openWeatherConditionToMoyoungConditionId(forecast.getConditionCode());
         final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
         if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
-            minTemp = (byte) WeatherUtils.celsiusToFahrenheit(forecast.getMinTemp() - 273); // Kelvin -> Fahrenheit
-            maxTemp = (byte) WeatherUtils.celsiusToFahrenheit(forecast.getMaxTemp() - 273); // Kelvin -> Fahrenheit
+            minTemp = (byte) TemperatureUtils.celsiusToFahrenheit(forecast.getMinTemp() - 273); // Kelvin -> Fahrenheit
+            maxTemp = (byte) TemperatureUtils.celsiusToFahrenheit(forecast.getMaxTemp() - 273); // Kelvin -> Fahrenheit
         } else {
             minTemp = (byte) (forecast.getMinTemp() - 273); // Kelvin -> Celcius
             maxTemp = (byte) (forecast.getMaxTemp() - 273); // Kelvin -> Celcius

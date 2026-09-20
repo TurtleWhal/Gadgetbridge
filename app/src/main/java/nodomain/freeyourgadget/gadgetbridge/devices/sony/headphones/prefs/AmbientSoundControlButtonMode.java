@@ -55,7 +55,7 @@ public enum AmbientSoundControlButtonMode implements LabeledEntry {
 
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
-            put(DeviceSettingsPreferenceConst.PREF_SONY_AMBIENT_SOUND_CONTROL_BUTTON_MODE, name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_AMBIENT_SOUND_CONTROL_BUTTON_MODE, name().toLowerCase(Locale.ROOT));
         }};
     }
 
@@ -70,6 +70,6 @@ public enum AmbientSoundControlButtonMode implements LabeledEntry {
     }
 
     public static AmbientSoundControlButtonMode fromPreferences(final SharedPreferences prefs) {
-        return AmbientSoundControlButtonMode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_AMBIENT_SOUND_CONTROL_BUTTON_MODE, "nc_as_off").toUpperCase());
+        return AmbientSoundControlButtonMode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_AMBIENT_SOUND_CONTROL_BUTTON_MODE, "nc_as_off").toUpperCase(Locale.ROOT));
     }
 }

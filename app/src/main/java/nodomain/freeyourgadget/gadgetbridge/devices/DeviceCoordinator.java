@@ -61,6 +61,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.BatteryConfig;
 import nodomain.freeyourgadget.gadgetbridge.model.BloodPressureSample;
 import nodomain.freeyourgadget.gadgetbridge.model.BodyEnergySample;
+import nodomain.freeyourgadget.gadgetbridge.model.SolarChargeSample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
 import nodomain.freeyourgadget.gadgetbridge.model.HrvSummarySample;
@@ -73,12 +74,14 @@ import nodomain.freeyourgadget.gadgetbridge.model.SleepScoreSample;
 import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureSample;
+import nodomain.freeyourgadget.gadgetbridge.model.TrainingLoadStatus;
 import nodomain.freeyourgadget.gadgetbridge.model.Vo2MaxSample;
 import nodomain.freeyourgadget.gadgetbridge.model.WeightSample;
 import nodomain.freeyourgadget.gadgetbridge.model.WorkoutLoadSample;
 import nodomain.freeyourgadget.gadgetbridge.model.heartratezones.HeartRateZonesSpec;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
 import nodomain.freeyourgadget.gadgetbridge.service.ServiceDeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.widgets.DeviceWidgetsProvider;
 
 /**
  * This interface is implemented at least once for every supported gadget device.
@@ -124,7 +127,9 @@ public interface DeviceCoordinator {
     enum ConnectionType{
         BLE(false, true),
         BT_CLASSIC(true, false),
-        BOTH(true, true)
+        BOTH(true, true),
+        // Neither classic BT nor BLE - e.g. USB accessory mode.
+        USB(false, false)
         ;
         boolean usesBluetoothClassic, usesBluetoothLE;
 
@@ -165,6 +170,7 @@ public interface DeviceCoordinator {
         BATTERY_MONITOR,
         SCOOTER,
         CAMERA,
+        VACUUM,
     }
 
     /**
@@ -301,9 +307,26 @@ public interface DeviceCoordinator {
     boolean supportsActiveCalories(@NonNull final GBDevice device);
     boolean supportsActivityDistance(@NonNull final GBDevice device);
     boolean supportsTrainingLoad(@NonNull final GBDevice device);
+    boolean supportsTrainingLoadChronic(@NonNull final GBDevice device);
+    boolean supportsRacePrediction(@NonNull final GBDevice device);
+    boolean supportsTrainingReadiness(@NonNull final GBDevice device);
     boolean supportsGlucoseMeasurement(@NonNull final GBDevice device);
 
+    /**
+     * Returns true if solar charging measurement and fetching is supported by the device
+     * (with this coordinator).
+     */
+    boolean supportsSolarCharging(@NonNull final GBDevice device);
+
     DeviceChartsProvider getChartsProvider();
+
+    /**
+     * Allows the coordinator to return device-specific dashboard widgets.
+     * <p/>
+     * Not to be confused with {@link #getWidgetManager(GBDevice)}, which manages a device's own
+     * on-watch widget screens.
+     */
+    DeviceWidgetsProvider getWidgetsProvider();
 
     /**
      * Returns true if measurement and fetching of body temperature is supported by the device
@@ -405,6 +428,12 @@ public interface DeviceCoordinator {
     TimeSampleProvider<? extends BodyEnergySample> getBodyEnergySampleProvider(@NonNull final GBDevice device, @NonNull final DaoSession session);
 
     /**
+     * Returns the sample provider for solar charging data, for the device being supported.
+     */
+    @Nullable
+    TimeSampleProvider<? extends SolarChargeSample> getSolarChargeSampleProvider(@NonNull final GBDevice device, @NonNull final DaoSession session);
+
+    /**
      * Returns the sample provider for HRV summary, for the device being supported.
      */
     @Nullable
@@ -441,10 +470,21 @@ public interface DeviceCoordinator {
 
 
     /**
+     * The latest training-load status the device itself reported at or before {@code untilTs} (in
+     * milliseconds). {@code null} means the device reports no status of its own, and the Load chart
+     * derives one from the acute and chronic load instead.
+     */
+    @Nullable
+    default TrainingLoadStatus getTrainingLoadStatus(@NonNull final GBDevice device, @NonNull final DaoSession session, final long untilTs) {
+        return null;
+    }
+
+
+    /**
      * Returns the sample provider for VO2 max values, for the device being supported.
      */
     @Nullable
-    TimeSampleProvider<? extends Vo2MaxSample> getVo2MaxSampleProvider(@NonNull final GBDevice device, @NonNull final DaoSession session);
+    Vo2MaxSampleProvider<? extends Vo2MaxSample> getVo2MaxSampleProvider(@NonNull final GBDevice device, @NonNull final DaoSession session);
 
     /**
      * Returns the stress ranges (relaxed, mild, moderate, high), so that stress can be categorized.
@@ -1000,6 +1040,9 @@ public interface DeviceCoordinator {
 
     /**
      * Gets the {@link WidgetManager} for this device. Must not be null if supportsWidgets is true.
+     * <p/>
+     * Not to be confused with {@link #getWidgetsProvider()}, which lets this coordinator
+     * declare its own dashboard widgets.
      */
     @Nullable
     WidgetManager getWidgetManager(@NonNull final GBDevice device);
@@ -1061,6 +1104,19 @@ public interface DeviceCoordinator {
      */
     @Nullable
     String getAuthHelp();
+
+    /**
+     * Returns the preference key of a second credential this device needs alongside the auth key,
+     * or null if the auth key is enough. When set, the pairing screen asks for it as well.
+     */
+    @Nullable
+    String getSecondaryAuthKeyPref();
+
+    /**
+     * Returns the label to show for the second credential, if there is one.
+     */
+    @StringRes
+    int getSecondaryAuthKeyHint();
 
     List<DeviceCardAction> getCustomActions();
 

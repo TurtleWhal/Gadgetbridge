@@ -99,8 +99,10 @@ public final class BtBRQueue {
                         break;
                     }
 
-                    LOG.debug("Received {} bytes on {}: {}", nRead,
-                            mIsAux ? "aux ch " + mRfcommChannel : "main", GB.hexdump(buffer, 0, nRead));
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Received {} bytes on {}: {}", nRead,
+                                mIsAux ? "aux ch " + mRfcommChannel : "main", GB.hexdump(buffer, 0, nRead));
+                    }
 
                     try {
                         // Tag the data with the channel this socket was opened on, so it matches

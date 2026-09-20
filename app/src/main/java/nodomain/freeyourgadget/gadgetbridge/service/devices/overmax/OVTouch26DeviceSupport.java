@@ -341,8 +341,8 @@ public class OVTouch26DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        String body = notificationSpec.body;
-        String title = notificationSpec.title;
+        String body = notificationSpec.getBody();
+        String title = notificationSpec.getTitle();
         if (title.isEmpty()) {
             title = "Notification";
         }

@@ -44,6 +44,15 @@ open class DefaultChartsProvider : DeviceChartsProvider {
         if (coordinator.supportsTrainingLoad(device)) {
             supportedCharts.add("load")
         }
+        if (coordinator.supportsRacePrediction(device)) {
+            supportedCharts.add("raceprediction")
+        }
+        if (coordinator.supportsTrainingReadiness(device)) {
+            supportedCharts.add("trainingreadiness")
+        }
+        if (coordinator.supportsSolarCharging(device)) {
+            supportedCharts.add("solarcharging")
+        }
         if (GenericMetricSampleProvider.supportsMetrics(device).isNotEmpty()) {
             supportedCharts.add("genericmetrics")
         }
@@ -130,6 +139,9 @@ open class DefaultChartsProvider : DeviceChartsProvider {
             "calories" -> context.getString(R.string.calories)
             "respiratoryrate" -> context.getString(R.string.respiratoryrate)
             "load" -> context.getString(R.string.pref_header_training_load)
+            "raceprediction" -> context.getString(R.string.menuitem_race_predictor)
+            "trainingreadiness" -> context.getString(R.string.metric_garmin_training_readiness)
+            "solarcharging" -> context.getString(R.string.menuitem_solar_charging)
             "genericmetrics" -> context.getString(R.string.generic_metrics)
             else -> String.format(Locale.getDefault(), "Unknown %s", chartName)
         }
@@ -147,8 +159,11 @@ open class DefaultChartsProvider : DeviceChartsProvider {
             "heartrate" -> HeartRateCollectionFragment.newInstance(allowSwipe)
             "hrvstatus" -> HrvStatusCollectionFragment.newInstance(allowSwipe)
             "bodyenergy" -> BodyEnergyCollectionFragment.newInstance(allowSwipe)
-            "vo2max" -> VO2MaxFragment()
+            "vo2max" -> VO2MaxCollectionFragment.newInstance(allowSwipe)
             "load" -> LoadFragment()
+            "raceprediction" -> RacePredictionCollectionFragment.newInstance(allowSwipe)
+            "trainingreadiness" -> TrainingReadinessFragment()
+            "solarcharging" -> SolarChargingCollectionFragment.newInstance(allowSwipe)
             "genericmetrics" -> GenericMetricCollectionFragment.newInstance(allowSwipe)
             "stress" -> StressCollectionFragment.newInstance(allowSwipe)
             "pai" -> PaiChartFragment()

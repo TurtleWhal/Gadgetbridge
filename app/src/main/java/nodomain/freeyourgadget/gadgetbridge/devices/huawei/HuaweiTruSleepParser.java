@@ -291,7 +291,7 @@ public class HuaweiTruSleepParser {
         }
 
         public void parsePpgData(byte[] data) {
-            LOG.debug("Decoding PPG: len= {}, data = {}", data.length, GB.hexdump(data));
+            LOG.debug("Decoding PPG: len= {}, data = {}", data.length, GB.lazyHexdump(data));
 
             try {
                 decodePpg(data);
@@ -300,7 +300,7 @@ public class HuaweiTruSleepParser {
             }
         }
         public void parseAccData(byte[] data) {
-            LOG.debug("Decoding ACC: len= {}, data = {}", data.length, GB.hexdump(data));
+            LOG.debug("Decoding ACC: len= {}, data = {}", data.length, GB.lazyHexdump(data));
 
             try {
                 decodeAcc(data);

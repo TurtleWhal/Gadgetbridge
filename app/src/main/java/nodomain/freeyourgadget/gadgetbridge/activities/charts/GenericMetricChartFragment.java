@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.charts;
 
+import static nodomain.freeyourgadget.gadgetbridge.activities.workouts.WorkoutValueFormatter.getUnitString;
+
 import android.os.Bundle;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
@@ -378,7 +380,7 @@ public class GenericMetricChartFragment extends AbstractChartFragment<GenericMet
     }
 
     private String getMetricLabelWithUnit(final MetricSample.Metric metric) {
-        final String unit = DefaultWorkoutCharts.getUnitString(requireContext(), metric.uomKey);
+        final String unit = getUnitString(requireContext(), metric.uomKey);
         if (unit.isEmpty()) {
             return getMetricLabel(metric);
         }

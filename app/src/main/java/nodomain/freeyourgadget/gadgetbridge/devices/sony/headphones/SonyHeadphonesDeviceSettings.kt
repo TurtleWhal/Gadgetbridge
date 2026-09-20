@@ -1,8 +1,11 @@
 package nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones
 
-import android.app.ProgressDialog
-import android.content.DialogInterface
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import nodomain.freeyourgadget.gadgetbridge.GBApplication
 import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen
@@ -17,9 +20,9 @@ import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.Button
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.EqualizerPreset
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.QuickAccess
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.SoundPosition
-import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.VoiceAssistant
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.SpeakToChatConfig
 import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.SurroundMode
+import nodomain.freeyourgadget.gadgetbridge.devices.sony.headphones.prefs.VoiceAssistant
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.service.devices.sony.headphones.protocol.impl.v1.params.NoiseCancellingOptimizerStatus
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs
@@ -90,15 +93,14 @@ fun sonyHeadphonesDeviceSettings(
             //
 
             if (capabilities.contains(SonyHeadphonesCapabilities.AncOptimizer)) {
-                var ancOptimizerProgressDialog: ProgressDialog? = null
+                var ancOptimizerDialog: AlertDialog? = null
+                var ancOptimizerMessageView: TextView? = null
 
                 category(key = "pref_header_sony_anc_optimizer", title = R.string.pref_header_sony_anc_optimizer) {
-                    text(
+                    info(
                         key = DeviceSettingsPreferenceConst.PREF_SONY_NOISE_OPTIMIZER_STATE_PRESSURE,
                         title = R.string.pref_anc_optimizer_state_pressure,
                         icon = R.drawable.ic_pressure,
-                        enabled = false,
-                        connectedOnly = false,
                     )
 
                     action(
@@ -106,30 +108,39 @@ fun sonyHeadphonesDeviceSettings(
                         title = R.string.sony_anc_optimize_title,
                         summary = R.string.sony_anc_optimize_description,
                         icon = R.drawable.ic_auto_awesome,
-                        onClick = { handler ->
-                            if (ancOptimizerProgressDialog != null) return@action true
-                            val context = handler.context
+                        onClick = { context, device ->
+                            if (ancOptimizerDialog != null) return@action true
                             MaterialAlertDialogBuilder(context)
                                 .setTitle(R.string.sony_anc_optimize_confirmation_title)
                                 .setMessage(R.string.sony_anc_optimize_confirmation_description)
                                 .setIcon(R.drawable.ic_hearing)
                                 .setPositiveButton(R.string.start) { _, _ ->
-                                    handler.notifyPreferenceChanged(DeviceSettingsPreferenceConst.PREF_SONY_NOISE_OPTIMIZER_START)
-                                    ancOptimizerProgressDialog = ProgressDialog(context).apply {
-                                        setCancelable(false)
-                                        setMessage(context.getString(R.string.sony_anc_optimizer_status_starting))
-                                        setProgressStyle(ProgressDialog.STYLE_SPINNER)
-                                        progress = 0
-                                        setButton(
-                                            DialogInterface.BUTTON_NEGATIVE,
-                                            context.getString(R.string.cancel)
-                                        ) { d, _ ->
-                                            d.dismiss()
-                                            ancOptimizerProgressDialog = null
-                                            handler.notifyPreferenceChanged(DeviceSettingsPreferenceConst.PREF_SONY_NOISE_OPTIMIZER_CANCEL)
-                                        }
-                                        show()
+                                    GBApplication.deviceService(device).onSendConfiguration(DeviceSettingsPreferenceConst.PREF_SONY_NOISE_OPTIMIZER_START)
+
+                                    val density = context.resources.displayMetrics.density
+                                    val pad = (16 * density).toInt()
+                                    val messageView = TextView(context).apply {
+                                        text = context.getString(R.string.sony_anc_optimizer_status_starting)
+                                        setPadding(pad, 0, 0, 0)
                                     }
+                                    val progressView = LinearLayout(context).apply {
+                                        orientation = LinearLayout.HORIZONTAL
+                                        setPadding(pad, pad, pad, pad)
+                                        addView(ProgressBar(context).apply { isIndeterminate = true })
+                                        addView(messageView)
+                                    }
+                                    ancOptimizerMessageView = messageView
+
+                                    ancOptimizerDialog = MaterialAlertDialogBuilder(context)
+                                        .setView(progressView)
+                                        .setCancelable(false)
+                                        .setNegativeButton(context.getString(R.string.cancel)) { d, _ ->
+                                            d.dismiss()
+                                            ancOptimizerDialog = null
+                                            ancOptimizerMessageView = null
+                                            GBApplication.deviceService(device).onSendConfiguration(DeviceSettingsPreferenceConst.PREF_SONY_NOISE_OPTIMIZER_CANCEL)
+                                        }
+                                        .show()
                                 }
                                 .setNegativeButton(android.R.string.cancel, null)
                                 .show()
@@ -144,17 +155,18 @@ fun sonyHeadphonesDeviceSettings(
                         connectedOnly = false,
                         visibleWhen = { false },
                         onSharedPreferenceChanged = { value ->
-                            val dialog = ancOptimizerProgressDialog
+                            val dialog = ancOptimizerDialog
                             if (dialog != null) {
                                 try {
                                     when (val status = NoiseCancellingOptimizerStatus.valueOf(value.uppercase())) {
                                         NoiseCancellingOptimizerStatus.FINISHED,
                                         NoiseCancellingOptimizerStatus.NOT_RUNNING -> {
                                             dialog.dismiss()
-                                            ancOptimizerProgressDialog = null
+                                            ancOptimizerDialog = null
+                                            ancOptimizerMessageView = null
                                         }
 
-                                        else -> dialog.setMessage(status.i18n(dialog.context))
+                                        else -> ancOptimizerMessageView?.text = status.i18n(dialog.context)
                                     }
                                 } catch (_: IllegalArgumentException) {
                                 }
@@ -601,7 +613,12 @@ fun sonyHeadphonesDeviceSettings(
                 icon = R.drawable.ic_volume_up,
                 max = 4,
                 defaultValue = 2,
-                visibleWhen = { prefs -> prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_SONY_NOTIFICATION_VOICE_GUIDE, true) },
+                visibleWhen = { prefs ->
+                    prefs.getBoolean(
+                        DeviceSettingsPreferenceConst.PREF_SONY_NOTIFICATION_VOICE_GUIDE,
+                        true
+                    )
+                },
             )
         }
 

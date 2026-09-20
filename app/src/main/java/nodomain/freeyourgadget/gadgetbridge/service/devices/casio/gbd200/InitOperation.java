@@ -35,13 +35,14 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.AbstractBTLEOperation;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.casio.Casio2C2DSupport;
+import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
 /**
  * Full init handshake for GBD-200, following the exact protocol sequence confirmed
  * from btsnoop HCI captures. The watch only shows "connection ok" after this completes.
  *
  * Sequence:
- *  1.  Request APP_INFO (0x22) → write back APP_INFO (announces capabilities, incl. time-sync support)
+ *  1.  Request APP_INFO (0x22), write ours only if the watch has none
  *  2.  Request BLE_FEAT (0x10)
  *  3.  Write WATCH_NAME to ALL_FEAT (identity confirm)
  *  4.  Request MODULE_ID (0x26)
@@ -137,13 +138,34 @@ public class InitOperation extends AbstractBTLEOperation<CasioGBD200DeviceSuppor
 
     // ── App information ──────────────────────────────────────────────────────
 
-    private void writeAppInformation() {
-        // Announce this app's capabilities to the watch. arr[11] = 2 is required for
-        // the watch to show "Bluetooth time adjustment: supported" in its menu.
-        byte[] arr = new byte[12];
+    // What the official app writes to APP_INFO at pairing time (logs_8). The watch keeps it
+    // across connections. Last byte = capabilities, 2 = BT time adjustment supported.
+    private static final byte[] APP_INFO_TOKEN = {
+            (byte) 0xa5, (byte) 0xad, 0x64, 0x62, (byte) 0x9b,
+            (byte) 0xf8, 0x3a, (byte) 0xf2, (byte) 0x8c, (byte) 0xe6, 0x02
+    };
+
+    /** The 00 01 .. 09 02 value we used to write on every connect (copied from GBX-100). */
+    private static boolean isLegacyAppInfo(byte[] data) {
+        if (data.length < 12) return false;
+        for (int i = 0; i < 10; i++) {
+            if (data[i + 1] != (byte) i) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Leave the stored token alone: the official app writes it once at pairing and never
+     * again, and overwriting it apparently breaks the 0x48 session events.
+     */
+    private void checkAppInformation(byte[] data) {
+        if (data.length >= 12 && data[11] == 0x02 && !isLegacyAppInfo(data)) {
+            return;
+        }
+        LOG.info("APP_INFO on watch is {}, writing ours", GB.hexdump(data));
+        byte[] arr = new byte[1 + APP_INFO_TOKEN.length];
         arr[0] = Casio2C2DSupport.FEATURE_APP_INFORMATION;
-        for (int i = 0; i < 10; i++) arr[i + 1] = (byte) (i & 0xff);
-        arr[11] = 2;
+        System.arraycopy(APP_INFO_TOKEN, 0, arr, 1, APP_INFO_TOKEN.length);
         write(arr);
     }
 
@@ -226,10 +248,8 @@ public class InitOperation extends AbstractBTLEOperation<CasioGBD200DeviceSuppor
         switch (mState) {
             case S_APP_INFO:
                 if (feat == Casio2C2DSupport.FEATURE_APP_INFORMATION) {
-                    LOG.debug("Init[APP_INFO] → writing APP_INFO (capabilities), requesting BLE_FEAT");
-                    // Write back our app information so the watch knows this app supports
-                    // Bluetooth time adjustment (arr[11] = 2 is the capabilities byte).
-                    writeAppInformation();
+                    LOG.debug("Init[APP_INFO] → requesting BLE_FEAT");
+                    checkAppInformation(data);
                     mState = S_BLE_FEAT;
                     req(Casio2C2DSupport.FEATURE_BLE_FEATURES);
                 }

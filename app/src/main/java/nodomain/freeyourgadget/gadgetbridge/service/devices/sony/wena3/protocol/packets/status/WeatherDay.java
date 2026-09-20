@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.service.devices.sony.wena3.protocol.packets.status;
 
-import lineageos.weather.util.WeatherUtils;
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
 
 public class WeatherDay {
@@ -30,8 +30,8 @@ public class WeatherDay {
         this.night = night;
         // For some reason, Wena uses Farenheit on the wire, but Celsius on display...
         // Assume a middle ground input in Kelvin.
-        this.temperatureMaximum = (int) Math.round(WeatherUtils.celsiusToFahrenheit(temperatureMaximum - 273.15));
-        this.temperatureMinimum = (int) Math.round(WeatherUtils.celsiusToFahrenheit(temperatureMinimum - 273.15));
+        this.temperatureMaximum = (int) Math.round(TemperatureUtils.celsiusToFahrenheit(temperatureMaximum - 273.15));
+        this.temperatureMinimum = (int) Math.round(TemperatureUtils.celsiusToFahrenheit(temperatureMinimum - 273.15));
     }
 
     public static WeatherDay fromSpec(WeatherSpec.Daily daily) {

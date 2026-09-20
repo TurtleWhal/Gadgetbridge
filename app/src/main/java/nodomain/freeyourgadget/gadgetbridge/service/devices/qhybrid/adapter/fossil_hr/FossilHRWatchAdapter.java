@@ -62,7 +62,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import net.e175.klaus.solarpositioning.DeltaT;
 import net.e175.klaus.solarpositioning.SPA;
-import net.e175.klaus.solarpositioning.SunriseTransitSet;
+import net.e175.klaus.solarpositioning.SunriseResult;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -1076,8 +1076,7 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
 
     private void uploadFileIncludesHeader(InputStream fis) throws IOException {
         final Intent resultIntent = new Intent(QHybridSupport.QHYBRID_ACTION_UPLOADED_FILE);
-        byte[] fileData = new byte[fis.available()];
-        fis.read(fileData);
+        byte[] fileData = FileUtils.readAll(fis);
 
         short handleBytes = (short) (fileData[0] & 0xFF | ((fileData[1] & 0xFF) << 8));
         FileHandle handle = FileHandle.fromHandle(handleBytes);
@@ -1219,22 +1218,22 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
 
     @Override
     public void setMusicInfo(MusicSpec musicSpec) {
-        musicSpec = new MusicSpec(musicSpec);
-        if(musicSpec.album == null) musicSpec.album = "";
-        if(musicSpec.artist == null) musicSpec.artist = "";
-        if(musicSpec.track == null) musicSpec.track = "";
+        musicSpec = musicSpec.copyOf();
+        if(musicSpec.getAlbum() == null) musicSpec.setAlbum("");
+        if(musicSpec.getArtist() == null) musicSpec.setArtist("");
+        if(musicSpec.getTrack() == null) musicSpec.setTrack("");
         if (
                 currentSpec != null
-                        && currentSpec.album.equals(musicSpec.album)
-                        && currentSpec.artist.equals(musicSpec.artist)
-                        && currentSpec.track.equals(musicSpec.track)
+                        && currentSpec.getAlbum().equals(musicSpec.getAlbum())
+                        && currentSpec.getArtist().equals(musicSpec.getArtist())
+                        && currentSpec.getTrack().equals(musicSpec.getTrack())
         ) return;
         currentSpec = musicSpec;
         try {
             queueWrite(new MusicInfoSetRequest(
-                    musicSpec.artist,
-                    musicSpec.album,
-                    musicSpec.track,
+                    musicSpec.getArtist(),
+                    musicSpec.getAlbum(),
+                    musicSpec.getTrack(),
                     this
             ));
         } catch (BufferOverflowException e) {
@@ -1247,7 +1246,7 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
         super.setMusicState(stateSpec);
 
         queueWrite(new MusicControlRequest(
-                stateSpec.state == MusicStateSpec.STATE_PLAYING ? MUSIC_PHONE_REQUEST.MUSIC_REQUEST_SET_PLAYING : MUSIC_PHONE_REQUEST.MUSIC_REQUEST_SET_PAUSED
+                stateSpec.getState() == MusicStateSpec.STATE_PLAYING ? MUSIC_PHONE_REQUEST.MUSIC_REQUEST_SET_PLAYING : MUSIC_PHONE_REQUEST.MUSIC_REQUEST_SET_PAUSED
         ));
     }
 
@@ -1290,11 +1289,7 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
                             // SpO2, should be empty for an unsupported device
                             ArrayList<HybridHRSpo2Sample> spo2Samples = parser.getSpo2Samples();
                             HybridHRSpo2SampleProvider spo2Provider = new HybridHRSpo2SampleProvider(getDeviceSupport().getDevice(), dbHandler.getDaoSession());
-                            for (HybridHRSpo2Sample sample : spo2Samples) {
-                                sample.setDevice(device);
-                                sample.setUser(user);
-                            }
-                            spo2Provider.addSamples(spo2Samples);
+                            spo2Provider.persistSamples(spo2Samples, getContext());
                             // Workout summaries
                             ArrayList<BaseActivitySummary> workoutSummaries = parser.getWorkoutSummaries();
                             LOG.debug("WORKOUT SUMMARIES FOUND: {}", workoutSummaries);
@@ -1362,17 +1357,17 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
     }
 
     public boolean playRawNotification(NotificationSpec notificationSpec) {
-        String sourceAppId = notificationSpec.sourceAppId;
-        String senderOrTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        String sourceAppId = notificationSpec.getSourceAppId();
+        String senderOrTitle = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
 
         // Retrieve and store notification or app icon
         if (sourceAppId != null) {
             if (appIconCache.get(sourceAppId) == null) {
                 try {
                     Drawable icon = null;
-                    if (notificationSpec.iconId != 0) {
-                        Context sourcePackageContext = getContext().createPackageContext(notificationSpec.iconPackageId, 0);
-                        icon = ResourcesCompat.getDrawable(sourcePackageContext.getResources(), notificationSpec.iconId, null);
+                    if (notificationSpec.getIconId() != 0) {
+                        Context sourcePackageContext = getContext().createPackageContext(notificationSpec.getIconPackageId(), 0);
+                        icon = ResourcesCompat.getDrawable(sourcePackageContext.getResources(), notificationSpec.getIconId(), null);
                     }
                     if (icon == null) {
                         icon = NotificationUtils.getAppIcon(getContext(), sourceAppId);
@@ -1443,13 +1438,13 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
     public void onSetCallState(CallSpec callSpec) {
         super.onSetCallState(callSpec);
         String[] quickReplies = getQuickReplies();
-        boolean quickRepliesEnabled = quickReplies.length > 0 && callSpec.number != null && callSpec.number.matches("^\\+(?:[0-9] ?){6,14}[0-9]$");
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        boolean quickRepliesEnabled = quickReplies.length > 0 && callSpec.getNumber() != null && callSpec.getNumber().matches("^\\+(?:[0-9] ?){6,14}[0-9]$");
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             currentCallSpec = callSpec;
-            queueWrite(new PlayCallNotificationRequest(StringUtils.getFirstOf(callSpec.name, callSpec.number), true, quickRepliesEnabled, callSpec.dndSuppressed, this));
+            queueWrite(new PlayCallNotificationRequest(StringUtils.getFirstOf(callSpec.getName(), callSpec.getNumber()), true, quickRepliesEnabled, callSpec.getDndSuppressed(), this));
         } else {
             currentCallSpec = null;
-            queueWrite(new PlayCallNotificationRequest(StringUtils.getFirstOf(callSpec.name, callSpec.number), false, quickRepliesEnabled, callSpec.dndSuppressed, this));
+            queueWrite(new PlayCallNotificationRequest(StringUtils.getFirstOf(callSpec.getName(), callSpec.getNumber()), false, quickRepliesEnabled, callSpec.getDndSuppressed(), this));
         }
     }
 
@@ -1514,14 +1509,16 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
                 location = new CurrentPosition().getLastKnownLocation();
             }
             final ZonedDateTime now = ZonedDateTime.now();
-            final SunriseTransitSet sunriseTransitSet = SPA.calculateSunriseTransitSet(
+            final SunriseResult sunriseResult = SPA.calculateSunriseTransitSet(
                     now,
                     location.getLatitude(),
                     location.getLongitude(),
                     DeltaT.estimate(now.toLocalDate())
             );
-            if (sunriseTransitSet.getSunrise() != null && sunriseTransitSet.getSunset() != null) {
-                isNight = sunriseTransitSet.getSunrise().isAfter(now) || sunriseTransitSet.getSunset().isBefore(now);
+            if (sunriseResult instanceof SunriseResult.RegularDay regularDay) {
+                isNight = regularDay.sunrise().isAfter(now) || regularDay.sunset().isBefore(now);
+            } else if (sunriseResult instanceof SunriseResult.AllNight) {
+                isNight = true;
             }
         }
 
@@ -2134,7 +2131,7 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
         }
         GBDeviceEventNotificationControl devEvtNotificationControl = new GBDeviceEventNotificationControl();
         devEvtNotificationControl.handle = callId;
-        devEvtNotificationControl.phoneNumber = currentCallSpec.number;
+        devEvtNotificationControl.phoneNumber = currentCallSpec.getNumber();
         devEvtNotificationControl.reply = quickReplies[replyChoice];
         devEvtNotificationControl.event = GBDeviceEventNotificationControl.Event.REPLY;
         getDeviceSupport().evaluateGBDeviceEvent(devEvtNotificationControl);
@@ -2188,10 +2185,10 @@ public class FossilHRWatchAdapter extends FossilWatchAdapter {
                     .put("push", new JSONObject()
                             .put("set", new JSONObject()
                                     .put("navigationApp._.config.info", new JSONObject()
-                                            .put("distance", navigationInfoSpec.distanceToTurn)
-                                            .put("eta", navigationInfoSpec.ETA)
-                                            .put("instruction", navigationInfoSpec.instruction)
-                                            .put("nextAction", navigationInfoSpec.nextAction)
+                                            .put("distance", navigationInfoSpec.getDistanceToTurn())
+                                            .put("eta", navigationInfoSpec.getETA())
+                                            .put("instruction", navigationInfoSpec.getInstruction())
+                                            .put("nextAction", navigationInfoSpec.getNextAction())
                                             .put("autoFg", prefs.getBoolean("fossil_hr_nav_auto_foreground", true))
                                             .put("vibrate", prefs.getBoolean("fossil_hr_nav_vibrate", true))
                                     )

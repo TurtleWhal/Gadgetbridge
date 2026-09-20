@@ -32,6 +32,9 @@ import java.util.Set;
 
 import com.google.gson.typeadapters.RuntimeTypeAdapterFactory;
 
+import nodomain.freeyourgadget.gadgetbridge.util.gson.GsonSerialized;
+
+@GsonSerialized
 public class JsonBackupPreferences {
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapterFactory(getTypeAdapterFactory())
@@ -87,20 +90,14 @@ public class JsonBackupPreferences {
 
             final String valueType = valueObject.getClass().getSimpleName();
 
-            if (BOOLEAN.equals(valueType)) {
-                values.put(key, new BooleanPreferenceValue((Boolean) valueObject));
-            } else if (FLOAT.equals(valueType)) {
-                values.put(key, new FloatPreferenceValue((Float) valueObject));
-            } else if (INTEGER.equals(valueType)) {
-                values.put(key, new IntegerPreferenceValue((Integer) valueObject));
-            } else if (LONG.equals(valueType)) {
-                values.put(key, new LongPreferenceValue((Long) valueObject));
-            } else if (STRING.equals(valueType)) {
-                values.put(key, new StringPreferenceValue((String) valueObject));
-            } else if (HASHSET.equals(valueType)) {
-                values.put(key, new StringSetPreferenceValue((HashSet) valueObject));
-            } else {
-                throw new IllegalArgumentException("Unknown preference type " + valueType);
+            switch (valueType) {
+                case BOOLEAN -> values.put(key, new BooleanPreferenceValue((Boolean) valueObject));
+                case FLOAT -> values.put(key, new FloatPreferenceValue((Float) valueObject));
+                case INTEGER -> values.put(key, new IntegerPreferenceValue((Integer) valueObject));
+                case LONG -> values.put(key, new LongPreferenceValue((Long) valueObject));
+                case STRING -> values.put(key, new StringPreferenceValue((String) valueObject));
+                case HASHSET -> values.put(key, new StringSetPreferenceValue((HashSet) valueObject));
+                default -> throw new IllegalArgumentException("Unknown preference type " + valueType);
             }
         }
 
@@ -111,6 +108,7 @@ public class JsonBackupPreferences {
         void put(final SharedPreferences.Editor editor, final String key);
     }
 
+    @GsonSerialized
     public static class BooleanPreferenceValue implements PreferenceValue {
         private final boolean value;
 
@@ -124,6 +122,7 @@ public class JsonBackupPreferences {
         }
     }
 
+    @GsonSerialized
     public static class FloatPreferenceValue implements PreferenceValue {
         private final float value;
 
@@ -137,6 +136,7 @@ public class JsonBackupPreferences {
         }
     }
 
+    @GsonSerialized
     public static class IntegerPreferenceValue implements PreferenceValue {
         private final int value;
 
@@ -150,6 +150,7 @@ public class JsonBackupPreferences {
         }
     }
 
+    @GsonSerialized
     public static class LongPreferenceValue implements PreferenceValue {
         private final long value;
 
@@ -163,6 +164,7 @@ public class JsonBackupPreferences {
         }
     }
 
+    @GsonSerialized
     public static class StringPreferenceValue implements PreferenceValue {
         private final String value;
 
@@ -176,6 +178,7 @@ public class JsonBackupPreferences {
         }
     }
 
+    @GsonSerialized
     public static class StringSetPreferenceValue implements PreferenceValue {
         private final Set<String> value;
 

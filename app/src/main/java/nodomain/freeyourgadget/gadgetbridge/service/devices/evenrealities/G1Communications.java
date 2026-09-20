@@ -792,17 +792,17 @@ public class G1Communications {
                 notificationJson.put("msg_id", notificationSpec.getId());
                 notificationJson.put("action", 0);
                 notificationJson.put("app_identifier",
-                                     notificationSpec.sourceAppId.substring(
-                                             0,Math.min(notificationSpec.sourceAppId.length(), 31)));
-                if (notificationSpec.title != null)
-                    notificationJson.put("title", notificationSpec.title);
-                if (notificationSpec.subject != null)
-                    notificationJson.put("subtitle", notificationSpec.subject);
-                if (notificationSpec.body != null)
-                    notificationJson.put("message", notificationSpec.body);
-                notificationJson.put("time_s", notificationSpec.when / 1000);
-                notificationJson.put("date", new Date(notificationSpec.when).toString());
-                notificationJson.put("display_name", notificationSpec.sourceName);
+                                     notificationSpec.getSourceAppId().substring(
+                                             0,Math.min(notificationSpec.getSourceAppId().length(), 31)));
+                if (notificationSpec.getTitle() != null)
+                    notificationJson.put("title", notificationSpec.getTitle());
+                if (notificationSpec.getSubject() != null)
+                    notificationJson.put("subtitle", notificationSpec.getSubject());
+                if (notificationSpec.getBody() != null)
+                    notificationJson.put("message", notificationSpec.getBody());
+                notificationJson.put("time_s", notificationSpec.getWhen() / 1000);
+                notificationJson.put("date", new Date(notificationSpec.getWhen()).toString());
+                notificationJson.put("display_name", notificationSpec.getSourceName());
 
                 JSONObject json = new JSONObject();
                 json.put("ncs_notification", notificationJson);

@@ -442,6 +442,49 @@ public class GB {
     }
 
     /**
+     * A hexdump that is only produced if it is written. Pass it to a log statement in place of
+     * {@link #hexdump(byte[])}: slf4j resolves an argument by calling {@code toString()} on it, and
+     * only does so once it knows the statement passes the level in effect.
+     * <p>
+     * This is the form to reach for when a single argument is the expensive part of a statement.
+     * An {@code isDebugEnabled()} block is for when there is more to skip than one argument: two or
+     * more costly arguments, a loop, or a value built up only to be logged.
+     */
+    @NonNull
+    public static Object lazyHexdump(@Nullable final byte[] buffer) {
+        return new LazyHexdump(buffer, 0, -1);
+    }
+
+    /**
+     * @see #lazyHexdump(byte[])
+     */
+    @NonNull
+    public static Object lazyHexdump(@Nullable final byte[] buffer, final int offset, final int length) {
+        return new LazyHexdump(buffer, offset, length);
+    }
+
+    private static final class LazyHexdump {
+        private final byte[] buffer;
+        private final int offset;
+        private final int length;
+
+        LazyHexdump(@Nullable final byte[] buffer, final int offset, final int length) {
+            this.buffer = buffer;
+            this.offset = offset;
+            this.length = length;
+        }
+
+        @NonNull
+        @Override
+        public String toString() {
+            if (buffer == null) {
+                return "(null)";
+            }
+            return hexdump(buffer, offset, length);
+        }
+    }
+
+    /**
      * https://stackoverflow.com/a/140861/4636860
      */
     public static byte[] hexStringToByteArray(CharSequence s) {

@@ -12,14 +12,16 @@ import com.github.mikephil.charting.highlight.Highlight;
 import com.github.mikephil.charting.interfaces.datasets.IBarLineScatterCandleBubbleDataSet;
 import com.github.mikephil.charting.utils.MPPointF;
 
-import java.util.List;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
 
 public class ValueMarker extends MarkerView {
-    private TextView markerContent;
-    private List<ValueFormatter> valueFormatters;
-    private List<String> valueUnits;
+    private final TextView markerContent;
+    private Map<String, ValueFormatter> valueFormatters;
+    private Map<String, String> valueUnits;
     private CombinedData lineData;
 
     public ValueMarker(Context context) {
@@ -27,7 +29,7 @@ public class ValueMarker extends MarkerView {
         this.markerContent = findViewById(R.id.marker_content);
     }
 
-    public ValueMarker(Context context, CombinedData lineData, List<ValueFormatter> valueFormatters, List<String> valueUnits) {
+    public ValueMarker(Context context, CombinedData lineData, Map<String, ValueFormatter> valueFormatters, Map<String, String> valueUnits) {
         super(context, R.layout.value_marker);
         this.markerContent = findViewById(R.id.marker_content);
         this.valueFormatters = valueFormatters;
@@ -38,24 +40,36 @@ public class ValueMarker extends MarkerView {
     @Override
     public void refreshContent(Entry e, Highlight highlight) {
         float xVal = e.getX();
-        StringBuilder content = new StringBuilder();
+        final StringBuilder content = new StringBuilder();
+        // A metric split into several gapped segments contributes multiple datasets sharing one
+        // label - only the segment that actually covers xVal will have a matching entry.
+        final Set<String> reportedLabels = new HashSet<>();
         for (int i = 0; i < lineData.getDataSetCount(); i++) {
-            IBarLineScatterCandleBubbleDataSet dataSet = lineData.getDataSetByIndex(i);
+            final IBarLineScatterCandleBubbleDataSet<?> dataSet = lineData.getDataSetByIndex(i);
             if (dataSet == null || !dataSet.isVisible()) {
+                continue;
+            }
+            final String label = dataSet.getLabel();
+            if (label != null && reportedLabels.contains(label)) {
                 continue;
             }
             Entry entryForX = dataSet.getEntryForXValue(xVal, Float.NaN);
             if (entryForX != null) {
-                if (valueFormatters.get(i) != null) {
-                    content.append(valueFormatters.get(i).getFormattedValue(entryForX.getY()));
+                final ValueFormatter formatter = valueFormatters.get(label);
+                if (formatter != null) {
+                    content.append(formatter.getFormattedValue(entryForX.getY()));
                 } else {
                     content.append(entryForX.getY());
                 }
-                if (valueUnits.get(i) != null) {
+                final String unit = valueUnits.get(label);
+                if (unit != null) {
                     content.append(" ");
-                    content.append(valueUnits.get(i));
+                    content.append(unit);
                 }
                 content.append("\n");
+                if (label != null) {
+                    reportedLabels.add(label);
+                }
             }
         }
         markerContent.setText(content.toString().trim());
@@ -88,4 +102,3 @@ public class ValueMarker extends MarkerView {
     }
 
 }
-

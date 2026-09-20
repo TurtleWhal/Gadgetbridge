@@ -206,39 +206,39 @@ public class DebugActivity extends AbstractGBActivity {
             public void onClick(View v) {
                 NotificationSpec notificationSpec = new NotificationSpec();
                 String testString = editContent.getText().toString();
-                notificationSpec.phoneNumber = testString;
-                notificationSpec.body = testString;
-                notificationSpec.sender = testString;
-                notificationSpec.subject = testString;
-                if (notificationSpec.type != NotificationType.GENERIC_SMS) {
+                notificationSpec.setPhoneNumber(testString);
+                notificationSpec.setBody(testString);
+                notificationSpec.setSender(testString);
+                notificationSpec.setSubject(testString);
+                if (notificationSpec.getType() != NotificationType.GENERIC_SMS) {
                     // SMS notifications don't have a source app ID when sent by the SMSReceiver,
                     // so let's not set it here as well for consistency
-                    notificationSpec.sourceAppId = BuildConfig.APPLICATION_ID;
+                    notificationSpec.setSourceAppId(BuildConfig.APPLICATION_ID);
                 }
-                notificationSpec.sourceName = getApplicationContext().getApplicationInfo()
+                notificationSpec.setSourceName(getApplicationContext().getApplicationInfo()
                         .loadLabel(getApplicationContext().getPackageManager())
-                        .toString();
-                notificationSpec.type = NotificationType.sortedValues()[sendTypeSpinner.getSelectedItemPosition()];
-                notificationSpec.attachedActions = new ArrayList<>();
+                        .toString());
+                notificationSpec.setType(NotificationType.sortedValues()[sendTypeSpinner.getSelectedItemPosition()]);
+                notificationSpec.setAttachedActions(new ArrayList<>());
 
                 // DISMISS action
                 NotificationSpec.Action dismissAction = new NotificationSpec.Action();
-                dismissAction.title = getString(R.string.dismiss);
-                dismissAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_DISMISS;
-                notificationSpec.attachedActions.add(dismissAction);
+                dismissAction.setTitle(getString(R.string.dismiss));
+                dismissAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_DISMISS);
+                notificationSpec.getAttachedActions().add(dismissAction);
 
-                if (notificationSpec.type == NotificationType.GENERIC_SMS) {
+                if (notificationSpec.getType() == NotificationType.GENERIC_SMS) {
                     // REPLY action
                     NotificationSpec.Action replyAction = new NotificationSpec.Action();
-                    replyAction.title = getString(R.string._pebble_watch_reply);
-                    replyAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_REPLY_PHONENR;
-                    notificationSpec.attachedActions.add(replyAction);
-                } else if ("generic_chat".equals(notificationSpec.type.getGenericType())) {
+                    replyAction.setTitle(getString(R.string._pebble_watch_reply));
+                    replyAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_REPLY_PHONENR);
+                    notificationSpec.getAttachedActions().add(replyAction);
+                } else if ("generic_chat".equals(notificationSpec.getType().getGenericType())) {
                     // REPLY action
                     NotificationSpec.Action replyAction = new NotificationSpec.Action();
-                    replyAction.title = getString(R.string._pebble_watch_reply);
-                    replyAction.type = NotificationSpec.Action.TYPE_WEARABLE_REPLY;
-                    notificationSpec.attachedActions.add(replyAction);
+                    replyAction.setTitle(getString(R.string._pebble_watch_reply));
+                    replyAction.setType(NotificationSpec.Action.TYPE_WEARABLE_REPLY);
+                    notificationSpec.getAttachedActions().add(replyAction);
                 }
 
                 GBApplication.deviceService().onNotification(notificationSpec);
@@ -271,8 +271,8 @@ public class DebugActivity extends AbstractGBActivity {
             @Override
             public void onClick(View v) {
                 CallSpec callSpec = new CallSpec();
-                callSpec.command = CallSpec.CALL_INCOMING;
-                callSpec.number = editContent.getText().toString();
+                callSpec.setCommand(CallSpec.CALL_INCOMING);
+                callSpec.setNumber(editContent.getText().toString());
                 GBApplication.deviceService().onSetCallState(callSpec);
             }
         });
@@ -281,8 +281,8 @@ public class DebugActivity extends AbstractGBActivity {
             @Override
             public void onClick(View v) {
                 CallSpec callSpec = new CallSpec();
-                callSpec.command = CallSpec.CALL_OUTGOING;
-                callSpec.number = editContent.getText().toString();
+                callSpec.setCommand(CallSpec.CALL_OUTGOING);
+                callSpec.setNumber(editContent.getText().toString());
                 GBApplication.deviceService().onSetCallState(callSpec);
             }
         });
@@ -292,7 +292,7 @@ public class DebugActivity extends AbstractGBActivity {
             @Override
             public void onClick(View v) {
                 CallSpec callSpec = new CallSpec();
-                callSpec.command = CallSpec.CALL_START;
+                callSpec.setCommand(CallSpec.CALL_START);
                 GBApplication.deviceService().onSetCallState(callSpec);
             }
         });
@@ -301,7 +301,7 @@ public class DebugActivity extends AbstractGBActivity {
             @Override
             public void onClick(View v) {
                 CallSpec callSpec = new CallSpec();
-                callSpec.command = CallSpec.CALL_END;
+                callSpec.setCommand(CallSpec.CALL_END);
                 GBApplication.deviceService().onSetCallState(callSpec);
             }
         });
@@ -320,7 +320,7 @@ public class DebugActivity extends AbstractGBActivity {
         rebootButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                GBApplication.deviceService().onReset(GBDeviceProtocol.RESET_FLAGS_REBOOT);
+                GBApplication.deviceService().onReboot();
             }
         });
 
@@ -335,7 +335,7 @@ public class DebugActivity extends AbstractGBActivity {
                         .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                GBApplication.deviceService().onReset(GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET);
+                                GBApplication.deviceService().onFactoryReset();
                             }
                         })
                         .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
@@ -467,21 +467,21 @@ public class DebugActivity extends AbstractGBActivity {
             public void onClick(View v) {
                 MusicSpec musicSpec = new MusicSpec();
                 String testString = editContent.getText().toString();
-                musicSpec.artist = testString + "(artist)";
-                musicSpec.album = testString + "(album)";
-                musicSpec.track = testString + "(track)";
-                musicSpec.duration = 10;
-                musicSpec.trackCount = 5;
-                musicSpec.trackNr = 2;
+                musicSpec.setArtist(testString + "(artist)");
+                musicSpec.setAlbum(testString + "(album)");
+                musicSpec.setTrack(testString + "(track)");
+                musicSpec.setDuration(10);
+                musicSpec.setTrackCount(5);
+                musicSpec.setTrackNr(2);
 
                 GBApplication.deviceService().onSetMusicInfo(musicSpec);
 
                 MusicStateSpec stateSpec = new MusicStateSpec();
-                stateSpec.position = 0;
-                stateSpec.state = 0x01; // playing
-                stateSpec.playRate = 100;
-                stateSpec.repeat = 1;
-                stateSpec.shuffle = 1;
+                stateSpec.setPosition(0);
+                stateSpec.setState((byte) 0x01); // playing
+                stateSpec.setPlayRate(100);
+                stateSpec.setRepeat((byte) 1);
+                stateSpec.setShuffle((byte) 1);
 
                 GBApplication.deviceService().onSetMusicState(stateSpec);
             }

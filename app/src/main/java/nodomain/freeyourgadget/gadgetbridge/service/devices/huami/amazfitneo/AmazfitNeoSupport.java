@@ -158,10 +158,10 @@ public class AmazfitNeoSupport extends MiBand5Support {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.name != null)
-            if (callSpec.name.length() > 7) //if char 0 is number, +, ( or ) and char 1 is a number it renders in bold scrolling font with letters stripped, else it renders in thin font and displays 'incoming call' if the lengh is > 7
-                if (!((Character.isDigit(callSpec.name.charAt(0)) || callSpec.name.charAt(0) == '+' || callSpec.name.charAt(0) == '(' || callSpec.name.charAt(0) == ')') && Character.isDigit(callSpec.name.charAt(1))))
-                    callSpec.name = callSpec.name.substring(0, 7);
+        if (callSpec.getName() != null)
+            if (callSpec.getName().length() > 7) //if char 0 is number, +, ( or ) and char 1 is a number it renders in bold scrolling font with letters stripped, else it renders in thin font and displays 'incoming call' if the lengh is > 7
+                if (!((Character.isDigit(callSpec.getName().charAt(0)) || callSpec.getName().charAt(0) == '+' || callSpec.getName().charAt(0) == '(' || callSpec.getName().charAt(0) == ')') && Character.isDigit(callSpec.getName().charAt(1))))
+                    callSpec.setName(callSpec.getName().substring(0, 7));
         super.onSetCallState(callSpec);
     }
 

@@ -138,7 +138,7 @@ public class GenericThermalPrinterSupport extends AbstractBTLESingleDeviceSuppor
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        if(notificationSpec.type.equals(NotificationType.GADGETBRIDGE_TEXT_RECEIVER)) {
+        if(notificationSpec.getType().equals(NotificationType.GADGETBRIDGE_TEXT_RECEIVER)) {
             final SharedPreferences prefs = GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress());
             if(!prefs.getBoolean("pref_printer_print_received_text", true)) {
                 LOG.info("Not printing received text, device preference forbids this.");
@@ -148,7 +148,7 @@ public class GenericThermalPrinterSupport extends AbstractBTLESingleDeviceSuppor
             //title is appName
             //body is the shared text
             // see TextReceiverActivity.java
-            printImage(createBitmapFromString(notificationSpec.body), false, PrintAlignment.ALIGN_LEFT);
+            printImage(createBitmapFromString(notificationSpec.getBody()), false, PrintAlignment.ALIGN_LEFT);
         }
 //        printImage(createNotificationBitmap(notificationSpec), true, PrintAlignment.ALIGN_LEFT);
     }
@@ -156,17 +156,17 @@ public class GenericThermalPrinterSupport extends AbstractBTLESingleDeviceSuppor
     public Bitmap createNotificationBitmap(NotificationSpec spec) {
 
         StringBuilder textBuilder = new StringBuilder();
-        if (spec.sender != null) {
-            textBuilder.append("Sender: ").append(spec.sender).append("\n");
+        if (spec.getSender() != null) {
+            textBuilder.append("Sender: ").append(spec.getSender()).append("\n");
         }
-        if (spec.title != null) {
-            textBuilder.append("Title: ").append(spec.title).append("\n");
+        if (spec.getTitle() != null) {
+            textBuilder.append("Title: ").append(spec.getTitle()).append("\n");
         }
-        if (spec.subject != null) {
-            textBuilder.append("Subject: ").append(spec.subject).append("\n\n");
+        if (spec.getSubject() != null) {
+            textBuilder.append("Subject: ").append(spec.getSubject()).append("\n\n");
         }
-        if (spec.body != null) {
-            textBuilder.append(spec.body);
+        if (spec.getBody() != null) {
+            textBuilder.append(spec.getBody());
         }
 
         return createBitmapFromString(textBuilder.toString());

@@ -4,7 +4,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    android:fitsSystemWindows="true"
     tools:context="nodomain.freeyourgadget.gadgetbridge.activities.ConfigureWorldClocks">
 
     <androidx.recyclerview.widget.RecyclerView
@@ -21,6 +20,7 @@
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignParentEnd="true"
+        android:contentDescription="@string/add_world_clock"
         android:layout_gravity="bottom|end"
         app:srcCompat="@drawable/ic_add"
         android:layout_margin="16dp" />

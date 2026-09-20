@@ -24,6 +24,7 @@ import android.text.InputFilter
 import android.text.InputFilter.LengthFilter
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
+import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceGroup
@@ -31,11 +32,12 @@ import androidx.preference.SeekBarPreference
 import androidx.preference.SwitchPreferenceCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import nodomain.freeyourgadget.gadgetbridge.R
-import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsHandler
+import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.SettingsRenderHost
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.GBSimpleSummaryProvider
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import kotlin.math.roundToInt
 
 /**
  * Handle returned by [DeviceSettingRenderer.render]. Call [run] to refresh visibility and dynamic
@@ -68,10 +70,11 @@ object DeviceSettingRenderer {
         items: List<DeviceSetting>,
         parent: PreferenceGroup,
         prefs: Prefs,
-        handler: DeviceSpecificSettingsHandler,
+        handler: SettingsRenderHost,
     ): DeviceSettingsRefreshHandle {
         val visibilityPairs = mutableListOf<Pair<Preference, (Prefs) -> Boolean>>()
         val dynamicEntryPairs = mutableListOf<Pair<ListPreference, (Prefs) -> List<ListEntry>>>()
+        val dynamicMultiEntryPairs = mutableListOf<Pair<MultiSelectListPreference, (Prefs) -> List<ListEntry>>>()
         val categoryMemberPairs = mutableListOf<Pair<PreferenceCategory, MutableList<Preference>>>()
         val spListeners = mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
         val mainHandler = Handler(Looper.getMainLooper())
@@ -84,6 +87,9 @@ object DeviceSettingRenderer {
             val context = handler.context
             visibilityPairs.forEach { (pref, predicate) -> pref.isVisible = predicate(livePrefs) }
             dynamicEntryPairs.forEach { (pref, provider) ->
+                applyEntries(pref, provider(livePrefs), context)
+            }
+            dynamicMultiEntryPairs.forEach { (pref, provider) ->
                 applyEntries(pref, provider(livePrefs), context)
             }
             categoryMemberPairs.forEach { (cat, members) ->
@@ -104,6 +110,7 @@ object DeviceSettingRenderer {
             handler,
             visibilityPairs,
             dynamicEntryPairs,
+            dynamicMultiEntryPairs,
             categoryMemberPairs,
             spListeners,
             mainHandler,
@@ -130,13 +137,39 @@ object DeviceSettingRenderer {
         pref.entryValues = entries.map { it.value }.toTypedArray()
     }
 
+    private fun applyEntries(pref: MultiSelectListPreference, entries: List<ListEntry>, context: Context) {
+        pref.entries = entries.map { entry ->
+            when (entry) {
+                is ListEntry.Res -> context.getString(entry.label)
+                is ListEntry.Text -> entry.label
+            }
+        }.toTypedArray()
+        pref.entryValues = entries.map { it.value }.toTypedArray()
+    }
+
+    /**
+     * Summary provider used by [MultiSelectSetting] when no static [MultiSelectSetting.summary] is given:
+     * a comma-delimited list of the currently selected entries' labels, matching [ListPreference.SimpleSummaryProvider]'s
+     * behavior for single-select lists.
+     */
+    private fun multiSelectCommaSummaryProvider(context: Context) =
+        Preference.SummaryProvider<MultiSelectListPreference> { pref ->
+            val entries = pref.entries.orEmpty()
+            val entryValues = pref.entryValues.orEmpty()
+            val selected = entryValues.indices
+                .filter { entryValues[it].toString() in pref.values }
+                .map { entries[it] }
+            if (selected.isEmpty()) context.getString(R.string.not_set) else selected.joinToString(", ")
+        }
+
     private fun renderItems(
         items: List<DeviceSetting>,
         parent: PreferenceGroup,
         prefs: Prefs,
-        handler: DeviceSpecificSettingsHandler,
+        handler: SettingsRenderHost,
         visibilityPairs: MutableList<Pair<Preference, (Prefs) -> Boolean>>,
         dynamicEntryPairs: MutableList<Pair<ListPreference, (Prefs) -> List<ListEntry>>>,
+        dynamicMultiEntryPairs: MutableList<Pair<MultiSelectListPreference, (Prefs) -> List<ListEntry>>>,
         categoryMemberPairs: MutableList<Pair<PreferenceCategory, MutableList<Preference>>>,
         spListeners: MutableList<SharedPreferences.OnSharedPreferenceChangeListener>,
         mainHandler: Handler,
@@ -164,6 +197,7 @@ object DeviceSettingRenderer {
                         handler,
                         visibilityPairs,
                         dynamicEntryPairs,
+                        dynamicMultiEntryPairs,
                         categoryMemberPairs,
                         spListeners,
                         mainHandler,
@@ -195,6 +229,7 @@ object DeviceSettingRenderer {
                         handler,
                         visibilityPairs,
                         dynamicEntryPairs,
+                        dynamicMultiEntryPairs,
                         categoryMemberPairs,
                         spListeners,
                         mainHandler,
@@ -279,20 +314,90 @@ object DeviceSettingRenderer {
                     }
                 }
 
-                is SeekBarSetting -> {
-                    SeekBarPreference(context).apply {
+                is MultiSelectSetting -> {
+                    MultiSelectListPreference(context).apply {
                         key = setting.key
                         setTitle(setting.title)
-                        if (setting.summary != 0) setSummary(setting.summary)
+                        setDialogTitle(setting.title)
                         if (setting.icon != 0) setIcon(setting.icon)
-                        // TODO: Not supported by our sdk version: min = setting.min
-                        max = setting.max
+                        if (setting.entriesProvider != null) {
+                            applyEntries(this, setting.entriesProvider.invoke(prefs), context)
+                            dynamicMultiEntryPairs.add(this to setting.entriesProvider)
+                        } else {
+                            applyEntries(this, setting.entries, context)
+                        }
                         setDefaultValue(setting.defaultValue)
-                        showSeekBarValue = setting.showValue
+                        if (setting.summary != 0) {
+                            setSummary(setting.summary)
+                        } else {
+                            summaryProvider = multiSelectCommaSummaryProvider(context)
+                        }
                         setOnPreferenceChangeListener { _, _ ->
                             handler.notifyPreferenceChanged(setting.key)
                             postRefresh()
                             true
+                        }
+                    }
+                }
+
+                is SeekBarSetting -> {
+                    object: SeekBarPreference(context){
+                        override fun onSetInitialValue(defaultValue: Any?) {
+                            super.onSetInitialValue(defaultValue)
+                            if (setting.valueFormat != 0) {
+                                summary = context.getString(setting.valueFormat, value * setting.scale)
+                            }
+                        }
+                    }.apply {
+                        key = setting.key
+                        setTitle(setting.title)
+                        if (setting.summary != 0) setSummary(setting.summary)
+                        if (setting.icon != 0) setIcon(setting.icon)
+                        max = setting.max
+                        min = setting.min
+                        setDefaultValue(setting.defaultValue)
+                        showSeekBarValue = setting.showValue
+                        seekBarIncrement = setting.step
+
+                        setOnPreferenceChangeListener { pref, newValue ->
+                            val raw = newValue as Int
+                            val step = setting.step
+                            val snapped = if (step > 1) {
+                                setting.min + ((raw - setting.min).toDouble() / step).roundToInt() * step
+                            } else {
+                                raw
+                            }
+
+                            if (setting.valueFormat != 0) {
+                                summary = context.getString(setting.valueFormat, snapped * setting.scale)
+                            }
+
+                            handler.notifyPreferenceChanged(setting.key)
+                            postRefresh()
+
+                            if (snapped != raw) {
+                                (pref as SeekBarPreference).value = snapped
+                                false
+                            } else {
+                                true
+                            }
+                        }
+
+                        if (setting.onSharedPreferenceChanged != null) {
+                            val listener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, changedKey ->
+                                if (changedKey == setting.key) {
+                                    val newValue = sharedPrefs.getInt(changedKey, setting.defaultValue)
+                                    mainHandler.post {
+                                        value = newValue
+                                        if (setting.valueFormat != 0) {
+                                            summary = context.getString(setting.valueFormat, newValue * setting.scale)
+                                        }
+                                        setting.onSharedPreferenceChanged.invoke(newValue)
+                                    }
+                                }
+                            }
+                            spListeners.add(listener)
+                            sp.registerOnSharedPreferenceChangeListener(listener)
                         }
                     }
                 }
@@ -356,7 +461,7 @@ object DeviceSettingRenderer {
                                     .setTitle(preference.title)
                                     .setMessage(setting.confirmationMessage)
                                     .setPositiveButton(R.string.ok) { _, _ ->
-                                        setting.onClick?.invoke(handler)
+                                        setting.onClick?.invoke(handler.context, handler.device)
                                     }
                                     .setNegativeButton(R.string.cancel) { dialog, _ -> dialog.dismiss() }
                                     .show()
@@ -364,7 +469,7 @@ object DeviceSettingRenderer {
                             }
                         } else {
                             setOnPreferenceClickListener {
-                                setting.onClick?.invoke(handler) ?: false
+                                setting.onClick?.invoke(handler.context, handler.device) ?: false
                             }
                         }
                     }
@@ -405,6 +510,7 @@ object DeviceSettingRenderer {
             val dependency: String? = when (setting) {
                 is SwitchSetting -> setting.dependency
                 is ListSetting -> setting.dependency
+                is MultiSelectSetting -> setting.dependency
                 is SeekBarSetting -> setting.dependency
                 is TextSetting -> setting.dependency
                 is ActionSetting -> setting.dependency

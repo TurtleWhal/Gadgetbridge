@@ -20,6 +20,7 @@ package nodomain.freeyourgadget.gadgetbridge.service.devices.huawei.requests;
 import android.content.SharedPreferences;
 
 import java.util.List;
+import java.util.Locale;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
@@ -45,7 +46,7 @@ public class SetAudioModeRequest extends Request {
         }
 
         public static AudioMode fromPreferences(final SharedPreferences prefs) {
-            return AudioMode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_HUAWEI_FREEBUDS_AUDIOMODE, OFF.name().toLowerCase()).toUpperCase());
+            return AudioMode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_HUAWEI_FREEBUDS_AUDIOMODE, OFF.name().toLowerCase(Locale.ROOT)).toUpperCase(Locale.ROOT));
         }
     }
 

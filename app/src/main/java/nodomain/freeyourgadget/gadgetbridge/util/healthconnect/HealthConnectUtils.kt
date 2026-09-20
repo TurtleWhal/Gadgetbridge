@@ -24,11 +24,10 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.*
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
-import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nodomain.freeyourgadget.gadgetbridge.GBApplication
 import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler
@@ -129,19 +128,17 @@ class HealthConnectUtils {
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
-    fun healthConnectDataSync(
+    suspend fun healthConnectDataSync(
         context: Context,
         healthConnectClient: HealthConnectClient,
         summaryCallback: BiConsumer<String, Boolean>?,
-        onFinished: Runnable?,
         worker: androidx.work.CoroutineWorker? = null,  // Optional worker to check for cancellation
         deviceAddress: String? = null  // Optional specific device address to sync
     ) {
         val mainHandler = Handler(Looper.getMainLooper())
         updateSyncStatus(context.getString(R.string.health_connect_syncing), true, summaryCallback, mainHandler)
 
-        GlobalScope.launch(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             try {
                 val prefs = GBApplication.getPrefs()
                 val grantedPermissions = prefs.preferences.getStringSet(PREF_KEY_LAST_GRANTED_HC_PERMISSIONS, emptySet()) ?: emptySet()
@@ -212,6 +209,8 @@ class HealthConnectUtils {
                         )
                     }
                 }
+            } catch (c: CancellationException) {
+                throw c
             } catch (t: Throwable) {
                 LOG.error("Critical error during healthConnectDataSync for Health Connect", t)
                 updateSyncStatus(
@@ -221,8 +220,6 @@ class HealthConnectUtils {
                     mainHandler
                 )
                  // The overall process is considered failed if an exception occurs here
-            } finally {
-                onFinished?.run()
             }
         }
     }
@@ -561,10 +558,6 @@ class HealthConnectUtils {
         ): Pair<Instant, Instant>? {
             return GBApplication.acquireDbReadOnly().use { db ->
                 val deviceFromDb = DBHelper.getDevice(gbDevice, db.daoSession)
-                if (deviceFromDb == null) {
-                    CompanionLogger.error("$HC_SYNC_TAG Device not found in database for address: {}", gbDevice.address)
-                    return@use null
-                }
 
                 val syncStateDao = db.daoSession.healthConnectSyncStateDao
                 if (syncStateDao == null) {
@@ -728,7 +721,7 @@ class HealthConnectUtils {
 
         private fun loadSleepRows(gbDevice: GBDevice): List<SleepSessionRow> {
             return GBApplication.acquireDbReadOnly().use { db ->
-                val deviceFromDb = DBHelper.getDevice(gbDevice, db.daoSession) ?: return@use emptyList()
+                val deviceFromDb = DBHelper.getDevice(gbDevice, db.daoSession)
                 db.daoSession.healthConnectSleepSessionDao.queryBuilder()
                     .where(HealthConnectSleepSessionDao.Properties.DeviceId.eq(deviceFromDb.id))
                     .list()
@@ -744,7 +737,7 @@ class HealthConnectUtils {
 
         private fun persistSleepRows(gbDevice: GBDevice, rows: List<SleepSessionRow>) {
             GBApplication.acquireDB().use { db ->
-                val deviceFromDb = DBHelper.getDevice(gbDevice, db.daoSession) ?: return@use
+                val deviceFromDb = DBHelper.getDevice(gbDevice, db.daoSession)
                 val dao = db.daoSession.healthConnectSleepSessionDao
                 val entities = rows.map {
                     HealthConnectSleepSession(
@@ -781,7 +774,7 @@ class HealthConnectUtils {
                     provider.getFirstActivitySample(MIN_VALID_SAMPLE_SECONDS.toInt())?.timestamp?.takeIf { it > MIN_VALID_SAMPLE_SECONDS }?.let { Instant.ofEpochSecond(it.toLong()) }
                 }
                 is BaseActivitySummaryDao -> {
-                    val deviceEntity = DBHelper.getDevice(device, db.daoSession) ?: return null
+                    val deviceEntity = DBHelper.getDevice(device, db.daoSession)
                     db.daoSession.baseActivitySummaryDao?.queryBuilder()
                         ?.where(BaseActivitySummaryDao.Properties.DeviceId.eq(deviceEntity.id))
                         ?.orderAsc(BaseActivitySummaryDao.Properties.StartTime)
@@ -811,7 +804,7 @@ class HealthConnectUtils {
                     provider.latestActivitySample?.timestamp?.takeIf { it > 0 }?.let { Instant.ofEpochSecond(it.toLong()) }
                 }
                 is BaseActivitySummaryDao -> {
-                    val deviceEntity = DBHelper.getDevice(device, db.daoSession) ?: return null
+                    val deviceEntity = DBHelper.getDevice(device, db.daoSession)
                     return db.daoSession.baseActivitySummaryDao?.queryBuilder()
                         ?.where(BaseActivitySummaryDao.Properties.DeviceId.eq(deviceEntity.id))
                         ?.orderDesc(BaseActivitySummaryDao.Properties.EndTime)

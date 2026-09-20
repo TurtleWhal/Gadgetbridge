@@ -36,6 +36,18 @@ public class GarminForerunner630Coordinator extends GarminWatchCoordinator {
     }
 
     @Override
+    public boolean supportsManualHeartRateMeasurement(@NonNull final GBDevice device) {
+        // Does not have an HR sensor. We keep supportsHeartRateMeasurement as true since
+        // it still supports pairing with HR straps.
+        return false;
+    }
+
+    @Override
+    public boolean supportsStressMeasurement(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
     public boolean supportsTrainingLoad(@NonNull final GBDevice device) {
         return false;
     }
@@ -57,6 +69,11 @@ public class GarminForerunner630Coordinator extends GarminWatchCoordinator {
 
     @Override
     public boolean supportsRespiratoryRate(@NonNull final GBDevice device) {
+        return false;
+    }
+
+    @Override
+    public boolean supportsHrvMeasurement(@NonNull final GBDevice device) {
         return false;
     }
 }

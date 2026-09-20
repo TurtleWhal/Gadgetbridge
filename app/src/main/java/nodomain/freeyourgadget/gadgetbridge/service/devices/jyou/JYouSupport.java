@@ -154,9 +154,9 @@ public class JYouSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        String notificationTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        String notificationTitle = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
         byte icon;
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case GENERIC_SMS:
                 icon = JYouConstants.ICON_SMS;
                 break;
@@ -174,7 +174,7 @@ public class JYouSupport extends AbstractBTLESingleDeviceSupport {
                 icon = JYouConstants.ICON_LINE;
                 break;
         }
-        showNotification(icon, notificationTitle, notificationSpec.body);
+        showNotification(icon, notificationTitle, notificationSpec.getBody());
     }
 
     @Override
@@ -225,8 +225,8 @@ public class JYouSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if(callSpec.command == CallSpec.CALL_INCOMING) {
-            showNotification(JYouConstants.ICON_CALL, callSpec.name, callSpec.number);
+        if(callSpec.getCommand() == CallSpec.CALL_INCOMING) {
+            showNotification(JYouConstants.ICON_CALL, callSpec.getName(), callSpec.getNumber());
         }
     }
 
@@ -236,7 +236,7 @@ public class JYouSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
+    public void onReboot() {
         try {
             TransactionBuilder builder = performInitialized("Reboot");
             builder.write(ctrlCharacteristic, commandWithChecksum(

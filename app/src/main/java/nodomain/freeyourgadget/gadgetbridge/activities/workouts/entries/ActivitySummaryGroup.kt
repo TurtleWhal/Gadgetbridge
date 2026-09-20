@@ -87,6 +87,7 @@ object ActivitySummaryGroup {
                     ActivitySummaryEntries.ASCENT_METERS,
                     ActivitySummaryEntries.VITALITY_GAIN,
                     ActivitySummaryEntries.WORKOUT_LOAD,
+                    ActivitySummaryEntries.SWOLF_AVG,
                 )
             )
 
@@ -338,6 +339,12 @@ object ActivitySummaryGroup {
 
             // Pace
             put(ActivitySummaryEntries.GROUP_PACE, listOf<String>())
+
+            // Performance condition
+            put(
+                ActivitySummaryEntries.GROUP_PERFORMANCE_CONDITION, listOf<String>(
+                )
+            )
 
             // Running form
             put(

@@ -34,6 +34,7 @@ public abstract class AbstractZipBackupJob implements Runnable {
     public static final String DATABASE_FILENAME = "database/Gadgetbridge";
     public static final String PREFS_GLOBAL_FILENAME = "preferences/global.json";
     public static final String PREFS_DEVICE_FILENAME = "preferences/device_%s.json";
+    public static final String PREFS_WIDGET_FILENAME = "preferences/widget_%s.json";
     public static final String EXTERNAL_FILES_FOLDER = "files";
 
     public static final int VERSION = 1;

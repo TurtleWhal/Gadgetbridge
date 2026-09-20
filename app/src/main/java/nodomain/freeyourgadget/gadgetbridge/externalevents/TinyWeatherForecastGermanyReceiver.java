@@ -20,9 +20,10 @@ package nodomain.freeyourgadget.gadgetbridge.externalevents;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.widget.Toast;
+
+import androidx.core.os.BundleCompat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,12 +56,7 @@ public class TinyWeatherForecastGermanyReceiver extends BroadcastReceiver {
         try {
             bundle.setClassLoader(WeatherSpec.class.getClassLoader());
 
-            final WeatherSpec weatherSpec;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                weatherSpec = bundle.getParcelable("WeatherSpec", WeatherSpec.class);
-            } else {
-                weatherSpec = bundle.getParcelable("WeatherSpec");
-            }
+            final WeatherSpec weatherSpec = BundleCompat.getParcelable(bundle, "WeatherSpec", WeatherSpec.class);
 
             if (weatherSpec == null) {
                 LOG.warn("Got null WeatherSpec");

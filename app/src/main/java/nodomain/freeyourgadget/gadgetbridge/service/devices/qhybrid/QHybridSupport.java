@@ -79,7 +79,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.file.FileHan
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.DownloadFileRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.MoveHandsRequest;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.misfit.PlayNotificationRequest;
-import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -556,14 +555,14 @@ public class QHybridSupport extends QHybridBaseSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        log("notif from " + notificationSpec.sourceAppId + "  " + notificationSpec.sender + "   " + notificationSpec.phoneNumber);
+        log("notif from " + notificationSpec.getSourceAppId() + "  " + notificationSpec.getSender() + "   " + notificationSpec.getPhoneNumber());
         //new Exception().printStackTrace();
 
         if(this.watchAdapter instanceof FossilHRWatchAdapter){
             if(((FossilHRWatchAdapter) watchAdapter).playRawNotification(notificationSpec)) return;
         }
 
-        String packageName = notificationSpec.sourceName;
+        String packageName = notificationSpec.getSourceName();
 
         NotificationConfiguration config = null;
         try {
@@ -624,11 +623,8 @@ public class QHybridSupport extends QHybridBaseSupport {
     }
 
     @Override
-    public void onReset(int flags) {
-        super.onReset(flags);
-        if ((flags & GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET) != 0) {
-            this.watchAdapter.factoryReset();
-        }
+    public void onFactoryReset() {
+        this.watchAdapter.factoryReset();
     }
 
     public double calculateNotificationProgress() {

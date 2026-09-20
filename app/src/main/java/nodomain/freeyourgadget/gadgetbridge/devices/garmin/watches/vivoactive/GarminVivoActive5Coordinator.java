@@ -28,4 +28,9 @@ public class GarminVivoActive5Coordinator extends GarminWatchCoordinator {
     public boolean supportsVO2MultiSport(@NonNull GBDevice device) {
         return false;
     }
+
+    @Override
+    public boolean supportsRacePrediction(@NonNull final GBDevice device) {
+        return false;
+    }
 }

@@ -66,15 +66,15 @@ public class PebbleReceiver extends BroadcastReceiver {
         String notificationData = intent.getStringExtra("notificationData");
         try {
             JSONArray notificationJSON = new JSONArray(notificationData);
-            notificationSpec.title = notificationJSON.getJSONObject(0).getString("title");
-            notificationSpec.body = notificationJSON.getJSONObject(0).getString("body");
+            notificationSpec.setTitle(notificationJSON.getJSONObject(0).getString("title"));
+            notificationSpec.setBody(notificationJSON.getJSONObject(0).getString("body"));
         } catch (JSONException e) {
             LOG.warn("exception in onReceive", e);
             return;
         }
 
-        if (notificationSpec.title != null) {
-            notificationSpec.type = NotificationType.UNKNOWN;
+        if (notificationSpec.getTitle() != null) {
+            notificationSpec.setType(NotificationType.UNKNOWN);
             String sender = intent.getStringExtra("sender");
             if (GBApplication.getPrefs().getString("notification_list_is_blacklist", "true").equals("true")) {
                 if (GBApplication.appIsPebbleBlacklisted(sender)) {
@@ -89,10 +89,10 @@ public class PebbleReceiver extends BroadcastReceiver {
             }
 
             if ("Conversations".equals(sender)) {
-                notificationSpec.type = NotificationType.CONVERSATIONS;
+                notificationSpec.setType(NotificationType.CONVERSATIONS);
             }
             else if ("OsmAnd".equals(sender)) {
-                notificationSpec.type = NotificationType.GENERIC_NAVIGATION;
+                notificationSpec.setType(NotificationType.GENERIC_NAVIGATION);
             }
             GBApplication.deviceService().onNotification(notificationSpec);
         }

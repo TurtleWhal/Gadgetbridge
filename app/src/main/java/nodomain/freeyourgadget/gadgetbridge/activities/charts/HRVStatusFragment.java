@@ -60,7 +60,7 @@ import java.util.Optional;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
-import nodomain.freeyourgadget.gadgetbridge.activities.dashboard.DashboardHrvWidget;
+import nodomain.freeyourgadget.gadgetbridge.widgets.impl.HrvWidget;
 import nodomain.freeyourgadget.gadgetbridge.activities.dashboard.GaugeDrawer;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
@@ -446,10 +446,10 @@ public class HRVStatusFragment extends AbstractChartFragment<HRVStatusFragment.H
                 mHRVGaugeStatus.setTextColor(getResources().getColor(R.color.hrv_status_balanced));
                 break;
         }
-        float value = DashboardHrvWidget.calculateGaugeValue(today.weeklyAvg, today.baseLineLowUpper, today.baseLineBalancedLower, today.baseLineBalancedUpper);
+        final float value = HrvWidget.calculateGaugeValue(today.weeklyAvg, today.baseLineLowUpper, today.baseLineBalancedLower, today.baseLineBalancedUpper);
         final String valueText = value > 0 ? getString(R.string.hrv_status_unit, today.weeklyAvg) : getString(R.string.stats_empty_value);
         mHRVGaugeValue.setText(valueText);
-        gaugeDrawer.drawSegmentedGauge(mHRVStatusGauge, DashboardHrvWidget.getColors(), DashboardHrvWidget.getSegments(), value, false, true);
+        gaugeDrawer.drawSegmentedGauge(mHRVStatusGauge, HrvWidget.colors(requireContext()), HrvWidget.SEGMENTS, value, false, true);
     }
 
     private void updateNightlySummaryStats(final HRVStatusWeeklyData weeklyData, final HRVStatusDayData today) {

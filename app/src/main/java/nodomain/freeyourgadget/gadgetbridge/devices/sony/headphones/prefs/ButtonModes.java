@@ -67,15 +67,15 @@ public class ButtonModes {
 
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
-            put(DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_MODE_LEFT, left.name().toLowerCase(Locale.getDefault()));
-            put(DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_MODE_RIGHT, right.name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_MODE_LEFT, left.name().toLowerCase(Locale.ROOT));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_MODE_RIGHT, right.name().toLowerCase(Locale.ROOT));
         }};
     }
 
     public static ButtonModes fromPreferences(final SharedPreferences prefs) {
         return new ButtonModes(
-                Mode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_MODE_LEFT, "off").toUpperCase()),
-                Mode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_MODE_RIGHT, "off").toUpperCase())
+                Mode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_MODE_LEFT, "off").toUpperCase(Locale.ROOT)),
+                Mode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_BUTTON_MODE_RIGHT, "off").toUpperCase(Locale.ROOT))
         );
     }
 }

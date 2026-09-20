@@ -234,12 +234,12 @@ public class CalendarReceiver extends ContentObserver {
             if (syncState == EventState.NOT_SYNCED || syncState == EventState.NEEDS_UPDATE) {
                 CalendarEvent calendarEvent = es.getEvent();
                 CalendarEventSpec calendarEventSpec = new CalendarEventSpec();
-                calendarEventSpec.id = i;
-                calendarEventSpec.title = calendarEvent.getTitle();
-                calendarEventSpec.allDay = calendarEvent.isAllDay();
-                calendarEventSpec.reminders = new ArrayList<>(calendarEvent.getRemindersAbsoluteTs());
-                calendarEventSpec.timestamp = calendarEvent.getBeginSeconds();
-                calendarEventSpec.durationInSeconds = calendarEvent.getDurationSeconds(); //FIXME: leads to problems right now
+                calendarEventSpec.setId(i);
+                calendarEventSpec.setTitle(calendarEvent.getTitle());
+                calendarEventSpec.setAllDay(calendarEvent.isAllDay());
+                calendarEventSpec.setReminders(new ArrayList<>(calendarEvent.getRemindersAbsoluteTs()));
+                calendarEventSpec.setTimestamp(calendarEvent.getBeginSeconds());
+                calendarEventSpec.setDurationInSeconds(calendarEvent.getDurationSeconds()); //FIXME: leads to problems right now
                 if (calendarEvent.isAllDay()) {
                     // As per the CalendarContract, for all-day events, the start timestamp is always in UTC
                     // and corresponds to the midnight boundary
@@ -247,15 +247,15 @@ public class CalendarReceiver extends ContentObserver {
                             calendarEvent.getEnd() - calendarEvent.getBegin(),
                             TimeUnit.MILLISECONDS
                     );
-                    calendarEventSpec.durationInSeconds = 24 * 60 * 60 * numDays;
+                    calendarEventSpec.setDurationInSeconds(24 * 60 * 60 * numDays);
                 }
-                calendarEventSpec.description = calendarEvent.getDescription();
-                calendarEventSpec.location = calendarEvent.getLocation();
-                calendarEventSpec.type = CalendarEventSpec.TYPE_UNKNOWN;
-                calendarEventSpec.calName = calendarEvent.getUniqueCalName();
-                calendarEventSpec.calendarColor = calendarEvent.getCalendarColor();
-                calendarEventSpec.color = calendarEvent.getColor();
-                calendarEventSpec.attendingStatus = calendarEvent.getAttendingStatus();
+                calendarEventSpec.setDescription(calendarEvent.getDescription());
+                calendarEventSpec.setLocation(calendarEvent.getLocation());
+                calendarEventSpec.setType(CalendarEventSpec.TYPE_UNKNOWN);
+                calendarEventSpec.setCalName(calendarEvent.getUniqueCalName());
+                calendarEventSpec.setCalendarColor(calendarEvent.getCalendarColor());
+                calendarEventSpec.setColor(calendarEvent.getColor());
+                calendarEventSpec.setAttendingStatus(calendarEvent.getAttendingStatus());
                 if (syncState == EventState.NEEDS_UPDATE) {
                     GBApplication.deviceService(mGBDevice).onDeleteCalendarEvent(CalendarEventSpec.TYPE_UNKNOWN, i);
                 }

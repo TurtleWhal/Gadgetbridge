@@ -40,6 +40,9 @@ import com.github.mikephil.charting.data.CandleData;
 import com.github.mikephil.charting.data.CandleDataSet;
 import com.github.mikephil.charting.data.CandleEntry;
 import com.github.mikephil.charting.data.CombinedData;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 
 import org.slf4j.Logger;
@@ -54,6 +57,7 @@ import java.util.Locale;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.HeartRateUtils;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
 import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
@@ -74,6 +78,7 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
     private int LEGEND_TEXT_COLOR;
     private int SYSTOLIC_COLOR;
     private int DIASTOLIC_COLOR;
+    private int HEART_RATE_COLOR;
 
     private TextView mDateView;
     private TextView mSystolicLast;
@@ -110,6 +115,11 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
         CHART_TEXT_COLOR = GBApplication.getSecondaryTextColor(requireContext());
         SYSTOLIC_COLOR = ContextCompat.getColor(requireContext(), R.color.blood_pressure_systolic_color);
         DIASTOLIC_COLOR = ContextCompat.getColor(requireContext(), R.color.blood_pressure_diastolic_color);
+        if (GBApplication.getPrefs().getBoolean("chart_heartrate_color", false)) {
+            HEART_RATE_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate_alternative);
+        } else {
+            HEART_RATE_COLOR = ContextCompat.getColor(requireContext(), R.color.chart_heartrate);
+        }
     }
 
     @Override
@@ -158,6 +168,7 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
 
         final Accumulator systolicAcc = new Accumulator();
         final Accumulator diastolicAcc = new Accumulator();
+        final Accumulator heartRateAcc = new Accumulator();
 
         for (final BloodPressureSample sample : samples) {
             if (sample.getBpSystolic() > 0) {
@@ -165,6 +176,10 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
             }
             if (sample.getBpDiastolic() > 0) {
                 diastolicAcc.add(sample.getBpDiastolic());
+            }
+            final int pulseRate = BloodPressureChartFragment.getPulseRate(sample);
+            if (pulseRate > 0) {
+                heartRateAcc.add(pulseRate);
             }
         }
 
@@ -174,8 +189,9 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
         final int diastolicAvg = diastolicAcc.getCount() > 0 ? (int) Math.round(diastolicAcc.getAverage()) : DATA_INVALID;
         final int diastolicMin = diastolicAcc.getCount() > 0 ? (int) Math.round(diastolicAcc.getMin()) : DATA_INVALID;
         final int diastolicMax = diastolicAcc.getCount() > 0 ? (int) Math.round(diastolicAcc.getMax()) : DATA_INVALID;
+        final int heartRateAvg = heartRateAcc.getCount() > 0 ? (int) Math.round(heartRateAcc.getAverage()) : DATA_INVALID;
 
-        return new BloodPressureDayData(systolicAvg, systolicMin, systolicMax, diastolicAvg, diastolicMin, diastolicMax, samples.size());
+        return new BloodPressureDayData(systolicAvg, systolicMin, systolicMax, diastolicAvg, diastolicMin, diastolicMax, heartRateAvg, samples.size());
     }
 
     @Override
@@ -210,6 +226,7 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
 
         final ArrayList<CandleEntry> systolicCandleEntries = new ArrayList<>();
         final ArrayList<CandleEntry> diastolicCandleEntries = new ArrayList<>();
+        final ArrayList<Entry> heartRateEntries = new ArrayList<>();
 
         for (int i = 0; i < data.days.size(); i++) {
             final BloodPressureDayData dayData = data.days.get(i);
@@ -220,6 +237,9 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
             if (dayData.diastolicMin > 0 && dayData.diastolicMax > 0) {
                 diastolicAvgAcc.add(dayData.diastolicAvg);
                 diastolicCandleEntries.add(new CandleEntry(i, dayData.diastolicMax, dayData.diastolicMin, dayData.diastolicMin, dayData.diastolicMax));
+            }
+            if (dayData.heartRateAvg > 0) {
+                heartRateEntries.add(new Entry(i, dayData.heartRateAvg));
             }
         }
 
@@ -292,6 +312,20 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
             }
         }
 
+        // Heart rate line data
+        if (!heartRateEntries.isEmpty()) {
+            final LineDataSet heartRateDataSet = new LineDataSet(heartRateEntries, getString(R.string.heart_rate));
+            heartRateDataSet.setColor(HEART_RATE_COLOR);
+            heartRateDataSet.setCircleColor(HEART_RATE_COLOR);
+            heartRateDataSet.setDrawCircles(true);
+            heartRateDataSet.setCircleRadius(3f);
+            heartRateDataSet.setDrawCircleHole(false);
+            heartRateDataSet.setLineWidth(2.2f);
+            heartRateDataSet.setDrawValues(false);
+            heartRateDataSet.setAxisDependency(YAxis.AxisDependency.RIGHT);
+            combinedData.setData(new LineData(heartRateDataSet));
+        }
+
         mChart.setData(combinedData);
     }
 
@@ -334,6 +368,7 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
         mChart.setBackgroundColor(0xFFFFFFFF);
         mChart.getXAxis().setTextColor(0xFF000000);
         mChart.getAxisLeft().setTextColor(0xFF000000);
+        mChart.getAxisRight().setTextColor(0xFF000000);
         mChart.getAxisRight().setAxisLineColor(0xFF000000);
         mChart.getLegend().setTextColor(0xFF000000);
         mChart.invalidate();
@@ -344,6 +379,7 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
         mChart.setBackgroundColor(BACKGROUND_COLOR);
         mChart.getXAxis().setTextColor(CHART_TEXT_COLOR);
         mChart.getAxisLeft().setTextColor(CHART_TEXT_COLOR);
+        mChart.getAxisRight().setTextColor(CHART_TEXT_COLOR);
         mChart.getLegend().setTextColor(LEGEND_TEXT_COLOR);
         mChart.invalidate();
 
@@ -354,7 +390,8 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
         mChart.setBackgroundColor(BACKGROUND_COLOR);
         mChart.getDescription().setEnabled(false);
         mChart.setDrawOrder(new CombinedChart.DrawOrder[]{
-                CombinedChart.DrawOrder.CANDLE
+                CombinedChart.DrawOrder.CANDLE,
+                CombinedChart.DrawOrder.LINE
         });
 
         if (TOTAL_DAYS <= 7) {
@@ -384,17 +421,35 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
         yAxisLeft.setEnabled(true);
         yAxisLeft.setGranularity(10f);
         yAxisLeft.setGranularityEnabled(true);
+        final String unitMmHg = getString(R.string.unit_millimetre_of_mercury);
+        yAxisLeft.setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.format(Locale.ROOT, "%d " + unitMmHg, (int) value);
+            }
+        });
 
         final YAxis yAxisRight = mChart.getAxisRight();
         yAxisRight.setEnabled(true);
-        yAxisRight.setDrawLabels(false);
+        yAxisRight.setDrawLabels(true);
         yAxisRight.setDrawGridLines(false);
         yAxisRight.setDrawAxisLine(true);
+        yAxisRight.setDrawTopYLabelEntry(true);
+        yAxisRight.setTextColor(CHART_TEXT_COLOR);
+        yAxisRight.setAxisMaximum(HeartRateUtils.getInstance().getMaxHeartRate());
+        yAxisRight.setAxisMinimum(HeartRateUtils.getInstance().getMinHeartRate());
+        final String unitBpm = getString(R.string.bpm);
+        yAxisRight.setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.format(Locale.ROOT, "%d " + unitBpm, (int) value);
+            }
+        });
     }
 
     @Override
     protected void setupLegend(Chart<?> chart) {
-        List<LegendEntry> legendEntries = new ArrayList<>(2);
+        List<LegendEntry> legendEntries = new ArrayList<>(3);
 
         LegendEntry systolicEntry = new LegendEntry();
         systolicEntry.label = getString(R.string.blood_pressure_systolic);
@@ -405,6 +460,11 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
         diastolicEntry.label = getString(R.string.blood_pressure_diastolic);
         diastolicEntry.formColor = DIASTOLIC_COLOR;
         legendEntries.add(diastolicEntry);
+
+        LegendEntry heartRateEntry = new LegendEntry();
+        heartRateEntry.label = getString(R.string.heart_rate);
+        heartRateEntry.formColor = HEART_RATE_COLOR;
+        legendEntries.add(heartRateEntry);
 
         mChart.getLegend().setCustom(legendEntries);
         mChart.getLegend().setTextColor(LEGEND_TEXT_COLOR);
@@ -434,17 +494,19 @@ public class BloodPressurePeriodFragment extends AbstractChartFragment<BloodPres
         public int diastolicAvg;
         public int diastolicMin;
         public int diastolicMax;
+        public int heartRateAvg;
         public int measurementCount;
 
         protected BloodPressureDayData(int systolicAvg, int systolicMin, int systolicMax,
                                        int diastolicAvg, int diastolicMin, int diastolicMax,
-                                       int measurementCount) {
+                                       int heartRateAvg, int measurementCount) {
             this.systolicAvg = systolicAvg;
             this.systolicMin = systolicMin;
             this.systolicMax = systolicMax;
             this.diastolicAvg = diastolicAvg;
             this.diastolicMin = diastolicMin;
             this.diastolicMax = diastolicMax;
+            this.heartRateAvg = heartRateAvg;
             this.measurementCount = measurementCount;
         }
     }

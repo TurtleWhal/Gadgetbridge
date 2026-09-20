@@ -221,18 +221,19 @@ public class XiaomiBleProtocolV2 extends AbstractXiaomiBleProtocol {
             return;
         }
 
-        LOG.debug("sendCommand(): encoded command for task '{}': {}", builder.getTaskName(), GB.hexdump(command.toByteArray()));
+        final byte[] commandBytes = command.toByteArray();
+        LOG.debug("sendCommand(): encoded command for task '{}': {}", builder.getTaskName(), GB.lazyHexdump(commandBytes));
         if (command.getType() == XiaomiAuthService.COMMAND_TYPE) {
-            writeChunks(builder, encodePacket(XiaomiChannelHandler.Channel.Authentication, command.toByteArray()));
+            writeChunks(builder, encodePacket(XiaomiChannelHandler.Channel.Authentication, commandBytes));
         } else {
-            writeChunks(builder, encodePacket(XiaomiChannelHandler.Channel.ProtobufCommand, command.toByteArray()));
+            writeChunks(builder, encodePacket(XiaomiChannelHandler.Channel.ProtobufCommand, commandBytes));
         }
         // do not queue here, that's the job of the caller
     }
 
     @Override
     public void sendDataChunk(final String taskName, final byte[] chunk, @Nullable final XiaomiSendCallback callback) {
-        LOG.debug("sendDataChunk(): encoded data chunk for task '{}': {}", taskName, GB.hexdump(chunk));
+        LOG.debug("sendDataChunk(): encoded data chunk for task '{}': {}", taskName, GB.lazyHexdump(chunk));
         final TransactionBuilder builder = this.commsSupport.createTransactionBuilder("send " + taskName);
         writeChunks(builder, encodePacket(XiaomiChannelHandler.Channel.Data, chunk));
         builder.queue();

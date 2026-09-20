@@ -158,6 +158,9 @@
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
+    <uses-feature
+        android:name="android.hardware.usb.accessory"
+        android:required="false" />
 
     <application
         android:name=".GBApplication"
@@ -169,8 +172,7 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:requestLegacyExternalStorage="true"
-        android:theme="@style/GadgetbridgeTheme"
-        tools:replace="android:label">
+        android:theme="@style/GadgetbridgeTheme">
         <activity
             android:name=".activities.ControlCenterv2"
             android:label="@string/title_activity_controlcenter"
@@ -340,6 +342,10 @@
             android:name=".devices.vesc.VescControlActivity"
             android:label="@string/devicetype_vesc"
             android:parentActivityName=".activities.ControlCenterv2" />
+        <activity
+            android:name=".activities.UsbAccessoryConnectActivity"
+            android:label="@string/usb_connect_title"
+            android:launchMode="singleTop" />
         <activity
             android:name=".devices.idasen.IdasenControlActivity"
             android:label="@string/devicetype_idasen"
@@ -709,6 +715,20 @@
             <intent-filter>
                 <action android:name="nodomain.freeyourgadget.gadgetbridge.callcontrol" />
             </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".externalevents.UsbAttachReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_DETACHED" />
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_DETACHED"
+                android:resource="@xml/usb_accessory_filter" />
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/usb_accessory_filter" />
         </receiver>
         <!--
             forcing the DebugActivity to portrait mode avoids crashes with the progress
@@ -1114,6 +1134,16 @@
             android:name=".activities.dashboard.DashboardCalendarActivity"
             android:label="@string/menuitem_calendar"
             android:parentActivityName=".activities.ControlCenterv2" />
+
+        <activity
+            android:name=".activities.dashboard.DashboardWidgetsActivity"
+            android:label="@string/pref_dashboard_manage_widgets_title"
+            android:parentActivityName=".activities.DashboardPreferencesActivity" />
+
+        <activity
+            android:name=".activities.dashboard.WidgetInstanceSettingsActivity"
+            android:label="@string/pref_dashboard_widget_settings"
+            android:parentActivityName=".activities.dashboard.DashboardWidgetsActivity" />
 
         <activity
             android:name=".activities.CameraActivity"

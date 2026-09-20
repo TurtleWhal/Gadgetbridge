@@ -48,7 +48,7 @@ enum class GloryFitNotificationType(val code: Byte) {
     ;
 
     companion object {
-        fun fromNotificationType(type: NotificationType): GloryFitNotificationType {
+        fun fromNotificationType(type: NotificationType?): GloryFitNotificationType {
             when (type) {
                 NotificationType.CONVERSATIONS, NotificationType.HIPCHAT, NotificationType.KONTALK,
                 NotificationType.ANTOX, NotificationType.GENERIC_SMS, NotificationType.WECHAT,
@@ -76,7 +76,7 @@ enum class GloryFitNotificationType(val code: Byte) {
                 NotificationType.YOUTUBE -> return YOUTUBE
 
                 else -> {
-                    when (type.genericType) {
+                    when (type?.genericType) {
                         "generic_email" -> return EMAIL
                         "generic_chat" -> return WECHAT
                     }

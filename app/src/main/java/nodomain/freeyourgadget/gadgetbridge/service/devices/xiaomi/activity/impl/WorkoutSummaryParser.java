@@ -460,6 +460,9 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
             case 1:  // for Smart Band 8 Active
                 headerSize = 5;
                 break;
+            case 2: // redmi watch 3
+                headerSize = 6;
+                break;
             case 4:
                 headerSize = 7;
                 break;
@@ -504,20 +507,20 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
         builder.addByte(HR_AVG, UNIT_BPM);
         builder.addByte(HR_MAX, UNIT_BPM);
         builder.addByte(HR_MIN, UNIT_BPM);
+        builder.addUnknown(20);
+        builder.addFloat(TRAINING_EFFECT_AEROBIC, UNIT_NONE);
         if (version == 1) {
-            builder.addUnknown(33);
+            builder.addUnknown(9);
         } else {
-            builder.addUnknown(20);
-            builder.addFloat(TRAINING_EFFECT_AEROBIC, UNIT_NONE);
             builder.addUnknown(1);
             builder.addFloat(TRAINING_EFFECT_ANAEROBIC, UNIT_NONE);
             if (version >= 9) {
                 builder.addUnknown(6);
-                builder.addByte(MAXIMUM_OXYGEN_UPTAKE, UNIT_ML_KG_MIN);
-                builder.addUnknown(2);
             } else {
-                builder.addUnknown(4);
+                builder.addUnknown(1);
             }
+            builder.addByte(MAXIMUM_OXYGEN_UPTAKE, UNIT_ML_KG_MIN);
+            builder.addUnknown(2);
             builder.addShort(RECOVERY_TIME, UNIT_HOURS);
             builder.addUnknown(1);
         }
@@ -785,6 +788,9 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
             case 7:
                 headerSize = 5;
                 break;
+            case 8:
+                headerSize = 6;
+                break;
             default:
                 LOG.warn("Unable to parse rowing summary version {}", fileId.getVersion());
                 return null;
@@ -817,6 +823,13 @@ public class WorkoutSummaryParser extends XiaomiActivityParser implements Activi
         builder.addInt(HR_ZONE_AEROBIC, UNIT_SECONDS);
         builder.addInt(HR_ZONE_FAT_BURN, UNIT_SECONDS);
         builder.addInt(HR_ZONE_WARM_UP, UNIT_SECONDS);
+        if (version >= 8) {
+            // v8 inserts five bytes here. Confirmed on a rowing v8 file: without the padding
+            // the stroke fields land on nonsense (318767104 strokes), with it they read 46
+            // strokes at 18 average and 27 maximum strokes per minute, which is consistent
+            // with 46 strokes over the 147 recorded seconds.
+            builder.addUnknown(5);
+        }
         if (version >= 7) {
             // totalCal (active + basal). Decoded as 94 kcal for a workout whose
             // CALORIES_BURNT (active) = 70 kcal — diff 24 kcal over 872 s matches basal

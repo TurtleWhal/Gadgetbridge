@@ -417,7 +417,7 @@ public class HPlusSupport extends AbstractBTLESingleDeviceSupport {
     public void onNotification(NotificationSpec notificationSpec) {
         //TODO: Show different notifications according to source as Band supports this
         //LOG.info("OnNotification: Title: "+notificationSpec.title+" Body: "+notificationSpec.body+" Source: "+notificationSpec.sourceName+" Sender: "+notificationSpec.sender+" Subject: "+notificationSpec.subject);
-        showText(notificationSpec.title, notificationSpec.body);
+        showText(notificationSpec.getTitle(), notificationSpec.getBody());
     }
 
     @Override
@@ -470,9 +470,9 @@ public class HPlusSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING: {
-                showIncomingCall(callSpec.name, callSpec.number);
+                showIncomingCall(callSpec.getName(), callSpec.getNumber());
                 break;
             }
         }
@@ -501,7 +501,7 @@ public class HPlusSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
+    public void onReboot() {
         try {
             getQueue().clear();
 

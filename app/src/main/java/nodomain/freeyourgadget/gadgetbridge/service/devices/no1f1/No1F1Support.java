@@ -148,9 +148,9 @@ public class No1F1Support extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case GENERIC_SMS:
-                showNotification(No1F1Constants.NOTIFICATION_SMS, notificationSpec.phoneNumber, notificationSpec.body);
+                showNotification(No1F1Constants.NOTIFICATION_SMS, notificationSpec.getPhoneNumber(), notificationSpec.getBody());
                 setVibration(1, 3);
                 break;
             default:
@@ -220,8 +220,8 @@ public class No1F1Support extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
-            showNotification(No1F1Constants.NOTIFICATION_CALL, callSpec.name, callSpec.number);
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
+            showNotification(No1F1Constants.NOTIFICATION_CALL, callSpec.getName(), callSpec.getNumber());
             setVibration(3, 5);
         } else {
             stopNotification();

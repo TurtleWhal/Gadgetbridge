@@ -151,6 +151,9 @@ public class HuaweiP2PManager {
 
     public void handlePacket(P2P.P2PCommand.Response packet) {
         LOG.info("P2P Service message: Src: {} Dst: {} Seq: {}", packet.srcPackage, packet.dstPackage, packet.sequenceId);
+        LOG.debug("P2P Service message: cmd: {} code: {} data: {}",
+                packet.cmdId, packet.respCode,
+                packet.respData == null ? "null" : nodomain.freeyourgadget.gadgetbridge.util.GB.hexdump(packet.respData));
         if(packet.cmdId == 1) {
             String[] split = packet.dstPackage.split("\\.");
             if (split.length > 2 && split[2].equals("wakeapp")) {

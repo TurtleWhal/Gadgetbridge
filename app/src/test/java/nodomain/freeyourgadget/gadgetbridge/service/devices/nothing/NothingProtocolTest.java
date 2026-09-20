@@ -4,11 +4,12 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventUpdatePreferences;
-import nodomain.freeyourgadget.gadgetbridge.devices.nothing.NothingEqualizer;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingEqualizer;
 import nodomain.freeyourgadget.gadgetbridge.test.TestBase;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 
@@ -22,7 +23,7 @@ public class NothingProtocolTest extends TestBase {
         final GBDeviceEvent[] equalizerEvents = protocol.decodeResponse(GB.hexStringToByteArray("5560015040010060057f43"));
         final GBDeviceEventUpdatePreferences equalizerUpdate = findEvent(equalizerEvents, GBDeviceEventUpdatePreferences.class);
         Assert.assertNotNull(equalizerUpdate);
-        Assert.assertEquals(NothingEqualizer.CLASSICAL.name(), equalizerUpdate.preferences.get(DeviceSettingsPreferenceConst.PREF_HEADPHONES_EQUALIZER));
+        Assert.assertEquals(NothingEqualizer.CLASSICAL.name().toLowerCase(Locale.ROOT), equalizerUpdate.preferences.get(DeviceSettingsPreferenceConst.PREF_HEADPHONES_EQUALIZER));
 
         final GBDeviceEvent[] ultraBassEvents = protocol.decodeResponse(GB.hexStringToByteArray("5560014e4002001b00028071"));
         final GBDeviceEventUpdatePreferences ultraBassUpdate = findEvent(ultraBassEvents, GBDeviceEventUpdatePreferences.class);
@@ -35,7 +36,7 @@ public class NothingProtocolTest extends TestBase {
     public void testEncodeEqualizerCommand() {
         final Ear1Support.NothingProtocol protocol = new Ear1Support.NothingProtocol(true);
 
-        final byte[] packet = protocol.encodeEqualizer(NothingEqualizer.ELECTRONIC.name());
+        final byte[] packet = protocol.encodeEqualizer(NothingEqualizer.ELECTRONIC);
         final byte[] expected = GB.hexStringToByteArray("5560011df00200140200ebcd");
         assertMessageEquals(expected, packet);
     }

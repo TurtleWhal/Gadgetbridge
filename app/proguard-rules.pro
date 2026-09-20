@@ -36,6 +36,9 @@
 
 # Keep coordinators, they're only referenced from DeviceType
 -keep public class * implements nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator
+-keepclassmembers class * implements nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator {
+  <init>();
+}
 
 # Keep parseIncoming for GFDIMessage classes, as it is called by reflection in GFDIMessage#parseIncoming
 -keep public class * extends nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.messages.GFDIMessage
@@ -68,12 +71,22 @@
 -keep class ch.qos.** { *; }
 -keep class org.slf4j.** { *; }
 
+# Gson uses generic type information stored in a class file's Signature
+# attribute when deserializing collections of custom objects. Without
+# this, R8 strips it, and Gson falls back to raw types, breaking zip
+# backup restore.
+-keepattributes Signature
+
 # Keep data classes
 -keepclassmembers,allowobfuscation class * {
   @com.google.gson.annotations.SerializedName <fields>;
 }
+
+# Keep classes that are to be (de)serialized with gson
+-keep @nodomain.freeyourgadget.gadgetbridge.util.gson.GsonSerialized class * { *; }
 -keep class nodomain.freeyourgadget.gadgetbridge.service.devices.gree.messages.** {*; }
 -keep class nodomain.freeyourgadget.gadgetbridge.devices.pinetime.InfiniTimeDFU* { *; }
+-keep class nodomain.freeyourgadget.gadgetbridge.activities.workouts.entries.** { *; }
 
 # Keep generated protobuf classes
 -keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
@@ -81,6 +94,23 @@
 # Keep preference fragments that might only be referenced from xml
 -keep class nodomain.freeyourgadget.gadgetbridge.activities.automations.** extends androidx.fragment.app.Fragment { *; }
 -keep class nodomain.freeyourgadget.gadgetbridge.activities.debug.** extends androidx.fragment.app.Fragment { *; }
+
+# Keep requests instantiated by reflection
+-keep class nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.Request
+-keep class * extends nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.Request
+
+# Keep fields - they're read using reflection
+-keepclassmembers class nodomain.freeyourgadget.gadgetbridge.service.devices.um25.Data.MeasurementData {
+  <fields>;
+}
+
+# Keep no-arg constructors for ConfigItem/DeviceInfo subtypes instantiated by reflection
+-keepclassmembers class nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.configuration.ConfigurationPutRequest$* {
+  <init>();
+}
+-keepclassmembers class nodomain.freeyourgadget.gadgetbridge.service.devices.qhybrid.requests.fossil.device_info.*Info {
+  <init>();
+}
 
 # jsoup 1.22.1 introduces support for re2j, but falls back to java Regex if not available
 # Since we only use jsoup to clean the html, we do not need the extra dependency

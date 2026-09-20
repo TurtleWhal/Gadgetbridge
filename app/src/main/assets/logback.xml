@@ -12,7 +12,9 @@
         </encoder>
     </appender>
 
-    <root level="DEBUG">
+    <!-- Raised to DEBUG or TRACE by nodomain.freeyourgadget.gadgetbridge.Logging, depending on
+         where the log is being written. This level applies until it does so. -->
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
         <!-- The FILE appender is added programmatically by nodomain.freeyourgadget.gadgetbridge.Logging -->
     </root>

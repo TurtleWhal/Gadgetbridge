@@ -30,7 +30,7 @@ public class SendNotificationRequest extends AbstractSendNotificationRequest {
 
     @Override
     protected byte getNotificationType() {
-        switch (notification.type) {
+        switch (notification.getType()) {
             case GENERIC_PHONE:
                 return NotificationCommand.SERVICE_TYPE_CALL;
             case GENERIC_SMS:
@@ -52,7 +52,7 @@ public class SendNotificationRequest extends AbstractSendNotificationRequest {
 
     @Override
     protected byte getExtendedNotificationType() {
-        switch (notification.type) {
+        switch (notification.getType()) {
             case GENERIC_PHONE:
             case GENERIC_SMS:
             case GENERIC_EMAIL:
@@ -88,20 +88,20 @@ public class SendNotificationRequest extends AbstractSendNotificationRequest {
         // Based on nodomain.freeyourgadget.gadgetbridge.service.devices.id115.SendNotificationOperation
         String message = "";
 
-        if (notification.phoneNumber != null && !notification.phoneNumber.isEmpty()) {
-            message += notification.phoneNumber + ": ";
+        if (notification.getPhoneNumber() != null && !notification.getPhoneNumber().isEmpty()) {
+            message += notification.getPhoneNumber() + ": ";
         }
 
-        if (notification.sender != null && !notification.sender.isEmpty()) {
-            message += notification.sender + " - ";
-        } else if (notification.title != null && !notification.title.isEmpty()) {
-            message += notification.title + " - ";
-        } else if (notification.subject != null && !notification.subject.isEmpty()) {
-            message += notification.subject + " - ";
+        if (notification.getSender() != null && !notification.getSender().isEmpty()) {
+            message += notification.getSender() + " - ";
+        } else if (notification.getTitle() != null && !notification.getTitle().isEmpty()) {
+            message += notification.getTitle() + " - ";
+        } else if (notification.getSubject() != null && !notification.getSubject().isEmpty()) {
+            message += notification.getSubject() + " - ";
         }
 
-        if (notification.body != null && !notification.body.isEmpty()) {
-            message += notification.body;
+        if (notification.getBody() != null && !notification.getBody().isEmpty()) {
+            message += notification.getBody();
         }
 
         return message;

@@ -4,6 +4,16 @@
         <!-- empty array -->
     </string-array>
 
+    <string-array name="http_methods">
+        <item>GET</item>
+        <item>POST</item>
+        <item>HEAD</item>
+        <item>PUT</item>
+        <item>PATCH</item>
+        <item>DELETE</item>
+        <item>OPTIONS</item>
+    </string-array>
+
     <string-array name="pref_theme_options">
         <item>@string/pref_theme_system</item>
         <item>@string/pref_theme_light</item>
@@ -1163,6 +1173,9 @@
         <item>@string/menuitem_zepp_flow</item>
         <item>@string/menuitem_zepp_flow</item>
         <item>@string/menuitem_jet_lag_manager</item>
+        <item>@string/menuitem_training_calendar</item>
+        <item>@string/soundcore_equalizer_preset_podcast</item>
+        <item>@string/menuitem_intervals_icu</item>
         <item>@string/menuitem_golf</item>
         <item>@string/menuitem_bio_charge</item>
         <item>@string/menuitem_breathing</item>
@@ -1238,6 +1251,9 @@
         <item>zepp_flow</item>
         <item>zepp_flow2</item>
         <item>jet_lag_manager</item>
+        <item>training_calendar</item>
+        <item>podcast</item>
+        <item>intervals_icu</item>
         <item>golf</item>
         <item>bio_charge</item>
         <item>breathing2</item>
@@ -1288,6 +1304,7 @@
         <item>@string/menuitem_worldclock</item>
         <item>@string/menuitem_breathing</item>
         <item>@string/menuitem_zepp_os_ask_anything_chat_bot</item>
+        <item>@string/menuitem_zepp_os_wake_hybridcharge</item>
     </string-array>
 
     <string-array name="pref_zepp_os_shortcut_cards_values">
@@ -1331,6 +1348,7 @@
         <item>worldclock2</item>
         <item>breathing2</item>
         <item>ask_anything</item>
+        <item>wake_hybridcharge</item>
     </string-array>
 
     <string-array name="pref_huami2021_control_center">
@@ -3478,6 +3496,9 @@
         <item>@string/body_energy</item>
         <item>@string/menuitem_vo2_max</item>
         <item>@string/pref_header_training_load</item>
+        <item>@string/menuitem_race_predictor</item>
+        <item>@string/metric_garmin_training_readiness</item>
+        <item>@string/menuitem_solar_charging</item>
         <item>@string/generic_metrics</item>
         <item>@string/menuitem_hr</item>
         <item>@string/menuitem_stress</item>
@@ -3501,6 +3522,9 @@
         <item>@string/p_body_energy</item>
         <item>@string/p_vo2max</item>
         <item>@string/p_load</item>
+        <item>@string/p_raceprediction</item>
+        <item>@string/p_trainingreadiness</item>
+        <item>@string/p_solar_charging</item>
         <item>@string/p_generic_metrics</item>
         <item>@string/p_heartrate</item>
         <item>@string/p_stress</item>
@@ -3524,6 +3548,9 @@
         <item>@string/p_body_energy</item>
         <item>@string/p_vo2max</item>
         <item>@string/p_load</item>
+        <item>@string/p_raceprediction</item>
+        <item>@string/p_trainingreadiness</item>
+        <item>@string/p_solar_charging</item>
         <item>@string/p_generic_metrics</item>
         <item>@string/p_heartrate</item>
         <item>@string/p_steps_week</item>
@@ -3594,44 +3621,6 @@
         <item>1</item>
         <item>2</item>
         <item>3</item>
-    </string-array>
-
-    <string-array name="nothing_ear1_audio_mode_names">
-        <item>@string/prefs_active_noise_cancelling</item>
-        <item>@string/prefs_active_noise_cancelling_medium</item>
-        <item>@string/prefs_active_noise_cancelling_light</item>
-        <item>@string/prefs_active_noise_cancelling_adaptive</item>
-        <item>@string/prefs_active_noise_cancelling_transparency</item>
-        <item>@string/off</item>
-    </string-array>
-
-    <string-array name="nothing_ear1_audio_mode_values">
-        <item>anc</item>
-        <item>ancmedium</item>
-        <item>anclight</item>
-        <item>ancadaptive</item>
-        <item>transparency</item>
-        <item>off</item>
-    </string-array>
-
-    <string-array name="nothing_ear1_equalizer_names">
-        <item>@string/nothing_equalizer_rock</item>
-        <item>@string/nothing_equalizer_electronic</item>
-        <item>@string/nothing_equalizer_pop</item>
-        <item>@string/nothing_equalizer_enhance_vocals</item>
-        <item>@string/nothing_equalizer_classical</item>
-        <item>@string/nothing_equalizer_custom</item>
-        <item>@string/nothing_equalizer_dirac</item>
-    </string-array>
-
-    <string-array name="nothing_ear1_equalizer_values">
-        <item>ROCK</item>
-        <item>ELECTRONIC</item>
-        <item>POP</item>
-        <item>ENHANCE_VOCALS</item>
-        <item>CLASSICAL</item>
-        <item>CUSTOM</item>
-        <item>DIRAC</item>
     </string-array>
 
     <string-array name="notification_list_is_blacklist_names">
@@ -4417,33 +4406,6 @@
         <item>noise_control</item>
     </string-array>
 
-    <string-array name="cmf_buds_touch_tap_names">
-        <item>@string/sony_button_mode_off</item>
-        <item>@string/pref_media_playpause</item>
-        <item>@string/pref_media_previous</item>
-        <item>@string/pref_media_next</item>
-        <item>@string/pref_media_volumeup</item>
-        <item>@string/pref_media_volumedown</item>
-        <item>@string/pref_title_touch_voice_assistant</item>
-        <item>@string/redmi_buds_5_pro_combo_all</item>
-        <item>@string/redmi_buds_5_pro_combo_anc_transparency</item>
-        <item>@string/redmi_buds_5_pro_combo_anc_off</item>
-        <item>@string/redmi_buds_5_pro_combo_transparency_off</item>
-    </string-array>
-    <string-array name="cmf_buds_touch_tap_values">
-        <item>off</item>
-        <item>play_pause</item>
-        <item>previous_track</item>
-        <item>next_track</item>
-        <item>volume_up</item>
-        <item>volume_down</item>
-        <item>voice_assistant</item>
-        <item>anc_mode__anc_transparency_off</item>
-        <item>anc_mode__anc_transparency</item>
-        <item>anc_mode__anc_off</item>
-        <item>anc_mode__transparency_off</item>
-    </string-array>
-
     <string-array name="soundbrenner_time_sig_entries">
         <item>4/4</item>
         <item>2/4</item>
@@ -4910,13 +4872,6 @@
         <item>5</item>
     </string-array>
 
-    <string-array name="fitness_tracking_apps_package_names">
-        <item>de.dennisguse.opentracks</item>
-        <item>de.dennisguse.opentracks.playstore</item>
-        <item>de.dennisguse.opentracks.debug</item>
-        <item>de.dennisguse.opentracks.nightly</item>
-    </string-array>
-
     <string-array name="osmand_package_names">
         <item>@string/automatic</item>
         <item>net.osmand.plus</item>
@@ -4928,6 +4883,15 @@
         <item>net.osmand.plus</item>
         <item>net.osmand</item>
         <item>net.osmand.dev</item>
+    </string-array>
+
+    <string-array name="banglejs_webview_url_titles">
+        <item>@string/url_stable</item>
+        <item>@string/url_development</item>
+    </string-array>
+    <string-array name="banglejs_webview_url_values">
+        <item>https://banglejs.com/apps/android.html</item>
+        <item>https://espruino.github.io/BangleApps/android.html</item>
     </string-array>
 
     <string-array name="workmode">
@@ -5343,66 +5307,6 @@
         <item>force_disabled</item>
     </string-array>
 
-    <string-array name="pref_dashboard_widgets_order">
-        <item>@string/pref_dashboard_widget_today_title</item>
-        <item>@string/pref_dashboard_widget_goals_chart_title</item>
-        <item>@string/steps</item>
-        <item>@string/distance</item>
-        <item>@string/active_time</item>
-        <item>@string/menuitem_sleep</item>
-        <item>@string/sleep_score</item>
-        <item>@string/body_energy</item>
-        <item>@string/menuitem_stress_simple</item>
-        <item>@string/menuitem_stress_segmented</item>
-        <item>@string/menuitem_stress_breakdown</item>
-        <item>@string/hrv</item>
-        <item>@string/blood_pressure</item>
-        <item>@string/menuitem_pai</item>
-        <item>@string/menuitem_vo2_max</item>
-        <item>@string/vo2max_running</item>
-        <item>@string/vo2max_cycling</item>
-        <item>@string/menuitem_calories_active_goal</item>
-        <item>@string/menuitem_calories_segmented</item>
-    </string-array>
-
-    <string-array name="pref_dashboard_widgets_order_values">
-        <item>today</item>
-        <item>goals</item>
-        <item>steps</item>
-        <item>distance</item>
-        <item>activetime</item>
-        <item>sleep</item>
-        <item>sleepscore</item>
-        <item>bodyenergy</item>
-        <item>stress_simple</item>
-        <item>stress_segmented</item>
-        <item>stress_breakdown</item>
-        <item>hrv</item>
-        <item>bloodpressure</item>
-        <item>pai</item>
-        <item>vo2max</item>
-        <item>vo2max_running</item>
-        <item>vo2max_cycling</item>
-        <item>calories_active</item>
-        <item>calories_segmented</item>
-    </string-array>
-
-    <string-array name="pref_dashboard_widgets_order_default">
-        <item>today</item>
-        <item>goals</item>
-        <item>steps</item>
-        <item>distance</item>
-        <item>activetime</item>
-        <item>sleep</item>
-        <item>bodyenergy</item>
-        <item>stress_segmented</item>
-        <item>hrv</item>
-        <item>bloodpressure</item>
-        <item>vo2max</item>
-        <item>calories_active</item>
-        <item>calories_segmented</item>
-    </string-array>
-
     <string-array name="huawei_find_headphones_names">
         <item>@string/off</item>
         <item>@string/left_earbud</item>
@@ -5718,5 +5622,33 @@
         <item>STEP_GOAL_COMPLETION</item>
         <item>MUSIC_CONTROL</item>
         <item>RING_PHONE</item>
+    </string-array>
+
+    <string-array name="pref_chart_weight_body_composition_entries">
+        <item>@string/body_mass_index</item>
+        <item>@string/body_composition_body_fat</item>
+        <item>@string/body_composition_body_water</item>
+        <item>@string/body_composition_muscle_mass</item>
+        <item>@string/body_composition_bone_mass</item>
+        <item>@string/body_composition_bmr</item>
+        <item>@string/body_composition_impedance</item>
+    </string-array>
+    <string-array name="pref_chart_weight_body_composition_values">
+        <item>bmi</item>
+        <item>body_fat</item>
+        <item>body_water</item>
+        <item>muscle_mass</item>
+        <item>bone_mass</item>
+        <item>bmr</item>
+        <item>impedance</item>
+    </string-array>
+    <string-array name="pref_chart_weight_body_composition_default">
+        <item>bmi</item>
+        <item>body_fat</item>
+        <item>body_water</item>
+        <item>muscle_mass</item>
+        <item>bone_mass</item>
+        <item>bmr</item>
+        <item>impedance</item>
     </string-array>
 </resources>

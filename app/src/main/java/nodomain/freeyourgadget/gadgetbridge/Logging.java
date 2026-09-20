@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Locale;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
@@ -47,12 +46,15 @@ public class Logging {
 
     private static final Logging INSTANCE = new Logging();
 
+    private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
+
     private Logging() {
     }
 
     private String logDirectory;
     private FileAppender<ILoggingEvent> fileLogger;
     private boolean initialized = false;
+    private boolean traceEnabled = false;
 
     public static Logging getInstance() {
         return INSTANCE;
@@ -145,9 +147,38 @@ public class Logging {
     }
 
     public void setTraceLogging(final boolean traceEnabled) {
+        this.traceEnabled = traceEnabled;
+        applyRootLevel();
+    }
+
+    /**
+     * The level at which the log is worth producing, given where it would be written. Below DEBUG a
+     * statement is neither formatted nor written, though its arguments are still evaluated, so a
+     * costly argument is only skipped where the call site defers it or sits inside an
+     * {@code isDebugEnabled()} block.
+     * <p>
+     * Detail is only worth producing where it can be read back: a log file the user collects, or a
+     * build a developer is attached to. Logcat on a release build is neither, so both TRACE and
+     * DEBUG require one of those.
+     * <p>
+     * A file logger implies at least DEBUG: {@link #flush()} writes a debug statement to force the
+     * buffered appender out to disk, and the log a user shares is expected to hold the detail.
+     */
+    @VisibleForTesting
+    public static Level resolveRootLevel(final boolean traceEnabled,
+                                         final boolean fileLogging,
+                                         final boolean debugBuild) {
+        if (!fileLogging && !debugBuild) {
+            return Level.INFO;
+        }
+        return traceEnabled ? Level.TRACE : Level.DEBUG;
+    }
+
+    private void applyRootLevel() {
+        final Level level = resolveRootLevel(traceEnabled, fileLogger != null, BuildConfig.DEBUG);
         try {
             ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-            root.setLevel(traceEnabled ? Level.TRACE : Level.DEBUG);
+            root.setLevel(level);
         } catch (final Throwable e) {
             LOG.error("Error changing log level", e);
         }
@@ -188,20 +219,21 @@ public class Logging {
         fileAppender.start();
         attachLogger(fileAppender);
         fileLogger = fileAppender;
+        applyRootLevel();
     }
 
     public void stopFileLogger() {
-        if (fileLogger == null) {
-            return;
+        if (fileLogger != null) {
+            if (fileLogger.isStarted()) {
+                fileLogger.stop();
+            }
+
+            detachLogger(fileLogger);
+
+            fileLogger = null;
         }
 
-        if (fileLogger.isStarted()) {
-            fileLogger.stop();
-        }
-
-        detachLogger(fileLogger);
-
-        fileLogger = null;
+        applyRootLevel();
     }
 
     private static void attachLogger(final Appender<ILoggingEvent> logger) {
@@ -231,6 +263,22 @@ public class Logging {
         return fileLogger;
     }
 
+    /**
+     * The {@link #formatBytes(byte[])} of an array, produced only if it is written.
+     *
+     * @see nodomain.freeyourgadget.gadgetbridge.util.GB#lazyHexdump(byte[])
+     */
+    @NonNull
+    public static Object lazyBytes(@Nullable final byte[] bytes) {
+        return new Object() {
+            @NonNull
+            @Override
+            public String toString() {
+                return formatBytes(bytes);
+            }
+        };
+    }
+
     @NonNull
     public static String formatBytes(@Nullable final byte[] bytes) {
         if (bytes == null) {
@@ -239,12 +287,18 @@ public class Logging {
             return "";
         }
 
-        final StringBuilder builder = new StringBuilder(bytes.length * 3);
-        for (final byte b : bytes) {
-            builder.append(String.format(Locale.ROOT, "%02x ", b));
+        // two hex digits per byte, single space between, none trailing
+        final char[] chars = new char[bytes.length * 3 - 1];
+        int at = 0;
+        for (int i = 0; i < bytes.length; i++) {
+            if (i > 0) {
+                chars[at++] = ' ';
+            }
+            final int b = bytes[i] & 0xff;
+            chars[at++] = HEX_CHARS[b >>> 4];
+            chars[at++] = HEX_CHARS[b & 0x0f];
         }
-        builder.setLength(builder.length() - 1);
-        return builder.toString();
+        return new String(chars);
     }
 
     private static FileAppender<ILoggingEvent> createFileAppender(final String logDirectory) {
@@ -262,10 +316,9 @@ public class Logging {
         rollingPolicy.setContext(lc);
         rollingPolicy.setFileNamePattern(logDirectory + "/gadgetbridge-%d{yyyy-MM-dd}.%i.log.zip");
         rollingPolicy.setParent(fileAppender);
-        rollingPolicy.setMaxFileSize(FileSize.valueOf("10MB"));
+        rollingPolicy.setMaxFileSize(FileSize.valueOf(BuildConfig.DEBUG ? "100MB" : "10MB"));
         rollingPolicy.setMaxHistory(10);
-        rollingPolicy.setTotalSizeCap(FileSize.valueOf("100MB"));
-        rollingPolicy.start();
+        rollingPolicy.setTotalSizeCap(FileSize.valueOf(BuildConfig.DEBUG ? "200MB" : "100MB"));
 
         fileAppender.setContext(lc);
         fileAppender.setName("FILE");
@@ -275,6 +328,10 @@ public class Logging {
         // to debug crashes, set immediateFlush to true, otherwise keep it false to improve throughput
         fileAppender.setImmediateFlush(false);
         fileAppender.setRollingPolicy(rollingPolicy);
+
+        // Only once the appender has its file: the policy dates the current period from that file's
+        // age, and without it a log left from an earlier day is taken for today's and never rolled over.
+        rollingPolicy.start();
 
         return fileAppender;
     }

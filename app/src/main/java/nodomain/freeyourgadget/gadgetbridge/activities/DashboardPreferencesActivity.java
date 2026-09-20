@@ -1,4 +1,4 @@
-/*  Copyright (C) 2024 Arjan Schrijver
+/*  Copyright (C) 2024-2026 Arjan Schrijver, José Rebelo
 
     This file is part of Gadgetbridge.
 
@@ -17,8 +17,8 @@
 package nodomain.freeyourgadget.gadgetbridge.activities;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.text.InputType;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.MultiSelectListPreference;
@@ -26,11 +26,12 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.activities.dashboard.DashboardWidgetsActivity;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 
 public class DashboardPreferencesActivity extends AbstractSettingsActivityV2 {
@@ -45,17 +46,31 @@ public class DashboardPreferencesActivity extends AbstractSettingsActivityV2 {
     }
 
     public static class DashboardPreferencesFragment extends AbstractPreferenceFragment {
+        /**
+         * Preferences on this screen that affects the dashboard's rendering (not an individual widget instance's).
+         */
+        private static final List<String> DASHBOARD_WIDE_PREFS = List.of(
+                "dashboard_cards_enabled",
+                "dashboard_devices_all",
+                "dashboard_devices_multiselect"
+        );
+
+        private final SharedPreferences.OnSharedPreferenceChangeListener changeListener =
+                (sharedPreferences, key) -> {
+                    if (DASHBOARD_WIDE_PREFS.contains(key)) {
+                        sendDashboardConfigChangedIntent();
+                    }
+                };
+
         @Override
         public void onCreatePreferences(final Bundle savedInstanceState, final String rootKey) {
             setPreferencesFromResource(R.xml.dashboard_preferences, rootKey);
 
-            setInputTypeFor("dashboard_widget_today_hr_interval", InputType.TYPE_CLASS_NUMBER);
-
             final MultiSelectListPreference dashboardDevices = findPreference("dashboard_devices_multiselect");
             if (dashboardDevices != null) {
-                List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
-                List<String> deviceMACs = new ArrayList<>();
-                List<String> deviceNames = new ArrayList<>();
+                final List<GBDevice> devices = GBApplication.app().getDeviceManager().getDevices();
+                final List<String> deviceMACs = new ArrayList<>();
+                final List<String> deviceNames = new ArrayList<>();
                 for (GBDevice dev : devices) {
                     deviceMACs.add(dev.getAddress());
                     deviceNames.add(dev.getAliasOrName());
@@ -63,39 +78,35 @@ public class DashboardPreferencesActivity extends AbstractSettingsActivityV2 {
                 dashboardDevices.setEntryValues(deviceMACs.toArray(new String[0]));
                 dashboardDevices.setEntries(deviceNames.toArray(new String[0]));
             }
-            List<String> dashboardPrefs = Arrays.asList(
-                    "dashboard_cards_enabled",
-                    "pref_dashboard_widgets_order",
-                    "dashboard_widget_today_24h",
-                    "dashboard_widget_today_24h_upside_down",
-                    "dashboard_widget_today_show_yesterday",
-                    "dashboard_widget_today_dim_yesterday",
-                    "dashboard_widget_today_time_indicator",
-                    "dashboard_widget_today_2columns",
-                    "dashboard_widget_today_legend",
-                    "dashboard_widget_today_hr_interval",
-                    "dashboard_widget_goals_2columns",
-                    "dashboard_widget_goals_legend",
-                    "dashboard_devices_all",
-                    "dashboard_devices_multiselect"
-            );
-            Preference pref;
-            for (String dashboardPref : dashboardPrefs) {
-                pref = findPreference(dashboardPref);
-                if (pref != null) {
-                    pref.setOnPreferenceChangeListener((preference, autoExportEnabled) -> {
-                        sendDashboardConfigChangedIntent();
-                        return true;
-                    });
-                }
+
+            final Preference manageWidgets = findPreference("pref_dashboard_manage_widgets");
+            if (manageWidgets != null) {
+                manageWidgets.setOnPreferenceClickListener(preference -> {
+                    startActivity(new Intent(requireContext(), DashboardWidgetsActivity.class));
+                    return true;
+                });
             }
+        }
+
+        @Override
+        public void onResume() {
+            super.onResume();
+            Objects.requireNonNull(getPreferenceManager().getSharedPreferences())
+                    .registerOnSharedPreferenceChangeListener(changeListener);
+        }
+
+        @Override
+        public void onPause() {
+            Objects.requireNonNull(getPreferenceManager().getSharedPreferences())
+                    .unregisterOnSharedPreferenceChangeListener(changeListener);
+            super.onPause();
         }
 
         /**
          * Signal dashboard that its config has changed
          */
         private void sendDashboardConfigChangedIntent() {
-            Intent intent = new Intent();
+            final Intent intent = new Intent();
             intent.setAction(DashboardFragment.ACTION_CONFIG_CHANGE);
             LocalBroadcastManager.getInstance(requireContext()).sendBroadcast(intent);
         }

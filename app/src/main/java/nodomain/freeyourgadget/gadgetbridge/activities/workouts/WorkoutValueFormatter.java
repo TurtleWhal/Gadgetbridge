@@ -16,11 +16,16 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.activities.workouts;
 
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_CELSIUS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_CM;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_EPOC_TIME;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_FAHRENHEIT;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_FOOT;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_FOOT_PER_HOUR;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_HOURS;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_JOULE;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KG;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KILOJOULE;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KILOMETERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KMPH;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_KNOTS;
@@ -35,9 +40,12 @@ import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_500_METERS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_KM;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MINUTES_PER_MILE;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_ML;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_ML_KG_MIN;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_MM;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_INCH;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_NAUTICAL_MILES;
+import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_PERCENTAGE;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_RAW_STRING;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_100_METERS;
@@ -47,6 +55,11 @@ import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_PER_M;
 import static nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries.UNIT_SECONDS_SPORT;
 
+import android.content.Context;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,12 +67,14 @@ import java.text.DecimalFormat;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityKind;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries;
 import nodomain.freeyourgadget.gadgetbridge.model.DistanceUnit;
+import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.WeightUnit;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 
@@ -72,6 +87,7 @@ public class WorkoutValueFormatter {
     private final DistanceUnit distanceUnit;
     private final WeightUnit weightUnit;
     private final boolean useNauticalUnits;
+    private final boolean useFahrenheit;
     private final DecimalFormat df2 = new DecimalFormat("#.##");
     private final DecimalFormat df1 = new DecimalFormat("#.#");
 
@@ -83,7 +99,8 @@ public class WorkoutValueFormatter {
         this(activityKind,
                 GBApplication.getPrefs().getDistanceUnit(),
                 GBApplication.getPrefs().getWeightUnit(),
-                GBApplication.getPrefs().getBoolean("units_nautical", true));
+                GBApplication.getPrefs().getBoolean("units_nautical", true),
+                GBApplication.getPrefs().getTemperatureUnit() == TemperatureUnit.FAHRENHEIT);
     }
 
     /**
@@ -93,18 +110,27 @@ public class WorkoutValueFormatter {
                                  final DistanceUnit distanceUnit,
                                  final WeightUnit weightUnit,
                                  final boolean useNauticalUnits) {
+        this(activityKind, distanceUnit, weightUnit, useNauticalUnits, false);
+    }
+
+    public WorkoutValueFormatter(final ActivityKind activityKind,
+                                 final DistanceUnit distanceUnit,
+                                 final WeightUnit weightUnit,
+                                 final boolean useNauticalUnits,
+                                 final boolean useFahrenheit) {
         this.activityKind = activityKind;
         this.distanceUnit = distanceUnit;
         this.weightUnit = weightUnit;
         this.useNauticalUnits = useNauticalUnits;
+        this.useFahrenheit = useFahrenheit;
     }
 
     public void setActivityKind(final ActivityKind activityKind) {
         this.activityKind = activityKind;
     }
 
-    public void toggleRawData() {
-        this.show_raw_data = !show_raw_data;
+    public void setRawData(final boolean showRawData) {
+        this.show_raw_data = showRawData;
     }
 
     public String formatValue(final Object rawValue, String unit, boolean showUnit) {
@@ -148,18 +174,19 @@ public class WorkoutValueFormatter {
         if (unit.equals(UNIT_SECONDS) && !show_raw_data && showUnit) { //rather than plain seconds, show formatted duration
             return DateTimeUtils.formatDurationHoursMinutes((long) value, TimeUnit.SECONDS);
         } else if (unit.equals(UNIT_SECONDS_SPORT) && !show_raw_data && showUnit) {
-            return DateTimeUtils.formatSportsDuration(Math.round(1000L * (double) value), TimeUnit.MILLISECONDS);
+            return DateTimeUtils.formatSportsDuration(Math.round(1000L * value), TimeUnit.MILLISECONDS);
         } else if (UNIT_EPOC_TIME.equals(unit) && !show_raw_data) {
             long epoc = ((Number) rawValue).longValue();
             return DateTimeUtils.formatLocalTime(epoc * 1000L);
         } else if (unit.equals(UNIT_MINUTES_PER_KM) || unit.equals(UNIT_MINUTES_PER_MILE) || unit.equals(UNIT_MINUTES_PER_100_METERS) || unit.equals(UNIT_MINUTES_PER_100_YARDS) || unit.equals(UNIT_MINUTES_PER_500_METERS)) {
             // Format pace
+            final long totalSeconds = Math.round(value * 60);
             String format = showUnit ? "%d:%02d %s" : "%d:%02d";
             return String.format(
                     Locale.getDefault(),
                     format,
-                    (int) Math.floor(value), (int) Math.round(60 * (value - (int) Math.floor(value))),
-                    getStringResourceByName(unit)
+                    totalSeconds / 60, totalSeconds % 60,
+                    getUnitString(unit)
             );
         } else {
             String format = showUnit ? "%s %s" : "%s";
@@ -169,7 +196,7 @@ public class WorkoutValueFormatter {
                 case ActivitySummaryEntries.UNIT_BREATHS_PER_MIN -> String.valueOf(Math.round(value));
                 default -> df2.format(value);
             };
-            return String.format(format, formattedValue, getStringResourceByName(unit));
+            return String.format(format, formattedValue, getUnitString(unit));
         }
     }
 
@@ -315,10 +342,22 @@ public class WorkoutValueFormatter {
                 value = value / 60D;
                 unit = UNIT_MINUTES_PER_500_METERS;
                 break;
-            case ActivitySummaryEntries.UNIT_JOULE:
+            case UNIT_CELSIUS:
+                if (useFahrenheit) {
+                    value = TemperatureUtils.celsiusToFahrenheit(value);
+                    unit = UNIT_FAHRENHEIT;
+                }
+                break;
+            case UNIT_FAHRENHEIT:
+                if (!useFahrenheit) {
+                    value = TemperatureUtils.fahrenheitToCelsius(value);
+                    unit = UNIT_CELSIUS;
+                }
+                break;
+            case UNIT_JOULE:
                 if (!fixedUnit && value > 10000) {
                     value = value / 1000D;
-                    unit = "unit_kilojoule";
+                    unit = UNIT_KILOJOULE;
                 }
                 break;
         }
@@ -326,13 +365,41 @@ public class WorkoutValueFormatter {
     }
 
     public String getStringResourceByName(String aString) {
+        return getStringResourceByName(GBApplication.getContext(), aString);
+    }
+
+    private static String getStringResourceByName(@NonNull final Context context, final String aString) {
         String packageName = BuildConfig.APPLICATION_ID;
-        int resId = GBApplication.getContext().getResources().getIdentifier(aString, "string", packageName);
+        int resId = context.getResources().getIdentifier(aString, "string", packageName);
         if (resId == 0) {
             //LOG.warn("SportsActivity " + "Missing string in strings:" + aString);
             return aString;
         } else {
-            return GBApplication.getContext().getString(resId);
+            return context.getString(resId);
         }
+    }
+
+    public static String getUnitString(@NonNull final Context context, @Nullable String unit) {
+        if (unit == null || unit.isEmpty()) {
+            return unit;
+        }
+
+        // compatibility mappings
+        // removal would require updates to stored activity summaries
+        unit = switch (unit) {
+            case "%" -> UNIT_PERCENTAGE;
+            case "ml/kg/min" -> UNIT_ML_KG_MIN;
+            case "hours" -> UNIT_HOURS;
+            case "kg" -> UNIT_KG;
+            case "lb" -> UNIT_LB;
+            case "ml" -> UNIT_ML;
+            default -> unit;
+        };
+
+        return getStringResourceByName(context, unit);
+    }
+
+    public String getUnitString(@Nullable String unit) {
+        return getUnitString(GBApplication.getContext(), unit);
     }
 }

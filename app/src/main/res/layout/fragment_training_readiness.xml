@@ -1,0 +1,219 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="nodomain.freeyourgadget.gadgetbridge.activities.charts.TrainingReadinessFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/training_readiness_date_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="20sp"
+            android:textColor="?attr/textColorPrimary"
+            android:layout_marginTop="15dp" />
+
+        <TextView
+            android:id="@+id/training_readiness_last_updated"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp">
+
+            <ImageView
+                android:id="@+id/training_readiness_gauge_bar"
+                android:layout_width="150dp"
+                android:layout_height="75dp"
+                android:layout_centerHorizontal="true"
+                android:scaleType="fitStart" />
+
+            <TextView
+                android:id="@+id/training_readiness_gauge_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="28dp"
+                android:text="@string/stats_empty_value"
+                android:textColor="?attr/textColorPrimary"
+                android:textSize="30sp" />
+
+            <TextView
+                android:id="@+id/training_readiness_gauge_zone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/training_readiness_gauge_value"
+                android:layout_centerHorizontal="true"
+                android:textStyle="bold" />
+
+        </RelativeLayout>
+
+        <TextView
+            android:id="@+id/training_readiness_zone_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="15dp" />
+
+        <GridLayout
+            android:background="@color/gauge_line_color"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:layout_marginBottom="15dp">
+
+            <LinearLayout
+                style="@style/GridTile"
+                android:layout_marginEnd="1dp"
+                android:layout_marginTop="2dp">
+                <TextView
+                    android:id="@+id/training_readiness_hrv_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="20sp" />
+                <TextView
+                    android:id="@+id/training_readiness_hrv_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="12sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_header_hrv_status"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/GridTile"
+                android:layout_marginStart="1dp"
+                android:layout_marginTop="2dp">
+                <TextView
+                    android:id="@+id/training_readiness_acute_load_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="20sp" />
+                <TextView
+                    android:id="@+id/training_readiness_acute_load_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="12sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/training_acute_load"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/GridTile"
+                android:layout_marginEnd="1dp">
+                <TextView
+                    android:id="@+id/training_readiness_sleep_score_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="20sp" />
+                <TextView
+                    android:id="@+id/training_readiness_sleep_score_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="12sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/menuitem_sleep"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/GridTile"
+                android:layout_marginStart="1dp">
+                <TextView
+                    android:id="@+id/training_readiness_recovery_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="20sp" />
+                <TextView
+                    android:id="@+id/training_readiness_recovery_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="12sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/recoveryTime"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/GridTile"
+                android:layout_marginEnd="1dp">
+                <TextView
+                    android:id="@+id/training_readiness_sleep_history_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="20sp" />
+                <TextView
+                    android:id="@+id/training_readiness_sleep_history_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="12sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/training_readiness_factor_sleep_3_nights"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/GridTile"
+                android:layout_marginStart="1dp">
+                <TextView
+                    android:id="@+id/training_readiness_stress_history_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/stats_empty_value"
+                    android:textColor="?attr/textColorPrimary"
+                    android:textSize="20sp" />
+                <TextView
+                    android:id="@+id/training_readiness_stress_history_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="12sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/training_readiness_factor_stress_3_days"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+        </GridLayout>
+
+    </LinearLayout>
+</ScrollView>

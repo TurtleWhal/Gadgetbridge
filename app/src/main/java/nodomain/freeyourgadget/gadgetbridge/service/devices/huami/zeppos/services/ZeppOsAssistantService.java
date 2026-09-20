@@ -526,7 +526,7 @@ public class ZeppOsAssistantService extends AbstractZeppOsService {
             final byte[] frame = new byte[frameSize];
             voiceBuffer.get(frame);
 
-            LOG.trace("Voice Data Frame: {}", GB.hexdump(frame));
+            LOG.trace("Voice Data Frame: {}", GB.lazyHexdump(frame));
 
             if (opusDecoder != null) {
                 try {

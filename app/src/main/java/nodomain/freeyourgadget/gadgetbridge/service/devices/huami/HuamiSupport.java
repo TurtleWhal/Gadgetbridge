@@ -40,7 +40,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import net.e175.klaus.solarpositioning.DeltaT;
 import net.e175.klaus.solarpositioning.SPA;
-import net.e175.klaus.solarpositioning.SunriseTransitSet;
+import net.e175.klaus.solarpositioning.SunriseResult;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
@@ -73,7 +73,7 @@ import java.sql.Timestamp;
 import java.nio.ByteOrder;
 import java.nio.ByteBuffer;
 
-import cyanogenmod.weather.util.WeatherUtils;
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.Logging;
 import nodomain.freeyourgadget.gadgetbridge.R;
@@ -916,7 +916,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
      */
     public String getNotificationBody(NotificationSpec notificationSpec) {
         final StringBuilder sb = new StringBuilder();
-        final String senderOrTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        final String senderOrTitle = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
         if (!senderOrTitle.isEmpty()) {
             sb.append(StringUtils.truncate(senderOrTitle, 32));
         } else {
@@ -924,13 +924,13 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
             sb.append(" ");
         }
         sb.append("\0");
-        if (!StringUtils.isNullOrEmpty(notificationSpec.subject)) {
-            sb.append(StringUtils.truncate(notificationSpec.subject, 128)).append("\n\n");
+        if (!StringUtils.isNullOrEmpty(notificationSpec.getSubject())) {
+            sb.append(StringUtils.truncate(notificationSpec.getSubject(), 128)).append("\n\n");
         }
-        if (!StringUtils.isNullOrEmpty(notificationSpec.body)) {
-            sb.append(StringUtils.truncate(notificationSpec.body, 512)).append("\n\n");
+        if (!StringUtils.isNullOrEmpty(notificationSpec.getBody())) {
+            sb.append(StringUtils.truncate(notificationSpec.getBody(), 512)).append("\n\n");
         }
-        if (StringUtils.isNullOrEmpty(notificationSpec.subject) && StringUtils.isNullOrEmpty(notificationSpec.body)) {
+        if (StringUtils.isNullOrEmpty(notificationSpec.getSubject()) && StringUtils.isNullOrEmpty(notificationSpec.getBody())) {
             // if we have no body we have to send at least something on some devices, else they reboot (Bip S)
             sb.append(" ");
         }
@@ -942,8 +942,8 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
      * #2987 / #4419 - Some devices do not show the sender / title for certain notification types
      */
     public String getNotificationBodyCheckAcceptsSender(NotificationSpec notificationSpec) {
-        String senderOrTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
-        byte customIconId = HuamiIcon.mapToIconId(notificationSpec.type);
+        String senderOrTitle = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
+        byte customIconId = HuamiIcon.mapToIconId(notificationSpec.getType());
         boolean acceptsSender = HuamiIcon.acceptsSender(customIconId);
         String message;
 
@@ -952,22 +952,22 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
            we will repeat the subject as part of the notification body, but only if the app name
            is different from the subject. That way it's aesthetically pleasing.
          */
-        if (!acceptsSender && !senderOrTitle.equals(notificationSpec.sourceName)) {
+        if (!acceptsSender && !senderOrTitle.equals(notificationSpec.getSourceName())) {
             message = "-\0"; //if the sender is not accepted, whatever goes in this field is ignored
             message += senderOrTitle + "\n";
         } else {
             message = senderOrTitle + "\0";
         }
 
-        if (notificationSpec.subject != null) {
-            message += StringUtils.truncate(notificationSpec.subject, 128) + "\n\n";
+        if (notificationSpec.getSubject() != null) {
+            message += StringUtils.truncate(notificationSpec.getSubject(), 128) + "\n\n";
         }
 
-        if (notificationSpec.body != null) {
-            message += StringUtils.truncate(notificationSpec.body, 512);
+        if (notificationSpec.getBody() != null) {
+            message += StringUtils.truncate(notificationSpec.getBody(), 512);
         }
 
-        if (notificationSpec.body == null && notificationSpec.subject == null) {
+        if (notificationSpec.getBody() == null && notificationSpec.getSubject() == null) {
             message += " ";
         }
 
@@ -984,11 +984,11 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
         try {
             TransactionBuilder builder = performInitialized("new notification");
 
-            byte customIconId = HuamiIcon.mapToIconId(notificationSpec.type);
+            byte customIconId = HuamiIcon.mapToIconId(notificationSpec.getType());
             AlertCategory alertCategory = AlertCategory.CustomHuami;
 
             // The SMS icon for AlertCategory.SMS is unique and not available as iconId
-            if (notificationSpec.type == NotificationType.GENERIC_SMS) {
+            if (notificationSpec.getType() == NotificationType.GENERIC_SMS) {
                 alertCategory = AlertCategory.SMS;
             }
             // EMAIL icon does not work in FW 0.0.8.74, it did in 0.0.7.90
@@ -1004,7 +1004,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
                 int suffixlength = appSuffix.length;
 
                 if (alertCategory == AlertCategory.CustomHuami) {
-                    String appName = "\0" + StringUtils.getFirstOf(notificationSpec.sourceName, "UNKNOWN") + "\0";
+                    String appName = "\0" + StringUtils.getFirstOf(notificationSpec.getSourceName(), "UNKNOWN") + "\0";
                     prefixlength = 3;
 
                     appSuffix = appName.getBytes();
@@ -1241,7 +1241,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             telephoneRinging = true;
             StopNotificationAction abortAction = new StopNotificationAction(getCharacteristic(UUID_CHARACTERISTIC_ALERT_LEVEL)) {
                 @Override
@@ -1252,14 +1252,14 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
             String message = NotificationUtils.getPreferredTextFor(callSpec);
             SimpleNotification simpleNotification = new SimpleNotification(message, AlertCategory.IncomingCall, null);
             performPreferredNotification("incoming call", MiBandConst.ORIGIN_INCOMING_CALL, simpleNotification, HuamiService.ALERT_LEVEL_PHONE_CALL, abortAction);
-        } else if ((callSpec.command == CallSpec.CALL_START) || (callSpec.command == CallSpec.CALL_END)) {
+        } else if ((callSpec.getCommand() == CallSpec.CALL_START) || (callSpec.getCommand() == CallSpec.CALL_END)) {
             telephoneRinging = false;
             stopCurrentCallNotification();
         }
     }
 
     public void onSetCallStateNew(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             byte[] message = NotificationUtils.getPreferredTextFor(callSpec).getBytes();
             int length = 10 + message.length;
             ByteBuffer buf = ByteBuffer.allocate(length);
@@ -1274,7 +1274,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
             } catch (IOException e) {
                 LOG.error("Unable to send incoming call");
             }
-        } else if ((callSpec.command == CallSpec.CALL_START) || (callSpec.command == CallSpec.CALL_END)) {
+        } else if ((callSpec.getCommand() == CallSpec.CALL_START) || (callSpec.getCommand() == CallSpec.CALL_END)) {
             try {
                 TransactionBuilder builder = performInitialized("end call");
                 writeToChunked(builder, 0, new byte[]{3, 3, 0, 0, 0, 0});
@@ -1297,7 +1297,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
 
     @Override
     public void onSetCannedMessages(CannedMessagesSpec cannedMessagesSpec) {
-        if (cannedMessagesSpec.type == CannedMessagesSpec.TYPE_REJECTEDCALLS) {
+        if (cannedMessagesSpec.getType() == CannedMessagesSpec.TYPE_REJECTEDCALLS) {
             try {
                 TransactionBuilder builder = performInitialized("Set canned messages");
                 int handle = 0x12345678;
@@ -1308,7 +1308,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
                     handle++;
                 }
                 handle = 0x12345678;
-                for (String cannedMessage : cannedMessagesSpec.cannedMessages) {
+                for (String cannedMessage : cannedMessagesSpec.getCannedMessages()) {
                     int length = cannedMessage.getBytes().length + 6;
                     ByteBuffer buf = ByteBuffer.allocate(length);
                     buf.order(ByteOrder.LITTLE_ENDIAN);
@@ -1437,9 +1437,9 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
         }
 
         if (musicSpec != null) {
-            artist = StringUtils.truncate(musicSpec.artist, 80);
-            album = StringUtils.truncate(musicSpec.album, 80);
-            track = StringUtils.truncate(musicSpec.track, 80);
+            artist = StringUtils.truncate(musicSpec.getArtist(), 80);
+            album = StringUtils.truncate(musicSpec.getAlbum(), 80);
+            track = StringUtils.truncate(musicSpec.getTrack(), 80);
 
             if (artist.getBytes().length > 0) {
                 length += artist.getBytes().length + 1;
@@ -1453,7 +1453,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
                 length += track.getBytes().length + 1;
                 flags |= MUSIC_FLAG_TRACK;
             }
-            if (musicSpec.duration != 0) {
+            if (musicSpec.getDuration() != 0) {
                 length += 2;
                 flags |= MUSIC_FLAG_DURATION;
             }
@@ -1465,7 +1465,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
 
         if (musicStateSpec != null) {
             byte state;
-            switch (musicStateSpec.state) {
+            switch (musicStateSpec.getState()) {
                 case MusicStateSpec.STATE_PLAYING:
                     state = 1;
                     break;
@@ -1475,7 +1475,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
 
             buf.put(state);
             buf.put((byte) 0);
-            buf.putShort((short) musicStateSpec.position);
+            buf.putShort((short) musicStateSpec.getPosition());
         }
 
         if (musicSpec != null) {
@@ -1491,8 +1491,8 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
                 buf.put(track.getBytes());
                 buf.put((byte) 0);
             }
-            if (musicSpec.duration != 0) {
-                buf.putShort((short) musicSpec.duration);
+            if (musicSpec.getDuration() != 0) {
+                buf.putShort((short) musicSpec.getDuration());
             }
         }
 
@@ -1504,14 +1504,21 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
     }
 
     @Override
-    public void onReset(int flags) {
+    public void onReboot() {
+        try {
+            TransactionBuilder builder = performInitialized("Reboot");
+            sendReboot(builder);
+            builder.queue();
+        } catch (IOException ex) {
+            LOG.error("Unable to reset", ex);
+        }
+    }
+
+    @Override
+    public void onFactoryReset() {
         try {
             TransactionBuilder builder = performInitialized("Reset");
-            if ((flags & GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET) != 0) {
-                sendFactoryReset(builder);
-            } else {
-                sendReboot(builder);
-            }
+            sendFactoryReset(builder);
             builder.queue();
         } catch (IOException ex) {
             LOG.error("Unable to reset", ex);
@@ -2928,7 +2935,7 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
 
             int currentTemp = weatherSpec.getCurrentTemp() - 273;
             if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
-                currentTemp = (int) WeatherUtils.celsiusToFahrenheit(currentTemp);
+                currentTemp = (int) TemperatureUtils.celsiusToFahrenheit(currentTemp);
             }
             buf.put((byte) currentTemp);
 
@@ -3013,8 +3020,8 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
             int todayMaxTemp = weatherSpec.getTodayMaxTemp() - 273;
             int todayMinTemp = weatherSpec.getTodayMinTemp() - 273;
             if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
-                todayMaxTemp = (int) WeatherUtils.celsiusToFahrenheit(todayMaxTemp);
-                todayMinTemp = (int) WeatherUtils.celsiusToFahrenheit(todayMinTemp);
+                todayMaxTemp = (int) TemperatureUtils.celsiusToFahrenheit(todayMaxTemp);
+                todayMinTemp = (int) TemperatureUtils.celsiusToFahrenheit(todayMinTemp);
             }
             buf.put((byte) todayMaxTemp);
             buf.put((byte) todayMinTemp);
@@ -3032,8 +3039,8 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
                 int forecastMaxTemp = forecast.getMaxTemp() - 273;
                 int forecastMinTemp = forecast.getMinTemp() - 273;
                 if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
-                    forecastMaxTemp = (int) WeatherUtils.celsiusToFahrenheit(forecastMaxTemp);
-                    forecastMinTemp = (int) WeatherUtils.celsiusToFahrenheit(forecastMinTemp);
+                    forecastMaxTemp = (int) TemperatureUtils.celsiusToFahrenheit(forecastMaxTemp);
+                    forecastMinTemp = (int) TemperatureUtils.celsiusToFahrenheit(forecastMinTemp);
                 }
                 buf.put((byte) forecastMaxTemp);
                 buf.put((byte) forecastMinTemp);
@@ -3109,14 +3116,14 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
             if (longitude != 0 && latitude != 0) {
                 final GregorianCalendar dateTimeToday = new GregorianCalendar();
 
-                final SunriseTransitSet sunriseTransitSet = SPA.calculateSunriseTransitSet(
+                final SunriseResult sunriseResult = SPA.calculateSunriseTransitSet(
                         dateTimeToday.toZonedDateTime(),
                         latitude,
                         longitude,
                         DeltaT.estimate(dateTimeToday.toZonedDateTime().toLocalDate())
                 );
 
-                if (sunriseTransitSet.getSunrise() != null && sunriseTransitSet.getSunset() != null) {
+                if (sunriseResult instanceof SunriseResult.RegularDay regularDay) {
                     try {
                         TransactionBuilder builder;
                         builder = performInitialized("Sending sunrise/sunset");
@@ -3126,10 +3133,10 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
                         buf.put((byte) 16);
                         buf.putInt(weatherSpec.getTimestamp());
                         buf.put((byte) (tz_offset_hours * 4));
-                        buf.put((byte) sunriseTransitSet.getSunrise().getHour());
-                        buf.put((byte) sunriseTransitSet.getSunrise().getMinute());
-                        buf.put((byte) sunriseTransitSet.getSunset().getHour());
-                        buf.put((byte) sunriseTransitSet.getSunset().getMinute());
+                        buf.put((byte) regularDay.sunrise().getHour());
+                        buf.put((byte) regularDay.sunrise().getMinute());
+                        buf.put((byte) regularDay.sunset().getHour());
+                        buf.put((byte) regularDay.sunset().getMinute());
 
                         writeToChunked(builder, 1, buf.array());
                         builder.queue();
@@ -4163,8 +4170,8 @@ public abstract class HuamiSupport extends AbstractBTLESingleDeviceSupport
                 break;
             case SleepAsAndroidAction.SHOW_NOTIFICATION: {
                 NotificationSpec spec = new NotificationSpec();
-                spec.title = extras.getString("TITLE");
-                spec.body = extras.getString("TEXT");
+                spec.setTitle(extras.getString("TITLE"));
+                spec.setBody(extras.getString("TEXT"));
                 onNotification(spec);
                 break;
             }

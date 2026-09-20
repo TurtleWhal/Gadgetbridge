@@ -52,6 +52,7 @@ public class GBPrefs extends Prefs {
     public static final String CALENDAR_BLACKLIST = "calendar_blacklist";
     public static final String DEVICE_AUTO_RECONNECT = "prefs_key_device_auto_reconnect";
     public static final String DEVICE_CONNECT_BACK = "prefs_key_device_reconnect_on_acl";
+    public static final String DEVICE_CONNECT_BY_TRIGGER = "prefs_key_device_connect_by_trigger";
     private static final String AUTO_START = "general_autostartonboot";
     public static final String AUTO_CONNECT_BLUETOOTH = "general_autoconnectonbluetooth";
     public static final String PING_TONE = "ping_tone";
@@ -112,6 +113,8 @@ public class GBPrefs extends Prefs {
     public static final String CHART_MIN_HEART_RATE = "chart_min_heart_rate";
 
     public static final String LAST_DEVICE_ADDRESSES = "last_device_addresses";
+    public static final String LAST_CONNECTED_TS = "last_connected_ts";
+    public static final String SORT_BY_LAST_CONNECTED_TS_KEY = "general_prefs_key_sort_by_last_connected_ts";
     public static final String RECONNECT_ONLY_TO_CONNECTED = "general_reconnectonlytoconnected";
     public static final String BLOCK_SCREENSHOTS = "block_screenshots";
 
@@ -130,10 +133,10 @@ public class GBPrefs extends Prefs {
 
     public static final String NAVIGATION_APP_COMAPS = "navigation_app_comaps";
 
-    @Deprecated
-    public GBPrefs(Prefs prefs) {
-        this(prefs.getPreferences());
-    }
+    // Online fitness trackers auto-upload (Endurain / Wanderer)
+    public static final String ENDURAIN_AUTO_UPLOAD_ENABLED = "endurain_auto_upload_enabled";
+    public static final String ENDURAIN_REPLACE_ON_TRACK_CHANGE = "endurain_replace_on_track_change";
+    public static final String WANDERER_AUTO_UPLOAD_ENABLED = "wanderer_auto_upload_enabled";
 
     public GBPrefs(final SharedPreferences sharedPrefs) {
         super(sharedPrefs);
@@ -146,6 +149,10 @@ public class GBPrefs extends Prefs {
 
     public boolean getAutoReconnectByScan() {
         return getBoolean(RECONNECT_SCAN_KEY, RECONNECT_SCAN_DEFAULT);
+    }
+
+    public boolean getSortByLastConnectedTs() {
+        return getBoolean(SORT_BY_LAST_CONNECTED_TS_KEY, false);
     }
 
     public boolean getAutoStart() {
@@ -177,20 +184,23 @@ public class GBPrefs extends Prefs {
     public float[] getLongLat(Context context) {
         float latitude = getFloat("location_latitude", 0);
         float longitude = getFloat("location_longitude", 0);
-        LOG.info("got longitude/latitude from preferences: {}/{}", latitude, longitude);
+        LOG.info("got latitude/longitude from preferences: {}/{}", latitude, longitude);
 
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-                getBoolean("use_updated_location_if_available", false)) {
-            LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-            Criteria criteria = new Criteria();
-            String provider = locationManager.getBestProvider(criteria, false);
-            if (provider != null) {
-                Location lastKnownLocation = locationManager.getLastKnownLocation(provider);
-                if (lastKnownLocation != null) {
-                    latitude = (float) lastKnownLocation.getLatitude();
-                    longitude = (float) lastKnownLocation.getLongitude();
-                    LOG.info("got longitude/latitude from last known location: {}/{}", latitude, longitude);
+        if (getBoolean("use_updated_location_if_available", false)) {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+                Criteria criteria = new Criteria();
+                String provider = locationManager.getBestProvider(criteria, false);
+                if (provider != null) {
+                    Location lastKnownLocation = locationManager.getLastKnownLocation(provider);
+                    if (lastKnownLocation != null) {
+                        latitude = (float) lastKnownLocation.getLatitude();
+                        longitude = (float) lastKnownLocation.getLongitude();
+                        LOG.info("got latitude/longitude from last known location: {}/{}", latitude, longitude);
+                    }
                 }
+            } else {
+                LOG.warn("use_updated_location_if_available is enabled, but location permission is not granted - falling back to the static location from preferences");
             }
         }
         return new float[]{longitude, latitude};

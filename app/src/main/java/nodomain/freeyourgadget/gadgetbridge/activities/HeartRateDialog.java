@@ -43,6 +43,7 @@ import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService;
 import nodomain.freeyourgadget.gadgetbridge.model.HeartRateSample;
+import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 
 public class HeartRateDialog extends Dialog {
     private final GBDevice device;
@@ -78,9 +79,22 @@ public class HeartRateDialog extends Dialog {
         }
     };
 
+    /** Which measurement the dialog is waiting for, so it shows the matching result. */
+    public enum Measurement {
+        HEART_RATE,
+        SPO2,
+    }
+
+    private final Measurement measurement;
+
     public HeartRateDialog(final GBDevice device, @NonNull Context context) {
+        this(device, context, Measurement.HEART_RATE);
+    }
+
+    public HeartRateDialog(final GBDevice device, @NonNull Context context, @NonNull Measurement measurement) {
         super(context);
         this.device = device;
+        this.measurement = measurement;
     }
 
     private void setMeasurementResults(Serializable result) {
@@ -100,6 +114,14 @@ public class HeartRateDialog extends Dialog {
         if (HeartRateUtils.getInstance().isValidHeartRateValue(heartRate)) {
             heart_rate_hr.setVisibility(View.VISIBLE);
             heart_rate_widget_hr_value.setText(String.valueOf(heartRate));
+        }
+
+        if (result instanceof Spo2Sample) {
+            final int spo2 = ((Spo2Sample) result).getSpo2();
+            if (spo2 > 0) {
+                heart_rate_spo2.setVisibility(View.VISIBLE);
+                heart_rate_widget_spo2_value.setText(String.valueOf(spo2));
+            }
         }
     }
 
@@ -132,10 +154,10 @@ public class HeartRateDialog extends Dialog {
         ImageView heart_rate_widget_pressure_icon = heart_rate_pressure.findViewById(R.id.generic_widget_icon);
 
         heart_rate_widget_hr_icon.setImageResource(R.drawable.ic_heart);
-        heart_rate_widget_spo2_icon.setImageResource(R.drawable.ic_circle);
+        heart_rate_widget_spo2_icon.setImageResource(R.drawable.ic_spo2);
         heart_rate_widget_pressure_icon.setImageResource(R.drawable.ic_heartrate);
 
-        heart_rate_hr.setVisibility(View.VISIBLE);
+        heart_rate_hr.setVisibility(measurement == Measurement.HEART_RATE ? View.VISIBLE : View.GONE);
         heart_rate_spo2.setVisibility(View.GONE);
         heart_rate_pressure.setVisibility(View.GONE);
 
@@ -147,7 +169,7 @@ public class HeartRateDialog extends Dialog {
         heart_rate_dialog_results_layout.setVisibility(View.GONE);
         heart_rate_dialog_loading_layout.setVisibility(View.VISIBLE);
 
-        if (device.getDeviceCoordinator().supportsLiveOnlyHeartRateDisplay(device)) {
+        if (measurement == Measurement.HEART_RATE && device.getDeviceCoordinator().supportsLiveOnlyHeartRateDisplay(device)) {
             GBApplication.deviceService(device).onEnableRealtimeHeartRateMeasurement(true);
         }
 

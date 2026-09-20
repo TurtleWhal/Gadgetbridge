@@ -45,14 +45,14 @@ public class NotificationUtils {
 
     @NonNull
     public static String getPreferredTextFor(NotificationSpec notificationSpec, int lengthBody, int lengthSubject, Context context) {
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case GENERIC_ALARM_CLOCK:
-                return StringUtils.getFirstOf(notificationSpec.title, notificationSpec.subject);
+                return StringUtils.getFirstOf(notificationSpec.getTitle(), notificationSpec.getSubject());
             case GENERIC_SMS:
             case GENERIC_EMAIL:
-                return formatText(notificationSpec.sender, notificationSpec.subject, notificationSpec.body, lengthBody, lengthSubject, context);
+                return formatText(notificationSpec.getSender(), notificationSpec.getSubject(), notificationSpec.getBody(), lengthBody, lengthSubject, context);
             case GENERIC_NAVIGATION:
-                return StringUtils.getFirstOf(notificationSpec.title, notificationSpec.body);
+                return StringUtils.getFirstOf(notificationSpec.getTitle(), notificationSpec.getBody());
             case CONVERSATIONS:
             case FACEBOOK_MESSENGER:
             case GOOGLE_MESSENGER:
@@ -72,7 +72,7 @@ public class NotificationUtils {
             case WHATSAPP:
             case VIBER:
             case WECHAT:
-                return StringUtils.ensureNotNull(notificationSpec.body);
+                return StringUtils.ensureNotNull(notificationSpec.getBody());
         }
         return "";
     }
@@ -97,7 +97,7 @@ public class NotificationUtils {
     }
 
     public static String getPreferredTextFor(CallSpec callSpec) {
-        return StringUtils.getFirstOf(callSpec.name, callSpec.number);
+        return StringUtils.getFirstOf(callSpec.getName(), callSpec.getNumber());
     }
 
     @Nullable

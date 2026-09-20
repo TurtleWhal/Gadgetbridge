@@ -43,7 +43,7 @@ import java.util.List;
 import lineageos.weather.LineageWeatherManager;
 import lineageos.weather.WeatherInfo;
 import lineageos.weather.WeatherLocation;
-import lineageos.weather.util.WeatherUtils;
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.BuildConfig;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
@@ -168,9 +168,9 @@ public class LineageOsWeatherReceiver extends BroadcastReceiver implements Linea
             weatherSpec.setLocation(weatherInfo.getCity());
 
             if (weatherInfo.getTemperatureUnit() == FAHRENHEIT) {
-                weatherSpec.setCurrentTemp((int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTemperature()) + 273);
-                weatherSpec.setTodayMaxTemp((int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTodaysHigh()) + 273);
-                weatherSpec.setTodayMinTemp((int) WeatherUtils.fahrenheitToCelsius(weatherInfo.getTodaysLow()) + 273);
+                weatherSpec.setCurrentTemp((int) TemperatureUtils.fahrenheitToCelsius(weatherInfo.getTemperature()) + 273);
+                weatherSpec.setTodayMaxTemp((int) TemperatureUtils.fahrenheitToCelsius(weatherInfo.getTodaysHigh()) + 273);
+                weatherSpec.setTodayMinTemp((int) TemperatureUtils.fahrenheitToCelsius(weatherInfo.getTodaysLow()) + 273);
             } else {
                 weatherSpec.setCurrentTemp((int) weatherInfo.getTemperature() + 273);
                 weatherSpec.setTodayMaxTemp((int) weatherInfo.getTodaysHigh() + 273);
@@ -193,8 +193,8 @@ public class LineageOsWeatherReceiver extends BroadcastReceiver implements Linea
                 WeatherInfo.DayForecast cmForecast = forecasts.get(i);
                 WeatherSpec.Daily gbForecast = new WeatherSpec.Daily();
                 if (weatherInfo.getTemperatureUnit() == FAHRENHEIT) {
-                    gbForecast.setMaxTemp((int) WeatherUtils.fahrenheitToCelsius(cmForecast.getHigh()) + 273);
-                    gbForecast.setMinTemp((int) WeatherUtils.fahrenheitToCelsius(cmForecast.getLow()) + 273);
+                    gbForecast.setMaxTemp((int) TemperatureUtils.fahrenheitToCelsius(cmForecast.getHigh()) + 273);
+                    gbForecast.setMinTemp((int) TemperatureUtils.fahrenheitToCelsius(cmForecast.getLow()) + 273);
                 } else {
                     gbForecast.setMaxTemp((int) cmForecast.getHigh() + 273);
                     gbForecast.setMinTemp((int) cmForecast.getLow() + 273);

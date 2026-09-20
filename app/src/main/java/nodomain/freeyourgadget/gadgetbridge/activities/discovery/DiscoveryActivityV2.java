@@ -35,10 +35,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.hardware.usb.UsbAccessory;
+import android.hardware.usb.UsbManager;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
@@ -80,6 +83,7 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.AuthKeyActivity;
+import nodomain.freeyourgadget.gadgetbridge.activities.UsbAccessoryConnectActivity;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsActivity;
 import nodomain.freeyourgadget.gadgetbridge.adapter.DeviceCandidateAdapter;
 import nodomain.freeyourgadget.gadgetbridge.adapter.SimpleIconListAdapter;
@@ -106,11 +110,12 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     private static final Logger LOG = LoggerFactory.getLogger(DiscoveryActivityV2.class);
 
     private static final int CHILD_RESULT = 0x826983; // "RES" as ASCII hex
-    private final Handler handler = new Handler();
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     private static final long SCAN_DURATION = 30000; // 30s
     private static final long LIST_REFRESH_THRESHOLD_MS = 1000L;
     private long lastListRefresh = System.currentTimeMillis();
+    private boolean listRefreshPending = false;
 
     private final ScanCallback bleScanCallback = new BleScanCallback();
 
@@ -121,6 +126,7 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     private BluetoothAdapter adapter;
 
     private Button startButton;
+    private Button usbConnectButton;
     private boolean scanning;
 
     private ActivityResultLauncher<Intent> authKeyLauncher;
@@ -172,6 +178,10 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
 
         startButton = findViewById(R.id.discovery_start);
         startButton.setOnClickListener(v -> toggleDiscovery());
+
+        usbConnectButton = findViewById(R.id.discovery_connect_usb);
+        usbConnectButton.setOnClickListener(v -> connectUsbAccessory());
+        refreshUsbAccessoryButton();
 
         bluetoothProgress = findViewById(R.id.discovery_progressbar);
         bluetoothProgress.setProgress(0);
@@ -256,12 +266,23 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     protected void onResume() {
         loadSettings();
         registerBroadcastReceivers();
+        refreshUsbAccessoryButton();
         super.onResume();
     }
 
     private void refreshDeviceList(final boolean throttle) {
         handler.post(() -> {
-            if (throttle && System.currentTimeMillis() - lastListRefresh < LIST_REFRESH_THRESHOLD_MS) {
+            final long timeSinceLastRefresh = System.currentTimeMillis() - lastListRefresh;
+            if (throttle && timeSinceLastRefresh < LIST_REFRESH_THRESHOLD_MS) {
+                // Make sure a refresh still happens later, in case no further refresh is triggered
+                // before discovery finishes
+                if (!listRefreshPending) {
+                    listRefreshPending = true;
+                    handler.postDelayed(() -> {
+                        listRefreshPending = false;
+                        refreshDeviceList(false);
+                    }, LIST_REFRESH_THRESHOLD_MS - timeSinceLastRefresh);
+                }
                 return;
             }
 
@@ -444,7 +465,8 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
 
     private void bluetoothStateChanged(final int newState) {
         if (newState == BluetoothAdapter.STATE_ON) {
-            this.adapter = BluetoothAdapter.getDefaultAdapter();
+            final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+            this.adapter = bluetoothManager.getAdapter();
             startButton.setEnabled(true);
         } else {
             this.adapter = null;
@@ -505,6 +527,56 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
             return true;
         }
         return false;
+    }
+
+    /**
+     * Shows/hides the "Connect to USB" button depending on whether a USB accessory
+     * is currently plugged in. The ACTION_USB_ACCESSORY_ATTACHED broadcast is not
+     * reliable, and we might sometimes need a manual way of pairing the device for
+     * the first time.
+     */
+    private void refreshUsbAccessoryButton() {
+        final UsbAccessory accessory = findSupportedUsbAccessory();
+        usbConnectButton.setTag(accessory);
+        usbConnectButton.setVisibility(accessory != null ? View.VISIBLE : View.GONE);
+    }
+
+    @Nullable
+    private UsbAccessory findSupportedUsbAccessory() {
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_USB_ACCESSORY)) {
+            LOG.warn("Device does not support usb accessories");
+            return null;
+        }
+
+        final UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        if (usbManager == null) {
+            LOG.warn("UsbManager is null");
+            return null;
+        }
+
+        final UsbAccessory[] accessories = usbManager.getAccessoryList();
+        if (accessories == null || accessories.length == 0) {
+            LOG.warn("No accessories found");
+            return null;
+        }
+
+        // The current implementation of getAccessoryList returns at most 1
+        LOG.debug("Found {} usb accessories, returning first one", accessories.length);
+
+        return accessories[0];
+    }
+
+    private void connectUsbAccessory() {
+        final UsbAccessory accessory = (UsbAccessory) usbConnectButton.getTag();
+        if (accessory == null) {
+            LOG.warn("USB device is not attached anymore");
+            refreshUsbAccessoryButton();
+            return;
+        }
+
+        final Intent intent = new Intent(this, UsbAccessoryConnectActivity.class);
+        intent.putExtra(UsbManager.EXTRA_ACCESSORY, accessory);
+        startActivity(intent);
     }
 
     private static ScanSettings getScanSettings() {
@@ -741,7 +813,8 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
             ));
         }
 
-        if (coordinator.getDeviceSpecificSettings(device) != null) {
+        //noinspection deprecation
+        if (coordinator.getDeviceSpecificSettings(device) != null || coordinator.getDeviceSettings(device) != null) {
             longClickItems.add(new RunnableListIconItem(
                     getString(R.string.pref_header_device_spec_settings),
                     R.drawable.ic_settings,
@@ -775,13 +848,17 @@ public class DiscoveryActivityV2 extends AbstractGBActivity implements AdapterVi
     private void showUnsupportedDeviceDialog(final GBDeviceCandidate deviceCandidate) {
         LOG.info("Unsupported device candidate selected: {}", deviceCandidate);
 
-        new DeviceTypeDialog(this, R.string.add_test_device, deviceCandidate.getMacAddress())
-                .show(null, (macAddress, deviceType) -> {
-                    LOG.debug("Force-pairing {} as {}", deviceCandidate, deviceType);
-                    DeviceHelper.getInstance().setForcedDeviceType(deviceCandidate.getMacAddress().toLowerCase(), deviceType);
-                    preparePair(deviceCandidate);
-                    return kotlin.Unit.INSTANCE;
-                });
+        new DeviceTypeDialog(
+                this,
+                R.string.add_test_device,
+                deviceCandidate.getMacAddress(),
+                d -> d.getDeviceCoordinator().getConnectionType() != DeviceCoordinator.ConnectionType.USB
+        ).show(null, (macAddress, deviceType) -> {
+            LOG.debug("Force-pairing {} as {}", deviceCandidate, deviceType);
+            DeviceHelper.getInstance().setForcedDeviceType(deviceCandidate.getMacAddress().toLowerCase(), deviceType);
+            preparePair(deviceCandidate);
+            return kotlin.Unit.INSTANCE;
+        });
     }
 
     @Override

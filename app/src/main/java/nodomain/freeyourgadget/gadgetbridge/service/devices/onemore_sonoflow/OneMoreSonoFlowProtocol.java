@@ -13,6 +13,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
@@ -23,7 +24,7 @@ import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventVersionInf
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 
-public class OneMoreSonoFlowProtocol extends GBDeviceProtocol  {
+public class OneMoreSonoFlowProtocol extends GBDeviceProtocol {
     private static final Logger LOG = LoggerFactory.getLogger(OneMoreSonoFlowProtocol.class);
 
     protected OneMoreSonoFlowProtocol(GBDevice device) {
@@ -36,7 +37,14 @@ public class OneMoreSonoFlowProtocol extends GBDeviceProtocol  {
 
         switch (config) {
             case DeviceSettingsPreferenceConst.PREF_NOISE_CONTROL_SELECTOR:
-                return OneMorePacket.createSetNoiseControlModePacket(prefs.getString(config, "0"));
+                OneMoreNoiseControlMode mode = OneMoreNoiseControlMode.fromPreference(
+                        prefs.getString(config, OneMoreNoiseControlMode.OFF.name().toLowerCase(Locale.ROOT))
+                );
+                if (mode == null) {
+                    LOG.warn("Unknown noise control mode in preferences");
+                    mode = OneMoreNoiseControlMode.OFF;
+                }
+                return OneMorePacket.createSetNoiseControlModePacket(mode);
 
             case DeviceSettingsPreferenceConst.PREF_SOUNDCORE_LDAC_MODE:
                 return OneMorePacket.createSetLdacModePacket(prefs.getBoolean(config, false));
@@ -109,21 +117,13 @@ public class OneMoreSonoFlowProtocol extends GBDeviceProtocol  {
 
     private GBDeviceEventUpdatePreferences decodeNoiseControlMode(byte value) {
         GBDeviceEventUpdatePreferences event = new GBDeviceEventUpdatePreferences();
-        String mode = "0";
-
-        switch (value) {
-            case 0x00:
-                mode = "0";
-                break;
-            case 0x01:
-                mode = "1";
-                break;
-            case 0x03:
-                mode = "2";
-                break;
+        OneMoreNoiseControlMode mode = OneMoreNoiseControlMode.fromCode(value);
+        if (mode == null) {
+            LOG.warn("Got unknown noise control value {}", String.format("0x%02x", value));
+            mode = OneMoreNoiseControlMode.OFF;
         }
 
-        event.withPreference(DeviceSettingsPreferenceConst.PREF_NOISE_CONTROL_SELECTOR, mode);
+        event.withPreference(DeviceSettingsPreferenceConst.PREF_NOISE_CONTROL_SELECTOR, mode.name().toLowerCase(Locale.ROOT));
 
         return event;
     }
@@ -149,7 +149,7 @@ public class OneMoreSonoFlowProtocol extends GBDeviceProtocol  {
     @SuppressLint("DefaultLocale")
     private GBDeviceEventVersionInfo decodeFirmwareInformation(byte major, byte minor, byte patch) {
         GBDeviceEventVersionInfo event = new GBDeviceEventVersionInfo();
-        event.fwVersion = String.format("%d.%d.%d", major, minor, patch);;
+        event.fwVersion = String.format("%d.%d.%d", major, minor, patch);
 
         return event;
     }

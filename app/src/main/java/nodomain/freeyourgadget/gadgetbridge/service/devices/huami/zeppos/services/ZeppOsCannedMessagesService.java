@@ -100,8 +100,8 @@ public class ZeppOsCannedMessagesService extends AbstractZeppOsService {
     }
 
     public void setCannedMessages(final CannedMessagesSpec cannedMessagesSpec) {
-        if (cannedMessagesSpec.type != CannedMessagesSpec.TYPE_GENERIC) {
-            LOG.warn("Got unsupported canned messages type: {}", cannedMessagesSpec.type);
+        if (cannedMessagesSpec.getType() != CannedMessagesSpec.TYPE_GENERIC) {
+            LOG.warn("Got unsupported canned messages type: {}", cannedMessagesSpec.getType());
             return;
         }
 
@@ -117,7 +117,7 @@ public class ZeppOsCannedMessagesService extends AbstractZeppOsService {
         }
 
         int i = 0;
-        for (String cannedMessage : cannedMessagesSpec.cannedMessages) {
+        for (String cannedMessage : cannedMessagesSpec.getCannedMessages()) {
             cannedMessage = StringUtils.truncate(cannedMessage, 140);
             LOG.debug("Setting canned message {} = '{}'", i, cannedMessage);
 

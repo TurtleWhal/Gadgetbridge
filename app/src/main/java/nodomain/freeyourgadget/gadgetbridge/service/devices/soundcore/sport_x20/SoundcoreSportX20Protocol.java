@@ -1,17 +1,25 @@
 package nodomain.freeyourgadget.gadgetbridge.service.devices.soundcore.sport_x20;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.widget.Toast;
+
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
+import nodomain.freeyourgadget.gadgetbridge.activities.multipoint.MultipointDevice;
+import nodomain.freeyourgadget.gadgetbridge.activities.multipoint.MultipointPairingActivity;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEvent;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.soundcore.SoundcorePacket;
@@ -33,6 +41,10 @@ public class SoundcoreSportX20Protocol extends SoundcoreLibertyProtocol {
     private static final short CMD_NOTIFY_PAIRED_DEVICES = (short) 0x010b;
     private static final short CMD_NOTIFY_CONNECTION_STATUS = (short) 0x020b;
     private static final short CMD_NOTIFY_DEVICE_STATE = (short) 0x0910;
+    // Connect/disconnect a specific paired device; payload = 6-byte address (little-endian)
+    private static final short CMD_DISCONNECT_DEVICE = (short) 0x810b;
+    private static final short CMD_CONNECT_DEVICE = (short) 0x820b;
+    private static final short CMD_FORGET_DEVICE = (short) 0x830b;
 
     // Offsets within CMD_GET_DEVICE_INFO payload for the equalizer preset and band values.
     // [38]    = preset ID (0x00–0x15 = named preset, 0xfe = custom)
@@ -101,6 +113,9 @@ public class SoundcoreSportX20Protocol extends SoundcoreLibertyProtocol {
 
     private static final Map<Integer, byte[]> EQ_PRESET_PAYLOADS = buildPresetPayloads();
 
+    private final List<MultipointDevice> pairedDevices = new ArrayList<>();
+    private String activeSourceAddress;
+
     protected SoundcoreSportX20Protocol(final GBDevice device) {
         super(device);
     }
@@ -144,7 +159,16 @@ public class SoundcoreSportX20Protocol extends SoundcoreLibertyProtocol {
         }
 
         if (packet != null && packet.getCommand() == CMD_NOTIFY_CONNECTION_STATUS) {
-            LOG.debug("Connection status notification, {} bytes", packet.getPayload().length);
+            // Active audio source. Payload layout (7 bytes):
+            //   [0]    = active flag: 0x01 = some device is currently playing audio, 0x00 = none
+            //   [1..6] = 6-byte Bluetooth address (little-endian) of the device playing audio,
+            //            all zero when nothing is playing.
+            // The address matches one of the entries reported by CMD_NOTIFY_PAIRED_DEVICES (0x010b),
+            // so it can be used to flag which paired device is the active audio source.
+            // Examples (payload):
+            //   00 00 00 00 00 00 00                -> nothing playing
+            //   01 F1 F2 F3 F4 F5 F6                -> F6:F5:F4:F3:F2:F1 is playing
+            decodeConnectionStatus(packet.getPayload());
             return new GBDeviceEvent[0];
         }
 
@@ -255,6 +279,7 @@ public class SoundcoreSportX20Protocol extends SoundcoreLibertyProtocol {
         // Dual connection boolean at offset 126 (0x01=on, 0x00=off).
         final boolean dualConnection = payload[DEVICE_INFO_DUAL_CONNECTION_OFFSET] == 0x01;
         LOG.debug("Dual connection from device info: {}", dualConnection);
+        broadcastMultipointStatus(dualConnection);
 
         // Touch tone boolean at offset 127 (0x01=on, 0x00=off).
         final boolean touchTone = payload[DEVICE_INFO_TOUCH_TONE_OFFSET] == 0x01;
@@ -275,34 +300,145 @@ public class SoundcoreSportX20Protocol extends SoundcoreLibertyProtocol {
     }
 
     /**
-     * Logs the unsolicited paired-device list sent by the device on connection.
-     * Payload layout: 4-byte header, then per device: 6-byte BT address + 40-byte name (UTF-8, zero-padded).
+     * Decodes the paired-device list sent by the device (CMD_NOTIFY_PAIRED_DEVICES) and broadcasts
+     * it to {@link MultipointPairingActivity}.
+     *
+     * Payload layout:
+     * <pre>
+     * [0..1]   = unknown header (01 01 even with two connected devices)
+     * then, per paired device:
+     *   [0]      = entry length (including this byte), e.g. 0x28 = 40
+     *   [1]      = connection flag (0x01 = connected, 0x00 = not connected)
+     *   [2..7]   = 6-byte Bluetooth address, little-endian
+     *   [8..]    = device name, UTF-8, zero-padded, (entry length - 8) bytes
+     * </pre>
      */
     private void decodePairedDevices(final byte[] payload) {
-        // Header: [0]=connected_count [1]=?? [2]=name_field_len(40) [3]=??
-        if (payload.length < 4) {
+        if (payload.length < 2) {
             return;
         }
-        final int nameLen = Byte.toUnsignedInt(payload[2]);  // 0x28 = 40
-        final int entrySize = 6 + nameLen;
-        int offset = 4;
-        int index = 0;
-        while (offset + entrySize <= payload.length) {
-            final byte[] nameBytes = new byte[nameLen];
-            System.arraycopy(payload, offset + 6, nameBytes, 0, nameLen);
-            // Trim null-padding
+        final List<MultipointDevice> devices = new ArrayList<>();
+        int offset = 2; // skip the 2-byte header
+        while (offset + 8 <= payload.length) {
+            final int entrySize = Byte.toUnsignedInt(payload[offset]);
+            if (entrySize < 8 || offset + entrySize > payload.length) {
+                break;
+            }
+            final boolean connected = payload[offset + 1] != 0;
+            final String address = formatMacAddress(payload, offset + 2);
+            final int nameLen = entrySize - 8;
             int nameEnd = 0;
-            while (nameEnd < nameLen && nameBytes[nameEnd] != 0) nameEnd++;
-            final String name = new String(nameBytes, 0, nameEnd, java.nio.charset.StandardCharsets.UTF_8);
-            LOG.debug("Paired device {}: addr={} name='{}'",
-                    index,
-                    String.format("%02x:%02x:%02x:%02x:%02x:%02x",
-                            payload[offset+5], payload[offset+4], payload[offset+3],
-                            payload[offset+2], payload[offset+1], payload[offset]),
-                    name);
+            while (nameEnd < nameLen && payload[offset + 8 + nameEnd] != 0) {
+                nameEnd++;
+            }
+            final String name = new String(payload, offset + 8, nameEnd, StandardCharsets.UTF_8);
+            LOG.debug("Paired device: addr={} name='{}' connected={}", address, name, connected);
+            devices.add(new MultipointDevice(address, name, connected, false, true));
             offset += entrySize;
-            index++;
         }
+        pairedDevices.clear();
+        pairedDevices.addAll(devices);
+        broadcastPairedDevices();
+    }
+
+    private void decodeConnectionStatus(final byte[] payload) {
+        if (payload.length != 7 || (payload[0] != 0x00 && payload[0] != 0x01)) {
+            LOG.warn("Invalid connection status payload");
+            return;
+        }
+        activeSourceAddress = payload[0] == 0x01 ? formatMacAddress(payload, 1) : null;
+        broadcastPairedDevices();
+    }
+
+    private void broadcastPairedDevices() {
+        final List<MultipointDevice> devices = new ArrayList<>();
+        for (final MultipointDevice device : pairedDevices) {
+            devices.add(new MultipointDevice(device.getAddress(), device.getName(), device.isConnected(),
+                    device.isConnected() && device.getAddress().equalsIgnoreCase(activeSourceAddress),
+                    device.getCanForget()));
+        }
+        broadcastMultipointList(devices);
+    }
+
+    /** Requests the paired-device list from the device. */
+    public byte[] encodePairedDevicesRequest() {
+        return encodeRequest(CMD_NOTIFY_PAIRED_DEVICES);
+    }
+
+    /** Enables or disables dual connection (multipoint) on the device. */
+    public byte[] encodeDualConnection(final boolean enabled) {
+        return encodeBooleanCommand(CMD_SET_DUAL_CONNECTION, enabled);
+    }
+
+    /** Puts the device into pairing mode so a new device can be paired. */
+    public byte[] encodeStartPairing() {
+        return encodePairingMode();
+    }
+
+    /** Connects the device to the given paired device (address as "AA:BB:CC:DD:EE:FF"). */
+    public byte[] encodeConnectDevice(final String address) {
+        return encodeCommand(CMD_CONNECT_DEVICE, addressToLittleEndian(address));
+    }
+
+    /** Disconnects the device from the given paired device (address as "AA:BB:CC:DD:EE:FF"). */
+    public byte[] encodeDisconnectDevice(final String address) {
+        return encodeCommand(CMD_DISCONNECT_DEVICE, addressToLittleEndian(address));
+    }
+
+    /** Forgets/unpairs the given paired device (address as "AA:BB:CC:DD:EE:FF"). */
+    public byte[] encodeForgetDevice(final String address) {
+        return encodeCommand(CMD_FORGET_DEVICE, addressToLittleEndian(address));
+    }
+
+    /** Requests the current connection/active-audio status from the device. */
+    public byte[] encodeConnectionStatusRequest() {
+        return encodeRequest(CMD_NOTIFY_CONNECTION_STATUS);
+    }
+
+    /**
+     * Converts a Bluetooth address string ("AA:BB:CC:DD:EE:FF") into the 6-byte little-endian
+     * representation used by the device (the same byte order as reported in the paired-device list).
+     */
+    private static byte[] addressToLittleEndian(final String address) {
+        final String[] parts = address.split(":");
+        final byte[] mac = new byte[6];
+        for (int i = 0; i < 6 && i < parts.length; i++) {
+            mac[5 - i] = (byte) Integer.parseInt(parts[i], 16);
+        }
+        return mac;
+    }
+
+    public static String formatMacAddress(byte[] payload, int position) {
+        StringBuilder mac = new StringBuilder(17);
+        for (int i = 5; i >= 0; i--) {
+            if (mac.length() > 0) {
+                mac.append(':');
+            }
+            mac.append(String.format("%02X", payload[position + i] & 0xFF));
+        }
+        return mac.toString();
+    }
+
+    void broadcastMultipointStatus(final boolean enabled) {
+        final Intent intent = new Intent(MultipointPairingActivity.ACTION_MULTIPOINT_STATUS_UPDATE);
+        intent.putExtra(GBDevice.EXTRA_DEVICE, getDevice());
+        intent.putExtra(MultipointPairingActivity.EXTRA_MULTIPOINT_ENABLED, enabled);
+        LocalBroadcastManager.getInstance(GBApplication.getContext()).sendBroadcast(intent);
+    }
+
+    void broadcastMultipointPairing(final boolean enabled) {
+        final Intent intent = new Intent(MultipointPairingActivity.ACTION_MULTIPOINT_PAIRING_UPDATE);
+        intent.putExtra(GBDevice.EXTRA_DEVICE, getDevice());
+        intent.putExtra(MultipointPairingActivity.EXTRA_PAIRING_ENABLED, enabled);
+        LocalBroadcastManager.getInstance(GBApplication.getContext()).sendBroadcast(intent);
+    }
+
+    void broadcastMultipointList(final List<MultipointDevice> devices) {
+        final Intent intent = new Intent(MultipointPairingActivity.ACTION_MULTIPOINT_DEVICE_LIST);
+        intent.putExtra(GBDevice.EXTRA_DEVICE, getDevice());
+        intent.putParcelableArrayListExtra(
+                MultipointPairingActivity.EXTRA_DEVICE_LIST, new ArrayList<>(devices));
+        LocalBroadcastManager.getInstance(GBApplication.getContext()).sendBroadcast(intent);
     }
 
     /** Maps a low-nibble TapFunction code (0–15) back to the TapFunction enum. */
@@ -361,10 +497,6 @@ public class SoundcoreSportX20Protocol extends SoundcoreLibertyProtocol {
                 final boolean surround3d = prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_SOUNDCORE_3D_SURROUND, false);
                 return encodeBooleanCommand(CMD_SET_3D_SURROUND, surround3d);
 
-            case DeviceSettingsPreferenceConst.PREF_SOUNDCORE_DUAL_CONNECTION:
-                final boolean dualConnection = prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_SOUNDCORE_DUAL_CONNECTION, false);
-                return encodeBooleanCommand(CMD_SET_DUAL_CONNECTION, dualConnection);
-
             case DeviceSettingsPreferenceConst.PREF_SOUNDCORE_EQUALIZER_PRESET:
             case DeviceSettingsPreferenceConst.PREF_SOUNDCORE_EQUALIZER_BAND1_VALUE:
             case DeviceSettingsPreferenceConst.PREF_SOUNDCORE_EQUALIZER_BAND2_VALUE:
@@ -378,9 +510,6 @@ public class SoundcoreSportX20Protocol extends SoundcoreLibertyProtocol {
 
             case DeviceSettingsPreferenceConst.PREF_SOUNDCORE_FIT_TEST:
                 return encodeCommand(CMD_SET_FIT_TEST, new byte[]{0x0a});
-
-            case DeviceSettingsPreferenceConst.PREF_SOUNDCORE_ENABLE_PAIRING_MODE:
-                return encodePairingMode();
 
             default:
                 return super.encodeSendConfiguration(config);

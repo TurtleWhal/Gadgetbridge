@@ -55,12 +55,12 @@ import nodomain.freeyourgadget.gadgetbridge.model.workout.WorkoutChart;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.AntGadget;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.FitFile;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.RecordData;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.BatteryStatus;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.GarminSport;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.MeasurementSystem;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.WaterType;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.exception.FitParseException;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionBatteryStatus;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionExerciseCategory.ExerciseCategory;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionMeasurementSystem;
-import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.fieldDefinitions.FieldDefinitionWaterType;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.ExerciseCategory;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitActivity;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitDeviceInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitFileCreator;
@@ -80,6 +80,7 @@ import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitUserMetrics;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitUserProfile;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitWorkout;
+import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.messages.FitWorkoutStep;
 import nodomain.freeyourgadget.gadgetbridge.util.FileUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.StringUtils;
 
@@ -116,6 +117,7 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
     private final List<FitDiveGas> diveGases = new ArrayList<>();
     private final List<FitSet> sets = new ArrayList<>();
     private final List<FitLap> laps = new ArrayList<>();
+    private final List<FitWorkoutStep> workoutSteps = new ArrayList<>();
     private final Map<Integer, FitDeviceInfo> deviceInfos = new TreeMap<>();
     @Nullable
     private FitDeviceStatus deviceStatusStart = null;
@@ -232,6 +234,7 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
         diveTanks.clear();
         sets.clear();
         laps.clear();
+        workoutSteps.clear();
         deviceInfos.clear();
         deviceStatusStart = null;
         deviceStatusEnd = null;
@@ -287,6 +290,9 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
         } else if (record instanceof FitLap fitLap) {
             LOG.trace("Lap: {}", fitLap);
             laps.add(fitLap);
+        } else if (record instanceof FitWorkoutStep fitWorkoutStep) {
+            LOG.trace("Workout step: {}", fitWorkoutStep);
+            workoutSteps.add(fitWorkoutStep);
         } else if (record instanceof FitUserProfile fitUserProfile) {
             LOG.trace("User Profile: {}", fitUserProfile);
             if (userProfile != null) {
@@ -345,8 +351,8 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
                 if (volt != null && volt != 0) {
                     relevant = true;
                 } else {
-                    FieldDefinitionBatteryStatus.BatteryStatus batteryStatus = deviceInfo.getBatteryStatus();
-                    if (batteryStatus != null && batteryStatus != FieldDefinitionBatteryStatus.BatteryStatus.Unknown) {
+                    BatteryStatus batteryStatus = deviceInfo.getBatteryStatus();
+                    if (batteryStatus != null && batteryStatus != BatteryStatus.Unknown) {
                         relevant = true;
                     }
                 }
@@ -438,7 +444,7 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
 
         final String weightUnit;
         if (userProfile != null && userProfile.getWeightSetting() != null) {
-            weightUnit = FieldDefinitionMeasurementSystem.Type.metric.equals(userProfile.getWeightSetting()) ? UNIT_KG : UNIT_LB;
+            weightUnit = MeasurementSystem.metric.equals(userProfile.getWeightSetting()) ? UNIT_KG : UNIT_LB;
         } else {
             weightUnit = UNIT_KG;
         }
@@ -550,7 +556,9 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
             speedAvg = session.getAvgSpeed();
         }
         if (speedAvg != null) {
-            if (ActivityKind.isPaceActivity(activityKind)) {
+            if (ActivityKind.isSwimActivity(activityKind)) {
+                summaryData.add(PACE_AVG_SECONDS_KM, 100.0 / speedAvg.doubleValue(), UNIT_SECONDS_PER_100_METERS);
+            } else if (ActivityKind.isPaceActivity(activityKind)) {
                 summaryData.add(PACE_AVG_SECONDS_KM, 1000.0 / speedAvg.doubleValue(), UNIT_SECONDS_PER_KM);
             } else if (ActivityKind.isDiving(activityKind)) {
                 // Hide speed for diving activities
@@ -564,7 +572,9 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
             speedMax = session.getMaxSpeed();
         }
         if (speedMax != null) {
-            if (ActivityKind.isPaceActivity(activityKind)) {
+            if (ActivityKind.isSwimActivity(activityKind)) {
+                summaryData.add(PACE_MAX, 100.0 / speedMax.doubleValue(), UNIT_SECONDS_PER_100_METERS);
+            } else if (ActivityKind.isPaceActivity(activityKind)) {
                 summaryData.add(PACE_MAX, 1000.0 / speedMax.doubleValue(), UNIT_SECONDS_PER_KM);
             } else if (ActivityKind.isDiving(activityKind)) {
                 // Hide speed for diving activities
@@ -861,9 +871,9 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
             if (diveSettings.getWaterDensity() != null) {
                 summaryData.add(WATER_TYPE, diveSettings.getWaterDensity(), UNIT_KG_PER_M3);
             } else {
-                FieldDefinitionWaterType.WaterType waterType = diveSettings.getWaterType();
+                WaterType waterType = diveSettings.getWaterType();
                 if (waterType != null) {
-                    summaryData.add(WATER_TYPE, waterType.toString(context));
+                    summaryData.add(WATER_TYPE, context.getString(waterType.label));
                 }
             }
         }
@@ -1003,10 +1013,10 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
                 final FitDeviceInfo deviceInfo = entry.getValue();
                 final String device = AntGadget.Companion.NameGadget(deviceInfo);
 
-                FieldDefinitionBatteryStatus.BatteryStatus rawStatus = deviceInfo.getBatteryStatus();
+                BatteryStatus rawStatus = deviceInfo.getBatteryStatus();
                 @Nullable final String status;
                 if (rawStatus != null) {
-                    status = rawStatus.toString(context);
+                    status = context.getString(rawStatus.label);
                 } else {
                     status = null;
                 }
@@ -1094,7 +1104,7 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
                             "set_" + i,
                             Arrays.asList(
                                     new ActivitySummaryValue(i, UNIT_NONE),
-                                    new ActivitySummaryValue(category != null ? context.getString(category.getNameResId()) : null, UNIT_NONE),
+                                    new ActivitySummaryValue(category != null ? context.getString(category.label) : null, UNIT_NONE),
                                     new ActivitySummaryValue(set.getRepetitions() != null ? String.valueOf(set.getRepetitions()) : null),
                                     new ActivitySummaryValue(set.getWeight(), weightUnit),
                                     new ActivitySummaryValue(set.getDuration().longValue(), UNIT_SECONDS)
@@ -1143,9 +1153,17 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
             }
             tableBuilder.addToSummaryData(summaryData);
         } else if (anyValidLaps && diveLaps.isEmpty()) {
+            final Map<Integer, FitWorkoutStep> workoutStepsByIndex = new TreeMap<>();
+            for (final FitWorkoutStep step : workoutSteps) {
+                if (step.getMessageIndex() != null && step.getWktStepName() != null) {
+                    workoutStepsByIndex.put(step.getMessageIndex(), step);
+                }
+            }
+            final boolean hasWorkoutSteps = !workoutStepsByIndex.isEmpty();
+
             // Unfortunately our tables do not yet scroll horizontally, so can't always add all possible columns
             final List<String> header = new ArrayList<>();
-            header.add("#");
+            header.add(hasWorkoutSteps ? "workout_step" : "#");
             if (anySwimmingLaps) {
                 header.add("swimming_stroke");
                 header.add("Distance");
@@ -1184,9 +1202,15 @@ public class GarminWorkoutParser implements ActivitySummaryParser {
                     speedUnit = UNIT_NONE;
                 }
 
-                row.add(new ActivitySummaryValue(i, UNIT_NONE));
+                if (hasWorkoutSteps) {
+                    final FitWorkoutStep step = lap.getWktStepIndex() != null
+                            ? workoutStepsByIndex.get(lap.getWktStepIndex()) : null;
+                    row.add(new ActivitySummaryValue(step != null ? step.getWktStepName() : String.valueOf(i), UNIT_NONE));
+                } else {
+                    row.add(new ActivitySummaryValue(i, UNIT_NONE));
+                }
                 if (anySwimmingLaps) {
-                    row.add(new ActivitySummaryValue(lap.getSwimStyle() != null ? context.getString(lap.getSwimStyle().getNameResId()) : null, UNIT_NONE));
+                    row.add(new ActivitySummaryValue(lap.getSwimStyle() != null ? context.getString(lap.getSwimStyle().label) : null, UNIT_NONE));
                     row.add(new ActivitySummaryValue(lap.getTotalDistance(), UNIT_METERS));
                 } else {
                     row.add(new ActivitySummaryValue(lap.getTotalDistance(), UNIT_METERS));

@@ -23,23 +23,24 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import nodomain.freeyourgadget.gadgetbridge.GBApplication
 import nodomain.freeyourgadget.gadgetbridge.R
+import nodomain.freeyourgadget.gadgetbridge.activities.AbstractGBActivity
 import nodomain.freeyourgadget.gadgetbridge.adapter.DeviceInstallAdapter
 import nodomain.freeyourgadget.gadgetbridge.databinding.ActivityFileInstallerBinding
 import nodomain.freeyourgadget.gadgetbridge.devices.InstallHandler
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_OPTIONS
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 import org.slf4j.LoggerFactory
 
-class FileInstallerActivity : AppCompatActivity() {
+class FileInstallerActivity : AbstractGBActivity() {
     private val viewModel: FileInstallerViewModel by viewModels {
         FileInstallerViewModelFactory(GBApplication.app(),
-            intent.getParcelableExtra(EXTRA_OPTIONS) ?: Bundle.EMPTY
+            intent.getParcelableCompat<Bundle>(EXTRA_OPTIONS) ?: Bundle.EMPTY
         )
     }
 
@@ -54,7 +55,7 @@ class FileInstallerActivity : AppCompatActivity() {
         binding = ActivityFileInstallerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        currentUri = intent.data ?: intent.getParcelableExtra(Intent.EXTRA_STREAM)
+        currentUri = intent.data ?: intent.getParcelableCompat<Uri>(Intent.EXTRA_STREAM)
 
         // Set up the RecyclerView
         deviceAdapter = DeviceInstallAdapter { selectedDevice ->
@@ -143,7 +144,7 @@ class FileInstallerActivity : AppCompatActivity() {
                     Intent.FLAG_ACTIVITY_TASK_ON_HOME or
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
         }
-        val installAppBundle = getIntent().getParcelableExtra<Bundle?>(EXTRA_OPTIONS)
+        val installAppBundle = getIntent().getParcelableCompat<Bundle>(EXTRA_OPTIONS)
         if (installAppBundle != null) {
             intent.putExtra(EXTRA_OPTIONS, installAppBundle)
         }

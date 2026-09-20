@@ -107,19 +107,19 @@ public class AlarmClockReceiver extends BroadcastReceiver {
             NotificationSpec notificationSpec = new NotificationSpec();
             //TODO: can we attach a dismiss action to the notification and not use the notification ID explicitly?
             lastId = notificationSpec.getId();
-            notificationSpec.type = NotificationType.GENERIC_ALARM_CLOCK;
-            notificationSpec.sourceAppId = packageName;
+            notificationSpec.setType(NotificationType.GENERIC_ALARM_CLOCK);
+            notificationSpec.setSourceAppId(packageName);
             final String appLabel = NotificationUtils.getApplicationLabel(context, packageName);
-            notificationSpec.sourceName = appLabel != null ? appLabel : "Alarm Clock";
-            notificationSpec.title = context.getString(R.string.menuitem_alarm);
-            notificationSpec.body = DateFormat.getTimeFormat(context).format(new Date());
-            notificationSpec.attachedActions = new ArrayList<>();
+            notificationSpec.setSourceName(appLabel != null ? appLabel : "Alarm Clock");
+            notificationSpec.setTitle(context.getString(R.string.menuitem_alarm));
+            notificationSpec.setBody(DateFormat.getTimeFormat(context).format(new Date()));
+            notificationSpec.setAttachedActions(new ArrayList<>());
 
             // DISMISS ALL action
             NotificationSpec.Action dismissAllAction = new NotificationSpec.Action();
-            dismissAllAction.title = context.getString(R.string.notifications_dismiss_all);
-            dismissAllAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_DISMISS_ALL;
-            notificationSpec.attachedActions.add(dismissAllAction);
+            dismissAllAction.setTitle(context.getString(R.string.notifications_dismiss_all));
+            dismissAllAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_DISMISS_ALL);
+            notificationSpec.getAttachedActions().add(dismissAllAction);
 
             GBApplication.deviceService().onNotification(notificationSpec);
         }

@@ -22,7 +22,7 @@ import androidx.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import lineageos.weather.util.WeatherUtils;
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.model.TemperatureUnit;
 import nodomain.freeyourgadget.gadgetbridge.model.WeatherSpec;
@@ -59,7 +59,7 @@ public class MoyoungWeatherToday {
         conditionId = MoyoungConstants.openWeatherConditionToMoyoungConditionId(weatherSpec.getCurrentConditionCode());
         final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
         if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
-            currentTemp = (byte) WeatherUtils.celsiusToFahrenheit(weatherSpec.getCurrentTemp() - 273); // Kelvin -> Fahrenheit
+            currentTemp = (byte) TemperatureUtils.celsiusToFahrenheit(weatherSpec.getCurrentTemp() - 273); // Kelvin -> Fahrenheit
         } else {
             currentTemp = (byte) (weatherSpec.getCurrentTemp() - 273); // Kelvin -> Celcius
         }

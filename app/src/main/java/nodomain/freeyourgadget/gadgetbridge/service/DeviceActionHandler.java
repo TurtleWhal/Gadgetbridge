@@ -1,48 +1,5 @@
 package nodomain.freeyourgadget.gadgetbridge.service;
 
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.*;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_CAMERA_STATUS_CHANGE;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_ENABLE_HEARTRATE_SLEEP_SUPPORT;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_ENABLE_REALTIME_HEARTRATE_MEASUREMENT;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_ENABLE_REALTIME_STEPS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_POWER_OFF;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_READ_CONFIGURATION;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_REQUEST_MUSIC_LIST;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_REQUEST_MUSIC_OPERATION;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SEND_CONFIGURATION;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SEND_WEATHER;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_ALARMS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_CONTACTS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_FM_FREQUENCY;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_GPS_LOCATION;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_HEARTRATE_MEASUREMENT_INTERVAL;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_LED_COLOR;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_LOYALTY_CARDS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_REMINDERS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SET_WORLD_CLOCKS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_SLEEP_AS_ANDROID;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.ACTION_TEST_NEW_FUNCTION;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_ALARMS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_BOOLEAN_ENABLE;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_CAMERA_EVENT;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_CAMERA_FILENAME;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_CONFIG;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_CONTACTS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_FM_FREQUENCY;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_GPS_LOCATION;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_INTERVAL_SECONDS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_LED_COLOR;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_LOYALTY_CARDS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_OPTIONS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_REMINDERS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_REQUEST_MUSIC_MUSIC_IDS;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_REQUEST_MUSIC_OPERATION;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_REQUEST_MUSIC_PLAY_LIST_INDEX;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_REQUEST_MUSIC_PLAY_LIST_NAME;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_SLEEP_AS_ANDROID_ACTION;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_URI;
-import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.EXTRA_WORLD_CLOCKS;
-
 import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
@@ -60,9 +17,7 @@ import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.config.DynamicAppConfig;
 import nodomain.freeyourgadget.gadgetbridge.capabilities.loyaltycards.LoyaltyCard;
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventCameraRemote;
-import nodomain.freeyourgadget.gadgetbridge.devices.DeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
-import nodomain.freeyourgadget.gadgetbridge.impl.GBDeviceService;
 import nodomain.freeyourgadget.gadgetbridge.model.Alarm;
 import nodomain.freeyourgadget.gadgetbridge.model.CalendarEventSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.CallSpec;
@@ -71,15 +26,17 @@ import nodomain.freeyourgadget.gadgetbridge.model.Contact;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.MusicStateSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NavigationInfoSpec;
+import nodomain.freeyourgadget.gadgetbridge.model.NavigationRouteSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationImageSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationSpec;
 import nodomain.freeyourgadget.gadgetbridge.model.NotificationType;
 import nodomain.freeyourgadget.gadgetbridge.model.Reminder;
 import nodomain.freeyourgadget.gadgetbridge.model.WorldClock;
-import nodomain.freeyourgadget.gadgetbridge.util.EmojiConverter;
 import nodomain.freeyourgadget.gadgetbridge.util.language.LanguageUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.language.Transliterator;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
+
+import static nodomain.freeyourgadget.gadgetbridge.model.DeviceService.*;
 
 /**
  * Translates the Intent sent by {GBDeviceService} and calls the corresponding method in the device support class.
@@ -104,57 +61,16 @@ public class DeviceActionHandler {
         // Copy the incoming intent to make sure we don't modify it before it gets passed to other devices
         final Intent intentCopy = (Intent) intent.clone();
 
-        for (final String extra : GBDeviceService.transliterationExtras) {
-            if (intentCopy.hasExtra(extra)) {
-                // Ensure the text is sanitized (e.g. emoji converted to ascii) before applying the transliterators
-                // otherwise the emoji are removed before converting them
-                String sanitizedText = sanitizeNotifText(deviceSupport, device.getDeviceCoordinator(), device, intentCopy.getStringExtra(extra));
-                if (transliterator != null) {
-                    sanitizedText = transliterator.transliterate(sanitizedText);
-                }
-                intentCopy.putExtra(extra, sanitizedText);
-            }
-        }
-
         switch (action) {
             case ACTION_REQUEST_DEVICEINFO:
                 device.sendDeviceUpdateIntent(context, GBDevice.DeviceUpdateSubject.NOTHING);
                 break;
             case ACTION_NOTIFICATION: {
-                final int desiredId = intentCopy.getIntExtra(EXTRA_NOTIFICATION_ID, -1);
-                final NotificationSpec notificationSpec = new NotificationSpec(desiredId);
-                notificationSpec.phoneNumber = intentCopy.getStringExtra(EXTRA_NOTIFICATION_PHONENUMBER);
-                notificationSpec.sender = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SENDER);
-                notificationSpec.subject = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SUBJECT);
-                notificationSpec.title = intentCopy.getStringExtra(EXTRA_NOTIFICATION_TITLE);
-                if (notificationSpec.title == null) {
-                    notificationSpec.title = "";
-                }
-                notificationSpec.key = intentCopy.getStringExtra(EXTRA_NOTIFICATION_KEY);
-                notificationSpec.body = intentCopy.getStringExtra(EXTRA_NOTIFICATION_BODY);
-                if (notificationSpec.body == null) {
-                    notificationSpec.body = "";
-                }
-                notificationSpec.sourceName = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SOURCENAME);
-                notificationSpec.type = (NotificationType) intentCopy.getSerializableExtra(EXTRA_NOTIFICATION_TYPE);
-                notificationSpec.attachedActions = (ArrayList<NotificationSpec.Action>) intentCopy.getSerializableExtra(EXTRA_NOTIFICATION_ACTIONS);
-                notificationSpec.suggestedReplies = intentCopy.getStringArrayExtra(EXTRA_NOTIFICATION_SUGGESTED_REPLIES);
-                notificationSpec.flags = intentCopy.getIntExtra(EXTRA_NOTIFICATION_FLAGS, 0);
-                notificationSpec.sourceAppId = intentCopy.getStringExtra(EXTRA_NOTIFICATION_SOURCEAPPID);
-                notificationSpec.iconId = intentCopy.getIntExtra(EXTRA_NOTIFICATION_ICONID, 0);
-                notificationSpec.iconPackageId = intentCopy.getStringExtra(EXTRA_NOTIFICATION_ICONPACKAGEID);
-                notificationSpec.picturePath = intent.getStringExtra(NOTIFICATION_PICTURE_PATH);
-                notificationSpec.dndSuppressed = intentCopy.getIntExtra(EXTRA_NOTIFICATION_DNDSUPPRESSED, 0);
-                notificationSpec.channelId = intentCopy.getStringExtra(EXTRA_NOTIFICATION_CHANNEL_ID);
-                notificationSpec.category = intentCopy.getStringExtra(EXTRA_NOTIFICATION_CATEGORY);
-
-                if (notificationSpec.type == NotificationType.GENERIC_SMS && notificationSpec.phoneNumber != null) {
-                    GBApplication.getIDSenderLookup().add(notificationSpec.getId(), notificationSpec.phoneNumber);
-                }
-
+                final NotificationSpec notificationSpec = intentCopy.getParcelableExtra(EXTRA_NOTIFICATION_SPEC);
+                if (notificationSpec != null) {
                 //TODO: check if at least one of the attached actions is a reply action instead?
-                if ((notificationSpec.attachedActions != null && !notificationSpec.attachedActions.isEmpty())
-                        || (notificationSpec.type == NotificationType.GENERIC_SMS && notificationSpec.phoneNumber != null)) {
+                if ((notificationSpec.getAttachedActions() != null && !notificationSpec.getAttachedActions().isEmpty())
+                        || (notificationSpec.getType() == NotificationType.GENERIC_SMS && notificationSpec.getPhoneNumber() != null)) {
                     // NOTE: maybe not where it belongs
                     // I would rather like to save that as an array in SharedPreferences
                     // this would work, but I don't know how to do the same in the Settings Activity's xXML
@@ -165,10 +81,12 @@ public class DeviceActionHandler {
                             replies.add(reply);
                         }
                     }
-                    notificationSpec.cannedReplies = replies.toArray(new String[0]);
+                    notificationSpec.setCannedReplies(replies.toArray(new String[0]));
                 }
-
-                deviceSupport.onNotification(notificationSpec);
+                    deviceSupport.onNotification(notificationSpec.transliterated(deviceSupport, transliterator));
+                } else {
+                    LOG.warn("Received a null ParcelableExtra, expected a NotificationSpec.");
+                }
                 break;
             }
             case ACTION_DELETE_NOTIFICATION: {
@@ -176,23 +94,10 @@ public class DeviceActionHandler {
                 break;
             }
             case ACTION_ADD_CALENDAREVENT: {
-                final CalendarEventSpec calendarEventSpec = new CalendarEventSpec();
-                calendarEventSpec.id = intentCopy.getLongExtra(EXTRA_CALENDAREVENT_ID, -1);
-                calendarEventSpec.eventId = intentCopy.getLongExtra(EXTRA_CALENDAREVENT_ID, -1);
-                calendarEventSpec.type = intentCopy.getByteExtra(EXTRA_CALENDAREVENT_TYPE, (byte) -1);
-                calendarEventSpec.timestamp = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_TIMESTAMP, -1);
-                calendarEventSpec.durationInSeconds = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_DURATION, -1);
-                calendarEventSpec.allDay = intentCopy.getBooleanExtra(EXTRA_CALENDAREVENT_ALLDAY, false);
-                calendarEventSpec.reminders = (ArrayList<Long>) intentCopy.getSerializableExtra(EXTRA_CALENDAREVENT_REMINDERS);
-                calendarEventSpec.title = intentCopy.getStringExtra(EXTRA_CALENDAREVENT_TITLE);
-                calendarEventSpec.description = intentCopy.getStringExtra(EXTRA_CALENDAREVENT_DESCRIPTION);
-                calendarEventSpec.location = intentCopy.getStringExtra(EXTRA_CALENDAREVENT_LOCATION);
-                calendarEventSpec.calName = intentCopy.getStringExtra(EXTRA_CALENDAREVENT_CALNAME);
-                calendarEventSpec.calendarColor = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_CALENDAR_COLOR, 0);
-                calendarEventSpec.color = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_COLOR, 0);
-                calendarEventSpec.status = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_STATUS, 0);
-                calendarEventSpec.attendingStatus = intentCopy.getIntExtra(EXTRA_CALENDAREVENT_ATTENDING_STATUS, 0);
-                deviceSupport.onAddCalendarEvent(calendarEventSpec);
+                final CalendarEventSpec calendarEventSpec = intentCopy.getParcelableExtra(EXTRA_CALENDAREVENT_SPEC);
+                if (calendarEventSpec != null) {
+                    deviceSupport.onAddCalendarEvent(calendarEventSpec.transliterated(deviceSupport, transliterator));
+                }
                 break;
             }
             case ACTION_DELETE_CALENDAREVENT: {
@@ -201,9 +106,12 @@ public class DeviceActionHandler {
                 deviceSupport.onDeleteCalendarEvent(type, id);
                 break;
             }
-            case ACTION_RESET: {
-                final int flags = intentCopy.getIntExtra(EXTRA_RESET_FLAGS, 0);
-                deviceSupport.onReset(flags);
+            case ACTION_REBOOT: {
+                deviceSupport.onReboot();
+                break;
+            }
+            case ACTION_FACTORY_RESET: {
+                deviceSupport.onFactoryReset();
                 break;
             }
             case ACTION_HEARTRATE_TEST: {
@@ -231,43 +139,26 @@ public class DeviceActionHandler {
                 break;
             }
             case ACTION_CALLSTATE:
-                final CallSpec callSpec = new CallSpec();
-                callSpec.command = intentCopy.getIntExtra(EXTRA_CALL_COMMAND, CallSpec.CALL_UNDEFINED);
-                callSpec.number = intentCopy.getStringExtra(EXTRA_CALL_PHONENUMBER);
-                callSpec.name = intentCopy.getStringExtra(EXTRA_CALL_DISPLAYNAME);
-                callSpec.sourceName = intentCopy.getStringExtra(EXTRA_CALL_SOURCENAME);
-                callSpec.sourceAppId = intentCopy.getStringExtra(EXTRA_CALL_SOURCEAPPID);
-                callSpec.key = intentCopy.getStringExtra(EXTRA_CALL_KEY);
-                callSpec.channelId = intentCopy.getStringExtra(EXTRA_CALL_CHANNELID);
-                callSpec.category = intentCopy.getStringExtra(EXTRA_CALL_CATEGORY);
-                callSpec.isVoip = intentCopy.getBooleanExtra(EXTRA_CALL_ISVOIP, false);
-                callSpec.dndSuppressed = intentCopy.getIntExtra(EXTRA_CALL_DNDSUPPRESSED, 0);
-                deviceSupport.onSetCallState(callSpec);
+                final CallSpec callSpec = intentCopy.getParcelableExtra(EXTRA_CALL_SPEC);
+                if (callSpec != null) {
+                    deviceSupport.onSetCallState(callSpec.transliterated(deviceSupport, transliterator));
+                } else {
+                    deviceSupport.onSetCallState(callSpec);
+                }
                 break;
             case ACTION_SETCANNEDMESSAGES:
-                final int type = intentCopy.getIntExtra(EXTRA_CANNEDMESSAGES_TYPE, -1);
-                final String[] cannedMessages = intentCopy.getStringArrayExtra(EXTRA_CANNEDMESSAGES);
-
-                final CannedMessagesSpec cannedMessagesSpec = new CannedMessagesSpec();
-                cannedMessagesSpec.type = type;
-                cannedMessagesSpec.cannedMessages = cannedMessages;
-                deviceSupport.onSetCannedMessages(cannedMessagesSpec);
+                final CannedMessagesSpec cannedMessagesSpec = intentCopy.getParcelableExtra(EXTRA_CANNEDMESSAGES_SPEC);
+                if(cannedMessagesSpec != null)
+                    deviceSupport.onSetCannedMessages(cannedMessagesSpec);
                 break;
             case ACTION_SETTIME:
                 deviceSupport.onSetTime();
                 break;
             case ACTION_SETMUSICINFO:
-                final MusicSpec musicSpec = new MusicSpec();
-                musicSpec.artist = intentCopy.getStringExtra(EXTRA_MUSIC_ARTIST);
-                musicSpec.album = intentCopy.getStringExtra(EXTRA_MUSIC_ALBUM);
-                musicSpec.track = intentCopy.getStringExtra(EXTRA_MUSIC_TRACK);
-                musicSpec.duration = intentCopy.getIntExtra(EXTRA_MUSIC_DURATION, 0);
-                musicSpec.trackCount = intentCopy.getIntExtra(EXTRA_MUSIC_TRACKCOUNT, 0);
-                musicSpec.trackNr = intentCopy.getIntExtra(EXTRA_MUSIC_TRACKNR, 0);
-                // Producer side now passes the album art as a Parcelable Bitmap (raw, no
-                // PNG round-trip). It's still optional.
-                musicSpec.albumArt = intentCopy.getParcelableExtra(EXTRA_MUSIC_ALBUMART);
-                deviceSupport.onSetMusicInfo(musicSpec);
+                final MusicSpec musicSpec = intentCopy.getParcelableExtra(EXTRA_MUSIC_SPEC);
+                if (musicSpec != null) {
+                    deviceSupport.onSetMusicInfo(musicSpec.transliterated(deviceSupport, transliterator));
+                }
                 break;
             case ACTION_SET_NOTIFICATION_IMAGE:
                 final NotificationImageSpec notificationImageSpec = new NotificationImageSpec();
@@ -286,22 +177,32 @@ public class DeviceActionHandler {
                 deviceSupport.onChangePhoneSilentMode(ringerMode);
                 break;
             case ACTION_SETMUSICSTATE:
-                final MusicStateSpec stateSpec = new MusicStateSpec();
-                stateSpec.shuffle = intentCopy.getByteExtra(EXTRA_MUSIC_SHUFFLE, (byte) 0);
-                stateSpec.repeat = intentCopy.getByteExtra(EXTRA_MUSIC_REPEAT, (byte) 0);
-                stateSpec.position = intentCopy.getIntExtra(EXTRA_MUSIC_POSITION, 0);
-                stateSpec.playRate = intentCopy.getIntExtra(EXTRA_MUSIC_RATE, 0);
-                stateSpec.state = intentCopy.getByteExtra(EXTRA_MUSIC_STATE, (byte) 0);
-                deviceSupport.onSetMusicState(stateSpec);
+                final MusicStateSpec stateSpec = intentCopy.getParcelableExtra(EXTRA_MUSIC_STATE_SPEC);
+                if (stateSpec != null)
+                    deviceSupport.onSetMusicState(stateSpec);
                 break;
             case ACTION_SETNAVIGATIONINFO:
                 final NavigationInfoSpec navigationInfoSpec = new NavigationInfoSpec();
-                navigationInfoSpec.instruction = intentCopy.getStringExtra(EXTRA_NAVIGATION_INSTRUCTION);
-                navigationInfoSpec.nextAction = intentCopy.getIntExtra(EXTRA_NAVIGATION_NEXT_ACTION, 0);
-                navigationInfoSpec.distanceToTurn = intentCopy.getStringExtra(EXTRA_NAVIGATION_DISTANCE_TO_TURN);
-                navigationInfoSpec.ETA = intentCopy.getStringExtra(EXTRA_NAVIGATION_ETA);
-                navigationInfoSpec.completionPercent = intentCopy.getIntExtra(EXTRA_NAVIGATION_COMPLETION_PERCENT, 0);
+                navigationInfoSpec.setInstruction(intentCopy.getStringExtra(EXTRA_NAVIGATION_INSTRUCTION));
+                navigationInfoSpec.setNextAction(intentCopy.getIntExtra(EXTRA_NAVIGATION_NEXT_ACTION, 0));
+                navigationInfoSpec.setDistanceToTurn(intentCopy.getStringExtra(EXTRA_NAVIGATION_DISTANCE_TO_TURN));
+                navigationInfoSpec.setDistanceToTarget(intentCopy.getStringExtra(EXTRA_NAVIGATION_DISTANCE_TO_TARGET));
+                // Prefer the time to destination value sent by the receiver, if present, as the ETA has been converted internally
+                // in this case
+                final int timeToDest = intentCopy.getIntExtra(EXTRA_NAVIGATION_TIME_TO_DESTINATION, 0);
+                if( timeToDest != 0) {
+                    navigationInfoSpec.setTotalTimeToDestination(timeToDest);
+                } else {
+                    navigationInfoSpec.setETA(intentCopy.getStringExtra(EXTRA_NAVIGATION_ETA));
+                }
+                navigationInfoSpec.setCompletionPercent(intentCopy.getIntExtra(EXTRA_NAVIGATION_COMPLETION_PERCENT, 0));
                 deviceSupport.onSetNavigationInfo(navigationInfoSpec);
+                break;
+            case ACTION_SETNAVIGATIONROUTE:
+                final NavigationRouteSpec navigationRouteSpec = intentCopy.getParcelableExtra(EXTRA_NAVIGATION_ROUTE_SPEC);
+                if (navigationRouteSpec != null) {
+                    deviceSupport.onSetNavigationRoute(navigationRouteSpec);
+                }
                 break;
             case ACTION_REQUEST_APPINFO:
                 deviceSupport.onAppInfoReq();
@@ -465,24 +366,4 @@ public class DeviceActionHandler {
         }
     }
 
-    /**
-     * @param text original text
-     * @return 'text' or a new String without non-supported chars like emoticons, etc.
-     */
-    private static String sanitizeNotifText(final DeviceSupport deviceSupport,
-                                            final DeviceCoordinator deviceCoordinator,
-                                            final GBDevice device,
-                                            String text) {
-        if (text == null || text.isEmpty()) {
-            return text;
-        }
-
-        text = deviceSupport.customStringFilter(text);
-
-        if (!deviceCoordinator.supportsUnicodeEmojis(device)) {
-            return EmojiConverter.convertUnicodeEmojiToAscii(text, GBApplication.getContext());
-        }
-
-        return text;
-    }
 }

@@ -208,19 +208,9 @@ public class CmfActivitySync {
 
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
-
-            final Device device = DBHelper.getDevice(getDevice(), session);
-            final User user = DBHelper.getUser(session);
-
             final CmfHeartRateSampleProvider sampleProvider = new CmfHeartRateSampleProvider(getDevice(), session);
 
-            for (final CmfHeartRateSample sample : samples) {
-                sample.setDevice(device);
-                sample.setUser(user);
-            }
-
-            LOG.debug("Will persist {} heart rate samples", samples.size());
-            sampleProvider.addSamples(samples);
+            sampleProvider.persistSamples(samples, getContext());
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving heart rate samples", Toast.LENGTH_LONG, GB.ERROR, e);
         }
@@ -276,18 +266,9 @@ public class CmfActivitySync {
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
 
-            final Device device = DBHelper.getDevice(getDevice(), session);
-            final User user = DBHelper.getUser(session);
-
             final CmfSleepStageSampleProvider sampleProvider = new CmfSleepStageSampleProvider(getDevice(), session);
 
-            for (final CmfSleepStageSample sample : stageSamples) {
-                sample.setDevice(device);
-                sample.setUser(user);
-            }
-
-            LOG.debug("Will persist {} sleep stage samples", stageSamples.size());
-            sampleProvider.addSamples(stageSamples);
+            sampleProvider.persistSamples(stageSamples, getContext());
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving sleep samples", Toast.LENGTH_LONG, GB.ERROR, e);
         }
@@ -316,18 +297,9 @@ public class CmfActivitySync {
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
 
-            final Device device = DBHelper.getDevice(getDevice(), session);
-            final User user = DBHelper.getUser(session);
-
             final CmfStressSampleProvider sampleProvider = new CmfStressSampleProvider(getDevice(), session);
 
-            for (final CmfStressSample sample : samples) {
-                sample.setDevice(device);
-                sample.setUser(user);
-            }
-
-            LOG.debug("Will persist {} stress samples", samples.size());
-            sampleProvider.addSamples(samples);
+            sampleProvider.persistSamples(samples, getContext());
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving stress samples", Toast.LENGTH_LONG, GB.ERROR, e);
         }
@@ -356,18 +328,9 @@ public class CmfActivitySync {
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
 
-            final Device device = DBHelper.getDevice(getDevice(), session);
-            final User user = DBHelper.getUser(session);
-
             final CmfSpo2SampleProvider sampleProvider = new CmfSpo2SampleProvider(getDevice(), session);
 
-            for (final CmfSpo2Sample sample : samples) {
-                sample.setDevice(device);
-                sample.setUser(user);
-            }
-
-            LOG.debug("Will persist {} spo2 samples", samples.size());
-            sampleProvider.addSamples(samples);
+            sampleProvider.persistSamples(samples, getContext());
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving spo2 samples", Toast.LENGTH_LONG, GB.ERROR, e);
         }
@@ -461,18 +424,9 @@ public class CmfActivitySync {
         try (DBHandler handler = GBApplication.acquireDB()) {
             final DaoSession session = handler.getDaoSession();
 
-            final Device device = DBHelper.getDevice(getDevice(), session);
-            final User user = DBHelper.getUser(session);
-
             final CmfWorkoutGpsSampleProvider sampleProvider = new CmfWorkoutGpsSampleProvider(getDevice(), session);
 
-            for (final CmfWorkoutGpsSample sample : samples) {
-                sample.setDevice(device);
-                sample.setUser(user);
-            }
-
-            LOG.debug("Will persist {} workout gps samples", samples.size());
-            sampleProvider.addSamples(samples);
+            sampleProvider.persistSamples(samples, getContext());
         } catch (final Exception e) {
             GB.toast(getContext(), "Error saving workout gps samples", Toast.LENGTH_LONG, GB.ERROR, e);
         }

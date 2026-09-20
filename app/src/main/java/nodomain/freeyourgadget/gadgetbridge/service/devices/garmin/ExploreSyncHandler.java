@@ -52,6 +52,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryEntries;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrack;
 import nodomain.freeyourgadget.gadgetbridge.model.GPSCoordinate;
+import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto.Smart;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.fit.enums.GarminSport;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.ExploreSyncService;
@@ -70,7 +71,6 @@ import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.R
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.StartSyncStatus;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.SyncFinishedStatus;
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiExploreSyncService.WriteStatus;
-import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.notifications.GBProgressNotification;
 
@@ -254,7 +254,7 @@ class ExploreSyncHandler {
             // Resolve and cache the (deviceId, userId) ids up front so
             // per-op write paths can re-acquireDB() briefly instead of
             // holding the global write lock for the whole sync.
-            try (DBHandler dbHandler = GBApplication.acquireDB()) {
+            try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
                 final DaoSession daoSession = dbHandler.getDaoSession();
                 this.deviceId = DBHelper.getDevice(deviceSupport.getDevice(), daoSession).getId();
                 this.userId = DBHelper.getUser(daoSession).getId();
@@ -437,7 +437,7 @@ class ExploreSyncHandler {
              * to fail the same way.
              */
             private boolean alreadyImported(final long startTimeSeconds) {
-                try (DBHandler dbHandler = GBApplication.acquireDB()) {
+                try (DBHandler dbHandler = GBApplication.acquireDbReadOnly()) {
                     return ActivitySummaryParser.findBaseActivitySummary(dbHandler.getDaoSession(),
                             deviceSupport.getDevice(), startTimeSeconds) != null;
                 } catch (final Exception e) {
@@ -773,7 +773,7 @@ class ExploreSyncHandler {
                 ? GdiExploreSyncService.SyncType.SYNC_TYPE_FULL
                 : GdiExploreSyncService.SyncType.SYNC_TYPE_INCREMENTAL;
         deviceSupport.sendProtobufRequest("explore-sync start",
-                GdiSmartProto.Smart.newBuilder()
+                Smart.newBuilder()
                         .setExploreSyncService(ExploreSyncService.newBuilder()
                                 .setStartSyncRequest(
                                         GdiExploreSyncService.StartSyncRequest.newBuilder()

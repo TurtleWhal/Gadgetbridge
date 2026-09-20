@@ -12,7 +12,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.appmanager.config.Dynamic
 import nodomain.freeyourgadget.gadgetbridge.deviceevents.GBDeviceEventAppConfig
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiAppConfigService
 import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiAppConfigService.AppConfigService.AppConfig
-import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto
+import nodomain.freeyourgadget.gadgetbridge.proto.garmin.GdiSmartProto.Smart
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.http.GarminJson
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.http.GarminJsonException
 import nodomain.freeyourgadget.gadgetbridge.util.UuidUtil
@@ -119,9 +119,9 @@ class AppConfigHandler(private val deviceSupport: GarminSupport) {
         deviceSupport.evaluateGBDeviceEvent(GBDeviceEventAppConfig(uuid, event, configs))
     }
 
-    fun onAppConfigRequest(uuid: UUID): GdiSmartProto.Smart {
+    fun onAppConfigRequest(uuid: UUID): Smart {
         LOG.debug("Encoding app config request for {}", uuid)
-        return GdiSmartProto.Smart.newBuilder().buildWith {
+        return Smart.newBuilder().buildWith {
             appConfigService = GdiAppConfigService.AppConfigService.newBuilder().buildWith {
                 appConfigGet = AppConfig.newBuilder().buildWith {
                     appId = ByteString.copyFrom(UuidUtil.toBytes(uuid))
@@ -130,7 +130,7 @@ class AppConfigHandler(private val deviceSupport: GarminSupport) {
         }
     }
 
-    fun onAppConfigSet(uuid: UUID, configs: List<DynamicAppConfig>): GdiSmartProto.Smart? {
+    fun onAppConfigSet(uuid: UUID, configs: List<DynamicAppConfig>): Smart? {
         LOG.debug("Encoding app config set for {} with {} configs", uuid, configs.size)
 
         val jsonObject = JsonObject()
@@ -152,7 +152,7 @@ class AppConfigHandler(private val deviceSupport: GarminSupport) {
             return null
         }
 
-        return GdiSmartProto.Smart.newBuilder().buildWith {
+        return Smart.newBuilder().buildWith {
             appConfigService = GdiAppConfigService.AppConfigService.newBuilder().buildWith {
                 appConfigSet = AppConfig.newBuilder().buildWith {
                     appId = ByteString.copyFrom(UuidUtil.toBytes(uuid))

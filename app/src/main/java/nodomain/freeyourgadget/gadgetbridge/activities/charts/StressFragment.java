@@ -20,7 +20,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.TimeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 
-abstract class StressFragment<D extends ChartsData> extends AbstractChartFragment<D> {
+public abstract class StressFragment<D extends ChartsData> extends AbstractChartFragment<D> {
 
     protected int BACKGROUND_COLOR;
     protected int DESCRIPTION_COLOR;

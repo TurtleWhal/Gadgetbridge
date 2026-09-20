@@ -35,6 +35,7 @@ import nodomain.freeyourgadget.gadgetbridge.devices.DeviceManager
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.util.BondingUtil
 import nodomain.freeyourgadget.gadgetbridge.util.GB
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 import org.slf4j.LoggerFactory
 import kotlin.properties.Delegates
 
@@ -48,12 +49,7 @@ class DeviceDeleteActivity : AbstractGBActivity() {
         binding = ActivityDeviceDeleteBinding.inflate(layoutInflater)
         setContentView(binding.getRoot())
 
-        device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(EXTRA_DEVICE, GBDevice::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(EXTRA_DEVICE)
-        }!!
+        device = intent.getParcelableCompat<GBDevice>(EXTRA_DEVICE)!!
 
         deleteFiles = intent.getBooleanExtra(EXTRA_DELETE_FILES, true)
 

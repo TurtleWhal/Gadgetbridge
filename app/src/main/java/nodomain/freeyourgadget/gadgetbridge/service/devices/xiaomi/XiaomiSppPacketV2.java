@@ -226,9 +226,10 @@ public abstract class XiaomiSppPacketV2 {
                             }
                             default: {
                                 final byte[] value = new byte[valueSize];
+                                buffer.get(value);
                                 LOG.debug("received unknown config type {} with byte value {}",
                                         key,
-                                        GB.hexdump(value));
+                                        GB.lazyHexdump(value));
                                 break;
                             }
                         }

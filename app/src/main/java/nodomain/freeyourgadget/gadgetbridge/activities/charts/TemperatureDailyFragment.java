@@ -44,6 +44,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.R;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHandler;
@@ -141,8 +142,8 @@ public class TemperatureDailyFragment extends AbstractChartFragment<TemperatureD
         x.setAxisMaximum(86400f);
 
         final boolean isMetric = temperatureUnit == TemperatureUnit.CELSIUS;
-        final float defaultAxisMinimum = isMetric ? 30f : celsiusToFahrenheit(30f);
-        final float defaultAxisMaximum = isMetric ? 45f : celsiusToFahrenheit(45f);
+        final float defaultAxisMinimum = isMetric ? 30f : (float) TemperatureUtils.celsiusToFahrenheit(30d);
+        final float defaultAxisMaximum = isMetric ? 45f : (float) TemperatureUtils.celsiusToFahrenheit(45d);
 
         YAxis y = tempLineChart.getAxisLeft();
         y.setDrawGridLines(false);
@@ -199,7 +200,7 @@ public class TemperatureDailyFragment extends AbstractChartFragment<TemperatureD
             int timestamp_in_seconds = (int) (sample.getTimestamp() / 1000L);
             final float temperatureValue = temperatureUnit == TemperatureUnit.CELSIUS ?
                     sample.getTemperature() :
-                    (float) ((sample.getTemperature() * 1.8) + 32);
+                    (float) TemperatureUtils.celsiusToFahrenheit(sample.getTemperature());
             lineEntries.add(new Entry(tsTranslation.shorten(timestamp_in_seconds), temperatureValue));
             accumulator.add(temperatureValue);
         }
@@ -247,10 +248,6 @@ public class TemperatureDailyFragment extends AbstractChartFragment<TemperatureD
             tempLineChart.getAxisLeft().addLimitLine(averageLine);
         }
 
-    }
-
-    public static float celsiusToFahrenheit(final float celsius) {
-        return ((celsius * (9f/5f)) + 32f);
     }
 
     protected static class TemperatureChartData extends ChartsData {

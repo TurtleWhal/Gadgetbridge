@@ -16,14 +16,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.nothing;
 
+import androidx.annotation.NonNull;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingAudioMode;
 
 public class EarACoordinator extends AbstractEarCoordinator {
     @Override
     protected Pattern getSupportedDeviceName() {
-        return Pattern.compile("Nothing ear (a)", Pattern.LITERAL);
+        return Pattern.compile("Nothing ear (a)", Pattern.LITERAL | Pattern.CASE_INSENSITIVE);
     }
 
     @Override
@@ -37,20 +42,16 @@ public class EarACoordinator extends AbstractEarCoordinator {
     }
 
     @Override
-    public boolean supportsLightAnc() {
-        return false;
-    }
-
-    @Override
-    public boolean supportsTransparency() {
-        return false;
-    }
-    @Override
-    public boolean supportsMediumAnc() { return true; }
-
-    @Override
-    public boolean supportsAdaptiveAnc() { return true; }
-
-    @Override
     public boolean supportsLowLatency() { return true; }
+
+    @NonNull
+    @Override
+    public List<NothingAudioMode> getAudioModes() {
+        return Arrays.asList(
+                NothingAudioMode.ANC,
+                NothingAudioMode.ANCMEDIUM,
+                NothingAudioMode.ANCADAPTIVE,
+                NothingAudioMode.OFF
+        );
+    }
 }

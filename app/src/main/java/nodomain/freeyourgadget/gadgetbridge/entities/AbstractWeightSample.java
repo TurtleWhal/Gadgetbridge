@@ -1,4 +1,4 @@
-/*  Copyright (C) 2024 Severin von Wnuck-Lipinski
+/*  Copyright (C) 2024-2026 Severin von Wnuck-Lipinski, oddballza
 
     This file is part of Gadgetbridge.
 
@@ -28,6 +28,7 @@ public abstract class AbstractWeightSample extends AbstractTimeSample implements
         return getClass().getSimpleName() + "{" +
                 "timestamp=" + DateTimeUtils.formatDateTime(DateTimeUtils.parseTimestampMillis(getTimestamp())) +
                 ", weightKg=" + getWeightKg() +
+                ", impedanceOhm=" + getImpedanceOhm() +
                 ", userId=" + getUserId() +
                 ", deviceId=" + getDeviceId() +
                 "}";

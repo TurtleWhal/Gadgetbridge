@@ -28,4 +28,9 @@ public class GarminLily2Coordinator extends GarminWatchCoordinator {
     public boolean supportsVO2MultiSport(@NonNull final GBDevice device) {
         return false;
     }
+
+    @Override
+    public boolean supportsRacePrediction(@NonNull final GBDevice device) {
+        return false;
+    }
 }

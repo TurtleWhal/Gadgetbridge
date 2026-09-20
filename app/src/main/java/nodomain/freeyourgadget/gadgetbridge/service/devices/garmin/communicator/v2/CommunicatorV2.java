@@ -70,6 +70,11 @@ public class CommunicatorV2 implements ICommunicator {
     // MLR support
     private final Map<Integer, MlrCommunicator> mlrCommunicators = new HashMap<>();
 
+    // Set while a CLOSE_ALL_REQ is outstanding, so individual CLOSE_HANDLE_RESP messages that
+    // arrive as part of that close-all do not also trigger their own service re-registration -
+    // CLOSE_ALL_RESP already re-registers GFDI unconditionally.
+    private boolean closingAll = false;
+
     public CommunicatorV2(final GarminSupport garminSupport) {
         this.mSupport = garminSupport;
     }
@@ -95,6 +100,7 @@ public class CommunicatorV2 implements ICommunicator {
 
                 builder.notify(characteristicReceive, true);
                 builder.write(characteristicSend, closeAllServices());
+                closingAll = true;
 
                 return true;
             }
@@ -366,6 +372,11 @@ public class CommunicatorV2 implements ICommunicator {
 
                 if (reliable != 0) {
                     // MLR mode - create reliable communicator
+                    final MlrCommunicator oldMlrComm = mlrCommunicators.remove(handle);
+                    if (oldMlrComm != null) {
+                        LOG.warn("Replacing existing MLR communicator for handle {}", handle);
+                        oldMlrComm.close();
+                    }
                     final MlrCommunicator mlrComm = createMlrCommunicator(handle, serviceCallback);
                     mlrCommunicators.put(handle, mlrComm);
                     serviceCallback.onConnect(new MlrServiceWriter(mlrComm));
@@ -378,7 +389,7 @@ public class CommunicatorV2 implements ICommunicator {
             case CLOSE_HANDLE_RESP: {
                 final short serviceCode = message.getShort();
                 final Service service = Service.fromCode(serviceCode);
-                final int handle = message.get();
+                final int handle = message.get() & 0xff;
                 final byte status = message.get();
                 LOG.debug("Received close handle response: service={}, handle={}, status={}", service, handle, status);
                 if (service != null) {
@@ -397,6 +408,16 @@ public class CommunicatorV2 implements ICommunicator {
 
                     handleByService.remove(service);
                     serviceCallbacks.remove(service);
+
+                    if (service == Service.GFDI && !closingAll) {
+                        // The watch closed the main GFDI channel, re-register it, unless we're
+                        // waiting for a CLOSE_ALL_RESP, in which case we will re-register it once
+                        // we get it.
+                        LOG.warn("GFDI handle was closed unexpectedly");
+                        mSupport.createTransactionBuilder("open GFDI")
+                                .write(characteristicSend, registerService(Service.GFDI, mSupport.mlrEnabled()))
+                                .queue();
+                    }
                 }
 
                 serviceByHandle.remove(handle);
@@ -404,7 +425,8 @@ public class CommunicatorV2 implements ICommunicator {
                 break;
             }
             case CLOSE_ALL_RESP:
-                LOG.debug("Received close all handles response. Message: {}", message.array());
+                LOG.debug("Received close all handles response. Message: {}", GB.lazyHexdump(message.array()));
+                closingAll = false;
                 serviceByHandle.clear();
                 handleByService.clear();
                 for (ServiceCallback callback : serviceCallbacks.values()) {

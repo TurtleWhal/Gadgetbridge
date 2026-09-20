@@ -88,4 +88,10 @@ enum class Language(val code: String, @StringRes val label: Int) {
     TH("th", R.string.thai),
     FA("fa", R.string.persian),
     VI("vi", R.string.vietnamese),
+    ;
+
+    companion object {
+        @JvmStatic
+        fun fromCode(code: String): Language? = entries.find { it.code == code }
+    }
 }

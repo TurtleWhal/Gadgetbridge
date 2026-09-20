@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.os.Build;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -57,8 +59,19 @@ public class DeviceInformationMessage extends GFDIMessage {
         final String bluetoothFriendlyName = reader.readString();
         final String deviceName = reader.readString();
         final String deviceModel = reader.readString();
+        if (0 < reader.remaining()) {
+            final int hasMac = reader.readByte();
+            if (hasMac == 1) {
+                byte[] ble = reader.readBytes(6);
+                byte[] bt = reader.readBytes(6);
+            }
+            if (0 < reader.remaining()) {
+                final int unk = reader.readByte();
+            }
+        }
 
-        return new DeviceInformationMessage(garminMessage, protocolVersion, productNumber, unitNumber, softwareVersion, maxPacketSize, bluetoothFriendlyName, deviceName, deviceModel);
+        // send reply so "Connected with X" shows
+        return new DeviceInformationMessage(garminMessage, protocolVersion, productNumber, unitNumber, softwareVersion, maxPacketSize, bluetoothFriendlyName, deviceName, deviceModel, true);
     }
 
     @SuppressLint("MissingPermission")
@@ -81,7 +94,10 @@ public class DeviceInformationMessage extends GFDIMessage {
             bluetoothName = BluetoothAdapter.getDefaultAdapter().getName();
         } catch (final Exception e) {
             LOG.error("Failed to get bluetooth name", e);
-            bluetoothName = "Unknown";
+            bluetoothName = null;
+        }
+        if (StringUtils.isBlank(bluetoothName)) {
+            bluetoothName = "Gadgetbridge";
         }
         writer.writeString(bluetoothName);
         writer.writeString(Build.MANUFACTURER);

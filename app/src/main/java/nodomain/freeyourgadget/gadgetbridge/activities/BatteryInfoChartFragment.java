@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -506,8 +507,8 @@ public class BatteryInfoChartFragment extends AbstractGBFragment {
             final boolean normalized = orderedMetrics.size() >= 3;
 
             final List<LineDataSet> dataSets = new ArrayList<>();
-            final List<ValueFormatter> markerFormatters = new ArrayList<>();
-            final List<String> markerUnits = new ArrayList<>();
+            final Map<String, ValueFormatter> markerFormatters = new HashMap<>();
+            final Map<String, String> markerUnits = new HashMap<>();
 
             BatteryMetric axisLeftMetric = null;
             float axisLeftMin = 0f;
@@ -569,8 +570,8 @@ public class BatteryInfoChartFragment extends AbstractGBFragment {
                 final MetricValueFormatter formatter = new MetricValueFormatter(metric, min, max, normalized);
                 dataSet.setValueFormatter(formatter);
                 dataSets.add(dataSet);
-                markerFormatters.add(formatter);
-                markerUnits.add(null);
+                markerFormatters.put(label, formatter);
+                markerUnits.put(label, null);
             }
 
             binding.batteryChartEmpty.setVisibility(hasAnyData ? View.GONE : View.VISIBLE);

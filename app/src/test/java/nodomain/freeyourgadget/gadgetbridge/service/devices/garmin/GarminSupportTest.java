@@ -107,7 +107,7 @@ public class GarminSupportTest extends TestBase {
         Assert.assertEquals(1, events.size());
         Assert.assertTrue((events.getFirst() instanceof IncomingFitDefinitionDeviceEvent));
 
-        final FitLocalMessageHandler fitLocalMessageHandler = new FitLocalMessageHandler(support, ((IncomingFitDefinitionDeviceEvent) events.getFirst()).getRecordDefinitions());
+        final FitLocalMessageHandler fitLocalMessageHandler = new FitLocalMessageHandler(support, ((IncomingFitDefinitionDeviceEvent) events.getFirst()).getRecordDefinitions(), 375);
 
         final byte[] incomingData = GB.hexStringToByteArray("2E00941302CA960015070000000703466F726572756E6E65722033350000000000000000000000000101010197F3");
         FitDataMessage fitDataMessage = (FitDataMessage) GFDIMessage.parseIncoming(incomingData);
@@ -140,7 +140,7 @@ public class GarminSupportTest extends TestBase {
             switch (baseType.name()) {
                 case "ENUM":
                 case "UINT8":
-                case "BASE_TYPE_BYTE":
+                case "BYTE":
                     startVal = 0;
                     test.setFieldByName(baseType.name(), startVal);
                     endVal = test.getFieldByName(baseType.name());

@@ -44,7 +44,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import lineageos.weather.util.WeatherUtils;
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSettingsPreferenceConst;
 import nodomain.freeyourgadget.gadgetbridge.database.DBHelper;
@@ -231,7 +231,7 @@ public class PixooProtocol extends GBDeviceProtocol {
         }
 
         byte iconID;
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case KAKAO_TALK:
                 iconID = 0;
                 break;
@@ -339,7 +339,7 @@ public class PixooProtocol extends GBDeviceProtocol {
         byte temp = (byte) (weatherSpec.getCurrentTemp() - 273);
         final TemperatureUnit temperatureUnit = GBApplication.getPrefs().getTemperatureUnit();
         if (temperatureUnit == TemperatureUnit.FAHRENHEIT) {
-            temp = (byte) WeatherUtils.celsiusToFahrenheit(temp);
+            temp = (byte) TemperatureUtils.celsiusToFahrenheit(temp);
         }
 
         return encodeProtocol(new byte[]{

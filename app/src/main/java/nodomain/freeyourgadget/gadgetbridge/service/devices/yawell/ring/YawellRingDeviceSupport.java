@@ -67,7 +67,6 @@ import nodomain.freeyourgadget.gadgetbridge.service.btle.TransactionBuilder;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.IntentListener;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfo;
 import nodomain.freeyourgadget.gadgetbridge.service.btle.profiles.deviceinfo.DeviceInfoProfile;
-import nodomain.freeyourgadget.gadgetbridge.service.serial.GBDeviceProtocol;
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils;
 import nodomain.freeyourgadget.gadgetbridge.util.GB;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
@@ -237,6 +236,7 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
                             minutesInPreviousPackets += (hrPacketNr - 2) * 13 * 5;
                         }
                         final List<ColmiHeartRateSample> heartRateSamples = new ArrayList<>(value.length);
+                        final Calendar now = Calendar.getInstance();
                         for (int i = startValue; i < value.length - 1; i++) {
                             final int heartRate = value[i] & 0xFF;
                             if (heartRate != 0x00) {
@@ -245,6 +245,25 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
                                 sampleCal.set(Calendar.HOUR_OF_DAY, minuteOfDay / 60);
                                 sampleCal.set(Calendar.MINUTE, minuteOfDay % 60);
                                 sampleCal.set(Calendar.SECOND, 0);
+                                if (sampleCal.after(now)) {
+                                    // The ring's own per-time-of-day history buffer is not
+                                    // reliably zeroed for a slot it has not measured yet -- it
+                                    // can hold a leftover non-zero byte from that same clock
+                                    // position on a PREVIOUS day, which would otherwise be
+                                    // recorded here as if it were a real measurement from the
+                                    // future. sampleCal carries the calendar date this sync
+                                    // request targeted (syncingDay), with only the time of day
+                                    // overwritten above, so this comparison is correct for a
+                                    // past day too: sampleCal is then always before "now"
+                                    // regardless of the hour, and this branch never fires.
+                                    //
+                                    // The independently reverse-engineered reference client
+                                    // (tahnok/colmi_r02_client, hr.py) works around the same
+                                    // firmware behaviour by explicitly zeroing every slot after
+                                    // "now" when syncing today. Do the same here, per-sample.
+                                    LOG.info("Value {} is {} bpm, but time of day {} is in the future -- skipping, likely stale data from the same slot on a previous day", i, heartRate, formatIso8601(sampleCal));
+                                    continue;
+                                }
                                 LOG.info("Value {} is {} bpm, time of day is {}", i, heartRate, formatIso8601(sampleCal));
                                 ColmiHeartRateSample gbSample = new ColmiHeartRateSample();
                                 gbSample.setTimestamp(sampleCal.getTimeInMillis());
@@ -682,12 +701,10 @@ public class YawellRingDeviceSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
-        if ((flags & GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET) != 0) {
-            byte[] resetPacket = buildPacket(new byte[]{YawellRingConstants.CMD_FACTORY_RESET, 0x66, 0x66});
-            LOG.info("Factory reset request sent: {}", StringUtils.bytesToHex(resetPacket));
-            sendWrite("resetRequest", resetPacket);
-        }
+    public void onFactoryReset() {
+        byte[] resetPacket = buildPacket(new byte[]{YawellRingConstants.CMD_FACTORY_RESET, 0x66, 0x66});
+        LOG.info("Factory reset request sent: {}", StringUtils.bytesToHex(resetPacket));
+        sendWrite("resetRequest", resetPacket);
     }
 
     @Override

@@ -414,7 +414,7 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
     public void onNotification(final NotificationSpec notificationSpec) {
         byte icon;
         boolean autoremove = false;
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case GENERIC_CALENDAR:
                 icon = CasioConstants.CATEGORY_SCHEDULE_AND_ALARM;
                 break;
@@ -436,7 +436,7 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
                 break;
         }
         LOG.info("onNotification id={}", notificationSpec.getId());
-        showNotification(icon, notificationSpec.sender, notificationSpec.title, notificationSpec.body, notificationSpec.getId(), false);
+        showNotification(icon, notificationSpec.getSender(), notificationSpec.getTitle(), notificationSpec.getBody(), notificationSpec.getId(), false);
         mSyncedNotificationIDs.add(notificationSpec.getId());
         if(autoremove) {
             mAutoRemoveMessageHandler.postDelayed(new Runnable() {
@@ -566,9 +566,9 @@ public class CasioGBX100DeviceSupport extends Casio2C2DSupport implements Shared
 
     @Override
     public void onSetCallState(final CallSpec callSpec) {
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING:
-                showNotification(CasioConstants.CATEGORY_INCOMING_CALL, callSpec.name, callSpec.number, "Phone Call", mLastCallId, false);
+                showNotification(CasioConstants.CATEGORY_INCOMING_CALL, callSpec.getName(), callSpec.getNumber(), "Phone Call", mLastCallId, false);
                 SharedPreferences sharedPreferences = GBApplication.getDeviceSpecificSharedPrefs(getDevice().getAddress());
                 boolean fakeRingDuration = sharedPreferences.getBoolean(PREF_FAKE_RING_DURATION, false);
                 if(fakeRingDuration && mFakeRingDurationCounter < CasioConstants.CASIO_FAKE_RING_RETRIES) {

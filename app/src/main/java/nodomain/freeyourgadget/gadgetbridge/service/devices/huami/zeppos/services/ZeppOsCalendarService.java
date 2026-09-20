@@ -102,24 +102,24 @@ public class ZeppOsCalendarService extends AbstractZeppOsService {
     }
 
     public void addEvent(final CalendarEventSpec calendarEventSpec) {
-        if (calendarEventSpec.type != CalendarEventSpec.TYPE_UNKNOWN) {
-            LOG.warn("Unsupported calendar event type {}", calendarEventSpec.type);
+        if (calendarEventSpec.getType() != CalendarEventSpec.TYPE_UNKNOWN) {
+            LOG.warn("Unsupported calendar event type {}", calendarEventSpec.getType());
             return;
         }
 
-        LOG.info("Sending calendar event {} to band", calendarEventSpec.id);
+        LOG.info("Sending calendar event {} to band", calendarEventSpec.getId());
 
         int length = 34;
-        if (calendarEventSpec.title != null) {
-            length += calendarEventSpec.title.getBytes(StandardCharsets.UTF_8).length;
+        if (calendarEventSpec.getTitle() != null) {
+            length += calendarEventSpec.getTitle().getBytes(StandardCharsets.UTF_8).length;
         }
-        if (calendarEventSpec.description != null) {
-            length += calendarEventSpec.description.getBytes(StandardCharsets.UTF_8).length;
+        if (calendarEventSpec.getDescription() != null) {
+            length += calendarEventSpec.getDescription().getBytes(StandardCharsets.UTF_8).length;
         }
 
         if (version == 3) {
-            if (calendarEventSpec.location != null) {
-                length += calendarEventSpec.location.getBytes(StandardCharsets.UTF_8).length;
+            if (calendarEventSpec.getLocation() != null) {
+                length += calendarEventSpec.getLocation().getBytes(StandardCharsets.UTF_8).length;
             }
             // Extra null byte at the end
             length++;
@@ -128,25 +128,25 @@ public class ZeppOsCalendarService extends AbstractZeppOsService {
         final ByteBuffer buf = ByteBuffer.allocate(length);
         buf.order(ByteOrder.LITTLE_ENDIAN);
         buf.put(CMD_CREATE_EVENT);
-        buf.putInt((int) calendarEventSpec.id);
+        buf.putInt((int) calendarEventSpec.getId());
 
-        if (calendarEventSpec.title != null) {
-            buf.put(calendarEventSpec.title.getBytes(StandardCharsets.UTF_8));
+        if (calendarEventSpec.getTitle() != null) {
+            buf.put(calendarEventSpec.getTitle().getBytes(StandardCharsets.UTF_8));
         }
         buf.put((byte) 0x00);
 
-        if (calendarEventSpec.description != null) {
-            buf.put(calendarEventSpec.description.getBytes(StandardCharsets.UTF_8));
+        if (calendarEventSpec.getDescription() != null) {
+            buf.put(calendarEventSpec.getDescription().getBytes(StandardCharsets.UTF_8));
         }
         buf.put((byte) 0x00);
 
-        buf.putInt(calendarEventSpec.timestamp);
-        buf.putInt(calendarEventSpec.timestamp + calendarEventSpec.durationInSeconds);
+        buf.putInt(calendarEventSpec.getTimestamp());
+        buf.putInt(calendarEventSpec.getTimestamp() + calendarEventSpec.getDurationInSeconds());
 
         // Remind
         final boolean syncReminders = getDevicePrefs().getBoolean(DeviceSettingsPreferenceConst.PREF_CALENDAR_SYNC_EVENT_REMINDERS, false);
-        if (syncReminders && calendarEventSpec.reminders != null && !calendarEventSpec.reminders.isEmpty()) {
-            buf.putInt((int) (calendarEventSpec.reminders.get(0) / 1000L));
+        if (syncReminders && calendarEventSpec.getReminders() != null && !calendarEventSpec.getReminders().isEmpty()) {
+            buf.putInt((int) (calendarEventSpec.getReminders().get(0) / 1000L));
         } else {
             buf.putInt(0);
         }
@@ -161,7 +161,7 @@ public class ZeppOsCalendarService extends AbstractZeppOsService {
         buf.put((byte) 0xff); // ?
         buf.put((byte) 0xff); // ?
         buf.put((byte) 0xff); // ?
-        buf.put(bool(calendarEventSpec.allDay));
+        buf.put(bool(calendarEventSpec.getAllDay()));
         buf.put((byte) 0x00); // ?
         buf.put((byte) 130); // ?
         buf.put((byte) 0x00); // ?
@@ -171,8 +171,8 @@ public class ZeppOsCalendarService extends AbstractZeppOsService {
         // TODO: Description here
 
         if (version == 3) {
-            if (calendarEventSpec.location != null) {
-                buf.put(calendarEventSpec.location.getBytes(StandardCharsets.UTF_8));
+            if (calendarEventSpec.getLocation() != null) {
+                buf.put(calendarEventSpec.getLocation().getBytes(StandardCharsets.UTF_8));
             }
             buf.put((byte) 0x00);
         }

@@ -144,12 +144,16 @@ public class ResponseManager {
                 }
 
                 if (handler == null) {
-                    LOG.debug("Service: {}, command: {}, asynchronous response.", Integer.toHexString(receivedPacket.serviceId & 0xff), Integer.toHexString(receivedPacket.commandId & 0xff));
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Service: {}, command: {}, asynchronous response.", Integer.toHexString(receivedPacket.serviceId & 0xff), Integer.toHexString(receivedPacket.commandId & 0xff));
+                    }
 
                     // Asynchronous response
                     asynchronousResponse.handleResponse(receivedPacket);
                 } else {
-                    LOG.debug("Service: {}, command: {}, handled by: {}", Integer.toHexString(receivedPacket.serviceId & 0xff), Integer.toHexString(receivedPacket.commandId & 0xff), handler.getClass());
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Service: {}, command: {}, handled by: {}", Integer.toHexString(receivedPacket.serviceId & 0xff), Integer.toHexString(receivedPacket.commandId & 0xff), handler.getClass());
+                    }
 
                     if (handler.autoRemoveFromResponseHandler()) {
                         synchronized (handlers) {

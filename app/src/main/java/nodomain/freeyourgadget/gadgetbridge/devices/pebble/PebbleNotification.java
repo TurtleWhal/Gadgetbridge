@@ -26,9 +26,9 @@ public class PebbleNotification {
     private final boolean isCoreDevice;
 
     public PebbleNotification(NotificationSpec notificationSpec, boolean isCoreDevice) {
-        this.notificationType = notificationSpec.type;
+        this.notificationType = notificationSpec.getType();
         this.isCoreDevice = isCoreDevice;
-        this.icon = setIcon(notificationSpec.type);
+        this.icon = setIcon(notificationSpec.getType());
         this.color = setColor(notificationSpec);
     }
 
@@ -119,8 +119,8 @@ public class PebbleNotification {
      * @return Returns a PebbleColor that best represents this notification.
      */
     private byte setColor(NotificationSpec notificationSpec) {
-        String appId = notificationSpec.sourceAppId;
-        NotificationType existingType = notificationSpec.type;
+        String appId = notificationSpec.getSourceAppId();
+        NotificationType existingType = notificationSpec.getType();
 
         // If the notification type is known, return the associated color.
         if (existingType != NotificationType.UNKNOWN) {

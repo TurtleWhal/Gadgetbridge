@@ -65,6 +65,7 @@
     <color name="training_load" type="color">#1d2436</color>
     <color name="training_chronic_load" type="color">#8847a1</color>
     <color name="training_load_optimal" type="color">#59b22c</color>
+    <color name="training_load_optimal_fill_color" type="color">#6659b22c</color>
     <color name="training_load_low" type="color">#D3D3D3</color>
     <color name="training_load_high" type="color">#d12a2a</color>
     <color name="vo2max_running_char_line_color" type="color">#46acea</color>
@@ -76,6 +77,7 @@
     <color name="vo2max_value_superior_color" type="color">#824be3</color>
     <color name="body_energy_level_color" type="color">#5ac234</color>
     <color name="body_energy_lost_color" type="color">#ff6c43</color>
+    <color name="chart_solar_charging_color" type="color">#ffc107</color>
     <color name="steps_color" type="color">#00c9bf</color>
     <color name="calories_color" type="color">#fa4502</color>
     <color name="calories_resting_color" type="color">#1f49f2</color>
@@ -98,6 +100,12 @@
     <color name="hr_zone_aerobic_color" type="color">#66BB6A</color>
     <color name="hr_zone_threshold_color" type="color">#FF7043</color>
     <color name="hr_zone_maximum_color" type="color">#F44336</color>
+
+    <color name="training_readiness_poor" type="color">#F44336</color>
+    <color name="training_readiness_low" type="color">#FF9800</color>
+    <color name="training_readiness_moderate" type="color">#4CAF50</color>
+    <color name="training_readiness_high" type="color">#2196F3</color>
+    <color name="training_readiness_prime" type="color">#9C27B0</color>
 
     <color name="chart_cadence_circle" type="color">#FF7043</color>
     <color name="chart_line_speed" type="color">#80D8FF</color>

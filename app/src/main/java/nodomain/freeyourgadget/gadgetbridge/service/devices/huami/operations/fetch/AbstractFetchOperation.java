@@ -121,7 +121,7 @@ public abstract class AbstractFetchOperation {
     protected abstract boolean processBufferedData();
 
     public void handleActivityData(final byte[] value) {
-        LOG.debug("{} data: {}", getName(), Logging.formatBytes(value));
+        LOG.debug("{} data: {}", getName(), Logging.lazyBytes(value));
 
         if (!operationValid) {
             LOG.error("Ignoring {} notification because operation is not valid. Data length: {}", getName(), value.length);

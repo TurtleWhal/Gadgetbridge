@@ -166,15 +166,8 @@ public class FetchWorkoutsV2Operation extends AbstractBTLEOperation<MoyoungDevic
         }
         try (DBHandler dbHandler = GBApplication.acquireDB()) {
             MoyoungHeartRateSampleProvider sampleProvider = new MoyoungHeartRateSampleProvider(getDevice(), dbHandler.getDaoSession());
-            Long userId = DBHelper.getUser(dbHandler.getDaoSession()).getId();
-            Long deviceId = DBHelper.getDevice(getDevice(), dbHandler.getDaoSession()).getId();
 
-            for (MoyoungHeartRateSample sample : hrSamples) {
-                sample.setDeviceId(deviceId);
-                sample.setUserId(userId);
-            }
-
-            sampleProvider.addSamples(hrSamples);
+            sampleProvider.persistSamples(hrSamples, getContext());
         } catch (Exception e) {
             LOG.error("Error acquiring database for recording heart rate samples", e);
         }

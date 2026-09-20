@@ -3052,7 +3052,6 @@
     <string name="pref_sleepasandroid_enable_summary">Attiva l\'integrazione di Sleep As Android</string>
     <string name="pref_sleepasandroid_device_title">Dispositivo fornitore</string>
     <string name="pref_sleepasandroid_features_title">Caratteristiche</string>
-    <string name="pref_sleepasandroid_feat_spo2">SpO2</string>
     <string name="pref_title_huawei_account">Account Huawei</string>
     <string name="open_camera">Apri Fotocamera</string>
     <string name="toast_camera_permission_required">Per questa funzione è necessaria l\'autorizzazione della fotocamera.</string>
@@ -3401,7 +3400,7 @@
     <string name="workout_revolutions">Rivoluzioni</string>
     <string name="workout_swings">Oscillazioni</string>
     <string name="max_power_sitting">Potenza massima (seduto)</string>
-    <string name="range_percentage_float">%.1f%% – %.1f%%</string>
+    <string name="range_percentage_float">%1$.1f%% – %2$.1f%%</string>
     <string name="weather_condition_thunderstorm_with_heavy_rain">temporale con pioggia intensa</string>
     <string name="weather_condition_windy">ventoso</string>
     <string name="weather_condition_gale">burrasca</string>

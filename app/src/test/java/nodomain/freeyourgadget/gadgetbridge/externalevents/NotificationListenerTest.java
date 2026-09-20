@@ -189,8 +189,8 @@ public class NotificationListenerTest extends TestBase {
 
             NotificationListener.populateNotificationIcon(notification, "com.example.source", spec);
 
-            assertEquals(android.R.drawable.ic_dialog_info, spec.iconId);
-            assertEquals("com.example.owner", spec.iconPackageId);
+            assertEquals(android.R.drawable.ic_dialog_info, spec.getIconId());
+            assertEquals("com.example.owner", spec.getIconPackageId());
         } finally {
             ReflectionHelpers.setStaticField(Build.VERSION.class, "SDK_INT", previousVersion);
         }
@@ -204,7 +204,7 @@ public class NotificationListenerTest extends TestBase {
 
         NotificationListener.populateNotificationIcon(notification, "com.example.source", spec);
 
-        assertEquals(android.R.drawable.ic_dialog_alert, spec.iconId);
-        assertEquals("com.example.source", spec.iconPackageId);
+        assertEquals(android.R.drawable.ic_dialog_alert, spec.getIconId());
+        assertEquals("com.example.source", spec.getIconPackageId());
     }
 }

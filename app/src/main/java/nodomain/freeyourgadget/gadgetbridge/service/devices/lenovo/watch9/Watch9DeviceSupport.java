@@ -363,7 +363,7 @@ public class Watch9DeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING:
                 sendNotification(Watch9Constants.NOTIFICATION_CHANNEL_PHONE_CALL, false);
                 break;

@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import lineageos.weather.util.TemperatureUtils;
 import nodomain.freeyourgadget.gadgetbridge.GBApplication;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.Weather;
 import nodomain.freeyourgadget.gadgetbridge.model.weather.WeatherMapper;
@@ -182,7 +183,7 @@ public class OmniJawsObserver extends ContentObserver {
         if (mMetric) {
             return (int) (temperature + 273.15);
         }
-        return (int) ((temperature - 32) * 0.5555555555555556D + 273.15);
+        return (int) (TemperatureUtils.fahrenheitToCelsius(temperature) + 273.15);
     }
 
     private float toKmh(float speed) {

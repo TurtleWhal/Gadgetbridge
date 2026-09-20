@@ -557,12 +557,12 @@ public class MiBandSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        if (notificationSpec.type == NotificationType.GENERIC_ALARM_CLOCK) {
+        if (notificationSpec.getType() == NotificationType.GENERIC_ALARM_CLOCK) {
             onAlarmClock(notificationSpec);
             return;
         }
 
-        String origin = notificationSpec.type.getGenericType();
+        String origin = notificationSpec.getType().getGenericType();
         performPreferredNotification(origin + " received", null, origin, null);
     }
 
@@ -627,13 +627,13 @@ public class MiBandSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        if (callSpec.command == CallSpec.CALL_INCOMING) {
+        if (callSpec.getCommand() == CallSpec.CALL_INCOMING) {
             telephoneRinging = true;
             BtLEAction abortAction = new FunctionAction(bluetoothGatt -> isTelephoneRinging());
             String message = NotificationUtils.getPreferredTextFor(callSpec);
             SimpleNotification simpleNotification = new SimpleNotification(message, AlertCategory.IncomingCall, null);
             performPreferredNotification("incoming call", simpleNotification, MiBandConst.ORIGIN_INCOMING_CALL, abortAction);
-        } else if ((callSpec.command == CallSpec.CALL_START) || (callSpec.command == CallSpec.CALL_END)) {
+        } else if ((callSpec.getCommand() == CallSpec.CALL_START) || (callSpec.getCommand() == CallSpec.CALL_END)) {
             telephoneRinging = false;
         }
     }
@@ -648,14 +648,21 @@ public class MiBandSupport extends AbstractBTLESingleDeviceSupport {
     }
 
     @Override
-    public void onReset(int flags) {
+    public void onReboot() {
+        try {
+            TransactionBuilder builder = performInitialized("reboot");
+            builder.write(MiBandService.UUID_CHARACTERISTIC_CONTROL_POINT, reboot);
+            builder.queue();
+        } catch (IOException ex) {
+            LOG.error("Unable to reset", ex);
+        }
+    }
+
+    @Override
+    public void onFactoryReset() {
         try {
             TransactionBuilder builder = performInitialized("reset");
-            if ((flags & GBDeviceProtocol.RESET_FLAGS_FACTORY_RESET) != 0) {
-                builder.write(MiBandService.UUID_CHARACTERISTIC_CONTROL_POINT, factoryReset);
-            } else {
-                builder.write(MiBandService.UUID_CHARACTERISTIC_CONTROL_POINT, reboot);
-            }
+            builder.write(MiBandService.UUID_CHARACTERISTIC_CONTROL_POINT, factoryReset);
             builder.queue();
         } catch (IOException ex) {
             LOG.error("Unable to reset", ex);

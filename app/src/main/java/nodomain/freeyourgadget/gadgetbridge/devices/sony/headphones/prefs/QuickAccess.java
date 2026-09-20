@@ -81,15 +81,15 @@ public class QuickAccess {
 
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
-            put(DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_DOUBLE_TAP, doubleTap.name().toLowerCase(Locale.getDefault()));
-            put(DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_TRIPLE_TAP, tripleTap.name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_DOUBLE_TAP, doubleTap.name().toLowerCase(Locale.ROOT));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_TRIPLE_TAP, tripleTap.name().toLowerCase(Locale.ROOT));
         }};
     }
 
     public static QuickAccess fromPreferences(final SharedPreferences prefs) {
         return new QuickAccess(
-                Mode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_DOUBLE_TAP, "off").toUpperCase()),
-                Mode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_TRIPLE_TAP, "off").toUpperCase())
+                Mode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_DOUBLE_TAP, "off").toUpperCase(Locale.ROOT)),
+                Mode.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_QUICK_ACCESS_TRIPLE_TAP, "off").toUpperCase(Locale.ROOT))
         );
     }
 }

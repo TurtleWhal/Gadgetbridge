@@ -168,14 +168,14 @@ public class WatchXPlusDeviceSupport extends AbstractBTLESingleDeviceSupport {
 
     @Override
     public void onNotification(NotificationSpec notificationSpec) {
-        String senderOrTitle = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        String senderOrTitle = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
 
         String message = StringUtils.truncate(senderOrTitle, 14) + "\0";
-        if (notificationSpec.subject != null) {
-            message += StringUtils.truncate(notificationSpec.subject, 20) + ": ";
+        if (notificationSpec.getSubject() != null) {
+            message += StringUtils.truncate(notificationSpec.getSubject(), 20) + ": ";
         }
-        if (notificationSpec.body != null) {
-            message += StringUtils.truncate(notificationSpec.body, 64);
+        if (notificationSpec.getBody() != null) {
+            message += StringUtils.truncate(notificationSpec.getBody(), 64);
         }
 
         sendNotification(WatchXPlusConstants.NOTIFICATION_CHANNEL_DEFAULT, message);
@@ -632,18 +632,18 @@ public class WatchXPlusDeviceSupport extends AbstractBTLESingleDeviceSupport {
         final boolean enableMissedCall = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getBoolean(WatchXPlusConstants.PREF_MISSED_CALL_ENABLE, false);
         int repeatCountMissed = GBApplication.getDeviceSpecificSharedPrefs(gbDevice.getAddress()).getInt(WatchXPlusConstants.PREF_MISSED_CALL_REPEAT, 0);
 
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING:
                 isRinging = true;
                 remainingRepeats = repeatCount;
                 LOG.info(" Incoming call ");
-                if (("Phone".equals(callSpec.name)) || (callSpec.name.contains("ropusn")) || (callSpec.name.contains("issed"))) {
+                if (("Phone".equals(callSpec.getName())) || (callSpec.getName().contains("ropusn")) || (callSpec.getName().contains("issed"))) {
                     // do nothing for notifications without caller name, e.g. system call event
                 } else {
                     // possible missed call
                     isMissedCall = true;
                     // send first notification
-                    sendNotification(WatchXPlusConstants.NOTIFICATION_CHANNEL_PHONE_CALL, callSpec.name);
+                    sendNotification(WatchXPlusConstants.NOTIFICATION_CHANNEL_PHONE_CALL, callSpec.getName());
                     // init repeat handler
                     final Handler handler = new Handler();
                     handler.postDelayed(new Runnable() {
@@ -652,7 +652,7 @@ public class WatchXPlusDeviceSupport extends AbstractBTLESingleDeviceSupport {
                             // Actions to do after repeatDelay seconds
                             if (((isRinging) && (remainingRepeats > 0)) || ((isRinging) && (continuousRing))) {
                                 remainingRepeats = remainingRepeats - 1;
-                                sendNotification(WatchXPlusConstants.NOTIFICATION_CHANNEL_PHONE_CALL, callSpec.name);
+                                sendNotification(WatchXPlusConstants.NOTIFICATION_CHANNEL_PHONE_CALL, callSpec.getName());
                                 // re-run handler
                                 handler.postDelayed(this, repeatDelay);
                             } else {
@@ -839,11 +839,6 @@ public class WatchXPlusDeviceSupport extends AbstractBTLESingleDeviceSupport {
         } catch (IOException e) {
             LOG.warn(" Unable to retrieve recorded data ", e);
         }
-    }
-
-    @Override
-    public void onReset(int flags) {
-       // testNewCommands();
     }
 
     @Override

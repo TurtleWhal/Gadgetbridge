@@ -41,6 +41,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.dsl.QuickS
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.dsl.QuickSettings
 import nodomain.freeyourgadget.gadgetbridge.impl.GBDevice
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs
+import nodomain.freeyourgadget.gadgetbridge.util.kotlin.getParcelableCompat
 
 /**
  * Settings screen for Quick Settings tiles and Device Controls.
@@ -72,12 +73,7 @@ class QuickSettingsPreferencesActivity : AbstractSettingsActivityV2() {
             intent?.action == TileService.ACTION_QS_TILE_PREFERENCES
         ) {
             val component: ComponentName? =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.extras?.getParcelable(Intent.EXTRA_COMPONENT_NAME, ComponentName::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.extras?.getParcelable(Intent.EXTRA_COMPONENT_NAME)
-                }
+                intent.extras?.getParcelableCompat<ComponentName>(Intent.EXTRA_COMPONENT_NAME)
             val tileIdx = component?.className
                 ?.removePrefix("$packageName.activities.quicksettings.DeviceTileService")
                 ?.toIntOrNull()

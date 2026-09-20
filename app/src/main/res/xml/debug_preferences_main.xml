@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <Preference
         android:icon="@drawable/ic_add"
@@ -124,6 +124,13 @@
             android:key="pref_debug_other"
             android:persistent="false"
             android:title="@string/debug_other_actions" />
+
+        <Preference
+            android:fragment="nodomain.freeyourgadget.gadgetbridge.activities.debug.InternetHelperDebugFragment"
+            android:icon="@drawable/ic_language"
+            android:key="pref_debug_internethelper"
+            android:persistent="false"
+            android:title="@string/prefs_internet_helper_title" />
 
     </PreferenceCategory>
 

@@ -131,15 +131,15 @@ public class SpeakToChatConfig {
     public Map<String, Object> toPreferences() {
         return new HashMap<>() {{
             put(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_FOCUS_ON_VOICE, focusOnVoice);
-            put(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_SENSITIVITY, sensitivity.name().toLowerCase(Locale.getDefault()));
-            put(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_TIMEOUT, timeout.name().toLowerCase(Locale.getDefault()));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_SENSITIVITY, sensitivity.name().toLowerCase(Locale.ROOT));
+            put(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_TIMEOUT, timeout.name().toLowerCase(Locale.ROOT));
         }};
     }
 
     public static SpeakToChatConfig fromPreferences(final SharedPreferences prefs) {
         final boolean focusOnVoice = prefs.getBoolean(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_FOCUS_ON_VOICE, false);
-        final Sensitivity sensitivity = Sensitivity.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_SENSITIVITY, "auto").toUpperCase());
-        final Timeout timeout = Timeout.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_TIMEOUT, "standard").toUpperCase());
+        final Sensitivity sensitivity = Sensitivity.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_SENSITIVITY, "auto").toUpperCase(Locale.ROOT));
+        final Timeout timeout = Timeout.valueOf(prefs.getString(DeviceSettingsPreferenceConst.PREF_SONY_SPEAK_TO_CHAT_TIMEOUT, "standard").toUpperCase(Locale.ROOT));
 
         return new SpeakToChatConfig(focusOnVoice, sensitivity, timeout);
     }

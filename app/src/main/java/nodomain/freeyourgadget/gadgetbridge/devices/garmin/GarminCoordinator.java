@@ -22,6 +22,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.SparseArray;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -45,6 +46,7 @@ import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpec
 import nodomain.freeyourgadget.gadgetbridge.activities.devicesettings.DeviceSpecificSettingsScreen;
 import nodomain.freeyourgadget.gadgetbridge.devices.AbstractBLEDeviceCoordinator;
 import nodomain.freeyourgadget.gadgetbridge.devices.GarminBodyEnergySampleProvider;
+import nodomain.freeyourgadget.gadgetbridge.devices.GarminSolarChargeSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.GarminHeartRateRestingSampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.GarminHrvSummarySampleProvider;
 import nodomain.freeyourgadget.gadgetbridge.devices.GarminHrvValueSampleProvider;
@@ -88,6 +90,7 @@ import nodomain.freeyourgadget.gadgetbridge.model.ActivitySample;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivitySummaryParser;
 import nodomain.freeyourgadget.gadgetbridge.model.ActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.model.BodyEnergySample;
+import nodomain.freeyourgadget.gadgetbridge.model.SolarChargeSample;
 import nodomain.freeyourgadget.gadgetbridge.model.DeviceType;
 import nodomain.freeyourgadget.gadgetbridge.model.FitActivityTrackProvider;
 import nodomain.freeyourgadget.gadgetbridge.model.GpxActivityTrackProvider;
@@ -101,24 +104,35 @@ import nodomain.freeyourgadget.gadgetbridge.model.Spo2Sample;
 import nodomain.freeyourgadget.gadgetbridge.model.StressSample;
 import nodomain.freeyourgadget.gadgetbridge.model.WorkoutLoadSample;
 import nodomain.freeyourgadget.gadgetbridge.service.DeviceSupport;
+import nodomain.freeyourgadget.gadgetbridge.service.btle.BluetoothCompanyIdentifiers;
 import nodomain.freeyourgadget.gadgetbridge.service.devices.garmin.GarminSupport;
 import nodomain.freeyourgadget.gadgetbridge.util.Prefs;
 import nodomain.freeyourgadget.gadgetbridge.util.preferences.DevicePrefs;
+import nodomain.freeyourgadget.gadgetbridge.widgets.DeviceWidgetsProvider;
 
 public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
+    @Override
+    public boolean supports(@NonNull final GBDeviceCandidate candidate) {
+        final SparseArray<byte[]> manufacturerSpecificData = candidate.getManufacturerSpecificData();
+        final byte[] garminData = manufacturerSpecificData.get(BluetoothCompanyIdentifiers.GARMIN_INTERNATIONAL_INC);
+        if (garminData != null && garminData.length >= 2) {
+            final int partNumber = ((garminData[0] & 0xFF) << 8) | (garminData[1] & 0xFF);
+            final DeviceType deviceType = GarminProductNumbers.getDeviceType(partNumber);
+            return deviceType != null && deviceType.getCoordinatorClass() == this.getClass();
+        }
+
+        // Fallback to device name
+        return super.supports(candidate);
+    }
+
     @Override
     public boolean suggestUnbindBeforePair() {
         return false;
     }
 
     @Override
-    public GBDevice createDevice(final GBDeviceCandidate candidate, final DeviceType deviceType) {
-        final GBDevice gbDevice = super.createDevice(candidate, deviceType);
-
+    protected void applyDefaultPreferences(final DevicePrefs devicePreferences, final SharedPreferences.Editor editor) {
         if (defaultNewSyncProtocol()) {
-            final DevicePrefs devicePreferences = GBApplication.getDevicePrefs(gbDevice);
-            final SharedPreferences.Editor editor = devicePreferences.getPreferences().edit();
-
             // #5021 - Some new devices like Venu X1 misses a lot of files without the new sync protocol
             editor.putBoolean("new_sync_protocol", true);
             // new sync protocol without MLR fails to sync large workouts
@@ -127,11 +141,17 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
             editor.apply();
         }
 
-        return gbDevice;
+        if (defaultExploreSync()) {
+            editor.putBoolean("garmin_exploresync", true);
+        }
     }
 
     public boolean defaultNewSyncProtocol() {
         return false;
+    }
+
+    public boolean defaultExploreSync() {
+        return true;
     }
 
     @Override
@@ -167,13 +187,18 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
 
     @NonNull
     @Override
-    public Class<? extends DeviceSupport> getDeviceSupportClass(final GBDevice device) {
+    public Class<? extends DeviceSupport> getDeviceSupportClass(@NonNull final GBDevice device) {
         return GarminSupport.class;
     }
 
     @Override
     public DeviceChartsProvider getChartsProvider() {
         return new GarminChartsProvider();
+    }
+
+    @Override
+    public DeviceWidgetsProvider getWidgetsProvider() {
+        return GarminWidgetsProvider.INSTANCE;
     }
 
     @Nullable
@@ -214,6 +239,11 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
     @Override
     public TimeSampleProvider<? extends BodyEnergySample> getBodyEnergySampleProvider(final GBDevice device, final DaoSession session) {
         return new GarminBodyEnergySampleProvider(device, session);
+    }
+
+    @Override
+    public TimeSampleProvider<? extends SolarChargeSample> getSolarChargeSampleProvider(final GBDevice device, final DaoSession session) {
+        return new GarminSolarChargeSampleProvider(device, session);
     }
 
     @Override
@@ -328,6 +358,9 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
         if (supportsAgpsUpdates(device)) {
             location.add(R.xml.devicesettings_garmin_agps);
         }
+
+        final List<Integer> dateTime = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.DATE_TIME);
+        dateTime.add(R.xml.devicesettings_time_sync);
 
         final List<Integer> connection = deviceSpecificSettings.addRootScreen(DeviceSpecificSettingsScreen.CONNECTION);
         connection.add(R.xml.devicesettings_high_mtu);
@@ -453,4 +486,5 @@ public abstract class GarminCoordinator extends AbstractBLEDeviceCoordinator {
         // Not all devices support it
         return true;
     }
+
 }

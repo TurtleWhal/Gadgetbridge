@@ -17,17 +17,12 @@
 package nodomain.freeyourgadget.gadgetbridge.activities.automations
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.provider.DocumentsContract
 import android.text.InputType
 import androidx.activity.result.ActivityResult
-import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.core.content.edit
-import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import androidx.preference.PreferenceGroup
@@ -39,14 +34,15 @@ import kotlinx.coroutines.launch
 import nodomain.freeyourgadget.gadgetbridge.GBApplication
 import nodomain.freeyourgadget.gadgetbridge.R
 import nodomain.freeyourgadget.gadgetbridge.activities.AbstractPreferenceFragment
-import nodomain.freeyourgadget.gadgetbridge.util.AndroidUtils
 import nodomain.freeyourgadget.gadgetbridge.util.DateTimeUtils
 import nodomain.freeyourgadget.gadgetbridge.util.GBPrefs
 import nodomain.freeyourgadget.gadgetbridge.util.PeriodicExporter
+import nodomain.freeyourgadget.gadgetbridge.util.UriUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.Date
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.milliseconds
 
 abstract class AbstractAutoExportSettingsFragment(
     val exporter: PeriodicExporter,
@@ -66,31 +62,30 @@ abstract class AbstractAutoExportSettingsFragment(
 
         val gbPrefs = GBApplication.getPrefs()
 
-        val exportLocationPicker = registerForActivityResult<Intent?, ActivityResult?>(
-            StartActivityForResult(),
-            ActivityResultCallback { result: ActivityResult? ->
-                if (result!!.resultCode != Activity.RESULT_OK) {
-                    return@ActivityResultCallback
-                }
-                val uri = result.data?.data
-                if (uri == null) {
-                    LOG.error("Got no uri")
-                    return@ActivityResultCallback
-                }
-                requireContext().contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                )
-                gbPrefs.preferences.edit {
-                    putString(prefKeyLocation, uri.toString())
-                }
-                val summary = resolveLocationSummary(
-                    requireContext(),
-                    gbPrefs.getString(prefKeyLocation, "")
-                )
-                findPreference<Preference>(prefKeyLocation)?.setSummary(summary)
+        val exportLocationPicker = registerForActivityResult(
+            StartActivityForResult()
+        ) { result: ActivityResult ->
+            if (result.resultCode != Activity.RESULT_OK) {
+                return@registerForActivityResult
             }
-        )
+            val uri = result.data?.data
+            if (uri == null) {
+                LOG.error("Got no uri")
+                return@registerForActivityResult
+            }
+            requireContext().contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            gbPrefs.preferences.edit {
+                putString(prefKeyLocation, uri.toString())
+            }
+            val summary = UriUtils.resolveLocationSummary(
+                requireContext(),
+                gbPrefs.getString(prefKeyLocation, "")
+            )
+            findPreference<Preference>(prefKeyLocation)?.setSummary(summary)
+        }
 
         setInputTypeFor(prefKeyInterval, InputType.TYPE_CLASS_NUMBER)
 
@@ -98,7 +93,7 @@ abstract class AbstractAutoExportSettingsFragment(
         if (prefExportLocation != null) {
             prefExportLocation.setOnPreferenceClickListener {
                 val i = Intent(Intent.ACTION_CREATE_DOCUMENT)
-                i.setType(exporter.getFileMimeType())
+                i.type = exporter.getFileMimeType()
                 i.addCategory(Intent.CATEGORY_OPENABLE)
                 i.putExtra(Intent.EXTRA_TITLE, "Gadgetbridge.${exporter.getFileExtension()}")
                 i.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
@@ -108,7 +103,7 @@ abstract class AbstractAutoExportSettingsFragment(
                 true
             }
             prefExportLocation.setSummary(
-                resolveLocationSummary(
+                UriUtils.resolveLocationSummary(
                     requireContext(),
                     gbPrefs.getString(prefKeyLocation, "")
                 )
@@ -157,7 +152,7 @@ abstract class AbstractAutoExportSettingsFragment(
      */
     private fun scheduleNextExecutionDelayed() {
         lifecycleScope.launch(Dispatchers.Main) {
-            delay(200)
+            delay(200.milliseconds)
             exporter.scheduleNextExecution(requireContext())
         }
     }
@@ -269,68 +264,5 @@ abstract class AbstractAutoExportSettingsFragment(
 
     companion object {
         val LOG: Logger = LoggerFactory.getLogger(AbstractAutoExportSettingsFragment::class.java)
-
-        /**
-         * Either returns the file path of the selected document, or the display name, or an error string
-         */
-        fun resolveLocationSummary(context: Context, uriString: String): String {
-            if (uriString == "") {
-                return ""
-            }
-            val uri = uriString.toUri()
-
-            // Handle tree URIs (from ACTION_OPEN_DOCUMENT_TREE)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && DocumentsContract.isTreeUri(uri)) {
-                try {
-                    val treeDocId = DocumentsContract.getTreeDocumentId(uri)
-                    if ("com.android.externalstorage.documents" == uri.authority) {
-                        val split = treeDocId.split(":", limit = 2)
-                        if (split.size >= 2) {
-                            return if (split[0] == "primary") {
-                                "${android.os.Environment.getExternalStorageDirectory()}/${split[1]}"
-                            } else {
-                                "/storage/${split[0]}/${split[1]}"
-                            }
-                        }
-                    }
-
-                    // For other providers, query the document URI built from the tree
-                    val docUri = DocumentsContract.buildDocumentUriUsingTree(uri, treeDocId)
-                    context.contentResolver.query(
-                        docUri,
-                        arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-                        null, null, null
-                    )?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            return cursor.getString(cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME))
-                        }
-                    }
-                    return treeDocId
-                } catch (e: Exception) {
-                    LOG.warn("getAutoExportLocationSummary tree", e)
-                }
-                return context.getString(R.string.auto_export_invalid_location, uriString)
-            }
-
-            try {
-                return AndroidUtils.getFilePath(context.applicationContext, uri)
-            } catch (e: IllegalArgumentException) {
-                LOG.warn("getAutoExportLocationSummary 1", e)
-                try {
-                    context.contentResolver.query(
-                        uri,
-                        arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
-                        null, null, null, null
-                    )?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            return cursor.getString(cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME))
-                        }
-                    }
-                } catch (e2: Exception) {
-                    LOG.warn("getAutoExportLocationSummary 2", e2)
-                }
-            }
-            return context.getString(R.string.auto_export_invalid_location, uriString)
-        }
     }
 }

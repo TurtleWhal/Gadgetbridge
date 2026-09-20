@@ -557,22 +557,10 @@ public class GBDevice implements Parcelable {
         mExtraInfos = null;
     }
 
-    /// @deprecated use {@link #getBatteryLevel(int)} instead
-    @Deprecated
-    public int getBatteryLevel() {
-        return getBatteryLevel(0);
-    }
-
     /// @return the battery level in range {@code 0} to {@code 100}, or {@link #BATTERY_UNKNOWN} if unknown
     /// @see #setBatteryLevel(int, int)
     public int getBatteryLevel(@IntRange(from = 0, to = 2) int batteryIndex) {
         return mBatteryLevel[batteryIndex];
-    }
-
-    /// @deprecated use {@link #setBatteryLevel(int, int)} instead
-    @Deprecated
-    public void setBatteryLevel(int batteryLevel) {
-        setBatteryLevel(batteryLevel, 0);
     }
 
     /// Set the battery level in range {@code 0} to {@code 100}, or {@link #BATTERY_UNKNOWN} if unknown
@@ -585,13 +573,6 @@ public class GBDevice implements Parcelable {
             LOG.error("Battery level must be within range 0-100: {}", batteryLevel);
         }
     }
-
-    /// @deprecated use {@link #setBatteryVoltage(float, int)} instead
-    @Deprecated
-    public void setBatteryVoltage(float batteryVoltage) {
-        setBatteryVoltage(batteryVoltage, 0);
-    }
-
     /// @param batteryVoltage Voltage greater than zero (unit: Volt), or {@link #BATTERY_UNKNOWN} if unknown
     public void setBatteryVoltage(float batteryVoltage,
                                   @IntRange(from = 0, to = 2) int batteryIndex) {
@@ -600,12 +581,6 @@ public class GBDevice implements Parcelable {
         } else {
             LOG.error("Battery voltage must be > 0: {}", batteryVoltage);
         }
-    }
-
-    /// @deprecated use {@link #getBatteryVoltage(int)} instead
-    @Deprecated
-    public float getBatteryVoltage() {
-        return getBatteryVoltage(0);
     }
 
     /// @return the battery voltage, or {@link #BATTERY_UNKNOWN} if unknown

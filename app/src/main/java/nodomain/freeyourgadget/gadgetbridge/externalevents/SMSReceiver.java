@@ -52,7 +52,7 @@ public class SMSReceiver extends BroadcastReceiver {
         }
 
         NotificationSpec notificationSpec = new NotificationSpec();
-        notificationSpec.type = NotificationType.GENERIC_SMS;
+        notificationSpec.setType(NotificationType.GENERIC_SMS);
 
         Bundle bundle = intent.getExtras();
         if (bundle != null) {
@@ -72,21 +72,21 @@ public class SMSReceiver extends BroadcastReceiver {
                 for (Map.Entry<String, StringBuilder> entry : messageMap.entrySet()) {
                     String originatingAddress = entry.getKey();
                     if (originatingAddress != null) {
-                        notificationSpec.body = entry.getValue().toString();
-                        notificationSpec.phoneNumber = originatingAddress;
-                        notificationSpec.attachedActions = new ArrayList<>();
+                        notificationSpec.setBody(entry.getValue().toString());
+                        notificationSpec.setPhoneNumber(originatingAddress);
+                        notificationSpec.setAttachedActions(new ArrayList<>());
 
                         // REPLY action
                         NotificationSpec.Action replyAction = new NotificationSpec.Action();
-                        replyAction.title = context.getString(R.string._pebble_watch_reply);
-                        replyAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_REPLY_PHONENR;
-                        notificationSpec.attachedActions.add(replyAction);
+                        replyAction.setTitle(context.getString(R.string._pebble_watch_reply));
+                        replyAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_REPLY_PHONENR);
+                        notificationSpec.getAttachedActions().add(replyAction);
 
                         // DISMISS ALL action
                         NotificationSpec.Action dismissAllAction = new NotificationSpec.Action();
-                        dismissAllAction.title = context.getString(R.string.notifications_dismiss_all);
-                        dismissAllAction.type = NotificationSpec.Action.TYPE_SYNTECTIC_DISMISS_ALL;
-                        notificationSpec.attachedActions.add(dismissAllAction);
+                        dismissAllAction.setTitle(context.getString(R.string.notifications_dismiss_all));
+                        dismissAllAction.setType(NotificationSpec.Action.TYPE_SYNTHETIC_DISMISS_ALL);
+                        notificationSpec.getAttachedActions().add(dismissAllAction);
 
                         int dndSuppressed = 0;
                         switch (GBApplication.getGrantedInterruptionFilter()) {
@@ -97,7 +97,7 @@ public class SMSReceiver extends BroadcastReceiver {
                                 dndSuppressed = 1;
                                 break;
                             case NotificationManager.INTERRUPTION_FILTER_PRIORITY:
-                                if (GBApplication.isPriorityNumber(Policy.PRIORITY_CATEGORY_MESSAGES, notificationSpec.phoneNumber)) {
+                                if (GBApplication.isPriorityNumber(Policy.PRIORITY_CATEGORY_MESSAGES, notificationSpec.getPhoneNumber())) {
                                     break;
                                 }
                                 dndSuppressed = 1;
@@ -105,7 +105,7 @@ public class SMSReceiver extends BroadcastReceiver {
                         if (prefs.getBoolean("notification_filter", false) && dndSuppressed == 1) {
                             return;
                         }
-                        notificationSpec.dndSuppressed = dndSuppressed;
+                        notificationSpec.setDndSuppressed(dndSuppressed);
                         GBApplication.deviceService().onNotification(notificationSpec);
                     }
                 }

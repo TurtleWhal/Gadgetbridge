@@ -750,7 +750,6 @@
     <string name="pref_title_navigation_prefs">வழிசெலுத்தல் விருப்பத்தேர்வுகள்</string>
     <string name="bottom_nav_dashboard">முகப்புப்பெட்டி</string>
     <string name="pref_sleepasandroid_feat_oximetry">ஆக்சிமெட்ரி</string>
-    <string name="pref_sleepasandroid_feat_spo2">Spo2</string>
     <string name="backup_restore_importing_files_i_of_n">கோப்புகளை இறக்குமதி செய்தல்… %1$d %2$d</string>
     <string name="backup_restore_error_import">சிப்பிலிருந்து இறக்குமதி தோல்வியடைந்தது</string>
     <string name="pref_wear_sensor_summary">சாதனம் அணியப்படாதபோது கண்டறியவும்</string>
@@ -3818,7 +3817,7 @@
     <string name="soundcore_auto_power_off_title">ஆட்டோ பவர் ஆஃப்</string>
     <string name="soundcore_auto_power_off_summary">தொலைபேசியிலிருந்து துண்டிக்கப்படும் போது, குறிப்பிட்ட காலக்கெடுவுக்குப் பிறகு சாதனம் அணைக்கப்படும்</string>
     <string name="soundcore_battery_low_tone_title">குறைந்த பேட்டரி டோன்</string>
-    <string name="soundcore_battery_low_tone_summary">பேட்டரி நிலை 20% மற்றும் 10%க்குக் குறைவாக இருக்கும்போது, உடனடி டோனைக் கேட்கவும்</string>
+    <string name="soundcore_battery_low_tone_summary" formatted="false">பேட்டரி நிலை 20% மற்றும் 10%க்குக் குறைவாக இருக்கும்போது, உடனடி டோனைக் கேட்கவும்</string>
     <string name="soundcore_gaming_mode_title">கேமிங் பயன்முறை</string>
     <string name="soundcore_gaming_mode_summary">தாமதத்தைக் குறைத்து, அடிச்சுவடுகள் மற்றும் குரல்களின் ஒலிகளை அதிகரிக்கவும். இணைப்பு நிலைத்தன்மையைக் குறைக்கலாம்.</string>
     <string name="huawei_sleep_breath_summary">அமைதியான சூழலில் உங்கள் சுவாசத்தை மதிப்பிடுங்கள். பேட்டரி ஆயுளை பாதிக்கலாம். \nஎச்சரிக்கை: Gadgetbridge உடன் இன்னும் ஒத்திசைக்கப்படவில்லை.</string>
@@ -4106,5 +4105,5 @@
     <string name="health_connect_sleep_session_title">%1$s இலிருந்து உறக்க அமர்வு</string>
     <string name="health_connect_sleep_session_notes">Gadgetbridge சாதனத்திலிருந்து உறக்கத் தரவு: %1$s.</string>
     <string name="infinitime_filesystem_access_disabled">InfiniTimeல் கோப்பு முறைமை அணுகல் முடக்கப்பட்டுள்ளது</string>
-    <string name="infinitime_resource_upload_progress_status">%d இன் %d செயலைச் செய்கிறது \n%s %s</string>
+    <string name="infinitime_resource_upload_progress_status">%1$d இன் %2$d செயலைச் செய்கிறது \n%3$s %4$s</string>
 </resources>

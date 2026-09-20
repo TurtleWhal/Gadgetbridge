@@ -17,9 +17,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 package nodomain.freeyourgadget.gadgetbridge.devices.nothing;
 
+import androidx.annotation.NonNull;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import nodomain.freeyourgadget.gadgetbridge.R;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingAudioMode;
+import nodomain.freeyourgadget.gadgetbridge.devices.nothing.prefs.NothingTapAction;
 
 public class Ear1Coordinator extends AbstractEarCoordinator {
     @Override
@@ -37,18 +43,45 @@ public class Ear1Coordinator extends AbstractEarCoordinator {
         return false;
     }
 
+    @NonNull
     @Override
-    public boolean supportsLightAnc() {
-        return true;
+    public List<NothingAudioMode> getAudioModes() {
+        return Arrays.asList(
+                NothingAudioMode.ANC,
+                NothingAudioMode.ANCLIGHT,
+                NothingAudioMode.TRANSPARENCY,
+                NothingAudioMode.OFF
+        );
     }
 
+    @NonNull
     @Override
-    public boolean supportsTransparency() {
-        return true;
+    public List<TapGesture> getTouchGestures() {
+        return Arrays.asList(
+                TapGesture.LEFT_TAP_3,
+                TapGesture.LEFT_TAP_1_HOLD,
+                TapGesture.RIGHT_TAP_3
+                );
     }
-    @Override
-    public boolean supportsMediumAnc() { return false; }
 
+    @NonNull
     @Override
-    public boolean supportsAdaptiveAnc() { return false; }
+    public List<NothingTapAction> allowedActionsFor(@NonNull TapGesture gesture) {
+        if(gesture == TapGesture.LEFT_TAP_3)
+            return Arrays.asList(
+                    NothingTapAction.OFF,
+                    NothingTapAction.PREVIOUS_TRACK
+            );
+        if(gesture == TapGesture.LEFT_TAP_1_HOLD)
+            return Arrays.asList(
+                    NothingTapAction.OFF,
+                    NothingTapAction.ANC_MODE__ANC_TRANSPARENCY_OFF
+            );
+        if(gesture == TapGesture.RIGHT_TAP_3)
+            return Arrays.asList(
+                    NothingTapAction.OFF,
+                    NothingTapAction.NEXT_TRACK
+            );
+        return List.of();
+    }
 }

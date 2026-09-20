@@ -298,7 +298,7 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLESingleDeviceSupp
         }
 
         Message.NotificationType type = Message.NotificationType.UNKNOWN;
-        switch (notificationSpec.type) {
+        switch (notificationSpec.getType()) {
             case FACEBOOK:
             case FACEBOOK_MESSENGER:
                 type = Message.NotificationType.FACEBOOK;
@@ -319,7 +319,7 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLESingleDeviceSupp
                 type = Message.NotificationType.WHATSAPP;
                 break;
         }
-        final String notificationMsg = StringUtils.getFirstOf(notificationSpec.sender, notificationSpec.title);
+        final String notificationMsg = StringUtils.getFirstOf(notificationSpec.getSender(), notificationSpec.getTitle());
 
         final String uniqueTaskName = "notification" + notificationCount;
         notificationCount++;
@@ -339,10 +339,10 @@ public final class HamaFit6900DeviceSupport extends AbstractBTLESingleDeviceSupp
 
     @Override
     public void onSetCallState(CallSpec callSpec) {
-        switch (callSpec.command) {
+        switch (callSpec.getCommand()) {
             case CallSpec.CALL_INCOMING: {
                 if (getDevicePrefsNotificationEnabled()) {
-                    final String text = StringUtils.getFirstOf(callSpec.name, callSpec.number);
+                    final String text = StringUtils.getFirstOf(callSpec.getName(), callSpec.getNumber());
                     sendMessage("notification-call-incoming",
                             Message.encodeShowNotification(Message.NotificationType.INCOMING_CALL, text));
                 }
